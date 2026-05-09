@@ -1130,8 +1130,9 @@ function resetNetChartView(event) {
 
 function getCanvasPoint(event, canvas) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / Math.max(rect.width, 1);
-  const scaleY = canvas.height / Math.max(rect.height, 1);
+  const size = chartSize(canvas);
+  const scaleX = size.width / Math.max(rect.width, 1);
+  const scaleY = size.height / Math.max(rect.height, 1);
   return {
     x: (event.clientX - rect.left) * scaleX,
     y: (event.clientY - rect.top) * scaleY,
@@ -1141,9 +1142,9 @@ function getCanvasPoint(event, canvas) {
 function isPointInChart(point, model) {
   return (
     point.x >= model.pad.left &&
-    point.x <= model.canvas.width - model.pad.right &&
+    point.x <= model.width - model.pad.right &&
     point.y >= model.pad.top &&
-    point.y <= model.canvas.height - model.pad.bottom
+    point.y <= model.height - model.pad.bottom
   );
 }
 
@@ -1168,7 +1169,8 @@ function drawNetChart(transactions) {
   const palette = chartPalette();
 
   setupCanvas(canvas, ctx);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const size = chartSize(canvas);
+  ctx.clearRect(0, 0, size.width, size.height);
 
   if (!fullSeries.length) {
     syncNetChartState(fullSeries);
@@ -1189,20 +1191,22 @@ function drawNetChart(transactions) {
 
   const pad = chartPadding(canvas);
   const range = max - min || 1;
-  const xFor = (index) => pad.left + (index / Math.max(series.length - 1, 1)) * (canvas.width - pad.left - pad.right);
-  const yFor = (value) => pad.top + ((max - value) / range) * (canvas.height - pad.top - pad.bottom);
+  const xFor = (index) => pad.left + (index / Math.max(series.length - 1, 1)) * (size.width - pad.left - pad.right);
+  const yFor = (value) => pad.top + ((max - value) / range) * (size.height - pad.top - pad.bottom);
   const dateTicks = getXAxisTicks(series, canvas);
   const model = {
     canvas,
     fullSeries,
-    innerHeight: canvas.height - pad.top - pad.bottom,
-    innerWidth: canvas.width - pad.left - pad.right,
+    height: size.height,
+    innerHeight: size.height - pad.top - pad.bottom,
+    innerWidth: size.width - pad.left - pad.right,
     max,
     min,
     pad,
     series,
     viewEnd: getNetChartRange(fullSeries).end,
     viewStart: getNetChartRange(fullSeries).start,
+    width: size.width,
     xFor,
     yFor,
   };
@@ -1219,7 +1223,7 @@ function drawNetChart(transactions) {
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.left, zeroY);
-  ctx.lineTo(canvas.width - pad.right, zeroY);
+  ctx.lineTo(size.width - pad.right, zeroY);
   ctx.stroke();
 
   drawSeriesLine(ctx, series, "expense", xFor, yFor, palette.red, 2);
@@ -1234,7 +1238,7 @@ function drawNetChart(transactions) {
 
   drawXAxisLabels(ctx, canvas, dateTicks, xFor, palette);
   if (netChartState.hoverIndex === null) {
-    drawChartLabel(ctx, canvas, `${formatMoney(last.net)}`, canvas.width - pad.right, yFor(last.net), "right");
+    drawChartLabel(ctx, canvas, `${formatMoney(last.net)}`, size.width - pad.right, yFor(last.net), "right");
   } else {
     drawNetChartHover(ctx, model, palette);
   }
@@ -1282,7 +1286,7 @@ function drawNetChartHover(ctx, model, palette) {
   const netY = model.yFor(point.net);
   const incomeY = model.yFor(point.income);
   const expenseY = model.yFor(point.expense);
-  const bottom = model.canvas.height - model.pad.bottom;
+  const bottom = model.height - model.pad.bottom;
 
   ctx.save();
   ctx.strokeStyle = palette.axis;
@@ -1333,6 +1337,7 @@ function drawHoverDot(ctx, x, y, color, palette, radius = 4) {
 
 function drawChartTooltip(ctx, canvas, x, y, title, rows, palette) {
   ctx.save();
+  const size = chartSize(canvas);
   const horizontalPadding = 12;
   const rowGap = 21;
   const titleHeight = 28;
@@ -1343,12 +1348,12 @@ function drawChartTooltip(ctx, canvas, x, y, title, rows, palette) {
     titleWidth,
     ...rows.map((row) => ctx.measureText(row.label).width + ctx.measureText(row.value).width + 48)
   );
-  const width = Math.min(canvas.width - 16, Math.max(188, rowWidth + horizontalPadding * 2));
+  const width = Math.min(size.width - 16, Math.max(188, rowWidth + horizontalPadding * 2));
   const height = titleHeight + rows.length * rowGap + 8;
   let left = x + 14;
-  if (left + width > canvas.width - 8) left = x - width - 14;
-  left = clamp(left, 8, canvas.width - width - 8);
-  const top = clamp(y - height / 2, 8, canvas.height - height - 8);
+  if (left + width > size.width - 8) left = x - width - 14;
+  left = clamp(left, 8, size.width - width - 8);
+  const top = clamp(y - height / 2, 8, size.height - height - 8);
 
   ctx.fillStyle = palette.labelBg;
   ctx.strokeStyle = palette.labelBorder;
@@ -1436,8 +1441,9 @@ function drawSmoothSeriesPath(ctx, series, key, xFor, yFor, connectFromCurrentPo
 
 function drawDateGuides(ctx, canvas, ticks, xFor, palette) {
   const pad = chartPadding(canvas);
+  const size = chartSize(canvas);
   const top = pad.top;
-  const bottom = canvas.height - pad.bottom;
+  const bottom = size.height - pad.bottom;
   ctx.strokeStyle = palette.guide;
   ctx.lineWidth = 1;
 
@@ -1452,6 +1458,7 @@ function drawDateGuides(ctx, canvas, ticks, xFor, palette) {
 
 function drawXAxisLabels(ctx, canvas, ticks, xFor, palette) {
   const pad = chartPadding(canvas);
+  const size = chartSize(canvas);
   ctx.fillStyle = palette.muted;
   ctx.font = "12px Inter, sans-serif";
   ctx.textBaseline = "alphabetic";
@@ -1462,7 +1469,7 @@ function drawXAxisLabels(ctx, canvas, ticks, xFor, palette) {
     if (tickIndex === 0) ctx.textAlign = "left";
     else if (tickIndex === ticks.length - 1) ctx.textAlign = "right";
     else ctx.textAlign = "center";
-    ctx.fillText(label, x, canvas.height - 10);
+    ctx.fillText(label, x, size.height - 10);
   });
 }
 
@@ -1470,7 +1477,8 @@ function getXAxisTicks(series, canvas) {
   if (!series.length) return [];
 
   const pad = chartPadding(canvas);
-  const innerWidth = canvas.width - pad.left - pad.right;
+  const size = chartSize(canvas);
+  const innerWidth = size.width - pad.left - pad.right;
   const maxLabels = Math.max(2, Math.floor(innerWidth / 105));
   const totalDays = Math.max(1, series.length - 1);
   const rawInterval = Math.ceil(totalDays / Math.max(maxLabels - 1, 1));
@@ -1517,7 +1525,8 @@ function preventCrowdedDateTicks(ticks, xFor, minDistance) {
 
 function xForTick(series, canvas) {
   const pad = chartPadding(canvas);
-  return (index) => pad.left + (index / Math.max(series.length - 1, 1)) * (canvas.width - pad.left - pad.right);
+  const size = chartSize(canvas);
+  return (index) => pad.left + (index / Math.max(series.length - 1, 1)) * (size.width - pad.left - pad.right);
 }
 
 function drawMonthChart(transactions) {
@@ -1525,7 +1534,8 @@ function drawMonthChart(transactions) {
   const ctx = canvas.getContext("2d");
   const palette = chartPalette();
   setupCanvas(canvas, ctx);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const size = chartSize(canvas);
+  ctx.clearRect(0, 0, size.width, size.height);
 
   if (!transactions.length) {
     els.monthChartEmpty.style.display = "grid";
@@ -1542,8 +1552,8 @@ function drawMonthChart(transactions) {
   });
   const max = Math.max(1, ...grouped.flatMap((item) => [item.expenses, item.income]));
   const pad = chartPadding(canvas);
-  const innerWidth = canvas.width - pad.left - pad.right;
-  const innerHeight = canvas.height - pad.top - pad.bottom;
+  const innerWidth = size.width - pad.left - pad.right;
+  const innerHeight = size.height - pad.top - pad.bottom;
   const groupWidth = innerWidth / grouped.length;
   const barWidth = Math.max(8, Math.min(26, groupWidth * 0.25));
 
@@ -1566,57 +1576,77 @@ function drawMonthChart(transactions) {
     ctx.fillStyle = palette.muted;
     ctx.font = "12px Inter, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(item.label, center, canvas.height - 10);
+    ctx.fillText(item.label, center, size.height - 10);
   });
 }
 
 function setupCanvas(canvas, ctx) {
   const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
+
+  canvas.chartWidth = width;
+  canvas.chartHeight = height;
+  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  canvas.width = Math.floor(rect.width);
-  canvas.height = Math.floor(rect.height);
+}
+
+function chartSize(canvas) {
+  return {
+    height: canvas.chartHeight || canvas.getBoundingClientRect().height || canvas.height,
+    width: canvas.chartWidth || canvas.getBoundingClientRect().width || canvas.width,
+  };
 }
 
 function chartPadding(canvas) {
+  const size = chartSize(canvas);
+  const compact = size.height < 210;
   return {
-    top: 18,
+    top: 24,
     right: 18,
-    bottom: canvas.height < 210 ? 28 : 34,
-    left: 18,
+    bottom: compact ? 34 : 38,
+    left: size.width < 420 ? 68 : 84,
   };
 }
 
 function drawGrid(ctx, canvas, min, max) {
   const palette = chartPalette();
   const pad = chartPadding(canvas);
+  const size = chartSize(canvas);
   const lines = 4;
+  const top = pad.top;
+  const bottom = size.height - pad.bottom;
   ctx.strokeStyle = palette.grid;
   ctx.lineWidth = 1;
   for (let i = 0; i <= lines; i += 1) {
-    const y = pad.top + (i / lines) * (canvas.height - pad.top - pad.bottom);
+    const y = top + (i / lines) * (bottom - top);
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(canvas.width - pad.right, y);
+    ctx.lineTo(size.width - pad.right, y);
     ctx.stroke();
   }
 
   ctx.fillStyle = palette.muted;
-  ctx.font = "12px Inter, sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(formatMoney(max), pad.left, pad.top + 2);
-  ctx.fillText(formatMoney(min), pad.left, canvas.height - pad.bottom - 2);
+  ctx.font = "11.5px Inter, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText(formatAxisMoney(max), pad.left - 8, top);
+  ctx.fillText(formatAxisMoney(min), pad.left - 8, bottom);
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawChartLabel(ctx, canvas, label, x, y, align = "left") {
   const palette = chartPalette();
+  const size = chartSize(canvas);
   ctx.font = "12px Inter, sans-serif";
   const width = ctx.measureText(label).width + 14;
   const height = 26;
   const left = align === "right" ? x - width : x;
-  const top = Math.max(8, Math.min(canvas.height - height - 8, y - height - 8));
+  const top = Math.max(8, Math.min(size.height - height - 8, y - height - 8));
   ctx.fillStyle = palette.labelBg;
   ctx.strokeStyle = palette.labelBorder;
   roundRect(ctx, left, top, width, height, 6);
@@ -2180,6 +2210,14 @@ function formatMoney(value) {
     style: "currency",
     currency: EURO,
     maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function formatAxisMoney(value) {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: EURO,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 
