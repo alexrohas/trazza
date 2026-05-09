@@ -45,6 +45,24 @@ let currentUser = null;
 let cloudLoading = false;
 let authMode = "login";
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const NET_CHART_MIN_VISIBLE_POINTS = 6;
+const NET_CHART_PAN_STEP = 0.12;
+
+const netChartState = {
+  dragStartView: null,
+  dragStartX: 0,
+  dragging: false,
+  fullSeries: [],
+  hoverIndex: null,
+  model: null,
+  pointer: null,
+  pointerId: null,
+  redrawFrame: 0,
+  seriesKey: "",
+  userRange: false,
+  viewEnd: 0,
+  viewStart: 0,
+};
 
 const els = {};
 
@@ -226,9 +244,136 @@ function bindEvents() {
     closeDialog("confirmDialog");
   });
 
+  bindNetChartEvents();
+
   window.addEventListener("resize", debounce(() => {
     drawCharts(getSummary());
   }, 120));
+}
+
+function bindNetChartEvents() {
+  const canvas = els.netChart;
+  if (!canvas) return;
+
+  canvas.addEventListener("pointerdown", handleNetChartPointerDown);
+  canvas.addEventListener("pointermove", handleNetChartPointerMove);
+  canvas.addEventListener("pointerup", handleNetChartPointerUp);
+  canvas.addEventListener("pointercancel", handleNetChartPointerUp);
+  canvas.addEventListener("pointerleave", handleNetChartPointerLeave);
+  canvas.addEventListener("dblclick", resetNetChartView);
+  canvas.addEventListener("keydown", handleNetChartKeyDown);
+  canvas.addEventListener("wheel", handleNetChartWheel, { passive: false });
+}
+
+function handleNetChartPointerDown(event) {
+  if (!netChartState.model?.series.length) return;
+  const point = getCanvasPoint(event, els.netChart);
+  if (!isPointInChart(point, netChartState.model)) return;
+
+  netChartState.dragging = true;
+  netChartState.dragStartX = point.x;
+  netChartState.dragStartView = getNetChartRange(netChartState.fullSeries);
+  netChartState.pointer = point;
+  netChartState.pointerId = event.pointerId;
+  els.netChart.classList.add("is-panning");
+  els.netChart.setPointerCapture?.(event.pointerId);
+  updateNetChartHoverFromPoint(point);
+  requestNetChartRedraw();
+  event.preventDefault();
+}
+
+function handleNetChartPointerMove(event) {
+  if (!netChartState.model?.series.length) return;
+  const point = getCanvasPoint(event, els.netChart);
+  netChartState.pointer = point;
+
+  if (netChartState.dragging && netChartState.dragStartView) {
+    const innerWidth = Math.max(1, netChartState.model.innerWidth);
+    const visibleCount = netChartState.dragStartView.end - netChartState.dragStartView.start + 1;
+    const deltaPoints = Math.round(((netChartState.dragStartX - point.x) / innerWidth) * Math.max(visibleCount - 1, 1));
+    setNetChartView(
+      netChartState.dragStartView.start + deltaPoints,
+      netChartState.dragStartView.end + deltaPoints,
+      true
+    );
+    updateNetChartHoverFromPoint(point);
+    requestNetChartRedraw();
+    return;
+  }
+
+  if (updateNetChartHoverFromPoint(point)) {
+    requestNetChartRedraw();
+  }
+}
+
+function handleNetChartPointerUp(event) {
+  if (!netChartState.dragging) return;
+  netChartState.dragging = false;
+  netChartState.dragStartView = null;
+  netChartState.pointerId = null;
+  els.netChart.classList.remove("is-panning");
+  els.netChart.releasePointerCapture?.(event.pointerId);
+  updateNetChartHoverFromPoint(getCanvasPoint(event, els.netChart));
+  requestNetChartRedraw();
+}
+
+function handleNetChartPointerLeave() {
+  if (netChartState.dragging) return;
+  if (netChartState.hoverIndex === null && !netChartState.pointer) return;
+  netChartState.hoverIndex = null;
+  netChartState.pointer = null;
+  requestNetChartRedraw();
+}
+
+function handleNetChartWheel(event) {
+  if (!netChartState.model?.series.length) return;
+  const point = getCanvasPoint(event, els.netChart);
+  if (!isPointInChart(point, netChartState.model)) return;
+
+  event.preventDefault();
+  zoomNetChartAt(point, event.deltaY < 0 ? 0.78 : 1.28);
+  netChartState.pointer = point;
+  updateNetChartHoverFromPoint(point);
+  requestNetChartRedraw();
+}
+
+function handleNetChartKeyDown(event) {
+  if (!netChartState.model?.series.length) return;
+
+  const range = getNetChartRange(netChartState.fullSeries);
+  const visibleCount = range.end - range.start + 1;
+  const panStep = Math.max(1, Math.round(visibleCount * NET_CHART_PAN_STEP));
+  const centerPoint = {
+    x: netChartState.model.pad.left + netChartState.model.innerWidth / 2,
+    y: netChartState.model.pad.top + netChartState.model.innerHeight / 2,
+  };
+
+  if (event.key === "ArrowLeft") {
+    setNetChartView(range.start - panStep, range.end - panStep, true);
+  } else if (event.key === "ArrowRight") {
+    setNetChartView(range.start + panStep, range.end + panStep, true);
+  } else if (event.key === "+" || event.key === "=") {
+    zoomNetChartAt(centerPoint, 0.78);
+  } else if (event.key === "-" || event.key === "_") {
+    zoomNetChartAt(centerPoint, 1.28);
+  } else if (event.key === "Home" || event.key === "Escape") {
+    resetNetChartView();
+    event.preventDefault();
+    return;
+  } else {
+    return;
+  }
+
+  event.preventDefault();
+  requestNetChartRedraw();
+}
+
+function requestNetChartRedraw() {
+  if (netChartState.redrawFrame) return;
+  netChartState.redrawFrame = requestAnimationFrame(() => {
+    netChartState.redrawFrame = 0;
+    drawCharts(getSummary());
+  });
 }
 
 async function initializeCloud() {
@@ -881,21 +1026,159 @@ function drawCharts(summary) {
   drawMonthChart(summary.transactions);
 }
 
+function syncNetChartState(fullSeries) {
+  netChartState.fullSeries = fullSeries;
+
+  if (!fullSeries.length) {
+    netChartState.hoverIndex = null;
+    netChartState.model = null;
+    netChartState.pointer = null;
+    netChartState.seriesKey = "";
+    netChartState.userRange = false;
+    netChartState.viewStart = 0;
+    netChartState.viewEnd = 0;
+    return;
+  }
+
+  const first = fullSeries[0];
+  const last = fullSeries[fullSeries.length - 1];
+  const seriesKey = `${fullSeries.length}:${first.date}:${first.net}:${last.date}:${last.net}:${last.income}:${last.expense}`;
+  if (seriesKey !== netChartState.seriesKey) {
+    netChartState.seriesKey = seriesKey;
+    if (!netChartState.userRange) {
+      netChartState.viewStart = 0;
+      netChartState.viewEnd = fullSeries.length - 1;
+    }
+  }
+
+  setNetChartView(netChartState.viewStart, netChartState.viewEnd, netChartState.userRange);
+  if (netChartState.hoverIndex > fullSeries.length - 1) {
+    netChartState.hoverIndex = null;
+  }
+}
+
+function getNetChartRange(fullSeries) {
+  if (!fullSeries.length) return { start: 0, end: 0 };
+  const start = clamp(Math.round(netChartState.viewStart), 0, fullSeries.length - 1);
+  const end = clamp(Math.round(netChartState.viewEnd), start, fullSeries.length - 1);
+  return { start, end };
+}
+
+function getNetChartVisibleSeries(fullSeries) {
+  const range = getNetChartRange(fullSeries);
+  return fullSeries.slice(range.start, range.end + 1).map((point, index) => ({
+    ...point,
+    fullIndex: range.start + index,
+  }));
+}
+
+function setNetChartView(start, end, userRange = true) {
+  const total = netChartState.fullSeries.length;
+  if (!total) return;
+
+  const lastIndex = total - 1;
+  const desiredCount = Math.max(1, Math.round(end - start + 1));
+  const visibleCount = Math.min(total, Math.max(Math.min(NET_CHART_MIN_VISIBLE_POINTS, total), desiredCount));
+
+  if (visibleCount >= total) {
+    netChartState.viewStart = 0;
+    netChartState.viewEnd = lastIndex;
+    netChartState.userRange = false;
+    return;
+  }
+
+  let nextStart = Math.round(start);
+  let nextEnd = nextStart + visibleCount - 1;
+
+  if (nextStart < 0) {
+    nextStart = 0;
+    nextEnd = visibleCount - 1;
+  }
+  if (nextEnd > lastIndex) {
+    nextEnd = lastIndex;
+    nextStart = lastIndex - visibleCount + 1;
+  }
+
+  netChartState.viewStart = nextStart;
+  netChartState.viewEnd = nextEnd;
+  netChartState.userRange = userRange;
+}
+
+function zoomNetChartAt(point, factor) {
+  const total = netChartState.fullSeries.length;
+  if (!total || !netChartState.model) return;
+
+  const range = getNetChartRange(netChartState.fullSeries);
+  const visibleCount = range.end - range.start + 1;
+  const minCount = Math.min(NET_CHART_MIN_VISIBLE_POINTS, total);
+  const nextCount = clamp(Math.round(visibleCount * factor), minCount, total);
+  if (nextCount === visibleCount) return;
+
+  const ratio = clamp((point.x - netChartState.model.pad.left) / Math.max(1, netChartState.model.innerWidth), 0, 1);
+  const anchor = range.start + ratio * Math.max(visibleCount - 1, 1);
+  const nextStart = Math.round(anchor - ratio * Math.max(nextCount - 1, 1));
+  setNetChartView(nextStart, nextStart + nextCount - 1, true);
+}
+
+function resetNetChartView(event) {
+  if (event) event.preventDefault();
+  if (!netChartState.fullSeries.length) return;
+  netChartState.userRange = false;
+  setNetChartView(0, netChartState.fullSeries.length - 1, false);
+  requestNetChartRedraw();
+}
+
+function getCanvasPoint(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / Math.max(rect.width, 1);
+  const scaleY = canvas.height / Math.max(rect.height, 1);
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
+  };
+}
+
+function isPointInChart(point, model) {
+  return (
+    point.x >= model.pad.left &&
+    point.x <= model.canvas.width - model.pad.right &&
+    point.y >= model.pad.top &&
+    point.y <= model.canvas.height - model.pad.bottom
+  );
+}
+
+function updateNetChartHoverFromPoint(point) {
+  const previous = netChartState.hoverIndex;
+  const model = netChartState.model;
+  if (!model?.series.length || !isPointInChart(point, model)) {
+    netChartState.hoverIndex = null;
+    return previous !== null;
+  }
+
+  const relativeX = clamp((point.x - model.pad.left) / Math.max(1, model.innerWidth), 0, 1);
+  const visibleIndex = clamp(Math.round(relativeX * Math.max(model.series.length - 1, 0)), 0, model.series.length - 1);
+  netChartState.hoverIndex = model.series[visibleIndex].fullIndex;
+  return previous !== netChartState.hoverIndex;
+}
+
 function drawNetChart(transactions) {
   const canvas = els.netChart;
   const ctx = canvas.getContext("2d");
-  const series = buildCapitalSeries(transactions);
+  const fullSeries = buildCapitalSeries(transactions);
   const palette = chartPalette();
 
   setupCanvas(canvas, ctx);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (!series.length) {
+  if (!fullSeries.length) {
+    syncNetChartState(fullSeries);
     els.netChartEmpty.style.display = "grid";
     return;
   }
   els.netChartEmpty.style.display = "none";
 
+  syncNetChartState(fullSeries);
+  const series = getNetChartVisibleSeries(fullSeries);
   const values = series.flatMap((point) => [point.net, point.income, point.expense]);
   const rawMin = Math.min(0, ...series.map((point) => point.net));
   const rawMax = Math.max(0, ...values);
@@ -909,6 +1192,24 @@ function drawNetChart(transactions) {
   const xFor = (index) => pad.left + (index / Math.max(series.length - 1, 1)) * (canvas.width - pad.left - pad.right);
   const yFor = (value) => pad.top + ((max - value) / range) * (canvas.height - pad.top - pad.bottom);
   const dateTicks = getXAxisTicks(series, canvas);
+  const model = {
+    canvas,
+    fullSeries,
+    innerHeight: canvas.height - pad.top - pad.bottom,
+    innerWidth: canvas.width - pad.left - pad.right,
+    max,
+    min,
+    pad,
+    series,
+    viewEnd: getNetChartRange(fullSeries).end,
+    viewStart: getNetChartRange(fullSeries).start,
+    xFor,
+    yFor,
+  };
+  netChartState.model = model;
+  if (netChartState.pointer) {
+    updateNetChartHoverFromPoint(netChartState.pointer);
+  }
 
   const zeroY = yFor(0);
   drawDateGuides(ctx, canvas, dateTicks, xFor, palette);
@@ -932,7 +1233,11 @@ function drawNetChart(transactions) {
   ctx.fill();
 
   drawXAxisLabels(ctx, canvas, dateTicks, xFor, palette);
-  drawChartLabel(ctx, canvas, `${formatMoney(last.net)}`, canvas.width - pad.right, yFor(last.net), "right");
+  if (netChartState.hoverIndex === null) {
+    drawChartLabel(ctx, canvas, `${formatMoney(last.net)}`, canvas.width - pad.right, yFor(last.net), "right");
+  } else {
+    drawNetChartHover(ctx, model, palette);
+  }
 }
 
 function buildCapitalSeries(transactions) {
@@ -966,6 +1271,117 @@ function buildCapitalSeries(transactions) {
   }
 
   return series;
+}
+
+function drawNetChartHover(ctx, model, palette) {
+  const visibleIndex = netChartState.hoverIndex - model.viewStart;
+  const point = model.series[visibleIndex];
+  if (!point) return;
+
+  const x = model.xFor(visibleIndex);
+  const netY = model.yFor(point.net);
+  const incomeY = model.yFor(point.income);
+  const expenseY = model.yFor(point.expense);
+  const bottom = model.canvas.height - model.pad.bottom;
+
+  ctx.save();
+  ctx.strokeStyle = palette.axis;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.75;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.moveTo(x, model.pad.top);
+  ctx.lineTo(x, bottom);
+  ctx.stroke();
+  ctx.restore();
+
+  drawHoverDot(ctx, x, expenseY, palette.red, palette);
+  drawHoverDot(ctx, x, incomeY, palette.green, palette);
+  drawHoverDot(ctx, x, netY, palette.capital, palette, 5);
+
+  drawChartTooltip(
+    ctx,
+    model.canvas,
+    x,
+    netY,
+    formatDate(point.date),
+    [
+      { label: "Capital", value: formatMoney(point.net), color: palette.capital },
+      { label: "Payouts", value: formatMoney(point.income), color: palette.green },
+      { label: "Gastos", value: formatMoney(point.expense), color: palette.red },
+      {
+        label: "Neto dia",
+        value: formatMoney(point.income - point.expense),
+        color: point.income - point.expense >= 0 ? palette.green : palette.red,
+      },
+    ],
+    palette
+  );
+}
+
+function drawHoverDot(ctx, x, y, color, palette, radius = 4) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = palette.labelBg;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawChartTooltip(ctx, canvas, x, y, title, rows, palette) {
+  ctx.save();
+  const horizontalPadding = 12;
+  const rowGap = 21;
+  const titleHeight = 28;
+  ctx.font = "600 12px Inter, sans-serif";
+  const titleWidth = ctx.measureText(title).width;
+  ctx.font = "12px Inter, sans-serif";
+  const rowWidth = Math.max(
+    titleWidth,
+    ...rows.map((row) => ctx.measureText(row.label).width + ctx.measureText(row.value).width + 48)
+  );
+  const width = Math.min(canvas.width - 16, Math.max(188, rowWidth + horizontalPadding * 2));
+  const height = titleHeight + rows.length * rowGap + 8;
+  let left = x + 14;
+  if (left + width > canvas.width - 8) left = x - width - 14;
+  left = clamp(left, 8, canvas.width - width - 8);
+  const top = clamp(y - height / 2, 8, canvas.height - height - 8);
+
+  ctx.fillStyle = palette.labelBg;
+  ctx.strokeStyle = palette.labelBorder;
+  ctx.lineWidth = 1;
+  roundRect(ctx, left, top, width, height, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = palette.labelText;
+  ctx.font = "600 12px Inter, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(title, left + horizontalPadding, top + 17);
+
+  rows.forEach((row, index) => {
+    const rowY = top + titleHeight + 10 + index * rowGap;
+    ctx.fillStyle = row.color;
+    ctx.beginPath();
+    ctx.arc(left + horizontalPadding + 3, rowY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = palette.muted;
+    ctx.font = "12px Inter, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(row.label, left + horizontalPadding + 14, rowY);
+
+    ctx.fillStyle = palette.labelText;
+    ctx.font = "600 12px Inter, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(row.value, left + width - horizontalPadding, rowY);
+  });
+
+  ctx.restore();
 }
 
 function drawCapitalArea(ctx, series, xFor, yFor, zeroY, palette) {
@@ -1753,6 +2169,10 @@ function actionButton(action, id, label, icon) {
 
 function sum(values) {
   return values.reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function formatMoney(value) {
