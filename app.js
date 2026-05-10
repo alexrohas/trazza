@@ -106,6 +106,13 @@ function bindElements() {
     "metricBreakEven",
     "metricActiveAccounts",
     "metricAccountHint",
+    "dashboardFirmFilter",
+    "dashboardAccountFilter",
+    "dashboardPeriodFilter",
+    "dashboardFromFilter",
+    "dashboardToFilter",
+    "dashboardResetFilters",
+    "dashboardPeriodHint",
     "monthExpenses",
     "monthIncome",
     "monthNet",
@@ -191,6 +198,27 @@ function bindEvents() {
   document.getElementById("addTransactionButton").addEventListener("click", () => openTransactionDialog());
   document.getElementById("addTransactionButtonInline").addEventListener("click", () => openTransactionDialog());
   els.themeToggleButton.addEventListener("click", toggleTheme);
+  els.dashboardFirmFilter.addEventListener("input", () => {
+    fillDashboardAccountFilter();
+    resetNetChartInteraction();
+    renderDashboard();
+  });
+  els.dashboardAccountFilter.addEventListener("input", () => {
+    resetNetChartInteraction();
+    renderDashboard();
+  });
+  els.dashboardPeriodFilter.addEventListener("input", () => {
+    updateDashboardDateInputs();
+    resetNetChartInteraction();
+    renderDashboard();
+  });
+  ["dashboardFromFilter", "dashboardToFilter"].forEach((id) => {
+    els[id].addEventListener("input", () => {
+      resetNetChartInteraction();
+      renderDashboard();
+    });
+  });
+  els.dashboardResetFilters.addEventListener("click", resetDashboardFilters);
 
   document.querySelectorAll("[data-close-dialog]").forEach((button) => {
     button.addEventListener("click", () => closeDialog(button.dataset.closeDialog));
@@ -250,7 +278,7 @@ function bindEvents() {
   bindNetChartEvents();
 
   window.addEventListener("resize", debounce(() => {
-    drawCharts(getSummary());
+    drawCharts(getDashboardSummary());
   }, 120));
 }
 
@@ -375,7 +403,7 @@ function requestNetChartRedraw() {
   if (netChartState.redrawFrame) return;
   netChartState.redrawFrame = requestAnimationFrame(() => {
     netChartState.redrawFrame = 0;
-    drawCharts(getSummary());
+    drawCharts(getDashboardSummary());
   });
 }
 
@@ -630,7 +658,7 @@ function toggleTheme() {
   localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   applyTheme(nextTheme);
   updateThemeToggle();
-  drawCharts(getSummary());
+  drawCharts(getDashboardSummary());
 }
 
 function updateThemeToggle() {
@@ -760,6 +788,7 @@ function transactionToDb(transaction) {
 
 function refreshAll() {
   fillFirmSelects();
+  updateDashboardDateInputs();
   fillAccountSelect(els.transactionAccount, els.transactionFirm.value, true);
   renderDashboard();
   renderFirmsTable();
@@ -810,7 +839,7 @@ function setActiveSection(section) {
     button.classList.toggle("active", button.dataset.section === section);
   });
   els.pageTitle.textContent = titles[section] || "Panel";
-  drawCharts(getSummary());
+  drawCharts(getDashboardSummary());
 }
 
 function handleEmptyStateAction(event) {
@@ -853,10 +882,40 @@ function fillFirmSelects() {
     .join("");
 
   const filterOptions = `<option value="all">Todas</option>${firmOptions}`;
-  els.accountFirmFilter.innerHTML = filterOptions;
-  els.transactionFirmFilter.innerHTML = filterOptions;
-  els.accountFirm.innerHTML = firmOptions || `<option value="">Crea una firm primero</option>`;
-  els.transactionFirm.innerHTML = firmOptions || `<option value="">Crea una firm primero</option>`;
+  const firstFirmId = state.firms[0]?.id || "";
+  setSelectOptions(els.dashboardFirmFilter, filterOptions, "all");
+  setSelectOptions(els.accountFirmFilter, filterOptions, "all");
+  setSelectOptions(els.transactionFirmFilter, filterOptions, "all");
+  setSelectOptions(els.accountFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
+  setSelectOptions(els.transactionFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
+  fillDashboardAccountFilter();
+}
+
+function setSelectOptions(select, optionsHtml, fallbackValue = "") {
+  if (!select) return;
+  const previousValue = select.value;
+  select.innerHTML = optionsHtml;
+  const values = Array.from(select.options || []).map((option) => option.value);
+
+  if (values.includes(previousValue)) {
+    select.value = previousValue;
+  } else if (values.includes(fallbackValue)) {
+    select.value = fallbackValue;
+  } else {
+    select.value = values[0] || "";
+  }
+}
+
+function fillDashboardAccountFilter() {
+  if (!els.dashboardAccountFilter) return;
+  const firmId = els.dashboardFirmFilter.value || "all";
+  const accountOptions = state.accounts
+    .filter((account) => firmId === "all" || account.firmId === firmId)
+    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
+    .join("");
+
+  setSelectOptions(els.dashboardAccountFilter, `<option value="all">Todas</option>${accountOptions}`, "all");
 }
 
 function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
@@ -880,8 +939,102 @@ function fillTransactionCategories(kind, selected = "") {
   }
 }
 
-function getSummary() {
-  const transactions = state.transactions.map((transaction) => ({
+function getDashboardFilters() {
+  const period = els.dashboardPeriodFilter?.value || "all";
+  const range = getDashboardDateRange(period);
+  return {
+    accountId: els.dashboardAccountFilter?.value || "all",
+    firmId: els.dashboardFirmFilter?.value || "all",
+    period,
+    ...range,
+  };
+}
+
+function getDashboardDateRange(period) {
+  const end = today();
+
+  if (period === "current-month") {
+    return { from: `${end.slice(0, 7)}-01`, to: end };
+  }
+  if (period === "last-30") {
+    return { from: shiftIsoDate(end, -29), to: end };
+  }
+  if (period === "last-90") {
+    return { from: shiftIsoDate(end, -89), to: end };
+  }
+  if (period === "year") {
+    return { from: `${end.slice(0, 4)}-01-01`, to: end };
+  }
+  if (period === "custom") {
+    return {
+      from: els.dashboardFromFilter?.value || "",
+      to: els.dashboardToFilter?.value || "",
+    };
+  }
+
+  return { from: "", to: "" };
+}
+
+function getDashboardSummary() {
+  const filters = getDashboardFilters();
+  const accounts = state.accounts.filter((account) => {
+    if (filters.firmId !== "all" && account.firmId !== filters.firmId) return false;
+    return filters.accountId === "all" || account.id === filters.accountId;
+  });
+  const transactions = state.transactions.filter((transaction) => {
+    const firmId = resolveFirmId(transaction);
+    if (filters.firmId !== "all" && firmId !== filters.firmId) return false;
+    if (filters.accountId !== "all" && transaction.accountId !== filters.accountId) return false;
+    if (filters.from && (!transaction.date || transaction.date < filters.from)) return false;
+    if (filters.to && (!transaction.date || transaction.date > filters.to)) return false;
+    return true;
+  });
+
+  return {
+    ...getSummary(transactions, accounts),
+    filters,
+  };
+}
+
+function updateDashboardDateInputs() {
+  const isCustom = els.dashboardPeriodFilter?.value === "custom";
+  els.dashboardFromFilter.disabled = !isCustom;
+  els.dashboardToFilter.disabled = !isCustom;
+}
+
+function resetDashboardFilters() {
+  els.dashboardFirmFilter.value = "all";
+  fillDashboardAccountFilter();
+  els.dashboardAccountFilter.value = "all";
+  els.dashboardPeriodFilter.value = "all";
+  els.dashboardFromFilter.value = "";
+  els.dashboardToFilter.value = "";
+  updateDashboardDateInputs();
+  resetNetChartInteraction();
+  renderDashboard();
+}
+
+function getDashboardPeriodLabel(filters) {
+  const periodLabels = {
+    all: "Todo el historial",
+    "current-month": "Mes actual",
+    "last-30": "Ultimos 30 dias",
+    "last-90": "Ultimos 90 dias",
+    year: "Este ano",
+    custom:
+      filters.from || filters.to
+        ? `${filters.from ? formatDate(filters.from) : "Inicio"} - ${filters.to ? formatDate(filters.to) : "Hoy"}`
+        : "Rango personalizado",
+  };
+  const account = filters.accountId !== "all" ? getAccount(filters.accountId) : null;
+  const firm = !account && filters.firmId !== "all" ? getFirm(filters.firmId) : null;
+  const scope = account?.name || firm?.name || "";
+  const periodLabel = periodLabels[filters.period] || periodLabels.all;
+  return scope ? `${periodLabel} - ${scope}` : periodLabel;
+}
+
+function getSummary(transactionsSource = state.transactions, accountsSource = state.accounts) {
+  const transactions = transactionsSource.map((transaction) => ({
     ...transaction,
     resolvedFirmId: resolveFirmId(transaction),
   }));
@@ -890,7 +1043,7 @@ function getSummary() {
   const net = income - expenses;
   const roi = expenses > 0 ? (net / expenses) * 100 : 0;
   const breakEven = Math.max(0, expenses - income);
-  const activeAccounts = state.accounts.filter((account) =>
+  const activeAccounts = accountsSource.filter((account) =>
     ["active", "passed", "funded"].includes(account.status)
   ).length;
 
@@ -902,11 +1055,12 @@ function getSummary() {
     roi,
     breakEven,
     activeAccounts,
+    accountCount: accountsSource.length,
   };
 }
 
 function renderDashboard() {
-  const summary = getSummary();
+  const summary = getDashboardSummary();
 
   els.metricNet.textContent = formatMoney(summary.net);
   els.metricExpenses.textContent = formatMoney(summary.expenses);
@@ -914,10 +1068,12 @@ function renderDashboard() {
   els.metricRoi.textContent = formatPercent(summary.roi);
   els.metricBreakEven.textContent = formatMoney(summary.breakEven);
   els.metricActiveAccounts.textContent = String(summary.activeAccounts);
-  els.metricAccountHint.textContent = `${state.accounts.length} cuentas registradas`;
+  els.metricAccountHint.textContent = `${summary.accountCount} ${summary.accountCount === 1 ? "cuenta" : "cuentas"} en el filtro`;
+  els.metricRoiHint.textContent = isDashboardFiltered(summary.filters) ? "Base: gasto filtrado" : "Base: gasto total";
+  els.dashboardPeriodHint.textContent = getDashboardPeriodLabel(summary.filters);
   els.metricNetHint.textContent =
     summary.transactions.length === 0
-      ? "Sin movimientos"
+      ? "Sin movimientos en el filtro"
       : summary.net >= 0
         ? "Retiros por encima de gastos"
         : "Gastos por encima de retiros";
@@ -925,18 +1081,22 @@ function renderDashboard() {
   document.querySelector(".metric-net").classList.toggle("positive", summary.net > 0);
   document.querySelector(".metric-net").classList.toggle("negative", summary.net < 0);
 
-  const now = new Date();
-  const monthKey = toMonthKey(now.toISOString().slice(0, 10));
-  const monthTransactions = summary.transactions.filter((tx) => toMonthKey(tx.date) === monthKey);
-  const monthExpenses = sum(monthTransactions.filter((tx) => tx.kind === "expense").map((tx) => tx.amount));
-  const monthIncome = sum(monthTransactions.filter((tx) => tx.kind === "income").map((tx) => tx.amount));
-  const monthNet = monthIncome - monthExpenses;
-  els.monthExpenses.textContent = formatMoney(monthExpenses);
-  els.monthIncome.textContent = formatMoney(monthIncome);
-  els.monthNet.textContent = formatMoney(monthNet);
-  els.monthNet.className = monthNet >= 0 ? "amount positive" : "amount negative";
+  els.monthExpenses.textContent = formatMoney(summary.expenses);
+  els.monthIncome.textContent = formatMoney(summary.income);
+  els.monthNet.textContent = formatMoney(summary.net);
+  els.monthNet.className = summary.net >= 0 ? "amount positive" : "amount negative";
 
   drawCharts(summary);
+}
+
+function isDashboardFiltered(filters) {
+  return (
+    filters.firmId !== "all" ||
+    filters.accountId !== "all" ||
+    filters.period !== "all" ||
+    Boolean(filters.from) ||
+    Boolean(filters.to)
+  );
 }
 
 function renderFirmsTable() {
@@ -1286,6 +1446,17 @@ function resetNetChartView(event) {
   netChartState.userRange = false;
   setNetChartView(0, netChartState.fullSeries.length - 1, false);
   requestNetChartRedraw();
+}
+
+function resetNetChartInteraction() {
+  netChartState.dragStartView = null;
+  netChartState.dragging = false;
+  netChartState.hoverIndex = null;
+  netChartState.pointer = null;
+  netChartState.pointerId = null;
+  netChartState.userRange = false;
+  netChartState.viewStart = 0;
+  netChartState.viewEnd = Math.max(0, netChartState.fullSeries.length - 1);
 }
 
 function getCanvasPoint(event, canvas) {
@@ -1703,7 +1874,7 @@ function drawMonthChart(transactions) {
   }
   els.monthChartEmpty.style.display = "none";
 
-  const months = getLastMonths(6);
+  const months = getLastMonths(6, transactions);
   const grouped = months.map((month) => {
     const txs = transactions.filter((tx) => toMonthKey(tx.date) === month.key);
     const expenses = sum(txs.filter((tx) => tx.kind === "expense").map((tx) => tx.amount));
@@ -2409,9 +2580,14 @@ function formatShortDate(value) {
   }).format(date);
 }
 
-function getLastMonths(count) {
+function getLastMonths(count, transactions = []) {
   const months = [];
-  const date = new Date();
+  const lastTransactionDate = transactions
+    .map((transaction) => transaction.date)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const date = lastTransactionDate ? parseLocalDate(lastTransactionDate) : new Date();
   date.setDate(1);
   for (let index = count - 1; index >= 0; index -= 1) {
     const item = new Date(date);

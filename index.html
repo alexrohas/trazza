@@ -144,6 +144,40 @@
         </header>
 
         <section class="section-panel active" id="overviewSection">
+          <div class="dashboard-filters" aria-label="Filtros del dashboard">
+            <label>
+              Firm
+              <select id="dashboardFirmFilter"></select>
+            </label>
+            <label>
+              Cuenta
+              <select id="dashboardAccountFilter"></select>
+            </label>
+            <label>
+              Periodo
+              <select id="dashboardPeriodFilter">
+                <option value="all">Todo</option>
+                <option value="current-month">Mes actual</option>
+                <option value="last-30">Ultimos 30 dias</option>
+                <option value="last-90">Ultimos 90 dias</option>
+                <option value="year">Este ano</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </label>
+            <label>
+              Desde
+              <input id="dashboardFromFilter" type="date" disabled />
+            </label>
+            <label>
+              Hasta
+              <input id="dashboardToFilter" type="date" disabled />
+            </label>
+            <button class="secondary-button compact-button" id="dashboardResetFilters" type="button">
+              <i data-lucide="rotate-ccw"></i>
+              <span>Limpiar</span>
+            </button>
+          </div>
+
           <div class="metrics-grid">
             <article class="metric-card metric-net">
               <div class="metric-heading">
@@ -223,8 +257,8 @@
             <article class="panel chart-panel">
               <div class="panel-header">
                 <div>
-                  <h2>Mes actual</h2>
-                  <p>Gastos, retiros y neto</p>
+                  <h2>Resumen del periodo</h2>
+                  <p id="dashboardPeriodHint">Todo el historial</p>
                 </div>
               </div>
               <div class="month-summary">

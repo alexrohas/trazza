@@ -1167,6 +1167,34 @@ canvas {
 
 /* ============= FILTERS ============= */
 
+.dashboard-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1fr)
+    minmax(160px, 1.1fr)
+    minmax(150px, 1fr)
+    minmax(130px, 0.8fr)
+    minmax(130px, 0.8fr)
+    auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--subtle-bg);
+}
+
+.dashboard-filters .compact-button {
+  min-width: 96px;
+  min-height: 36px;
+}
+
+.dashboard-filters input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .filters-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(140px, 1fr));
@@ -1616,6 +1644,14 @@ tbody tr:hover {
 /* ============= RESPONSIVE ============= */
 
 @media (max-width: 1180px) {
+  .dashboard-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-filters .compact-button {
+    width: 100%;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
@@ -1731,6 +1767,7 @@ tbody tr:hover {
     grid-column: span 2;
   }
 
+  .dashboard-filters,
   .filters-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1830,6 +1867,7 @@ tbody tr:hover {
 
 @media (max-width: 560px) {
   .metrics-grid,
+  .dashboard-filters,
   .filters-row,
   .form-grid {
     grid-template-columns: 1fr;
