@@ -2,6 +2,8 @@ const LEGACY_STORAGE_KEYS = ["finix:v1", "prop-firm-tracker:v1"];
 const LEGACY_THEME_STORAGE_KEYS = ["finix:theme", "prop-firm-tracker:theme"];
 const STORAGE_KEY = "trazza:v1";
 const THEME_STORAGE_KEY = "trazza:theme";
+const PILLAR_STORAGE_KEY = "trazza:pillar";
+const JOURNAL_VIEW_STORAGE_KEY = "trazza:journal-view";
 const LOCAL_MIGRATION_BACKUP_KEY = "trazza:local-backup-before-cloud";
 const LOCAL_MIGRATED_KEY = "trazza:local-migrated-to-cloud";
 const SUPABASE_URL = "https://sfdxbchjvhcdnjlpuffg.supabase.co";
@@ -66,12 +68,28 @@ const defaultState = {
   journalEntries: [],
 };
 
+const sectionPillars = {
+  overview: "tracker",
+  firms: "tracker",
+  accounts: "tracker",
+  transactions: "tracker",
+  journal: "journal",
+};
+
+const pillarDefaultSections = {
+  tracker: "overview",
+  journal: "journal",
+};
+
 let state = loadState();
 let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
 let cloudLoading = false;
 let authMode = "login";
+let activePillar = getInitialPillar();
+let activeSection = pillarDefaultSections[activePillar] || "overview";
+let journalView = getInitialJournalView();
 let journalCalendarMonth = today().slice(0, 7);
 let journalSelectedDate = "";
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -102,6 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   setCurrentDate();
   bindEvents();
+  initializeNavigation();
   updateThemeToggle();
   refreshAll();
   await initializeCloud();
@@ -155,6 +174,7 @@ function bindElements() {
     "firmsTableBody",
     "accountsTableBody",
     "transactionsTableBody",
+    "journalSection",
     "journalCalendarGrid",
     "journalCalendarMonth",
     "journalCalendarPrev",
@@ -247,8 +267,16 @@ function bindEvents() {
   els.authSignupButton.addEventListener("click", toggleAuthMode);
   els.logoutButton.addEventListener("click", signOut);
 
+  document.querySelectorAll(".pillar-button").forEach((button) => {
+    button.addEventListener("click", () => setActivePillar(button.dataset.pillar));
+  });
   document.querySelectorAll(".nav-item").forEach((button) => {
-    button.addEventListener("click", () => setActiveSection(button.dataset.section));
+    button.addEventListener("click", () => {
+      if (button.dataset.journalView) {
+        setJournalView(button.dataset.journalView);
+      }
+      setActiveSection(button.dataset.section);
+    });
   });
 
   document.getElementById("addFirmButton").addEventListener("click", () => openFirmDialog());
@@ -752,6 +780,16 @@ function getInitialTheme() {
   return "light";
 }
 
+function getInitialPillar() {
+  const stored = localStorage.getItem(PILLAR_STORAGE_KEY);
+  return stored === "journal" ? "journal" : "tracker";
+}
+
+function getInitialJournalView() {
+  const stored = localStorage.getItem(JOURNAL_VIEW_STORAGE_KEY);
+  return stored === "entries" ? "entries" : "calendar";
+}
+
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
@@ -968,23 +1006,69 @@ function chartPalette() {
   };
 }
 
+function initializeNavigation() {
+  const initialSection = activePillar === "journal" ? "journal" : "overview";
+  setActiveSection(initialSection);
+}
+
+function setActivePillar(pillar) {
+  if (!pillarDefaultSections[pillar]) return;
+  setActiveSection(pillarDefaultSections[pillar]);
+}
+
+function setJournalView(view) {
+  if (!["calendar", "entries"].includes(view)) return;
+  journalView = view;
+  localStorage.setItem(JOURNAL_VIEW_STORAGE_KEY, journalView);
+  if (els.journalSection) {
+    els.journalSection.dataset.journalView = journalView;
+  }
+  if (activeSection === "journal" && els.pageTitle) {
+    els.pageTitle.textContent = journalView === "entries" ? "Journal - Entradas" : "Journal - Calendario";
+  }
+  updateNavigationState();
+}
+
 function setActiveSection(section) {
+  if (!sectionPillars[section]) return;
   const titles = {
     overview: "Panel",
     firms: "Firms",
     accounts: "Cuentas",
     transactions: "Movimientos",
-    journal: "Journal",
+    journal: journalView === "entries" ? "Journal - Entradas" : "Journal - Calendario",
   };
+
+  activeSection = section;
+  activePillar = sectionPillars[section];
+  localStorage.setItem(PILLAR_STORAGE_KEY, activePillar);
 
   document.querySelectorAll(".section-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${section}Section`);
   });
-  document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("active", button.dataset.section === section);
-  });
+  if (els.journalSection) {
+    els.journalSection.dataset.journalView = journalView;
+  }
+  updateNavigationState();
   els.pageTitle.textContent = titles[section] || "Panel";
   drawCharts(getDashboardSummary());
+}
+
+function updateNavigationState() {
+  document.querySelectorAll(".pillar-button").forEach((button) => {
+    const isActive = button.dataset.pillar === activePillar;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+  document.querySelectorAll("[data-pillar-menu]").forEach((group) => {
+    group.classList.toggle("active", group.dataset.pillarMenu === activePillar);
+  });
+  document.querySelectorAll(".nav-item").forEach((button) => {
+    const isSectionActive = button.dataset.section === activeSection;
+    const isJournalMatch =
+      activeSection !== "journal" || !button.dataset.journalView || button.dataset.journalView === journalView;
+    button.classList.toggle("active", isSectionActive && isJournalMatch);
+  });
 }
 
 function handleEmptyStateAction(event) {
@@ -1047,6 +1131,7 @@ function selectJournalDate(date) {
   if (!isValidIsoDate(date)) return;
   journalSelectedDate = date;
   els.journalPeriodFilter.value = "all";
+  setJournalView("entries");
   renderJournalApp();
 }
 

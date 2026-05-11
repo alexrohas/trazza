@@ -51,29 +51,50 @@
           </div>
         </div>
 
-        <nav class="nav-list" aria-label="Navegacion principal">
-          <p class="nav-label">General</p>
-          <button class="nav-item active" data-section="overview">
-            <i data-lucide="layout-dashboard"></i>
-            <span>Panel</span>
+        <div class="pillar-switch" aria-label="Areas principales">
+          <button class="pillar-button active" type="button" data-pillar="tracker">
+            <i data-lucide="briefcase-business"></i>
+            <span>Prop Firm Tracker</span>
+            <small>Cuentas y capital</small>
           </button>
-          <p class="nav-label">Operativa</p>
-          <button class="nav-item" data-section="firms">
-            <i data-lucide="building-2"></i>
-            <span>Firms</span>
-          </button>
-          <button class="nav-item" data-section="accounts">
-            <i data-lucide="wallet-cards"></i>
-            <span>Cuentas</span>
-          </button>
-          <button class="nav-item" data-section="transactions">
-            <i data-lucide="receipt-text"></i>
-            <span>Movimientos</span>
-          </button>
-          <button class="nav-item" data-section="journal">
+          <button class="pillar-button" type="button" data-pillar="journal">
             <i data-lucide="book-open-check"></i>
             <span>Journal</span>
+            <small>Calendario y sesiones</small>
           </button>
+        </div>
+
+        <nav class="nav-list" aria-label="Menu del area activa">
+          <div class="nav-group active" data-pillar-menu="tracker">
+            <p class="nav-label">Prop Firm Tracker</p>
+            <button class="nav-item active" data-section="overview">
+              <i data-lucide="layout-dashboard"></i>
+              <span>Panel</span>
+            </button>
+            <button class="nav-item" data-section="firms">
+              <i data-lucide="building-2"></i>
+              <span>Firms</span>
+            </button>
+            <button class="nav-item" data-section="accounts">
+              <i data-lucide="wallet-cards"></i>
+              <span>Cuentas</span>
+            </button>
+            <button class="nav-item" data-section="transactions">
+              <i data-lucide="receipt-text"></i>
+              <span>Movimientos</span>
+            </button>
+          </div>
+          <div class="nav-group" data-pillar-menu="journal">
+            <p class="nav-label">Journal</p>
+            <button class="nav-item" data-section="journal" data-journal-view="calendar">
+              <i data-lucide="calendar-days"></i>
+              <span>Calendario</span>
+            </button>
+            <button class="nav-item" data-section="journal" data-journal-view="entries">
+              <i data-lucide="list-checks"></i>
+              <span>Entradas</span>
+            </button>
+          </div>
         </nav>
 
         <div class="sidebar-actions">
@@ -487,38 +508,46 @@
                   <div class="journal-calendar-grid" id="journalCalendarGrid"></div>
                 </div>
               </div>
-              <div class="journal-selected-date" id="journalSelectedDateLabel" hidden></div>
-              <button class="ghost-button compact-button" type="button" id="journalClearDateButton" hidden>
-                <i data-lucide="x"></i>
-                <span>Quitar dia</span>
-              </button>
             </div>
-            <div class="filters-row journal-filters">
-              <label>
-                Firm
-                <select id="journalFirmFilter"></select>
-              </label>
-              <label>
-                Cuenta
-                <select id="journalAccountFilter"></select>
-              </label>
-              <label>
-                Periodo
-                <select id="journalPeriodFilter">
-                  <option value="all">Todo</option>
-                  <option value="current-month">Mes actual</option>
-                  <option value="last-30">Ultimos 30 dias</option>
-                  <option value="last-90">Ultimos 90 dias</option>
-                  <option value="year">Este ano</option>
-                </select>
-              </label>
-              <label>
-                Buscar
-                <input id="journalSearch" type="search" placeholder="Titulo, notas, aprendizaje..." />
-              </label>
+            <div class="journal-entries-panel" id="journalEntriesPanel">
+              <div class="journal-view-heading">
+                <div>
+                  <h3>Entradas</h3>
+                  <p>Busca sesiones, decisiones y aprendizajes.</p>
+                </div>
+                <div class="journal-selected-date" id="journalSelectedDateLabel" hidden></div>
+                <button class="ghost-button compact-button" type="button" id="journalClearDateButton" hidden>
+                  <i data-lucide="x"></i>
+                  <span>Quitar dia</span>
+                </button>
+              </div>
+              <div class="filters-row journal-filters">
+                <label>
+                  Firm
+                  <select id="journalFirmFilter"></select>
+                </label>
+                <label>
+                  Cuenta
+                  <select id="journalAccountFilter"></select>
+                </label>
+                <label>
+                  Periodo
+                  <select id="journalPeriodFilter">
+                    <option value="all">Todo</option>
+                    <option value="current-month">Mes actual</option>
+                    <option value="last-30">Ultimos 30 dias</option>
+                    <option value="last-90">Ultimos 90 dias</option>
+                    <option value="year">Este ano</option>
+                  </select>
+                </label>
+                <label>
+                  Buscar
+                  <input id="journalSearch" type="search" placeholder="Titulo, notas, aprendizaje..." />
+                </label>
+              </div>
+              <div class="journal-list" id="journalEntriesList"></div>
+              <div class="empty-state" id="journalEmpty">No hay entradas de journal.</div>
             </div>
-            <div class="journal-list" id="journalEntriesList"></div>
-            <div class="empty-state" id="journalEmpty">No hay entradas de journal.</div>
           </div>
         </section>
       </main>
