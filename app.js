@@ -282,8 +282,16 @@ function bindElements() {
     "journalAccountReturn",
     "journalWinrateValue",
     "journalWinrateHint",
+    "journalWinrateWinArc",
+    "journalWinrateLossArc",
+    "journalWinrateWins",
+    "journalWinrateBreakEven",
+    "journalWinrateLosses",
     "journalProfitFactorValue",
     "journalProfitFactorHint",
+    "journalAvgWinValue",
+    "journalAvgLossValue",
+    "journalAvgTradeHint",
     "journalErrorsChart",
     "journalErrorsChartEmpty",
     "journalErrorsSummary",
@@ -367,6 +375,7 @@ function bindElements() {
     "journalDetailTitle",
     "journalDetailDate",
     "journalDetailPnl",
+    "journalDetailDirection",
     "journalDetailErrors",
     "journalDetailMediaShell",
     "journalDetailMediaButton",
@@ -484,6 +493,7 @@ function bindEvents() {
   els.journalOperationDropzone.addEventListener("drop", handleJournalOperationDrop);
   els.journalOperationImageInput.addEventListener("change", handleJournalOperationFileInput);
   els.journalOperationClear.addEventListener("click", clearJournalOperationMedia);
+  els.journalErrorsOptions.addEventListener("change", syncJournalErrorChoiceState);
 
   els.transactionKind.addEventListener("change", () => {
     fillTransactionCategories(els.transactionKind.value, els.transactionCategory.value);
@@ -2573,6 +2583,7 @@ function renderJournalPerformanceMetrics(entries) {
   els.journalWinrateHint.textContent = stats.closed
     ? `${sensitiveCount(stats.wins)}W - ${sensitiveCount(stats.losses)}L${stats.breakEven ? ` - ${sensitiveCount(stats.breakEven)} BE` : ""}`
     : "Sin operaciones cerradas";
+  renderJournalWinrateGauge(stats);
 
   els.journalProfitFactorValue.textContent =
     stats.profitFactor === null
@@ -2587,6 +2598,24 @@ function renderJournalPerformanceMetrics(entries) {
       : stats.grossProfit > 0
         ? "Sin perdidas registradas"
         : "Ganancias / perdidas";
+
+  els.journalAvgWinValue.textContent = stats.avgWin === null ? "-" : sensitiveMoney(stats.avgWin);
+  els.journalAvgLossValue.textContent = stats.avgLoss === null ? "-" : sensitiveMoney(-stats.avgLoss);
+  els.journalAvgTradeHint.textContent = stats.closed
+    ? `${sensitiveCount(stats.closed)} ${stats.closed === 1 ? "trade cerrado" : "trades cerrados"}`
+    : "Sin trades cerrados";
+}
+
+function renderJournalWinrateGauge(stats) {
+  const winShare = stats.closed ? (stats.wins / stats.closed) * 100 : 0;
+  const hasClosedTrades = stats.closed > 0;
+
+  els.journalWinrateWinArc.style.strokeDasharray = `${winShare} 100`;
+  els.journalWinrateWinArc.style.opacity = hasClosedTrades && stats.wins > 0 ? "1" : "0";
+  els.journalWinrateLossArc.style.opacity = hasClosedTrades && stats.losses > 0 ? "1" : "0";
+  els.journalWinrateWins.textContent = sensitiveCount(stats.wins);
+  els.journalWinrateBreakEven.textContent = sensitiveCount(stats.breakEven);
+  els.journalWinrateLosses.textContent = sensitiveCount(stats.losses);
 }
 
 function getJournalPerformanceStats(entries) {
@@ -2599,8 +2628,12 @@ function getJournalPerformanceStats(entries) {
   const closed = wins.length + losses.length;
   const winrate = closed ? (wins.length / closed) * 100 : null;
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : null;
+  const avgWin = wins.length ? grossProfit / wins.length : null;
+  const avgLoss = losses.length ? grossLoss / losses.length : null;
 
   return {
+    avgLoss,
+    avgWin,
     breakEven,
     closed,
     grossLoss,
@@ -3202,9 +3235,9 @@ function renderJournalErrorChoices(selectedErrors = getSelectedJournalErrors()) 
     ? activeTypes
         .map(
           (type) => `
-            <label>
+            <label class="${selected.has(type.id) ? "is-selected" : ""}" style="--error-color: ${escapeHtml(type.color)}">
               <input type="checkbox" name="journalErrors" value="${escapeHtml(type.id)}" ${selected.has(type.id) ? "checked" : ""} />
-              <i style="--error-color: ${escapeHtml(type.color)}"></i>
+              <i></i>
               <span>${escapeHtml(type.label)}</span>
             </label>
           `
@@ -4296,13 +4329,20 @@ function openJournalDetailDialog(entry) {
 
   const pnl = Number(entry.pnl || 0);
   const tone = pnlToneClass(pnl);
+  const direction = normalizeJournalDirection(entry.direction);
   const errors = sanitizeJournalErrors(entry.errors);
+  const directionMetric = els.journalDetailDirection?.closest(".journal-detail-metric");
 
   els.journalDetailDialog.dataset.entryId = entry.id;
   els.journalDetailTitle.textContent = getJournalAssetLabel(entry);
   els.journalDetailDate.textContent = formatJournalGalleryDate(entry.date);
   els.journalDetailPnl.textContent = formatSignedMoney(pnl);
   els.journalDetailPnl.className = `journal-pnl ${tone} journal-detail-pnl`;
+  if (els.journalDetailDirection) {
+    els.journalDetailDirection.textContent = direction ? getJournalDirectionLabel(entry) : "Sin direccion";
+    els.journalDetailDirection.className = `journal-detail-direction ${direction || "neutral"}`;
+  }
+  if (directionMetric) directionMetric.hidden = !direction;
   els.journalDetailErrors.innerHTML = errors.length
     ? errors.map((error) => `<span>${escapeHtml(getJournalErrorLabel(error))}</span>`).join("")
     : `<span class="journal-detail-empty">Sin errores</span>`;
@@ -4315,6 +4355,7 @@ function renderJournalDetailMedia(entry) {
   const media = String(entry?.operationUrl || "");
   const isImage = isImageDataUrl(media);
 
+  els.journalDetailDialog.classList.toggle("has-media", Boolean(media));
   els.journalDetailMediaShell.hidden = !media;
   els.journalDetailMediaButton.hidden = !isImage;
   els.journalDetailLink.hidden = !media || isImage;
@@ -5601,6 +5642,14 @@ function setJournalErrorFields(errors) {
   const selected = new Set(sanitizeJournalErrors(errors));
   document.querySelectorAll('input[name="journalErrors"]').forEach((input) => {
     input.checked = selected.has(input.value);
+  });
+  syncJournalErrorChoiceState();
+}
+
+function syncJournalErrorChoiceState() {
+  document.querySelectorAll(".journal-errors-options label").forEach((label) => {
+    const input = label.querySelector('input[name="journalErrors"]');
+    label.classList.toggle("is-selected", Boolean(input?.checked));
   });
 }
 

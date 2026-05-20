@@ -84,8 +84,7 @@
   --dur: 180ms;
 
   font-family:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, Arial, sans-serif;
+          "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -194,8 +193,8 @@ body {
   place-items: center;
   padding: 18px;
   background:
-    radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 34%),
-    var(--bg);
+          radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 34%),
+          var(--bg);
 }
 
 .auth-card {
@@ -392,10 +391,10 @@ p {
   text-align: left;
   box-shadow: var(--shadow-xs);
   transition:
-    background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
 }
 
 .pillar-button svg {
@@ -454,10 +453,10 @@ p {
 .nav-label {
   margin: 12px 8px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .nav-label:first-child {
@@ -480,11 +479,11 @@ p {
   font-weight: 500;
   letter-spacing: -0.005em;
   transition:
-    background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
 }
 
 .nav-item svg,
@@ -546,10 +545,10 @@ p {
   content: "Datos";
   margin: 0 8px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* ============= BUTTONS ============= */
@@ -600,17 +599,17 @@ p {
   font-size: 13px;
   font-weight: 600;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.18) inset,
-    0 1px 2px rgba(76, 29, 149, 0.4),
-    0 4px 12px rgba(124, 58, 237, 0.28);
+          0 1px 0 rgba(255, 255, 255, 0.18) inset,
+          0 1px 2px rgba(76, 29, 149, 0.4),
+          0 4px 12px rgba(124, 58, 237, 0.28);
 }
 
 .primary-button:hover {
   background: var(--accent-strong);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.2) inset,
-    0 1px 2px rgba(76, 29, 149, 0.5),
-    0 6px 16px rgba(124, 58, 237, 0.36);
+          0 1px 0 rgba(255, 255, 255, 0.2) inset,
+          0 1px 2px rgba(76, 29, 149, 0.5),
+          0 6px 16px rgba(124, 58, 237, 0.36);
   transform: translateY(-1px);
 }
 
@@ -622,8 +621,8 @@ p {
   font-size: 13px;
   font-weight: 600;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.18) inset,
-    0 1px 2px rgba(127, 29, 29, 0.4);
+          0 1px 0 rgba(255, 255, 255, 0.18) inset,
+          0 1px 2px rgba(127, 29, 29, 0.4);
 }
 
 .danger-button:hover {
@@ -656,10 +655,10 @@ p {
   color: var(--muted);
   box-shadow: var(--shadow-xs);
   transition:
-    background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
 }
 
 .theme-toggle:hover {
@@ -848,9 +847,9 @@ h2 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--subtle-bg);
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 600;
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .session-pill span {
@@ -966,9 +965,9 @@ h2 {
   padding: 16px;
   overflow: hidden;
   transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
 }
 
 .metric-card:hover {
@@ -1057,8 +1056,8 @@ h2 {
 .metric-net {
   grid-column: span 2;
   background:
-    radial-gradient(120% 120% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
-    var(--surface);
+          radial-gradient(120% 120% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
+          var(--surface);
 }
 
 .metric-net strong {
@@ -1127,8 +1126,8 @@ h2 {
   backdrop-filter: blur(12px) saturate(1.2);
   -webkit-backdrop-filter: blur(12px) saturate(1.2);
   box-shadow:
-    0 1px 0 var(--line),
-    0 4px 24px 0 var(--surface);
+          0 1px 0 var(--line),
+          0 4px 24px 0 var(--surface);
 }
 
 /* Fade gradient: dissolves content as it slides under the sticky header */
@@ -1141,9 +1140,9 @@ h2 {
   height: 36px;
   pointer-events: none;
   background: linear-gradient(
-    to bottom,
-    var(--surface) 0%,
-    transparent 100%
+          to bottom,
+          var(--surface) 0%,
+          transparent 100%
   );
   /* Sit above the scrolling content */
   z-index: 1;
@@ -1435,10 +1434,10 @@ canvas {
 
 .month-summary span {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .month-summary strong {
@@ -1598,10 +1597,10 @@ label {
   display: grid;
   gap: 5px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 input,
@@ -1620,9 +1619,9 @@ textarea {
   font-weight: 400;
   letter-spacing: -0.005em;
   transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    background var(--dur) var(--ease);
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          background var(--dur) var(--ease);
 }
 
 input::placeholder,
@@ -1697,9 +1696,9 @@ select {
   line-height: 1.2;
   text-align: left;
   transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    background var(--dur) var(--ease);
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          background var(--dur) var(--ease);
 }
 
 .select-display:hover,
@@ -2092,33 +2091,45 @@ tbody tr:hover {
 
 .journal-kpi-stack {
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .journal-performance-card {
   display: grid;
   align-content: space-between;
-  gap: 12px;
-  min-height: 132px;
-  padding: 14px;
+  gap: 10px;
+  min-height: 128px;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
+.journal-winrate-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  align-content: center;
+}
+
+.journal-winrate-copy {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .journal-performance-card span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .journal-performance-card strong {
   color: var(--text);
-  font-size: 28px;
-  font-weight: 780;
+  font-size: 26px;
+  font-weight: 750;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
@@ -2144,6 +2155,160 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.journal-winrate-gauge {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 122px;
+}
+
+.journal-winrate-gauge svg {
+  display: block;
+  width: 118px;
+  height: 70px;
+  overflow: visible;
+}
+
+.journal-winrate-gauge path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.journal-winrate-track {
+  stroke: var(--line);
+}
+
+.journal-winrate-loss-arc {
+  stroke: var(--red);
+  transition: opacity var(--dur) var(--ease);
+}
+
+.journal-winrate-win-arc {
+  stroke: var(--green);
+  stroke-dashoffset: 0;
+  transition:
+          opacity var(--dur) var(--ease),
+          stroke-dasharray var(--dur) var(--ease);
+}
+
+.journal-winrate-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: -8px;
+}
+
+.journal-winrate-counts strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 18px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.journal-winrate-counts .positive {
+  background: var(--green-soft);
+  color: var(--green-strong);
+}
+
+.journal-winrate-counts .negative {
+  background: var(--red-soft);
+  color: var(--red-strong);
+}
+
+.journal-winrate-counts .neutral {
+  color: var(--muted-strong);
+}
+
+.journal-average-trade-card {
+  gap: 10px;
+}
+
+.journal-average-trade-meter {
+  display: grid;
+  gap: 8px;
+}
+
+.journal-average-trade-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-strong) 70%, transparent);
+}
+
+.journal-average-trade-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  transform: translate(-50%, -50%);
+}
+
+.journal-average-trade-line i {
+  display: block;
+  min-width: 0;
+}
+
+.journal-average-trade-line .win {
+  background: linear-gradient(90deg, var(--green), color-mix(in srgb, var(--green) 72%, var(--green-soft)));
+}
+
+.journal-average-trade-line .loss {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--red) 72%, var(--red-soft)), var(--red));
+}
+
+.journal-average-trade-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.journal-average-trade-values > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.journal-average-trade-values > div:last-child {
+  justify-items: end;
+  text-align: right;
+}
+
+.journal-average-trade-values small {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.journal-average-trade-values strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 17px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .journal-errors-layout {
@@ -2304,8 +2469,8 @@ tbody tr:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 42%, transparent), transparent 52%),
-    var(--surface);
+          linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 42%, transparent), transparent 52%),
+          var(--surface);
   box-shadow: var(--shadow-xs);
 }
 
@@ -2319,10 +2484,10 @@ tbody tr:hover {
 .journal-account-overview-head span {
   display: block;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .journal-account-overview-head h4 {
@@ -2390,10 +2555,10 @@ tbody tr:hover {
 
 .journal-app-label {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .journal-calendar-actions {
@@ -2422,10 +2587,10 @@ tbody tr:hover {
 
 .journal-month-total span {
   color: var(--muted);
-  font-size: 10.5px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .journal-month-total strong {
@@ -2480,10 +2645,10 @@ tbody tr:hover {
   border-radius: var(--radius-xs);
   background: var(--table-head-bg);
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .journal-calendar-head.weekly {
@@ -2507,8 +2672,8 @@ tbody tr:hover {
 .journal-calendar-day {
   cursor: pointer;
   transition:
-    background var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+          background var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
 }
 
 .journal-calendar-day:hover,
@@ -2647,31 +2812,17 @@ tbody tr:hover {
   min-width: 0;
   min-height: 172px;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   isolation: isolate;
-  transition:
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+  transition: box-shadow var(--dur) var(--ease);
 }
 
 .journal-card:hover {
-  box-shadow: var(--shadow-sm);
-}
-
-.journal-card.positive {
-  border-color: var(--green-line);
-}
-
-.journal-card.negative {
-  border-color: var(--red-line);
-}
-
-.journal-card.neutral {
-  border-color: var(--line-strong);
+  box-shadow: none;
 }
 
 .journal-gallery-media {
@@ -2717,11 +2868,11 @@ tbody tr:hover {
   gap: 8px;
   min-height: 40px;
   padding: 8px 10px;
-  background: color-mix(in srgb, var(--surface) 86%, #000 14%);
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-3) 18%);
 }
 
 :root[data-theme="light"] .journal-card-footer {
-  background: color-mix(in srgb, var(--surface) 72%, #000 8%);
+  background: color-mix(in srgb, var(--surface-3) 78%, var(--surface) 22%);
 }
 
 .journal-card-footer strong {
@@ -2947,20 +3098,42 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 
-.journal-detail-card {
-  width: min(680px, calc(100vw - 28px));
+.modal-card.journal-detail-card {
+  width: 100%;
   max-height: calc(100vh - 32px);
-  overflow: auto;
+  grid-template-columns: minmax(0, 1.38fr) minmax(310px, 0.82fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "header header"
+    "media summary"
+    "media copy";
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .journal-detail-header {
-  align-items: flex-start;
+  grid-area: header;
+  align-items: center;
+  padding: 18px 20px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
 }
 
 .journal-detail-title {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.journal-detail-title h2 {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .journal-detail-kicker,
@@ -2980,15 +3153,30 @@ tbody tr:hover {
   flex: 0 0 auto;
 }
 
+.journal-detail-actions .icon-button {
+  min-width: 36px;
+  background: var(--subtle-bg);
+  color: var(--muted-strong);
+}
+
+.journal-detail-actions .icon-button:hover {
+  border-color: var(--line-strong);
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
 .journal-detail-delete {
   border-color: var(--red-line);
   color: var(--red);
 }
 
 .journal-detail-summary {
+  grid-area: summary;
   display: grid;
-  grid-template-columns: minmax(120px, 0.65fr) minmax(120px, 0.55fr) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 18px 0 0;
 }
 
 .journal-detail-metric,
@@ -2998,14 +3186,27 @@ tbody tr:hover {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--subtle-bg);
+  background: color-mix(in srgb, var(--surface) 86%, var(--surface-2) 14%);
+}
+
+.journal-detail-pnl-metric {
+  min-height: 96px;
+  align-content: center;
+  background:
+          linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 72%, transparent), transparent 68%),
+          color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
 }
 
 .journal-detail-pnl {
   width: fit-content;
-  min-height: 32px;
-  padding: 5px 10px;
-  font-size: 18px;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 30px;
+  font-weight: 850;
+  line-height: 1.05;
 }
 
 .journal-detail-direction {
@@ -3021,9 +3222,27 @@ tbody tr:hover {
   text-transform: uppercase;
 }
 
+.journal-detail-direction.long {
+  border-color: var(--green-line);
+  background: var(--green-soft);
+  color: var(--green-strong);
+}
+
+.journal-detail-direction.short {
+  border-color: var(--red-line);
+  background: var(--red-soft);
+  color: var(--red-strong);
+}
+
 .journal-detail-media-shell {
+  grid-area: media;
   display: grid;
   gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  border-right: 1px solid var(--line);
+  background: var(--subtle-bg);
 }
 
 .journal-detail-media-shell[hidden] {
@@ -3035,8 +3254,8 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 220px;
-  max-height: 360px;
+  height: min(58vh, 520px);
+  min-height: 340px;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -3048,8 +3267,9 @@ tbody tr:hover {
 .journal-detail-media-button img {
   display: block;
   width: 100%;
-  max-height: 360px;
+  height: 100%;
   object-fit: contain;
+  background: #ffffff;
 }
 
 .journal-detail-media-button span {
@@ -3078,10 +3298,16 @@ tbody tr:hover {
 }
 
 .journal-detail-link {
-  padding: 12px 14px;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 220px;
+  padding: 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--subtle-bg);
+  background: var(--surface);
+  text-align: center;
 }
 
 .journal-detail-empty {
@@ -3103,12 +3329,42 @@ tbody tr:hover {
 }
 
 .journal-detail-copy {
+  grid-area: copy;
   display: grid;
   gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 18px 18px 0;
+  overflow: auto;
 }
 
 .journal-detail-section .journal-text {
+  max-height: 240px;
+  overflow: auto;
+  color: var(--text-soft);
+  line-height: 1.55;
   white-space: pre-wrap;
+}
+
+#journalDetailDialog:not(.has-media) {
+  width: min(620px, calc(100vw - 24px));
+}
+
+#journalDetailDialog:not(.has-media) .journal-detail-card {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "header"
+    "summary"
+    "copy";
+}
+
+#journalDetailDialog:not(.has-media) .journal-detail-media-shell {
+  display: none;
+}
+
+#journalDetailDialog:not(.has-media) .journal-detail-summary,
+#journalDetailDialog:not(.has-media) .journal-detail-copy {
+  padding-inline: 18px;
 }
 
 #journalImageZoomDialog {
@@ -3189,7 +3445,7 @@ tbody tr:hover {
 }
 
 #journalDetailDialog {
-  width: min(720px, calc(100vw - 24px));
+  width: min(1040px, calc(100vw - 24px));
 }
 
 .modal::backdrop {
@@ -3288,9 +3544,9 @@ tbody tr:hover {
   color: var(--muted);
   cursor: pointer;
   transition:
-    background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
 }
 
 .journal-media-dropzone:hover,
@@ -3406,6 +3662,262 @@ tbody tr:hover {
   text-transform: none;
 }
 
+#journalDialog {
+  width: min(620px, calc(100vw - 24px));
+}
+
+.journal-entry-form {
+  gap: 12px;
+  padding: 20px;
+}
+
+.journal-entry-form .modal-header {
+  margin-bottom: 0;
+}
+
+.journal-entry-form label,
+.journal-entry-form .journal-errors-field legend {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.journal-entry-form input,
+.journal-entry-form select,
+.journal-entry-form textarea,
+.journal-entry-form .select-display {
+  min-height: 38px;
+  border-color: rgba(9, 9, 11, 0.12);
+  background: color-mix(in srgb, var(--input-bg) 88%, var(--surface-2) 12%);
+}
+
+:root[data-theme="dark"] .journal-entry-form input,
+:root[data-theme="dark"] .journal-entry-form select,
+:root[data-theme="dark"] .journal-entry-form textarea,
+:root[data-theme="dark"] .journal-entry-form .select-display {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--input-bg) 88%, #ffffff 4%);
+}
+
+.journal-entry-form input:hover,
+.journal-entry-form select:hover,
+.journal-entry-form textarea:hover,
+.journal-entry-form .select-display:hover,
+.journal-entry-form .select-shell.open .select-display {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+}
+
+.journal-entry-form input:focus,
+.journal-entry-form select:focus,
+.journal-entry-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.journal-money-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 38px;
+  overflow: hidden;
+  border: 1px solid rgba(9, 9, 11, 0.12);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--input-bg) 88%, var(--surface-2) 12%);
+  transition:
+          border-color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease),
+          background var(--dur) var(--ease);
+}
+
+:root[data-theme="dark"] .journal-money-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--input-bg) 88%, #ffffff 4%);
+}
+
+.journal-money-input > span {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 11px;
+  border-right: 1px solid rgba(9, 9, 11, 0.1);
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+:root[data-theme="dark"] .journal-money-input > span {
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.journal-money-input input {
+  min-height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.journal-money-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.journal-entry-form .journal-media-field {
+  gap: 6px;
+}
+
+.journal-entry-form .journal-media-dropzone {
+  min-height: 96px;
+  border-style: solid;
+  border-color: rgba(9, 9, 11, 0.12);
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--surface) 24%);
+}
+
+:root[data-theme="dark"] .journal-entry-form .journal-media-dropzone {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--surface-2) 82%, #ffffff 3%);
+}
+
+.journal-entry-form .journal-media-copy {
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-items: start;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+}
+
+.journal-entry-form .journal-media-copy svg {
+  width: 18px;
+  height: 18px;
+}
+
+.journal-entry-form .journal-media-preview {
+  min-height: 96px;
+  max-height: 150px;
+}
+
+.journal-entry-form .journal-errors-field {
+  gap: 10px;
+  padding: 11px;
+  border-color: rgba(9, 9, 11, 0.12);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface) 30%);
+}
+
+:root[data-theme="dark"] .journal-entry-form .journal-errors-field {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+}
+
+.journal-entry-form .journal-errors-toolbar {
+  font-size: 12px;
+}
+
+.journal-entry-form .journal-errors-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.journal-entry-form .journal-errors-options label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 31px;
+  padding: 6px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(9, 9, 11, 0.12);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition:
+          background var(--dur) var(--ease),
+          border-color var(--dur) var(--ease),
+          color var(--dur) var(--ease),
+          box-shadow var(--dur) var(--ease);
+}
+
+:root[data-theme="dark"] .journal-entry-form .journal-errors-options label {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--surface) 84%, #ffffff 4%);
+}
+
+.journal-entry-form .journal-errors-options label:hover {
+  border-color: color-mix(in srgb, var(--error-color) 42%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 14%, transparent);
+}
+
+.journal-entry-form .journal-errors-options label:has(input:focus-visible) {
+  border-color: color-mix(in srgb, var(--error-color) 42%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 14%, transparent);
+}
+
+.journal-entry-form .journal-errors-options label.is-selected {
+  border-color: color-mix(in srgb, var(--error-color) 54%, var(--line));
+  background: color-mix(in srgb, var(--error-color) 22%, var(--surface));
+  color: var(--text);
+  box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
+          0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
+}
+
+.journal-entry-form .journal-errors-options label:has(input:checked) {
+  border-color: color-mix(in srgb, var(--error-color) 54%, var(--line));
+  background: color-mix(in srgb, var(--error-color) 22%, var(--surface));
+  color: var(--text);
+  box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
+          0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
+}
+
+.journal-entry-form .journal-errors-options input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.journal-entry-form .journal-errors-options i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--error-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color) 14%, transparent);
+}
+
+.journal-entry-form .journal-errors-options label.is-selected i {
+  box-shadow:
+          0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
+          0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
+}
+
+.journal-entry-form .journal-errors-options label:has(input:checked) i {
+  box-shadow:
+          0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
+          0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
+}
+
+.journal-entry-form .modal-actions {
+  margin-top: 2px;
+  padding-top: 12px;
+}
+
+.journal-entry-form .modal-actions .primary-button {
+  min-width: 118px;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
 #confirmMessage {
   color: var(--muted-strong);
   font-size: 13.5px;
@@ -3433,8 +3945,8 @@ tbody tr:hover {
   transform: translateY(8px);
   pointer-events: none;
   transition:
-    opacity 180ms var(--ease),
-    transform 180ms var(--ease);
+          opacity 180ms var(--ease),
+          transform 180ms var(--ease);
 }
 
 .toast.visible {
@@ -3899,16 +4411,44 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  #journalDetailDialog {
+    width: min(680px, calc(100vw - 16px));
+  }
+
+  .modal-card.journal-detail-card {
+    max-height: calc(100vh - 16px);
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "media"
+      "summary"
+      "copy";
+    overflow: auto;
+  }
+
   .journal-detail-header {
     display: grid;
+    padding: 16px;
   }
 
   .journal-detail-actions {
     justify-content: flex-start;
   }
 
+  .journal-detail-media-shell {
+    padding: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
   .journal-detail-summary {
     grid-template-columns: 1fr;
+    padding: 14px 14px 0;
+  }
+
+  .journal-detail-copy {
+    padding: 10px 14px 14px;
+    overflow: visible;
   }
 
   .journal-chart-head {
@@ -3923,6 +4463,14 @@ tbody tr:hover {
     grid-template-rows: none;
   }
 
+  .journal-winrate-card {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-winrate-gauge {
+    justify-self: start;
+  }
+
   .journal-dashboard-filter {
     width: 100%;
     min-width: 0;
@@ -3930,11 +4478,13 @@ tbody tr:hover {
   }
 
   .journal-detail-media-button {
-    min-height: 170px;
-    max-height: 280px;
+    height: auto;
+    min-height: 190px;
+    max-height: none;
   }
 
   .journal-detail-media-button img {
+    height: auto;
     max-height: 280px;
   }
 
