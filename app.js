@@ -56,6 +56,20 @@ const journalDirectionLabels = {
   short: "Short",
 };
 
+const journalErrorSeverityLabels = {
+  severe: "Grave",
+  moderate: "Moderado",
+  minor: "Leve",
+};
+
+const journalErrorSeverityOrder = ["severe", "moderate", "minor"];
+
+const journalErrorSeverityPalettes = Object.freeze({
+  severe: ["#e24b4a", "#d64646", "#c9343e", "#b8292f", "#d4537e", "#a32d2d"],
+  moderate: ["#ef9f27", "#e8593c", "#ba7517", "#d85a30", "#854f0b", "#c47a1c"],
+  minor: ["#888780", "#71717a", "#5f5e5a", "#64748b", "#78716c", "#a1a1aa"],
+});
+
 const journalEmotionLabels = {
   calm: "Calmado",
   focused: "Enfocado",
@@ -68,34 +82,11 @@ const journalEmotionLabels = {
 };
 
 const defaultJournalErrorTypes = Object.freeze([
-  { id: "earlyClose", label: "Cerrar pronto", color: "#3b82f6", position: 0, active: true },
-  { id: "tooMuchRisk", label: "Demasiado riesgo", color: "#ef4444", position: 1, active: true },
-  { id: "badStopMove", label: "Mover SL mal", color: "#f5b700", position: 2, active: true },
-  { id: "tooLittleRisk", label: "Poco riesgo", color: "#34a853", position: 3, active: true },
-  { id: "poorSetup", label: "Setup pobre", color: "#ff6b00", position: 4, active: true },
-]);
-
-const journalErrorColorPalette = Object.freeze([
-  "#3b82f6",
-  "#ef4444",
-  "#f5b700",
-  "#34a853",
-  "#ff6b00",
-  "#06b6d4",
-  "#a855f7",
-  "#ec4899",
-  "#84cc16",
-  "#14b8a6",
-  "#f97316",
-  "#6366f1",
-  "#eab308",
-  "#10b981",
-  "#f43f5e",
-  "#0ea5e9",
-  "#8b5cf6",
-  "#22c55e",
-  "#d946ef",
-  "#64748b",
+  { id: "earlyClose", label: "Cerrar pronto", severity: "moderate", color: "#ef9f27", position: 0, active: true },
+  { id: "tooMuchRisk", label: "Demasiado riesgo", severity: "severe", color: "#e24b4a", position: 1, active: true },
+  { id: "badStopMove", label: "Mover SL mal", severity: "severe", color: "#d64646", position: 2, active: true },
+  { id: "tooLittleRisk", label: "Poco riesgo", severity: "minor", color: "#888780", position: 3, active: true },
+  { id: "poorSetup", label: "Setup pobre", severity: "moderate", color: "#ba7517", position: 4, active: true },
 ]);
 
 function cloneDefaultJournalErrorTypes() {
@@ -392,7 +383,7 @@ function bindElements() {
     "journalErrorDialogTitle",
     "journalErrorTypeId",
     "journalErrorLabel",
-    "journalErrorColor",
+    "journalErrorSeverity",
     "confirmDialog",
     "confirmTitle",
     "confirmMessage",
@@ -1592,10 +1583,12 @@ function fromDbJournalEntry(row) {
 }
 
 function fromDbJournalErrorType(row) {
+  const severity = inferJournalErrorSeverity(row);
   return {
     id: row.id,
     label: row.label || "",
-    color: row.color || "#3b82f6",
+    severity,
+    color: normalizeHexColor(row.color) || "",
     position: Number(row.position || 0),
     active: row.active !== false,
     createdAt: row.created_at,
@@ -1667,7 +1660,7 @@ function journalErrorTypeToDb(type) {
     id: type.id,
     user_id: currentUser.id,
     label: String(type.label || "").trim(),
-    color: normalizeHexColor(type.color) || "#3b82f6",
+    color: getJournalErrorTypeColor(type),
     position: Number(type.position || 0),
     active: type.active !== false,
     updated_at: type.updatedAt || nowIso(),
@@ -3094,9 +3087,9 @@ function drawJournalErrorsChart(entries) {
   els.journalErrorsLegend.innerHTML = rows
     .map(
       (row) => `
-        <div class="journal-error-legend-row">
-          <i style="--error-color: ${escapeHtml(row.color)}"></i>
-          <span>${escapeHtml(row.label)}</span>
+        <div class="journal-error-legend-row" style="--error-color: ${escapeHtml(row.color)}">
+          <i></i>
+          <span>${escapeHtml(row.label)} <em>${escapeHtml(journalErrorSeverityLabels[row.severity] || journalErrorSeverityLabels.moderate)}</em></span>
           <strong>${sensitiveCount(row.count)}</strong>
         </div>
       `
@@ -3171,6 +3164,11 @@ function drawJournalErrorsHover(ctx, model) {
     y,
     segment.row.label,
     [
+      {
+        label: "Gravedad",
+        value: journalErrorSeverityLabels[segment.row.severity] || journalErrorSeverityLabels.moderate,
+        color: segment.row.color,
+      },
       { label: "Veces", value: String(segment.row.count), color: segment.row.color },
       { label: "Peso", value: `${percent.toFixed(0)}%`, color: "var(--muted)" },
     ],
@@ -3189,18 +3187,19 @@ function getJournalErrorRows(entries) {
     .map((type) => ({
       id: type.id,
       label: type.label,
-      color: type.color,
+      severity: type.severity,
+      color: getJournalErrorTypeColor(type),
       count: counts.get(type.id) || 0,
     }));
   const knownIds = new Set(knownRows.map((row) => row.id));
   counts.forEach((count, id) => {
     if (!knownIds.has(id)) {
-      knownRows.push({ id, label: id, color: "#71717a", count });
+      knownRows.push({ id, label: id, severity: "minor", color: getJournalErrorSeverityColor("minor"), count });
     }
   });
   return knownRows
     .filter((row) => row.count > 0)
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => getJournalErrorSeverityRank(a.severity) - getJournalErrorSeverityRank(b.severity) || b.count - a.count);
 }
 
 function renderJournalErrorSettings() {
@@ -3209,12 +3208,13 @@ function renderJournalErrorSettings() {
   els.journalErrorTypesList.innerHTML = errorTypes
     .map((type) => {
       const count = state.journalEntries.filter((entry) => sanitizeJournalErrors(entry.errors).includes(type.id)).length;
+      const severityLabel = journalErrorSeverityLabels[type.severity] || journalErrorSeverityLabels.moderate;
       return `
-        <div class="journal-error-type-row${type.active ? "" : " is-archived"}">
-          <i style="--error-color: ${escapeHtml(type.color)}"></i>
+        <div class="journal-error-type-row${type.active ? "" : " is-archived"}" style="--error-color: ${escapeHtml(type.color)}">
+          <i></i>
           <div>
             <strong>${escapeHtml(type.label)}</strong>
-            <span>${count} ${count === 1 ? "entrada" : "entradas"}${type.active ? "" : " - oculto"}</span>
+            <span><em class="journal-error-severity">${escapeHtml(severityLabel)}</em>${count} ${count === 1 ? "entrada" : "entradas"}${type.active ? "" : " - oculto"}</span>
           </div>
           <div class="row-actions">
             ${actionButton("edit-journal-error", type.id, "Editar", "pencil")}
@@ -4401,8 +4401,8 @@ function openJournalErrorDialog(type = null) {
   els.journalErrorForm.reset();
   els.journalErrorTypeId.value = type?.id || "";
   els.journalErrorLabel.value = type?.label || "";
-  els.journalErrorColor.value = type ? normalizeHexColor(type.color) || getNextJournalErrorColor(type.id) : getNextJournalErrorColor();
-  els.journalErrorColor.disabled = !type;
+  els.journalErrorSeverity.value = normalizeJournalErrorSeverity(type?.severity || inferJournalErrorSeverity(type));
+  syncCustomSelect(els.journalErrorSeverity);
   els.journalErrorDialogTitle.textContent = type ? "Editar error" : "Nuevo error";
   showDialog(els.journalErrorDialog);
 }
@@ -4771,9 +4771,15 @@ async function saveJournalErrorTypeFromForm(event) {
   const id = els.journalErrorTypeId.value || createId();
   const existing = getJournalErrorType(id);
   const label = els.journalErrorLabel.value.trim();
-  const color = existing
-    ? normalizeHexColor(els.journalErrorColor.value) || getNextJournalErrorColor(existing.id)
-    : getNextJournalErrorColor();
+  if (!journalErrorSeverityLabels[els.journalErrorSeverity.value]) {
+    return markInvalid(els.journalErrorSeverity, "Selecciona una gravedad valida.");
+  }
+  const severity = normalizeJournalErrorSeverity(els.journalErrorSeverity.value);
+  const existingSeverity = normalizeJournalErrorSeverity(existing?.severity || inferJournalErrorSeverity(existing));
+  const color =
+    existing && existingSeverity === severity && isJournalErrorSeverityColor(existing.color, severity)
+      ? existing.color
+      : getNextJournalErrorColor(severity, existing?.id || "");
   const duplicated = getJournalErrorTypes({ activeOnly: false }).some(
     (type) => type.id !== id && normalize(type.label) === normalize(label)
   );
@@ -4784,6 +4790,7 @@ async function saveJournalErrorTypeFromForm(event) {
   const type = {
     id,
     label,
+    severity,
     color,
     position: existing?.position ?? getJournalErrorTypes({ activeOnly: false }).length,
     active: true,
@@ -5563,16 +5570,28 @@ function normalizeJournalErrorTypes(value, options = {}) {
   const includeDefaults = options.includeDefaults !== false;
   const raw = Array.isArray(value) ? value : [];
   const seen = new Set();
+  const severityCounts = new Map();
   const normalized = raw
-    .map((type, index) => ({
-      id: String(type?.id || createId()),
-      label: String(type?.label || "").trim(),
-      color: normalizeHexColor(type?.color) || "#3b82f6",
-      position: Number.isFinite(Number(type?.position)) ? Number(type.position) : index,
-      active: type?.active !== false,
-      createdAt: type?.createdAt || nowIso(),
-      updatedAt: type?.updatedAt || type?.createdAt || nowIso(),
-    }))
+    .map((type, index) => {
+      const id = String(type?.id || createId());
+      const severity = normalizeJournalErrorSeverity(type?.severity || inferJournalErrorSeverity(type));
+      const paletteIndex = severityCounts.get(severity) || 0;
+      severityCounts.set(severity, paletteIndex + 1);
+      const color = isJournalErrorSeverityColor(type?.color, severity)
+        ? normalizeHexColor(type.color)
+        : getJournalErrorSeverityColor(severity, paletteIndex);
+
+      return {
+        id,
+        label: String(type?.label || "").trim(),
+        severity,
+        color,
+        position: Number.isFinite(Number(type?.position)) ? Number(type.position) : index,
+        active: type?.active !== false,
+        createdAt: type?.createdAt || nowIso(),
+        updatedAt: type?.updatedAt || type?.createdAt || nowIso(),
+      };
+    })
     .filter((type) => {
       if (!type.label || seen.has(type.id)) return false;
       seen.add(type.id);
@@ -5603,24 +5622,75 @@ function getJournalErrorType(id) {
   return getJournalErrorTypes({ activeOnly: false }).find((type) => type.id === id) || null;
 }
 
-function getNextJournalErrorColor(ignoreId = "") {
+function normalizeJournalErrorSeverity(value) {
+  const severity = String(value || "").trim();
+  return journalErrorSeverityLabels[severity] ? severity : "moderate";
+}
+
+function getJournalErrorSeverityRank(severity) {
+  const index = journalErrorSeverityOrder.indexOf(normalizeJournalErrorSeverity(severity));
+  return index === -1 ? journalErrorSeverityOrder.length : index;
+}
+
+function getJournalErrorSeverityColor(severity, index = 0) {
+  const normalized = normalizeJournalErrorSeverity(severity);
+  const palette = journalErrorSeverityPalettes[normalized] || journalErrorSeverityPalettes.moderate;
+  return palette[Math.abs(Number(index) || 0) % palette.length];
+}
+
+function isJournalErrorSeverityColor(color, severity) {
+  const normalizedColor = normalizeHexColor(color).toLowerCase();
+  if (!normalizedColor) return false;
+  const palette = journalErrorSeverityPalettes[normalizeJournalErrorSeverity(severity)] || [];
+  return palette.some((item) => item.toLowerCase() === normalizedColor);
+}
+
+function inferJournalErrorSeverity(type) {
+  const explicit = normalizeJournalErrorSeverity(type?.severity);
+  if (type?.severity && explicit) return explicit;
+
+  const color = normalizeHexColor(type?.color).toLowerCase();
+  if (color) {
+    const matchedSeverity = journalErrorSeverityOrder.find((severity) =>
+      journalErrorSeverityPalettes[severity].some((item) => item.toLowerCase() === color)
+    );
+    if (matchedSeverity) return matchedSeverity;
+  }
+
+  const label = normalize(type?.label || "");
+  if (label.includes("riesgo") && !label.includes("poco")) return "severe";
+  if (label.includes("sl") || label.includes("stop")) return "severe";
+  if (label.includes("poco")) return "minor";
+  return "moderate";
+}
+
+function getJournalErrorTypeColor(type) {
+  const severity = normalizeJournalErrorSeverity(type?.severity || inferJournalErrorSeverity(type));
+  return isJournalErrorSeverityColor(type?.color, severity)
+    ? normalizeHexColor(type.color)
+    : getJournalErrorSeverityColor(severity, Number(type?.position || 0));
+}
+
+function getNextJournalErrorColor(severity = "moderate", ignoreId = "") {
+  if (!journalErrorSeverityLabels[severity]) {
+    ignoreId = severity || "";
+    severity = "moderate";
+  }
+  const normalizedSeverity = normalizeJournalErrorSeverity(severity);
   const usedColors = new Set(
     getJournalErrorTypes({ activeOnly: false })
       .filter((type) => type.id !== ignoreId)
+      .filter((type) => normalizeJournalErrorSeverity(type.severity) === normalizedSeverity)
       .map((type) => normalizeHexColor(type.color).toLowerCase())
       .filter(Boolean)
   );
 
-  const paletteColor = journalErrorColorPalette.find((color) => !usedColors.has(color.toLowerCase()));
+  const paletteColor = (journalErrorSeverityPalettes[normalizedSeverity] || []).find(
+    (color) => !usedColors.has(color.toLowerCase())
+  );
   if (paletteColor) return paletteColor;
 
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    const hue = (usedColors.size * 137.508 + attempt * 29) % 360;
-    const color = hslToHex(hue, 72, 52);
-    if (!usedColors.has(color.toLowerCase())) return color;
-  }
-
-  return "#3b82f6";
+  return getJournalErrorSeverityColor(normalizedSeverity, usedColors.size);
 }
 
 function getJournalErrorLabel(id) {
@@ -5656,25 +5726,6 @@ function syncJournalErrorChoiceState() {
 function normalizeHexColor(value) {
   const color = String(value || "").trim();
   return /^#[0-9a-f]{6}$/i.test(color) ? color : "";
-}
-
-function hslToHex(hue, saturation, lightness) {
-  const s = clamp(Number(saturation) / 100, 0, 1);
-  const l = clamp(Number(lightness) / 100, 0, 1);
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((Number(hue) / 60) % 2) - 1));
-  const m = l - c / 2;
-  const channels =
-    hue < 60 ? [c, x, 0]
-    : hue < 120 ? [x, c, 0]
-    : hue < 180 ? [0, c, x]
-    : hue < 240 ? [0, x, c]
-    : hue < 300 ? [x, 0, c]
-    : [c, 0, x];
-
-  return `#${channels
-    .map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, "0"))
-    .join("")}`;
 }
 
 function isValidUrl(value) {

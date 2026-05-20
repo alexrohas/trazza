@@ -84,8 +84,10 @@
   --dur: 180ms;
 
   font-family:
-          "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-feature-settings: "cv11", "ss01", "ss03";
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -164,6 +166,24 @@
   --ring: 0 0 0 3px rgba(167, 139, 250, 0.28);
 }
 
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -193,8 +213,8 @@ body {
   place-items: center;
   padding: 18px;
   background:
-          radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 34%),
-          var(--bg);
+    radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 34%),
+    var(--bg);
 }
 
 .auth-card {
@@ -391,10 +411,10 @@ p {
   text-align: left;
   box-shadow: var(--shadow-xs);
   transition:
-          background var(--dur) var(--ease),
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          transform var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
 
 .pillar-button svg {
@@ -479,11 +499,11 @@ p {
   font-weight: 500;
   letter-spacing: -0.005em;
   transition:
-          background var(--dur) var(--ease),
-          border-color var(--dur) var(--ease),
-          color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          transform var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
 
 .nav-item svg,
@@ -526,6 +546,8 @@ p {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 600;
+  border-left: 2px solid var(--accent);
+  padding-left: 9px;
 }
 
 .nav-item.active svg {
@@ -591,6 +613,11 @@ p {
   box-shadow: var(--shadow-sm);
 }
 
+.secondary-button:active {
+  transform: scale(0.99);
+  box-shadow: var(--shadow-xs);
+}
+
 .primary-button {
   padding: 7px 14px;
   border-color: var(--accent-strong);
@@ -599,18 +626,25 @@ p {
   font-size: 13px;
   font-weight: 600;
   box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.18) inset,
-          0 1px 2px rgba(76, 29, 149, 0.4),
-          0 4px 12px rgba(124, 58, 237, 0.28);
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 1px 2px rgba(76, 29, 149, 0.4),
+    0 4px 12px rgba(124, 58, 237, 0.28);
 }
 
 .primary-button:hover {
   background: var(--accent-strong);
   box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.2) inset,
-          0 1px 2px rgba(76, 29, 149, 0.5),
-          0 6px 16px rgba(124, 58, 237, 0.36);
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 1px 2px rgba(76, 29, 149, 0.5),
+    0 6px 16px rgba(124, 58, 237, 0.36);
   transform: translateY(-1px);
+}
+
+.primary-button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 1px 2px rgba(76, 29, 149, 0.4);
 }
 
 .danger-button {
@@ -621,8 +655,8 @@ p {
   font-size: 13px;
   font-weight: 600;
   box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.18) inset,
-          0 1px 2px rgba(127, 29, 29, 0.4);
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 1px 2px rgba(127, 29, 29, 0.4);
 }
 
 .danger-button:hover {
@@ -655,10 +689,10 @@ p {
   color: var(--muted);
   box-shadow: var(--shadow-xs);
   transition:
-          background var(--dur) var(--ease),
-          border-color var(--dur) var(--ease),
-          color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 .theme-toggle:hover {
@@ -761,10 +795,10 @@ p {
 
 h1 {
   margin-top: 4px;
-  font-size: clamp(22px, 2.5vw, 28px);
+  font-size: clamp(20px, 2.5vw, 26px);
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   color: var(--text);
 }
 
@@ -817,7 +851,7 @@ h2 {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
@@ -826,7 +860,15 @@ h2 {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
+}
+
+.topbar-actions .theme-toggle:first-of-type {
+  margin-left: 4px;
+}
+
+.topbar-actions .session-pill {
+  margin-left: 4px;
 }
 
 .topbar-actions .secondary-button {
@@ -868,7 +910,7 @@ h2 {
 
 .section-panel {
   display: none;
-  animation: section-enter 280ms var(--ease);
+  animation: section-enter 240ms var(--ease) both;
 }
 
 .section-panel.active {
@@ -878,7 +920,7 @@ h2 {
 @keyframes section-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -965,9 +1007,9 @@ h2 {
   padding: 16px;
   overflow: hidden;
   transition:
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          transform var(--dur) var(--ease);
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
 
 .metric-card:hover {
@@ -1056,8 +1098,8 @@ h2 {
 .metric-net {
   grid-column: span 2;
   background:
-          radial-gradient(120% 120% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
-          var(--surface);
+    radial-gradient(120% 120% at 100% 0%, var(--accent-soft) 0%, transparent 55%),
+    var(--surface);
 }
 
 .metric-net strong {
@@ -1126,8 +1168,8 @@ h2 {
   backdrop-filter: blur(12px) saturate(1.2);
   -webkit-backdrop-filter: blur(12px) saturate(1.2);
   box-shadow:
-          0 1px 0 var(--line),
-          0 4px 24px 0 var(--surface);
+    0 1px 0 var(--line),
+    0 4px 24px 0 var(--surface);
 }
 
 /* Fade gradient: dissolves content as it slides under the sticky header */
@@ -1140,9 +1182,9 @@ h2 {
   height: 36px;
   pointer-events: none;
   background: linear-gradient(
-          to bottom,
-          var(--surface) 0%,
-          transparent 100%
+    to bottom,
+    var(--surface) 0%,
+    transparent 100%
   );
   /* Sit above the scrolling content */
   z-index: 1;
@@ -1541,15 +1583,16 @@ canvas {
 }
 
 .insight-empty {
-  min-height: 164px;
+  min-height: 140px;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 24px 18px;
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius);
   color: var(--muted);
   font-size: 13px;
   text-align: center;
+  line-height: 1.5;
 }
 
 /* ============= FILTERS ============= */
@@ -1619,9 +1662,9 @@ textarea {
   font-weight: 400;
   letter-spacing: -0.005em;
   transition:
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          background var(--dur) var(--ease);
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
 }
 
 input::placeholder,
@@ -1696,9 +1739,9 @@ select {
   line-height: 1.2;
   text-align: left;
   transition:
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          background var(--dur) var(--ease);
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
 }
 
 .select-display:hover,
@@ -2190,8 +2233,8 @@ tbody tr:hover {
   stroke: var(--green);
   stroke-dashoffset: 0;
   transition:
-          opacity var(--dur) var(--ease),
-          stroke-dasharray var(--dur) var(--ease);
+    opacity var(--dur) var(--ease),
+    stroke-dasharray var(--dur) var(--ease);
 }
 
 .journal-winrate-counts {
@@ -2352,6 +2395,14 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.journal-error-legend-row em {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 650;
+}
+
 .journal-error-legend-row strong {
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -2424,6 +2475,20 @@ tbody tr:hover {
   font-size: 12px;
 }
 
+.journal-error-severity {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  margin-right: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--error-color) 14%, var(--surface));
+  color: var(--text-soft);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .journal-dashboard-top {
   display: flex;
   align-items: start;
@@ -2469,8 +2534,8 @@ tbody tr:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
-          linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 42%, transparent), transparent 52%),
-          var(--surface);
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 42%, transparent), transparent 52%),
+    var(--surface);
   box-shadow: var(--shadow-xs);
 }
 
@@ -2672,8 +2737,8 @@ tbody tr:hover {
 .journal-calendar-day {
   cursor: pointer;
   transition:
-          background var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 .journal-calendar-day:hover,
@@ -3193,8 +3258,8 @@ tbody tr:hover {
   min-height: 96px;
   align-content: center;
   background:
-          linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 72%, transparent), transparent 68%),
-          color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 72%, transparent), transparent 68%),
+    color-mix(in srgb, var(--surface) 88%, var(--surface-2) 12%);
 }
 
 .journal-detail-pnl {
@@ -3449,23 +3514,29 @@ tbody tr:hover {
 }
 
 .modal::backdrop {
-  background: rgba(9, 9, 11, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(9, 9, 11, 0.5);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  animation: backdrop-in 200ms ease both;
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 :root[data-theme="dark"] .modal::backdrop {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .modal[open] .modal-card {
-  animation: modal-enter 220ms var(--ease);
+  animation: modal-enter 200ms var(--ease) both;
 }
 
 @keyframes modal-enter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(10px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -3536,7 +3607,7 @@ tbody tr:hover {
 .journal-media-dropzone {
   display: grid;
   place-items: center;
-  min-height: 150px;
+  min-height: 96px;
   overflow: hidden;
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius);
@@ -3544,9 +3615,9 @@ tbody tr:hover {
   color: var(--muted);
   cursor: pointer;
   transition:
-          background var(--dur) var(--ease),
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 .journal-media-dropzone:hover,
@@ -3561,8 +3632,8 @@ tbody tr:hover {
 .journal-media-copy {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  padding: 12px;
   text-align: center;
   font-size: 13px;
   line-height: 1.4;
@@ -3725,9 +3796,9 @@ tbody tr:hover {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--input-bg) 88%, var(--surface-2) 12%);
   transition:
-          border-color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease),
-          background var(--dur) var(--ease);
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
 }
 
 :root[data-theme="dark"] .journal-money-input {
@@ -3837,10 +3908,10 @@ tbody tr:hover {
   cursor: pointer;
   user-select: none;
   transition:
-          background var(--dur) var(--ease),
-          border-color var(--dur) var(--ease),
-          color var(--dur) var(--ease),
-          box-shadow var(--dur) var(--ease);
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 :root[data-theme="dark"] .journal-entry-form .journal-errors-options label {
@@ -3863,8 +3934,8 @@ tbody tr:hover {
   background: color-mix(in srgb, var(--error-color) 22%, var(--surface));
   color: var(--text);
   box-shadow:
-          inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
-          0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
 }
 
 .journal-entry-form .journal-errors-options label:has(input:checked) {
@@ -3872,8 +3943,8 @@ tbody tr:hover {
   background: color-mix(in srgb, var(--error-color) 22%, var(--surface));
   color: var(--text);
   box-shadow:
-          inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
-          0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--error-color) 35%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--error-color) 12%, transparent);
 }
 
 .journal-entry-form .journal-errors-options input {
@@ -3897,14 +3968,14 @@ tbody tr:hover {
 
 .journal-entry-form .journal-errors-options label.is-selected i {
   box-shadow:
-          0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
-          0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
+    0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
+    0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
 }
 
 .journal-entry-form .journal-errors-options label:has(input:checked) i {
   box-shadow:
-          0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
-          0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
+    0 0 0 3px color-mix(in srgb, var(--error-color) 22%, transparent),
+    0 0 14px color-mix(in srgb, var(--error-color) 38%, transparent);
 }
 
 .journal-entry-form .modal-actions {
@@ -3928,30 +3999,30 @@ tbody tr:hover {
 
 .toast {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 20;
-  max-width: min(360px, calc(100vw - 36px));
-  padding: 12px 16px;
+  left: 50%;
+  bottom: 24px;
+  z-index: 200;
+  max-width: min(380px, calc(100vw - 36px));
+  padding: 11px 18px;
   border: 1px solid var(--toast-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--toast-bg);
   color: var(--toast-text);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   font-size: 13.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateX(-50%) translateY(12px);
   pointer-events: none;
   transition:
-          opacity 180ms var(--ease),
-          transform 180ms var(--ease);
+    opacity 200ms var(--ease),
+    transform 200ms var(--ease);
 }
 
 .toast.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 :root[data-theme="dark"] .session-pill {
@@ -3960,11 +4031,11 @@ tbody tr:hover {
   color: var(--muted-strong);
 }
 
-/* ============= SCROLLBARS (subtle) ============= */
+/* ============= SCROLLBARS ============= */
 
 .table-wrap::-webkit-scrollbar {
-  height: 10px;
-  width: 10px;
+  height: 6px;
+  width: 6px;
 }
 
 .table-wrap::-webkit-scrollbar-track {
@@ -3974,7 +4045,6 @@ tbody tr:hover {
 .table-wrap::-webkit-scrollbar-thumb {
   background: var(--line-strong);
   border-radius: 999px;
-  border: 2px solid var(--surface);
 }
 
 .table-wrap::-webkit-scrollbar-thumb:hover {
