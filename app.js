@@ -231,21 +231,20 @@ function bindElements() {
     "authSwitchText",
     "authSignupButton",
     "authMessage",
+    "globalAddButton",
+    "globalAddButtonText",
     "appShell",
     "pageTitle",
     "syncStatus",
     "syncStatusText",
     "currentDateLabel",
     "metricNet",
-    "metricNetHint",
-    "metricExpenses",
+        "metricExpenses",
     "metricIncome",
     "metricRoi",
-    "metricRoiHint",
-    "metricBreakEven",
+        "metricBreakEven",
     "metricActiveAccounts",
-    "metricAccountHint",
-    "dashboardFirmFilter",
+        "dashboardFirmFilter",
     "dashboardAccountFilter",
     "dashboardPeriodFilter",
     "dashboardFromFilter",
@@ -266,14 +265,11 @@ function bindElements() {
     "accountsTableBody",
     "transactionsTableBody",
     "journalSection",
-    "journalPanelTitle",
-    "journalPanelSubtitle",
     "journalCalendarGrid",
     "journalCalendarMonth",
     "journalCalendarPrev",
     "journalCalendarNext",
     "journalCalendarToday",
-    "journalCalendarSummary",
     "journalMonthTotal",
     "journalPnlChart",
     "journalPnlChartEmpty",
@@ -299,6 +295,7 @@ function bindElements() {
     "addJournalErrorButton",
     "manageJournalErrorsButton",
     "journalSelectedDateLabel",
+    "journalViewHeading",
     "journalClearDateButton",
     "journalEntriesList",
     "firmsEmpty",
@@ -370,7 +367,6 @@ function bindElements() {
     "journalDetailTitle",
     "journalDetailDate",
     "journalDetailPnl",
-    "journalDetailDirection",
     "journalDetailErrors",
     "journalDetailMediaShell",
     "journalDetailMediaButton",
@@ -425,11 +421,7 @@ function bindEvents() {
     });
   });
 
-  document.getElementById("addFirmButtonInline").addEventListener("click", () => openFirmDialog());
-  document.getElementById("addAccountButtonInline").addEventListener("click", () => openAccountDialog());
-  document.getElementById("addTransactionButtonOverview").addEventListener("click", () => openTransactionDialog());
-  document.getElementById("addTransactionButtonInline").addEventListener("click", () => openTransactionDialog());
-  document.getElementById("addJournalButtonInline").addEventListener("click", () => openJournalDialog());
+  
   els.dashboardPrivacyToggleButton.addEventListener("click", toggleDashboardPrivacy);
   els.themeToggleButton.addEventListener("click", toggleTheme);
   els.dashboardFirmFilter.addEventListener("input", () => {
@@ -1738,7 +1730,7 @@ function setJournalView(view) {
   if (activeSection === "journal" && els.pageTitle) {
     els.pageTitle.textContent = journalView === "entries" ? "Journal - Entradas" : "Journal - Dashboard";
   }
-  updateJournalPanelHeading();
+  updateGlobalAddButton();
   updateNavigationState();
 }
 
@@ -1762,7 +1754,7 @@ function setActiveSection(section) {
   if (els.journalSection) {
     els.journalSection.dataset.journalView = journalView;
   }
-  updateJournalPanelHeading();
+  updateGlobalAddButton();
   updateNavigationState();
   els.pageTitle.textContent = titles[section] || "Panel";
   drawCharts(getDashboardSummary());
@@ -1781,6 +1773,32 @@ function updateJournalPanelHeading() {
   }
   els.journalPanelTitle.textContent = "Dashboard";
   els.journalPanelSubtitle.textContent = "P&L, disciplina, errores y calendario";
+}
+
+function updateGlobalAddButton() {
+  if (!els.globalAddButton || !els.globalAddButtonText) return;
+
+  let text = "Nuevo";
+  let action = null;
+
+  if (activePillar === "tracker") {
+    if (activeSection === "firms") {
+      text = "Nueva firm";
+      action = () => openFirmDialog();
+    } else if (activeSection === "accounts") {
+      text = "Nueva cuenta";
+      action = () => openAccountDialog();
+    } else {
+      text = "Nuevo movimiento";
+      action = () => openTransactionDialog();
+    }
+  } else if (activePillar === "journal") {
+    text = "Nueva entrada";
+    action = () => openJournalDialog();
+  }
+
+  els.globalAddButtonText.textContent = text;
+  els.globalAddButton.onclick = action;
 }
 
 function updateNavigationState() {
@@ -2091,15 +2109,7 @@ function renderDashboard() {
   els.metricRoi.textContent = sensitivePercent(summary.roi);
   els.metricBreakEven.textContent = sensitiveMoney(summary.breakEven);
   els.metricActiveAccounts.textContent = sensitiveCount(summary.activeAccounts);
-  els.metricAccountHint.textContent = `${sensitiveCount(summary.accountCount)} ${summary.accountCount === 1 ? "cuenta" : "cuentas"} en el filtro`;
-  els.metricRoiHint.textContent = isDashboardFiltered(summary.filters) ? "Base: gasto filtrado" : "Base: gasto total";
   els.dashboardPeriodHint.textContent = getDashboardPeriodLabel(summary.filters);
-  els.metricNetHint.textContent =
-    summary.transactions.length === 0
-      ? "Sin movimientos en el filtro"
-      : summary.net >= 0
-        ? "Retiros por encima de gastos"
-        : "Gastos por encima de retiros";
 
   document.querySelector(".metric-net").classList.toggle("positive", summary.net > 0);
   document.querySelector(".metric-net").classList.toggle("negative", summary.net < 0);
@@ -3285,7 +3295,7 @@ function renderJournalCalendar() {
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
           ${dayEntries.length ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>` : "<strong></strong>"}
-          ${dayEntries.length ? `<small>${sensitiveCount(dayEntries.length)} ${dayEntries.length === 1 ? "entrada" : "entradas"}</small>` : "<small></small>"}
+          ${dayEntries.length && !dashboardPrivacyHidden ? `<small>${dayEntries.length} ${dayEntries.length === 1 ? "entrada" : "entradas"}</small>` : "<small></small>"}
         </button>
       `);
       cursor.setDate(cursor.getDate() + 1);
@@ -3297,7 +3307,7 @@ function renderJournalCalendar() {
       <div class="journal-calendar-week-total ${pnlToneClass(weekPnl)}">
         <span>Semana</span>
         <strong>${sensitiveSignedMoney(weekPnl)}</strong>
-        <small>${sensitiveCount(weekEntries.length)} ${weekEntries.length === 1 ? "entrada" : "entradas"}</small>
+        ${!dashboardPrivacyHidden ? `<small>${weekEntries.length} ${weekEntries.length === 1 ? "entrada" : "entradas"}</small>` : "<small></small>"}
       </div>
     `);
   }
@@ -3308,10 +3318,8 @@ function renderJournalCalendar() {
   els.journalCalendarMonth.textContent = formatMonthLabel(journalCalendarMonth);
   els.journalMonthTotal.textContent = sensitiveSignedMoney(monthPnl);
   els.journalMonthTotal.className = pnlToneClass(monthPnl);
-  els.journalCalendarSummary.textContent = monthEntries.length
-    ? `${sensitiveSignedMoney(monthPnl)} este mes - ${sensitiveCount(winningDays.length)}/${sensitiveCount(activeDays.size)} dias positivos - ${sensitiveCount(monthEntries.length)} entradas`
-    : "Sin entradas en este mes con los filtros actuales.";
-  els.journalCalendarGrid.innerHTML = `${header}<div class="journal-calendar-head weekly">Semana</div>${rows.join("")}`;
+    els.journalCalendarGrid.innerHTML = `${header}<div class="journal-calendar-head weekly">Semana</div>${rows.join("")}`;
+  els.journalViewHeading.hidden = !journalSelectedDate;
   els.journalSelectedDateLabel.hidden = !journalSelectedDate;
   els.journalClearDateButton.hidden = !journalSelectedDate;
   els.journalSelectedDateLabel.textContent = journalSelectedDate ? `Dia seleccionado: ${formatDate(journalSelectedDate)}` : "";
@@ -4295,7 +4303,6 @@ function openJournalDetailDialog(entry) {
   els.journalDetailDate.textContent = formatJournalGalleryDate(entry.date);
   els.journalDetailPnl.textContent = formatSignedMoney(pnl);
   els.journalDetailPnl.className = `journal-pnl ${tone} journal-detail-pnl`;
-  els.journalDetailDirection.textContent = getJournalDirectionLabel(entry);
   els.journalDetailErrors.innerHTML = errors.length
     ? errors.map((error) => `<span>${escapeHtml(getJournalErrorLabel(error))}</span>`).join("")
     : `<span class="journal-detail-empty">Sin errores</span>`;
@@ -5683,3 +5690,10 @@ function debounce(fn, wait) {
     timer = window.setTimeout(() => fn(...args), wait);
   };
 }
+
+
+
+
+
+
+

@@ -55,12 +55,10 @@
           <button class="pillar-button active" type="button" data-pillar="tracker">
             <i data-lucide="briefcase-business"></i>
             <span>Prop Firm Tracker</span>
-            <small>Cuentas y capital</small>
           </button>
           <button class="pillar-button" type="button" data-pillar="journal">
             <i data-lucide="book-open-check"></i>
             <span>Journal</span>
-            <small>Dashboard y sesiones</small>
           </button>
         </div>
 
@@ -129,6 +127,10 @@
             </div>
           </div>
           <div class="topbar-actions">
+            <button class="primary-button" id="globalAddButton" type="button" style="margin-right: 8px;">
+              <i data-lucide="plus"></i>
+              <span id="globalAddButtonText">Nuevo</span>
+            </button>
             <button class="theme-toggle" id="dashboardPrivacyToggleButton" type="button" aria-label="Ocultar datos del dashboard" title="Ocultar datos">
               <i data-lucide="eye"></i>
             </button>
@@ -147,16 +149,6 @@
         </header>
 
         <section class="section-panel active" id="overviewSection">
-          <div class="section-toolbar">
-            <div>
-              <h2>Prop Firm Tracker</h2>
-              <p>Resumen de capital, cuentas, gastos y payouts.</p>
-            </div>
-            <button class="primary-button section-cta" id="addTransactionButtonOverview">
-              <i data-lucide="plus"></i>
-              <span>Nuevo movimiento</span>
-            </button>
-          </div>
           <div class="dashboard-filters" aria-label="Filtros del dashboard">
             <label>
               Firm
@@ -198,7 +190,7 @@
                 <span class="metric-icon" data-tone="accent"><i data-lucide="activity"></i></span>
               </div>
               <strong id="metricNet">0,00 EUR</strong>
-              <small id="metricNetHint">Sin movimientos</small>
+              
             </article>
             <article class="metric-card">
               <div class="metric-heading">
@@ -206,7 +198,7 @@
                 <span class="metric-icon" data-tone="red"><i data-lucide="arrow-down-left"></i></span>
               </div>
               <strong id="metricExpenses">0,00 EUR</strong>
-              <small>Compras, resets, activaciones y fees</small>
+              
             </article>
             <article class="metric-card">
               <div class="metric-heading">
@@ -214,7 +206,7 @@
                 <span class="metric-icon" data-tone="green"><i data-lucide="arrow-up-right"></i></span>
               </div>
               <strong id="metricIncome">0,00 EUR</strong>
-              <small>Payouts, refunds y otros ingresos</small>
+              
             </article>
             <article class="metric-card">
               <div class="metric-heading">
@@ -222,7 +214,7 @@
                 <span class="metric-icon" data-tone="violet"><i data-lucide="percent"></i></span>
               </div>
               <strong id="metricRoi">0,00%</strong>
-              <small id="metricRoiHint">Base: gasto total</small>
+              
             </article>
             <article class="metric-card">
               <div class="metric-heading">
@@ -230,7 +222,7 @@
                 <span class="metric-icon" data-tone="amber"><i data-lucide="target"></i></span>
               </div>
               <strong id="metricBreakEven">0,00 EUR</strong>
-              <small>Retiros necesarios para empatar</small>
+              
             </article>
             <article class="metric-card">
               <div class="metric-heading">
@@ -238,7 +230,7 @@
                 <span class="metric-icon" data-tone="cyan"><i data-lucide="circle-check-big"></i></span>
               </div>
               <strong id="metricActiveAccounts">0</strong>
-              <small id="metricAccountHint">0 cuentas registradas</small>
+              
             </article>
           </div>
 
@@ -247,7 +239,6 @@
               <div class="panel-header">
                 <div>
                   <h2>Evolucion del capital</h2>
-                  <p>Neto acumulado, payouts y gastos</p>
                 </div>
                 <div class="chart-legend" aria-label="Leyenda del grafico">
                   <span><i class="legend-dot capital"></i>Capital</span>
@@ -272,8 +263,12 @@
                 <div>
                   <h2>Resumen del periodo</h2>
                   <p id="dashboardPeriodHint">Todo el historial</p>
-                </div>
-              </div>
+                      </div>
+                      <label class="journal-dashboard-filter">
+                        Cuenta
+                        <select id="journalAccountFilter"></select>
+                      </label>
+                    </div>
               <div class="month-summary">
                 <div>
                   <span>Gasto</span>
@@ -300,7 +295,6 @@
               <div class="panel-header">
                 <div>
                   <h2>Gastos por categoria</h2>
-                  <p>Distribucion del gasto filtrado</p>
                 </div>
               </div>
               <div class="insight-list" id="expenseBreakdownList"></div>
@@ -310,7 +304,6 @@
               <div class="panel-header">
                 <div>
                   <h2>Resultado por cuenta</h2>
-                  <p>Neto, gasto y retiros por cuenta</p>
                 </div>
               </div>
               <div class="insight-list" id="accountBreakdownList"></div>
@@ -320,7 +313,6 @@
               <div class="panel-header">
                 <div>
                   <h2>Ultimos movimientos</h2>
-                  <p>Actividad dentro del filtro activo</p>
                 </div>
               </div>
               <div class="insight-list" id="recentTransactionsList"></div>
@@ -330,16 +322,7 @@
 
         <section class="section-panel" id="firmsSection">
           <div class="panel">
-            <div class="panel-header">
-              <div>
-                <h2>Resultado por firm</h2>
-                <p>Gastos y retiros agrupados</p>
-              </div>
-              <button class="secondary-button section-cta" id="addFirmButtonInline">
-                <i data-lucide="plus"></i>
-                <span>Nueva firm</span>
-              </button>
-            </div>
+            
             <div class="table-wrap">
               <table>
                 <thead>
@@ -363,16 +346,7 @@
 
         <section class="section-panel" id="accountsSection">
           <div class="panel">
-            <div class="panel-header">
-              <div>
-                <h2>Cuentas</h2>
-                <p>Coste, retiros y estado</p>
-              </div>
-              <button class="secondary-button section-cta" id="addAccountButtonInline">
-                <i data-lucide="plus"></i>
-                <span>Nueva cuenta</span>
-              </button>
-            </div>
+            
             <div class="filters-row">
               <label>
                 Firm
@@ -418,16 +392,7 @@
 
         <section class="section-panel" id="transactionsSection">
           <div class="panel">
-            <div class="panel-header">
-              <div>
-                <h2>Movimientos</h2>
-                <p>Compras, resets, fees, payouts y refunds</p>
-              </div>
-              <button class="primary-button section-cta" id="addTransactionButtonInline">
-                <i data-lucide="plus"></i>
-                <span>Nuevo movimiento</span>
-              </button>
-            </div>
+            
             <div class="filters-row">
               <label>
                 Firm
@@ -477,29 +442,8 @@
 
         <section class="section-panel" id="journalSection">
           <div class="panel">
-            <div class="panel-header">
-              <div>
-                <h2 id="journalPanelTitle">Journal</h2>
-                <p id="journalPanelSubtitle">Dashboard, operaciones y notas</p>
-              </div>
-              <button class="primary-button section-cta" id="addJournalButtonInline">
-                <i data-lucide="plus"></i>
-                <span>Nueva entrada</span>
-              </button>
-            </div>
             <div class="journal-app-shell">
               <div class="journal-dashboard">
-                <div class="journal-dashboard-top">
-                  <div>
-                    <span class="journal-app-label">Trading journal</span>
-                    <h3>Dashboard</h3>
-                    <p id="journalCalendarSummary">P&L, disciplina, errores y calendario desde tus entradas.</p>
-                  </div>
-                  <label class="journal-dashboard-filter">
-                    Cuenta
-                    <select id="journalAccountFilter"></select>
-                  </label>
-                </div>
                 <article class="journal-account-overview" id="journalAccountOverview" hidden>
                   <div class="journal-account-overview-head">
                     <div>
@@ -530,6 +474,10 @@
                         <h4>Balance</h4>
                         <p id="journalPnlSummary">Resultado acumulado del journal.</p>
                       </div>
+                      <label class="journal-dashboard-filter">
+                        Cuenta
+                        <select id="journalAccountFilter"></select>
+                      </label>
                     </div>
                     <div class="canvas-wrap compact journal-canvas">
                       <canvas
@@ -597,7 +545,6 @@
                   <div class="journal-calendar-title">
                     <div>
                       <h4 id="journalCalendarMonth">Mes actual</h4>
-                      <p>P&L diario y cierre semanal.</p>
                     </div>
                     <div class="journal-calendar-tools">
                       <div class="journal-month-total">
@@ -623,11 +570,8 @@
               </div>
             </div>
             <div class="journal-entries-panel" id="journalEntriesPanel">
-              <div class="journal-view-heading">
-                <div>
-                  <h3>Entradas</h3>
-                  <p>Busca operaciones, decisiones y notas.</p>
-                </div>
+              <div class="journal-view-heading" id="journalViewHeading" hidden>
+                <div></div>
                 <div class="journal-selected-date" id="journalSelectedDateLabel" hidden></div>
                 <button class="ghost-button compact-button" type="button" id="journalClearDateButton" hidden>
                   <i data-lucide="x"></i>
@@ -949,7 +893,7 @@
             <span>P&L</span>
             <strong class="journal-pnl neutral journal-detail-pnl" id="journalDetailPnl">0,00 €</strong>
           </div>
-          <div class="journal-detail-metric">
+          <div class="journal-detail-metric" hidden>
             <span>Dirección</span>
             <strong class="journal-detail-direction" id="journalDetailDirection">Sin dirección</strong>
           </div>
@@ -1052,3 +996,9 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>
 </html>
+
+
+
+
+
+
