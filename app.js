@@ -1173,7 +1173,7 @@ function getCurrentUserDisplayName() {
 }
 
 function toggleAuthMode() {
-  setAuthMode(authMode === "login" ? "signup" : "login");
+  els.authMessage.textContent = "El registro está cerrado. Únete a la waitlist en la página principal.";
 }
 
 function setAuthMode(mode) {
