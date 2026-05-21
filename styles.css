@@ -2082,6 +2082,7 @@ tbody tr:hover {
 
 .journal-errors-block {
   grid-column: auto;
+  overflow: visible;
 }
 
 .journal-discipline-block {
@@ -2359,10 +2360,13 @@ tbody tr:hover {
   grid-template-columns: minmax(160px, 0.85fr) minmax(0, 1fr);
   align-items: center;
   gap: 12px;
+  overflow: visible;
 }
 
 .journal-donut-wrap {
   height: 178px;
+  overflow: visible;
+  z-index: 3;
 }
 
 .journal-errors-legend {
