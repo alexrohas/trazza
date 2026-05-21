@@ -496,7 +496,7 @@
       <a class="logo" href="./" aria-label="Trazza">
         <img src="./assets/trazza.png" alt="Trazza" />
       </a>
-      <a class="login-link" href="./app.html">Entrar</a>
+      <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Ya tengo acceso</a>
     </header>
 
     <main class="hero">
@@ -515,7 +515,7 @@
           <input id="waitlistEmail" type="email" autocomplete="email" placeholder="tu@email.com" required />
           <button type="submit">Unirme a la waitlist</button>
         </form>
-        <p class="waitlist-note">Usaremos este correo solo para enviarte un aviso cuando Trazza esté montada y lista. Sin spam.</p>
+        <p class="waitlist-note">Algunos traders ya la están probando en acceso privado. Déjanos tu correo y te avisaremos cuando abramos más plazas. Sin spam.</p>
         <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
 
         <ul class="signals" aria-label="Funciones principales">
@@ -608,8 +608,8 @@
         const result = await saveWaitlistEmail(email);
         const successText =
           result === "duplicate"
-            ? "Ya tenemos tu correo. Te avisaremos cuando la app esté montada y lista."
-            : "Listo. Te avisaremos cuando la app esté montada y lista.";
+            ? "Ya tenemos tu correo. Te avisaremos cuando abramos más plazas."
+            : "Listo. Te avisaremos cuando abramos más plazas.";
 
         setMessage(successText, "success");
         form.reset();
