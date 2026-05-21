@@ -1,1038 +1,626 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>trazza</title>
-    <link rel="icon" href="./assets/trazza.png" type="image/png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
-    <script src="https://unpkg.com/lucide@latest" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-    <script src="./app.js" defer></script>
-  </head>
-  <body>
-    <section class="auth-screen" id="authScreen" hidden>
-      <form class="auth-card" id="authForm">
-        <div class="auth-logo">
-          <img src="./assets/trazza.png" alt="trazza" />
-        </div>
-        <div class="auth-copy">
-          <h1 id="authTitle">trazza</h1>
-          <p id="authIntro">Accede para sincronizar tus firms, cuentas, movimientos y journal.</p>
-        </div>
-        <label id="authNameField" hidden>
-          Nombre y apellidos
-          <input id="authName" type="text" autocomplete="name" disabled placeholder="Alex Rodriguez" />
-        </label>
-        <label>
-          Email
-          <input id="authEmail" type="email" autocomplete="email" required placeholder="tu@email.com" />
-        </label>
-        <label>
-          Password
-          <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Minimo 6 caracteres" />
-        </label>
-        <div class="auth-actions">
-          <button class="primary-button" id="authLoginButton" type="submit">Entrar</button>
-        </div>
-        <p class="auth-switch">
-          <span id="authSwitchText">No tienes cuenta?</span>
-          <button class="auth-switch-button" id="authSignupButton" type="button">Crear cuenta</button>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trazza — Waitlist</title>
+  <meta name="description" content="Trazza es un journal de trading y prop firm tracker hecho por traders, para traders." />
+  <link rel="icon" href="./assets/trazza.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #07080d;
+      --text: #f2f0f8;
+      --muted: #aaa6b6;
+      --muted-strong: #cbc7d7;
+      --line: rgba(255, 255, 255, 0.12);
+      --field: rgba(11, 12, 18, 0.74);
+      --accent: #9d82fd;
+      --accent-strong: #7c5cfc;
+      --green: #22c97a;
+      --font-head: "Bricolage Grotesque", sans-serif;
+      --font-body: "DM Sans", sans-serif;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      font-family: var(--font-body);
+      background: var(--bg);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -3;
+      background: url("./assets/landing/dashboard.png") center / cover no-repeat;
+      opacity: 0.14;
+      transform: scale(1.02);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background:
+        radial-gradient(circle at 78% 38%, rgba(124, 92, 252, 0.3), transparent 30rem),
+        radial-gradient(circle at 22% 26%, rgba(157, 130, 253, 0.18), transparent 28rem),
+        linear-gradient(180deg, rgba(7, 8, 13, 0.72), rgba(7, 8, 13, 0.95) 70%, #07080d);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 24px 0;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: 190px;
+      height: 58px;
+      overflow: hidden;
+      text-decoration: none;
+    }
+
+    .logo img {
+      display: block;
+      width: 194px;
+      max-width: none;
+      height: auto;
+      object-fit: contain;
+      transform: translate(-24px, -1px) scale(1.08);
+      transform-origin: left center;
+    }
+
+    .login-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted-strong);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(14px);
+      transition: border-color 0.18s, color 0.18s, background 0.18s, transform 0.18s;
+    }
+
+    .login-link:hover {
+      color: var(--text);
+      border-color: rgba(157, 130, 253, 0.46);
+      background: rgba(124, 92, 252, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .hero {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 0.84fr) minmax(430px, 1fr);
+      gap: clamp(34px, 6vw, 78px);
+      align-items: center;
+      justify-content: center;
+      padding: 52px 0 82px;
+    }
+
+    .hero-copy {
+      width: 100%;
+      text-align: left;
+    }
+
+    .eyebrow {
+      margin: 0 0 22px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 640px;
+      font-family: var(--font-head);
+      font-size: clamp(54px, 7.4vw, 96px);
+      font-weight: 800;
+      line-height: 0.92;
+      letter-spacing: -0.055em;
+      text-wrap: balance;
+    }
+
+    h1 span {
+      display: block;
+      background: linear-gradient(135deg, #ffffff 8%, #d8ceff 46%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      max-width: 610px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 21px);
+      line-height: 1.55;
+      text-wrap: balance;
+    }
+
+    .waitlist-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      width: min(560px, 100%);
+      margin: 42px 0 0;
+      padding: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 18px;
+      background: rgba(7, 8, 13, 0.66);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42), 0 0 42px rgba(124, 92, 252, 0.12);
+      backdrop-filter: blur(18px);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .waitlist-form input {
+      min-width: 0;
+      height: 50px;
+      padding: 0 16px;
+      border: 0;
+      outline: 0;
+      border-radius: 12px;
+      background: var(--field);
+      color: var(--text);
+      font: 600 15px var(--font-body);
+    }
+
+    .waitlist-form input::placeholder {
+      color: #6f6b79;
+    }
+
+    .waitlist-form input:focus {
+      box-shadow: inset 0 0 0 1px rgba(157, 130, 253, 0.58);
+    }
+
+    .waitlist-form button {
+      height: 50px;
+      padding: 0 22px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      font: 800 14px var(--font-body);
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(124, 92, 252, 0.36);
+      transition: transform 0.18s, box-shadow 0.18s;
+      white-space: nowrap;
+    }
+
+    .waitlist-form button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 38px rgba(124, 92, 252, 0.48);
+    }
+
+    .waitlist-form button:disabled {
+      cursor: progress;
+      opacity: 0.72;
+      transform: none;
+      box-shadow: 0 8px 24px rgba(124, 92, 252, 0.24);
+    }
+
+    .waitlist-note {
+      max-width: 560px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .form-message {
+      min-height: 22px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .form-message.success {
+      color: var(--green);
+    }
+
+    .form-message.error {
+      color: #ff7474;
+    }
+
+    .signals {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 10px;
+      margin: 34px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .signals li {
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted-strong);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .product-preview {
+      position: relative;
+      width: min(100%, 620px);
+      min-height: 600px;
+      justify-self: end;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.25), transparent 12rem),
+        linear-gradient(135deg, #4b28ff 0%, #8a5cf6 48%, #ec4899 100%);
+      box-shadow: 0 34px 110px rgba(0, 0, 0, 0.52), 0 0 70px rgba(124, 92, 252, 0.22);
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .product-preview::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      opacity: 0.7;
+      z-index: -1;
+    }
+
+    .preview-card {
+      position: absolute;
+      overflow: hidden;
+      border: 4px solid rgba(246, 241, 255, 0.9);
+      border-radius: 18px;
+      background: #111219;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+
+    .preview-card img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: -webkit-optimize-contrast;
+      transform: translateZ(0);
+      filter: contrast(1.04) saturate(1.02);
+    }
+
+    .preview-card.dashboard {
+      top: 7%;
+      left: 8%;
+      width: 84%;
+      aspect-ratio: 2.05;
+    }
+
+    .preview-card.entries {
+      left: 6%;
+      bottom: 7%;
+      width: 47%;
+      aspect-ratio: 1.62;
+    }
+
+    .preview-card.calendar {
+      right: 5%;
+      bottom: 10%;
+      width: 60%;
+      aspect-ratio: 1.78;
+    }
+
+    .preview-label {
+      position: absolute;
+      top: 22px;
+      right: 24px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      background: rgba(7, 8, 13, 0.44);
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      backdrop-filter: blur(14px);
+    }
+
+    .footer {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 24px 0 30px;
+      color: rgba(203, 199, 215, 0.62);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 46px;
+        padding-top: 42px;
+      }
+
+      .hero-copy {
+        text-align: center;
+      }
+
+      .subtitle,
+      .waitlist-form,
+      .waitlist-note {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .signals {
+        justify-content: center;
+      }
+
+      .product-preview {
+        justify-self: center;
+        min-height: min(86vw, 520px);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav {
+        width: min(100% - 28px, 1120px);
+        padding: 20px 0;
+      }
+
+      .logo img {
+        width: 164px;
+        transform: translate(-22px, -1px) scale(1.08);
+      }
+
+      .logo {
+        width: 154px;
+        height: 50px;
+      }
+
+      .login-link {
+        min-height: 38px;
+        padding: 0 14px;
+      }
+
+      .hero {
+        width: min(100% - 28px, 920px);
+        padding: 54px 0 72px;
+      }
+
+      h1 {
+        font-size: clamp(48px, 15vw, 72px);
+      }
+
+      .product-preview {
+        min-height: 410px;
+        border-radius: 24px;
+      }
+
+      .preview-card {
+        border-width: 4px;
+        border-radius: 14px;
+      }
+
+      .preview-card.dashboard {
+        top: 10%;
+        left: 8%;
+        width: 84%;
+        aspect-ratio: 2.05;
+      }
+
+      .preview-card.entries {
+        left: 6%;
+        bottom: 8%;
+        width: 49%;
+        aspect-ratio: 1.62;
+      }
+
+      .preview-card.calendar {
+        right: 5%;
+        bottom: 11%;
+        width: 63%;
+        aspect-ratio: 1.78;
+      }
+
+      .waitlist-form {
+        grid-template-columns: 1fr;
+        border-radius: 16px;
+      }
+
+      .waitlist-form button {
+        width: 100%;
+      }
+
+      .signals {
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="nav">
+      <a class="logo" href="./" aria-label="Trazza">
+        <img src="./assets/trazza.png" alt="Trazza" />
+      </a>
+      <a class="login-link" href="./app.html">Entrar</a>
+    </header>
+
+    <main class="hero">
+      <section class="hero-copy" aria-labelledby="landingTitle">
+        <p class="eyebrow">Trazza waitlist</p>
+        <h1 id="landingTitle">
+          Hecho por traders,
+          <span>para traders.</span>
+        </h1>
+        <p class="subtitle">
+          Un journal de trading y prop firm tracker simple, visual y pensado para usarlo de verdad.
         </p>
-        <p class="auth-message" id="authMessage"></p>
-      </form>
-    </section>
 
-    <div class="app-shell" id="appShell">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark">
-            <img src="./assets/trazza.png" alt="trazza" />
-          </div>
-        </div>
+        <form class="waitlist-form" id="waitlistForm">
+          <label class="sr-only" for="waitlistEmail">Correo electrónico</label>
+          <input id="waitlistEmail" type="email" autocomplete="email" placeholder="tu@email.com" required />
+          <button type="submit">Unirme a la waitlist</button>
+        </form>
+        <p class="waitlist-note">Usaremos este correo solo para enviarte un aviso cuando Trazza esté montada y lista. Sin spam.</p>
+        <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
 
-        <div class="pillar-switch" aria-label="Areas principales">
-          <button class="pillar-button active" type="button" data-pillar="tracker">
-            <i data-lucide="briefcase-business"></i>
-            <span>Prop Firm Tracker</span>
-          </button>
-          <button class="pillar-button" type="button" data-pillar="journal">
-            <i data-lucide="book-open-check"></i>
-            <span>Journal</span>
-          </button>
-        </div>
+        <ul class="signals" aria-label="Funciones principales">
+          <li>Journal visual</li>
+          <li>Calendario P&L</li>
+          <li>Prop firm tracker</li>
+        </ul>
+      </section>
 
-        <nav class="nav-list" aria-label="Menu del area activa">
-          <div class="nav-group active" data-pillar-menu="tracker">
-            <p class="nav-label">Prop Firm Tracker</p>
-            <button class="nav-item active" data-section="overview">
-              <i data-lucide="layout-dashboard"></i>
-              <span>Panel</span>
-            </button>
-            <button class="nav-item" data-section="firms">
-              <i data-lucide="building-2"></i>
-              <span>Firms</span>
-            </button>
-            <button class="nav-item" data-section="accounts">
-              <i data-lucide="wallet-cards"></i>
-              <span>Cuentas</span>
-            </button>
-            <button class="nav-item" data-section="transactions">
-              <i data-lucide="receipt-text"></i>
-              <span>Movimientos</span>
-            </button>
-          </div>
-          <div class="nav-group" data-pillar-menu="journal">
-            <p class="nav-label">Journal</p>
-            <button class="nav-item" data-section="journal" data-journal-view="dashboard">
-              <i data-lucide="chart-no-axes-combined"></i>
-              <span>Dashboard</span>
-            </button>
-            <button class="nav-item" data-section="journal" data-journal-view="entries">
-              <i data-lucide="list-checks"></i>
-              <span>Entradas</span>
-            </button>
-          </div>
-        </nav>
-
-        <div class="sidebar-actions">
-          <button class="ghost-button" id="exportJsonButton" aria-label="Backup JSON" title="Backup JSON">
-            <i data-lucide="download"></i>
-            <span>Backup JSON</span>
-          </button>
-          <button class="ghost-button" id="exportCsvButton" aria-label="Exportar CSV" title="Exportar CSV">
-            <i data-lucide="file-down"></i>
-            <span>Exportar CSV</span>
-          </button>
-          <button class="ghost-button" id="importJsonButton" aria-label="Importar JSON" title="Importar JSON">
-            <i data-lucide="upload"></i>
-            <span>Importar JSON</span>
-          </button>
-          <button class="ghost-button" id="migrateLocalButton" hidden aria-label="Subir datos locales" title="Subir datos locales">
-            <i data-lucide="cloud-upload"></i>
-            <span>Subir datos locales</span>
-          </button>
-          <input id="importFileInput" type="file" accept="application/json" hidden />
-        </div>
+      <aside class="product-preview" aria-label="Vistas de la aplicación Trazza">
+        <span class="preview-label">Preview</span>
+        <figure class="preview-card dashboard">
+          <img src="./assets/landing/dashboard.png" alt="Dashboard del journal de Trazza" />
+        </figure>
+        <figure class="preview-card entries">
+          <img src="./assets/landing/entries.png" alt="Galería de entradas del journal" />
+        </figure>
+        <figure class="preview-card calendar">
+          <img src="./assets/landing/calendar.png" alt="Calendario de P&L del journal" />
+        </figure>
       </aside>
+    </main>
 
-      <main class="main-content">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow" id="currentDateLabel"></p>
-            <h1 id="pageTitle">Panel</h1>
-            <div class="sync-status" id="syncStatus" role="status" aria-live="polite" hidden>
-              <i data-lucide="loader-circle"></i>
-              <span id="syncStatusText">Sincronizando datos...</span>
-            </div>
-          </div>
-          <div class="topbar-actions">
-            <button class="primary-button" id="globalAddButton" type="button" style="margin-right: 8px;">
-              <i data-lucide="plus"></i>
-              <span id="globalAddButtonText">Nuevo</span>
-            </button>
-            <button class="theme-toggle" id="dashboardPrivacyToggleButton" type="button" aria-label="Ocultar datos del dashboard" title="Ocultar datos">
-              <i data-lucide="eye"></i>
-            </button>
-            <button class="theme-toggle" id="themeToggleButton" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar tema">
-              <i data-lucide="moon"></i>
-            </button>
-            <div class="session-pill" id="sessionPill" hidden>
-              <i data-lucide="user-round"></i>
-              <span id="userEmail"></span>
-            </div>
-            <button class="secondary-button" id="logoutButton" hidden>
-              <i data-lucide="log-out"></i>
-              <span>Salir</span>
-            </button>
-          </div>
-        </header>
+    <footer class="footer">
+      © 2026 Trazza. Construyendo una herramienta seria para traders consistentes.
+    </footer>
+  </div>
 
-        <section class="section-panel active" id="overviewSection">
-          <div class="dashboard-filters" aria-label="Filtros del dashboard">
-            <label>
-              Firm
-              <select id="dashboardFirmFilter"></select>
-            </label>
-            <label>
-              Cuenta
-              <select id="dashboardAccountFilter"></select>
-            </label>
-            <label>
-              Periodo
-              <select id="dashboardPeriodFilter">
-                <option value="all">Todo</option>
-                <option value="current-month">Mes actual</option>
-                <option value="last-30">Ultimos 30 dias</option>
-                <option value="last-90">Ultimos 90 dias</option>
-                <option value="year">Este año</option>
-                <option value="custom">Personalizado</option>
-              </select>
-            </label>
-            <label>
-              Desde
-              <input id="dashboardFromFilter" type="date" disabled />
-            </label>
-            <label>
-              Hasta
-              <input id="dashboardToFilter" type="date" disabled />
-            </label>
-            <button class="secondary-button compact-button" id="dashboardResetFilters" type="button">
-              <i data-lucide="rotate-ccw"></i>
-              <span>Limpiar</span>
-            </button>
-          </div>
+  <script>
+    const SUPABASE_URL = "https://sfdxbchjvhcdnjlpuffg.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZHhiY2hqdmhjZG5qbHB1ZmZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NzUyMDYsImV4cCI6MjA5MzU1MTIwNn0.hYqL43T7yGc2WYCaNCpI78VaKYh9mgYO3mnrkclVp5g";
+    const WAITLIST_ENDPOINT = `${SUPABASE_URL}/rest/v1/waitlist_emails`;
 
-          <div class="metrics-grid">
-            <article class="metric-card metric-net">
-              <div class="metric-heading">
-                <span>Neto total</span>
-                <span class="metric-icon" data-tone="accent"><i data-lucide="activity"></i></span>
-              </div>
-              <strong id="metricNet">0,00 EUR</strong>
+    const form = document.getElementById("waitlistForm");
+    const emailInput = document.getElementById("waitlistEmail");
+    const message = document.getElementById("formMessage");
+    const submitButton = form.querySelector("button");
 
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading">
-                <span>Gasto total</span>
-                <span class="metric-icon" data-tone="red"><i data-lucide="arrow-down-left"></i></span>
-              </div>
-              <strong id="metricExpenses">0,00 EUR</strong>
+    function setMessage(text, type = "") {
+      message.textContent = text;
+      message.className = `form-message${type ? ` ${type}` : ""}`;
+    }
 
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading">
-                <span>Retiros</span>
-                <span class="metric-icon" data-tone="green"><i data-lucide="arrow-up-right"></i></span>
-              </div>
-              <strong id="metricIncome">0,00 EUR</strong>
+    async function saveWaitlistEmail(email) {
+      const response = await fetch(WAITLIST_ENDPOINT, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          email,
+          source: "landing",
+          user_agent: navigator.userAgent.slice(0, 500),
+        }),
+      });
 
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading">
-                <span>ROI</span>
-                <span class="metric-icon" data-tone="violet"><i data-lucide="percent"></i></span>
-              </div>
-              <strong id="metricRoi">0,00%</strong>
+      if (response.status === 409) {
+        return "duplicate";
+      }
 
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading">
-                <span>Break-even</span>
-                <span class="metric-icon" data-tone="amber"><i data-lucide="target"></i></span>
-              </div>
-              <strong id="metricBreakEven">0,00 EUR</strong>
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        if (errorBody?.code === "23505") {
+          return "duplicate";
+        }
+        throw new Error(errorBody?.message || "No se pudo guardar el correo.");
+      }
 
-            </article>
-            <article class="metric-card">
-              <div class="metric-heading">
-                <span>Activas</span>
-                <span class="metric-icon" data-tone="cyan"><i data-lucide="circle-check-big"></i></span>
-              </div>
-              <strong id="metricActiveAccounts">0</strong>
+      return "created";
+    }
 
-            </article>
-          </div>
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-          <div class="dashboard-grid">
-            <article class="panel chart-panel">
-              <div class="panel-header">
-                <div>
-                  <h2>Evolucion del capital</h2>
-                </div>
-                <div class="chart-legend" aria-label="Leyenda del grafico">
-                  <span><i class="legend-dot capital"></i>Capital</span>
-                  <span><i class="legend-dot income"></i>Payouts</span>
-                  <span><i class="legend-dot expense"></i>Gastos</span>
-                </div>
-              </div>
-              <div class="canvas-wrap">
-                <canvas
-                  id="netChart"
-                  height="260"
-                  role="img"
-                  tabindex="0"
-                  aria-label="Grafico interactivo de evolucion del capital"
-                ></canvas>
-                <p class="empty-chart" id="netChartEmpty">Sin datos</p>
-              </div>
-            </article>
+      const email = emailInput.value.trim().toLowerCase();
+      if (!email || !emailInput.checkValidity()) {
+        setMessage("Introduce un correo válido.", "error");
+        return;
+      }
 
-            <article class="panel chart-panel">
-              <div class="panel-header">
-                <div>
-                  <h2>Resumen del periodo</h2>
-                  <p id="dashboardPeriodHint">Todo el historial</p>
-                </div>
-              </div>
-              <div class="month-summary">
-                <div>
-                  <span>Gasto</span>
-                  <strong id="monthExpenses">0,00 EUR</strong>
-                </div>
-                <div>
-                  <span>Retiros</span>
-                  <strong id="monthIncome">0,00 EUR</strong>
-                </div>
-                <div>
-                  <span>Neto</span>
-                  <strong id="monthNet">0,00 EUR</strong>
-                </div>
-              </div>
-              <div class="canvas-wrap compact">
-                <canvas id="monthChart" height="170"></canvas>
-                <p class="empty-chart" id="monthChartEmpty">Sin datos</p>
-              </div>
-            </article>
-          </div>
+      submitButton.disabled = true;
+      submitButton.textContent = "Guardando...";
+      setMessage("");
 
-          <div class="dashboard-insights">
-            <article class="panel insight-panel">
-              <div class="panel-header">
-                <div>
-                  <h2>Gastos por categoria</h2>
-                </div>
-              </div>
-              <div class="insight-list" id="expenseBreakdownList"></div>
-            </article>
+      try {
+        const result = await saveWaitlistEmail(email);
+        const successText =
+          result === "duplicate"
+            ? "Ya tenemos tu correo. Te avisaremos cuando la app esté montada y lista."
+            : "Listo. Te avisaremos cuando la app esté montada y lista.";
 
-            <article class="panel insight-panel">
-              <div class="panel-header">
-                <div>
-                  <h2>Resultado por cuenta</h2>
-                </div>
-              </div>
-              <div class="insight-list" id="accountBreakdownList"></div>
-            </article>
-
-            <article class="panel insight-panel">
-              <div class="panel-header">
-                <div>
-                  <h2>Ultimos movimientos</h2>
-                </div>
-              </div>
-              <div class="insight-list" id="recentTransactionsList"></div>
-            </article>
-          </div>
-        </section>
-
-        <section class="section-panel" id="firmsSection">
-          <div class="panel">
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Firm</th>
-                    <th>Tipo</th>
-                    <th>Cuentas</th>
-                    <th>Gastado</th>
-                    <th>Retirado</th>
-                    <th>Neto</th>
-                    <th>ROI</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="firmsTableBody"></tbody>
-              </table>
-            </div>
-            <div class="empty-state" id="firmsEmpty">No hay firms registradas.</div>
-          </div>
-        </section>
-
-        <section class="section-panel" id="accountsSection">
-          <div class="panel">
-
-            <div class="filters-row">
-              <label>
-                Firm
-                <select id="accountFirmFilter"></select>
-              </label>
-              <label>
-                Estado
-                <select id="accountStatusFilter">
-                  <option value="all">Todos</option>
-                  <option value="active">Activa</option>
-                  <option value="passed">Pasada</option>
-                  <option value="funded">Fondeada</option>
-                  <option value="failed">Fallada</option>
-                  <option value="closed">Cerrada</option>
-                </select>
-              </label>
-              <label>
-                Buscar
-                <input id="accountSearch" type="search" placeholder="Nombre, tamaño..." />
-              </label>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Cuenta</th>
-                    <th>Firm</th>
-                    <th>Tamaño</th>
-                    <th>Estado</th>
-                    <th>Comprada</th>
-                    <th>Gastado</th>
-                    <th>Retirado</th>
-                    <th>Neto</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="accountsTableBody"></tbody>
-              </table>
-            </div>
-            <div class="empty-state" id="accountsEmpty">No hay cuentas registradas.</div>
-          </div>
-        </section>
-
-        <section class="section-panel" id="transactionsSection">
-          <div class="panel">
-
-            <div class="filters-row">
-              <label>
-                Firm
-                <select id="transactionFirmFilter"></select>
-              </label>
-              <label>
-                Tipo
-                <select id="transactionKindFilter">
-                  <option value="all">Todos</option>
-                  <option value="expense">Gastos</option>
-                  <option value="income">Retiros</option>
-                </select>
-              </label>
-              <label>
-                Desde
-                <input id="transactionFromFilter" type="date" />
-              </label>
-              <label>
-                Hasta
-                <input id="transactionToFilter" type="date" />
-              </label>
-              <label>
-                Buscar
-                <input id="transactionSearch" type="search" placeholder="Categoria, nota..." />
-              </label>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Tipo</th>
-                    <th>Categoria</th>
-                    <th>Firm</th>
-                    <th>Cuenta</th>
-                    <th>Nota</th>
-                    <th>Importe</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="transactionsTableBody"></tbody>
-              </table>
-            </div>
-            <div class="empty-state" id="transactionsEmpty">No hay movimientos registrados.</div>
-          </div>
-        </section>
-
-        <section class="section-panel" id="journalSection">
-          <div class="panel">
-            <div class="journal-app-shell">
-              <div class="journal-dashboard">
-                <article class="journal-account-overview" id="journalAccountOverview" hidden>
-                  <div class="journal-account-overview-head">
-                    <div>
-                      <span>Trading overview</span>
-                      <h4 id="journalAccountOverviewName">Cuenta</h4>
-                    </div>
-                    <small id="journalAccountOverviewBase">Base no configurada</small>
-                  </div>
-                  <div class="journal-account-overview-stats">
-                    <div>
-                      <span>Balance total</span>
-                      <strong id="journalAccountBalance">$0.00</strong>
-                    </div>
-                    <div>
-                      <span>Net P&L</span>
-                      <strong id="journalAccountNetPnl">$0.00</strong>
-                    </div>
-                    <div>
-                      <span>Beneficio</span>
-                      <strong id="journalAccountReturn">0.00%</strong>
-                    </div>
-                  </div>
-                </article>
-                <div class="journal-dashboard-charts">
-                  <article class="journal-chart-block journal-pnl-block">
-                    <div class="journal-chart-head">
-                      <div>
-                        <h4>Balance</h4>
-                        <p id="journalPnlSummary">Resultado acumulado del journal.</p>
-                      </div>
-                      <label class="journal-dashboard-filter">
-                        Cuenta
-                        <select id="journalAccountFilter"></select>
-                      </label>
-                    </div>
-                    <div class="canvas-wrap compact journal-canvas">
-                      <canvas
-                        id="journalPnlChart"
-                        height="180"
-                        role="img"
-                        tabindex="0"
-                        aria-label="Grafico interactivo de P&L total del journal"
-                      ></canvas>
-                      <p class="empty-chart" id="journalPnlChartEmpty">Sin P&L</p>
-                    </div>
-                  </article>
-                  <div class="journal-kpi-stack">
-                    <article class="journal-performance-card journal-winrate-card">
-                      <div class="journal-winrate-copy">
-                        <span>Winrate</span>
-                        <strong class="neutral" id="journalWinrateValue">-</strong>
-                        <small id="journalWinrateHint">Sin operaciones cerradas</small>
-                      </div>
-                      <div class="journal-winrate-gauge" aria-label="Aciertos, empate y pérdidas">
-                        <svg viewBox="0 0 120 76" role="img" aria-hidden="true">
-                          <path class="journal-winrate-track" d="M 14 64 A 46 46 0 0 1 106 64" pathLength="100"></path>
-                          <path class="journal-winrate-loss-arc" id="journalWinrateLossArc" d="M 14 64 A 46 46 0 0 1 106 64" pathLength="100"></path>
-                          <path class="journal-winrate-win-arc" id="journalWinrateWinArc" d="M 14 64 A 46 46 0 0 1 106 64" pathLength="100"></path>
-                        </svg>
-                        <div class="journal-winrate-counts">
-                          <strong class="positive" id="journalWinrateWins">0</strong>
-                          <strong class="neutral" id="journalWinrateBreakEven">0</strong>
-                          <strong class="negative" id="journalWinrateLosses">0</strong>
-                        </div>
-                      </div>
-                    </article>
-                    <article class="journal-performance-card">
-                      <span>Profit factor</span>
-                      <strong class="neutral" id="journalProfitFactorValue">-</strong>
-                      <small id="journalProfitFactorHint">Ganancias / perdidas</small>
-                    </article>
-                    <article class="journal-performance-card journal-average-trade-card">
-                      <span>Avg win / loss</span>
-                      <div class="journal-average-trade-meter" aria-label="Promedio de ganancia y perdida">
-                        <div class="journal-average-trade-line" aria-hidden="true">
-                          <i class="win"></i>
-                          <i class="loss"></i>
-                        </div>
-                        <div class="journal-average-trade-values">
-                          <div>
-                            <small>Avg win</small>
-                            <strong class="positive" id="journalAvgWinValue">-</strong>
-                          </div>
-                          <div>
-                            <small>Avg loss</small>
-                            <strong class="negative" id="journalAvgLossValue">-</strong>
-                          </div>
-                        </div>
-                      </div>
-                      <small id="journalAvgTradeHint">Promedio por trade cerrado</small>
-                    </article>
-                  </div>
-                  <article class="journal-chart-block journal-errors-block">
-                    <div class="journal-chart-head">
-                      <div>
-                        <h4>Errores</h4>
-                        <p id="journalErrorsSummary">Distribucion de errores registrados.</p>
-                      </div>
-                    </div>
-                    <div class="journal-errors-layout">
-                      <div class="canvas-wrap compact journal-donut-wrap">
-                        <canvas
-                          id="journalErrorsChart"
-                          height="180"
-                          role="img"
-                          aria-label="Grafico interactivo de errores del journal"
-                        ></canvas>
-                        <p class="empty-chart" id="journalErrorsChartEmpty">Sin errores</p>
-                      </div>
-                      <div class="journal-errors-legend" id="journalErrorsLegend"></div>
-                    </div>
-                  </article>
-                  <article class="journal-chart-block journal-discipline-block">
-                    <div class="journal-chart-head">
-                      <div>
-                        <h4>Disciplina</h4>
-                        <p id="journalDisciplineSummary">Evolucion de disciplina en el tiempo.</p>
-                      </div>
-                    </div>
-                    <div class="canvas-wrap compact journal-canvas">
-                      <canvas
-                        id="journalDisciplineChart"
-                        height="180"
-                        role="img"
-                        tabindex="0"
-                        aria-label="Grafico interactivo de disciplina del journal"
-                      ></canvas>
-                      <p class="empty-chart" id="journalDisciplineChartEmpty">Sin disciplina</p>
-                    </div>
-                  </article>
-                </div>
-                <div class="journal-calendar-panel">
-                  <div class="journal-calendar-title">
-                    <div>
-                      <h4 id="journalCalendarMonth">Mes actual</h4>
-                    </div>
-                    <div class="journal-calendar-tools">
-                      <div class="journal-month-total">
-                        <span>Month total</span>
-                        <span aria-hidden="true">:</span>
-                        <strong class="neutral" id="journalMonthTotal">0,00 €</strong>
-                      </div>
-                      <div class="journal-calendar-actions">
-                        <button class="icon-button" type="button" id="journalCalendarPrev" aria-label="Mes anterior">
-                          <i data-lucide="chevron-left"></i>
-                        </button>
-                        <button class="secondary-button compact-button" type="button" id="journalCalendarToday">Hoy</button>
-                        <button class="icon-button" type="button" id="journalCalendarNext" aria-label="Mes siguiente">
-                          <i data-lucide="chevron-right"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="journal-calendar-wrap">
-                    <div class="journal-calendar-grid" id="journalCalendarGrid"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="journal-entries-panel" id="journalEntriesPanel">
-              <div class="journal-view-heading" id="journalViewHeading" hidden>
-                <div></div>
-                <div class="journal-selected-date" id="journalSelectedDateLabel" hidden></div>
-                <button class="ghost-button compact-button" type="button" id="journalClearDateButton" hidden>
-                  <i data-lucide="x"></i>
-                  <span>Quitar dia</span>
-                </button>
-              </div>
-              <div class="filters-row journal-filters">
-                <label>
-                  Cuenta
-                  <select id="journalEntriesAccountFilter"></select>
-                </label>
-                <label>
-                  Periodo
-                  <select id="journalPeriodFilter">
-                    <option value="all">Todo</option>
-                    <option value="current-month">Mes actual</option>
-                    <option value="last-30">Ultimos 30 dias</option>
-                    <option value="last-90">Ultimos 90 dias</option>
-                    <option value="year">Este año</option>
-                  </select>
-                </label>
-                <label>
-                  Buscar
-                  <input id="journalSearch" type="search" placeholder="Activo, dirección, notas..." />
-                </label>
-              </div>
-              <div class="journal-list" id="journalEntriesList"></div>
-              <div class="empty-state" id="journalEmpty">No hay entradas de journal.</div>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <dialog class="modal" id="firmDialog">
-      <form method="dialog" id="firmForm" class="modal-card">
-        <div class="modal-header">
-          <h2 id="firmDialogTitle">Nueva firm</h2>
-          <button class="icon-button" type="button" data-close-dialog="firmDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <input type="hidden" id="firmId" />
-        <label>
-          Nombre
-          <input id="firmName" type="text" required placeholder="Apex, Topstep, FTMO..." />
-        </label>
-        <label>
-          Tipo
-          <select id="firmType" required>
-            <option value="Futuros">Futuros</option>
-            <option value="CFDs">CFDs</option>
-            <option value="Mixta">Mixta</option>
-          </select>
-        </label>
-        <label>
-          Notas
-          <textarea id="firmNotes" rows="3" placeholder="Reglas o detalles importantes"></textarea>
-        </label>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="firmDialog">Cancelar</button>
-          <button class="primary-button" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="modal" id="accountDialog">
-      <form method="dialog" id="accountForm" class="modal-card">
-        <div class="modal-header">
-          <h2 id="accountDialogTitle">Nueva cuenta</h2>
-          <button class="icon-button" type="button" data-close-dialog="accountDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <input type="hidden" id="accountId" />
-        <div class="form-grid">
-          <label>
-            Firm
-            <select id="accountFirm" required></select>
-          </label>
-          <label>
-            Estado
-            <select id="accountStatus" required>
-              <option value="active">Activa</option>
-              <option value="passed">Pasada</option>
-              <option value="funded">Fondeada</option>
-              <option value="failed">Fallada</option>
-              <option value="closed">Cerrada</option>
-            </select>
-          </label>
-        </div>
-        <label>
-          Nombre
-          <input id="accountName" type="text" required placeholder="50K Apex PA, FTMO 100K..." />
-        </label>
-        <div class="form-grid">
-          <label>
-            Tamaño
-            <input id="accountSize" type="text" placeholder="50K, 100K, 200K..." />
-          </label>
-          <label>
-            Fecha de compra
-            <input id="accountPurchasedAt" type="date" />
-          </label>
-        </div>
-        <label>
-          Notas
-          <textarea id="accountNotes" rows="3" placeholder="Objetivo, drawdown, payout rules..."></textarea>
-        </label>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="accountDialog">Cancelar</button>
-          <button class="primary-button" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="modal" id="transactionDialog">
-      <form method="dialog" id="transactionForm" class="modal-card">
-        <div class="modal-header">
-          <h2 id="transactionDialogTitle">Nuevo movimiento</h2>
-          <button class="icon-button" type="button" data-close-dialog="transactionDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <input type="hidden" id="transactionId" />
-        <div class="form-grid">
-          <label>
-            Fecha
-            <input id="transactionDate" type="date" required />
-          </label>
-          <label>
-            Tipo
-            <select id="transactionKind" required>
-              <option value="expense">Gasto</option>
-              <option value="income">Retiro / ingreso</option>
-            </select>
-          </label>
-        </div>
-        <div class="form-grid">
-          <label>
-            Categoria
-            <select id="transactionCategory" required></select>
-          </label>
-          <label>
-            Importe
-            <input id="transactionAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0.00" />
-          </label>
-        </div>
-        <div class="form-grid">
-          <label>
-            Firm
-            <select id="transactionFirm" required></select>
-          </label>
-          <label>
-            Cuenta
-            <select id="transactionAccount"></select>
-          </label>
-        </div>
-        <label>
-          Nota
-          <textarea id="transactionNote" rows="3" placeholder="Detalle del pago o retiro"></textarea>
-        </label>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="transactionDialog">Cancelar</button>
-          <button class="primary-button" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="modal" id="journalDialog">
-      <form method="dialog" id="journalForm" class="modal-card journal-entry-form">
-        <div class="modal-header">
-          <h2 id="journalDialogTitle">Nueva entrada</h2>
-          <button class="icon-button" type="button" data-close-dialog="journalDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <input type="hidden" id="journalId" />
-        <div class="form-grid">
-          <label>
-            Fecha
-            <input id="journalDate" type="date" required />
-          </label>
-          <label>
-            Firm
-            <select id="journalFirm" required></select>
-          </label>
-        </div>
-        <div class="form-grid">
-          <label>
-            Cuenta
-            <select id="journalAccount"></select>
-          </label>
-          <label>
-            Estado mental
-            <select id="journalEmotion" required>
-              <option value="calm">Calmado</option>
-              <option value="focused">Enfocado</option>
-              <option value="anxious">Ansioso</option>
-              <option value="impatient">Impaciente</option>
-              <option value="fomo">FOMO</option>
-              <option value="revenge">Revenge</option>
-              <option value="tired">Cansado</option>
-              <option value="other">Otro</option>
-            </select>
-          </label>
-        </div>
-        <div class="form-grid">
-          <label>
-            Activo
-            <input id="journalTitle" type="text" required list="journalAssetOptions" maxlength="20" placeholder="Ej. MNQ, NQ, ES, MES..." />
-            <datalist id="journalAssetOptions">
-              <option value="MNQ"></option>
-              <option value="NQ"></option>
-              <option value="MES"></option>
-              <option value="ES"></option>
-              <option value="MYM"></option>
-              <option value="YM"></option>
-              <option value="M2K"></option>
-              <option value="RTY"></option>
-              <option value="MCL"></option>
-              <option value="CL"></option>
-              <option value="GC"></option>
-              <option value="MGC"></option>
-              <option value="EURUSD"></option>
-              <option value="GBPUSD"></option>
-              <option value="XAUUSD"></option>
-              <option value="BTCUSD"></option>
-            </datalist>
-          </label>
-          <label>
-            Dirección
-            <select id="journalDirection" required>
-              <option value="">Selecciona</option>
-              <option value="long">Long</option>
-              <option value="short">Short</option>
-            </select>
-          </label>
-        </div>
-        <div class="form-grid">
-          <label>
-            Disciplina
-            <select id="journalDiscipline" required>
-              <option value="5">5 - Excelente</option>
-              <option value="4">4 - Buena</option>
-              <option value="3">3 - Normal</option>
-              <option value="2">2 - Floja</option>
-              <option value="1">1 - Mala</option>
-            </select>
-          </label>
-          <label>
-            P&L
-            <span class="journal-money-input">
-              <span>€</span>
-              <input id="journalPnl" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
-            </span>
-          </label>
-        </div>
-        <input id="journalOperationUrl" type="hidden" />
-        <input id="journalOperationImageInput" type="file" accept="image/*" hidden />
-        <div class="journal-media-field">
-          <div class="journal-errors-toolbar">
-            <span>Captura de la operación</span>
-            <button class="ghost-button compact-button" type="button" id="journalOperationClear" hidden>
-              <i data-lucide="x"></i>
-              <span>Quitar</span>
-            </button>
-          </div>
-          <div class="journal-media-dropzone" id="journalOperationDropzone" tabindex="0">
-            <div class="journal-media-copy" id="journalOperationMediaText">
-              <i data-lucide="image-plus"></i>
-              <span>Pega una imagen, arrástrala aquí o haz clic para subirla.</span>
-            </div>
-            <div class="journal-media-preview" id="journalOperationPreview" hidden>
-              <img id="journalOperationImage" alt="Captura de la operación" />
-            </div>
-          </div>
-        </div>
-        <fieldset class="journal-errors-field">
-          <legend>Errores cometidos</legend>
-          <div class="journal-errors-toolbar">
-            <span>Marca solo los errores de esta entrada.</span>
-            <button class="ghost-button compact-button" type="button" id="manageJournalErrorsButton">
-              <i data-lucide="settings-2"></i>
-              <span>Configurar</span>
-            </button>
-          </div>
-          <div class="journal-errors-options" id="journalErrorsOptions"></div>
-        </fieldset>
-        <label>
-          Notas
-          <textarea id="journalNotes" rows="4" placeholder="Qué pasó, qué setups tomaste, cómo gestionaste el riesgo..."></textarea>
-        </label>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="journalDialog">Cancelar</button>
-          <button class="primary-button" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="modal" id="journalDetailDialog">
-      <div class="modal-card journal-detail-card">
-        <div class="modal-header journal-detail-header">
-          <div class="journal-detail-title">
-            <span class="journal-detail-kicker" id="journalDetailDate">Entrada</span>
-            <h2 id="journalDetailTitle">Detalle de entrada</h2>
-          </div>
-          <div class="journal-detail-actions">
-            <button class="icon-button" type="button" id="journalDetailEditButton" aria-label="Editar entrada">
-              <i data-lucide="pencil"></i>
-            </button>
-            <button class="icon-button journal-detail-delete" type="button" id="journalDetailDeleteButton" aria-label="Eliminar entrada">
-              <i data-lucide="trash-2"></i>
-            </button>
-            <button class="icon-button" type="button" data-close-dialog="journalDetailDialog" aria-label="Cerrar">
-              <i data-lucide="x"></i>
-            </button>
-          </div>
-        </div>
-        <div class="journal-detail-summary">
-          <div class="journal-detail-metric">
-            <span>P&L</span>
-            <strong class="journal-pnl neutral journal-detail-pnl" id="journalDetailPnl">0,00 €</strong>
-          </div>
-          <div class="journal-detail-metric" hidden>
-            <span>Dirección</span>
-            <strong class="journal-detail-direction" id="journalDetailDirection">Sin dirección</strong>
-          </div>
-          <div class="journal-detail-metric">
-            <span>Errores</span>
-            <div class="journal-error-tags" id="journalDetailErrors"></div>
-          </div>
-        </div>
-        <div class="journal-detail-media-shell" id="journalDetailMediaShell" hidden>
-          <button class="journal-detail-media-button" type="button" id="journalDetailMediaButton" aria-label="Ampliar captura" hidden>
-            <img id="journalDetailImage" alt="Captura de la operacion" />
-            <span>
-              <i data-lucide="zoom-in"></i>
-              Ampliar captura
-            </span>
-          </button>
-          <a class="journal-operation-link journal-detail-link" id="journalDetailLink" href="#" target="_blank" rel="noreferrer" hidden>
-            <i data-lucide="external-link"></i>
-            <span>Ver operacion</span>
-          </a>
-        </div>
-        <div class="journal-detail-copy">
-          <section class="journal-detail-section">
-            <span>Notas</span>
-            <p class="journal-text" id="journalDetailNotes">Sin notas.</p>
-          </section>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="modal" id="journalImageZoomDialog">
-      <div class="journal-image-zoom-card">
-        <button class="icon-button journal-image-zoom-close" type="button" data-close-dialog="journalImageZoomDialog" aria-label="Cerrar">
-          <i data-lucide="x"></i>
-        </button>
-        <img id="journalImageZoom" alt="Captura ampliada de la operacion" />
-      </div>
-    </dialog>
-
-    <dialog class="modal" id="journalErrorManagerDialog">
-      <div class="modal-card small-card">
-        <div class="modal-header">
-          <h2>Errores del journal</h2>
-          <button class="icon-button" type="button" data-close-dialog="journalErrorManagerDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <p class="modal-note">Personaliza la lista que aparece en el formulario de entradas.</p>
-        <div class="journal-error-types-list" id="journalErrorTypesList"></div>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="journalErrorManagerDialog">Cerrar</button>
-          <button class="secondary-button compact-button" type="button" id="addJournalErrorButton">
-            <i data-lucide="plus"></i>
-            <span>Nuevo error</span>
-          </button>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="modal" id="journalErrorDialog">
-      <form method="dialog" id="journalErrorForm" class="modal-card small-card">
-        <div class="modal-header">
-          <h2 id="journalErrorDialogTitle">Nuevo error</h2>
-          <button class="icon-button" type="button" data-close-dialog="journalErrorDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <input type="hidden" id="journalErrorTypeId" />
-        <label>
-          Nombre del error
-          <input id="journalErrorLabel" type="text" required minlength="2" maxlength="40" placeholder="Ej. Entrar tarde" />
-        </label>
-        <label>
-          Gravedad
-          <select id="journalErrorSeverity" required>
-            <option value="severe">Grave</option>
-            <option value="moderate">Moderado</option>
-            <option value="minor">Leve</option>
-          </select>
-        </label>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="journalErrorDialog">Cancelar</button>
-          <button class="primary-button" type="submit">Guardar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="modal" id="confirmDialog">
-      <form method="dialog" class="modal-card small-card">
-        <div class="modal-header">
-          <h2 id="confirmTitle">Confirmar</h2>
-          <button class="icon-button" type="button" data-close-dialog="confirmDialog" aria-label="Cerrar">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <p id="confirmMessage"></p>
-        <div class="modal-actions">
-          <button class="ghost-button" type="button" data-close-dialog="confirmDialog">Cancelar</button>
-          <button class="danger-button" id="confirmAcceptButton" type="button">Eliminar</button>
-        </div>
-      </form>
-    </dialog>
-
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  </body>
+        setMessage(successText, "success");
+        form.reset();
+      } catch (error) {
+        console.warn("Waitlist submit failed", error);
+        setMessage("No hemos podido guardar tu correo ahora mismo. Inténtalo de nuevo en unos minutos.", "error");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Unirme a la waitlist";
+      }
+    });
+  </script>
+</body>
 </html>

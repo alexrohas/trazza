@@ -5,9 +5,10 @@ resets, activaciones, fees, payouts y refunds.
 
 ## Uso
 
-La app es estatica y no necesita build. Puedes abrir `index.html` directamente
-para revisar la interfaz, o servirla desde localhost para probar el flujo
-completo de Supabase.
+La landing publica vive en `index.html` y la app esta en `app.html`. El proyecto
+es estatico y no necesita build. Puedes abrir `index.html` directamente para
+revisar la landing, o servirlo desde localhost para probar el flujo completo de
+Supabase.
 
 Opcion local:
 
@@ -15,7 +16,8 @@ Opcion local:
 python -m http.server 5173
 ```
 
-Despues abre `http://localhost:5173`.
+Despues abre `http://localhost:5173` para la landing o
+`http://localhost:5173/app.html` para la app.
 
 ## Datos y sesion
 
@@ -27,6 +29,10 @@ Despues abre `http://localhost:5173`.
 Para activar el Journal en Supabase, ejecuta `supabase-journal.sql` en el SQL
 editor del proyecto. La app seguira funcionando aunque la tabla no exista, pero
 no podra guardar entradas de journal hasta crearla.
+
+Para activar la waitlist de la landing, ejecuta `supabase-waitlist.sql` en el SQL
+editor del proyecto. El formulario de `index.html` guarda los correos en
+`public.waitlist_emails`.
 
 ## Incluye
 
