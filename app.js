@@ -428,6 +428,7 @@ function bindEvents() {
   
   els.dashboardPrivacyToggleButton.addEventListener("click", toggleDashboardPrivacy);
   els.themeToggleButton.addEventListener("click", toggleTheme);
+  window.addEventListener("trazza:language-change", handleLanguageChange);
   els.dashboardFirmFilter.addEventListener("input", () => {
     fillDashboardAccountFilter();
     resetNetChartInteraction();
@@ -1462,6 +1463,13 @@ function toggleDashboardPrivacy() {
   renderJournalDashboard();
 }
 
+function handleLanguageChange() {
+  setCurrentDate();
+  updateThemeToggle();
+  updateDashboardPrivacyToggle();
+  refreshAll();
+}
+
 function updateThemeToggle() {
   if (!els.themeToggleButton) return;
   const isDark = document.documentElement.dataset.theme === "dark";
@@ -1484,7 +1492,7 @@ function updateDashboardPrivacyToggle() {
 }
 
 function setCurrentDate() {
-  const formatter = new Intl.DateTimeFormat("es-ES", {
+  const formatter = new Intl.DateTimeFormat(getAppLocale(), {
     weekday: "long",
     day: "2-digit",
     month: "long",
@@ -3595,10 +3603,11 @@ function formatJournalGalleryDate(value) {
   if (!value) return "Sin fecha";
   const date = parseLocalDate(value);
   if (Number.isNaN(date.getTime())) return value;
-  const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "long" }).format(date);
+  const weekday = new Intl.DateTimeFormat(getAppLocale(), { weekday: "long" }).format(date);
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${day}/${month}/${date.getFullYear()}`;
+  const dateLabel = getCurrentLanguage() === "en" ? `${month}/${day}/${date.getFullYear()}` : `${day}/${month}/${date.getFullYear()}`;
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${dateLabel}`;
 }
 
 function setTableVisible(tableBody, isVisible) {
@@ -5480,8 +5489,16 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function getCurrentLanguage() {
+  return window.TrazzaI18n?.getLanguage?.() || (navigator.language?.toLowerCase().startsWith("en") ? "en" : "es");
+}
+
+function getAppLocale() {
+  return getCurrentLanguage() === "en" ? "en-US" : "es-ES";
+}
+
 function formatMoney(value) {
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(getAppLocale(), {
     style: "currency",
     currency: EURO,
     maximumFractionDigits: 2,
@@ -5511,7 +5528,7 @@ function formatSignedTradingMoney(value) {
 }
 
 function formatAxisMoney(value) {
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(getAppLocale(), {
     style: "currency",
     currency: EURO,
     maximumFractionDigits: 0,
@@ -5519,14 +5536,14 @@ function formatAxisMoney(value) {
 }
 
 function formatPercent(value) {
-  return `${new Intl.NumberFormat("es-ES", {
+  return `${new Intl.NumberFormat(getAppLocale(), {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(Number(value || 0))}%`;
 }
 
 function formatRatio(value) {
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat(getAppLocale(), {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(Number(value || 0));
@@ -5535,7 +5552,7 @@ function formatRatio(value) {
 function formatRMultiple(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "-";
-  const formatted = new Intl.NumberFormat("es-ES", {
+  const formatted = new Intl.NumberFormat(getAppLocale(), {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(Math.abs(amount));
@@ -5639,7 +5656,7 @@ function formatDate(value) {
   if (!value) return "-";
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("es-ES", {
+  return new Intl.DateTimeFormat(getAppLocale(), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -5649,7 +5666,7 @@ function formatDate(value) {
 function formatMonthLabel(value) {
   const date = parseLocalDate(`${value}-01`);
   if (Number.isNaN(date.getTime())) return value;
-  const label = new Intl.DateTimeFormat("es-ES", {
+  const label = new Intl.DateTimeFormat(getAppLocale(), {
     month: "long",
     year: "numeric",
   }).format(date);
@@ -5660,7 +5677,7 @@ function formatShortDate(value) {
   if (!value) return "";
   const date = parseLocalDate(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("es-ES", {
+  return new Intl.DateTimeFormat(getAppLocale(), {
     day: "2-digit",
     month: "short",
   }).format(date);
@@ -5679,7 +5696,7 @@ function getLastMonths(count, transactions = []) {
     const item = new Date(date);
     item.setMonth(date.getMonth() - index);
     const key = `${item.getFullYear()}-${String(item.getMonth() + 1).padStart(2, "0")}`;
-    const label = new Intl.DateTimeFormat("es-ES", { month: "short" }).format(item).replace(".", "");
+    const label = new Intl.DateTimeFormat(getAppLocale(), { month: "short" }).format(item).replace(".", "");
     months.push({ key, label });
   }
   return months;

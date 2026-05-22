@@ -218,6 +218,7 @@ body {
 }
 
 .auth-card {
+  position: relative;
   display: grid;
   gap: 13px;
   width: min(420px, 100%);
@@ -226,6 +227,12 @@ body {
   border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--shadow-xl);
+}
+
+.auth-language-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 .auth-logo {
@@ -709,6 +716,16 @@ p {
 .theme-toggle svg {
   width: 17px;
   height: 17px;
+}
+
+.language-toggle {
+  width: auto;
+  min-width: 42px;
+  padding: 0 11px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
 }
 
 .compact-button {

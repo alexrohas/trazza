@@ -101,6 +101,12 @@
       transform-origin: left center;
     }
 
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .login-link {
       display: inline-flex;
       align-items: center;
@@ -122,6 +128,30 @@
       color: var(--text);
       border-color: rgba(157, 130, 253, 0.46);
       background: rgba(124, 92, 252, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .language-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(157, 130, 253, 0.34);
+      border-radius: 12px;
+      background: rgba(124, 92, 252, 0.1);
+      color: var(--text);
+      font: 800 12px var(--font-body);
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      transition: border-color 0.18s, background 0.18s, transform 0.18s;
+    }
+
+    .language-toggle:hover {
+      border-color: rgba(157, 130, 253, 0.58);
+      background: rgba(124, 92, 252, 0.16);
       transform: translateY(-1px);
     }
 
@@ -437,6 +467,11 @@
         padding: 0 14px;
       }
 
+      .language-toggle {
+        min-width: 40px;
+        min-height: 38px;
+      }
+
       .hero {
         width: min(100% - 28px, 920px);
         padding: 54px 0 72px;
@@ -498,7 +533,10 @@
       <a class="logo" href="./" aria-label="Trazza">
         <img src="./assets/trazza.png" alt="Trazza" />
       </a>
-      <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Ya tengo acceso</a>
+      <div class="nav-actions">
+        <button class="language-toggle" type="button" data-language-toggle aria-label="Switch to English">EN</button>
+        <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Ya tengo acceso</a>
+      </div>
     </header>
 
     <main class="hero">
@@ -546,6 +584,7 @@
     </footer>
   </div>
 
+  <script src="./i18n.js"></script>
   <script>
     const SUPABASE_URL = "https://sfdxbchjvhcdnjlpuffg.supabase.co";
     const SUPABASE_ANON_KEY =
