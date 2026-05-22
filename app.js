@@ -45,6 +45,14 @@ const journalSessionLabels = {
   other: "Otro",
 };
 
+const journalTradingSessionLabels = {
+  asia: "Asia",
+  london: "Londres",
+  newYork: "Nueva York",
+  londonNewYork: "Londres + NY",
+  other: "Otra",
+};
+
 const journalResultLabels = {
   good: "Buen dia",
   neutral: "Neutral",
@@ -135,6 +143,9 @@ const JOURNAL_CHART_PAN_STEP = 0.12;
 const JOURNAL_DEFAULT_RISK_PERCENT = 0.01;
 const JOURNAL_OPERATION_IMAGE_MAX_SIZE = 1200;
 const JOURNAL_OPERATION_IMAGE_QUALITY = 0.82;
+const GENERAL_TRANSACTION_FIRM_VALUE = "__general__";
+const GENERAL_TRANSACTION_OPTION_LABEL = "Otro / gasto general";
+const GENERAL_TRANSACTION_DISPLAY_LABEL = "Gasto general";
 const DASHBOARD_PRIVACY_MASK = "••••••";
 
 const netChartState = {
@@ -281,11 +292,15 @@ function bindElements() {
     "journalWinrateLosses",
     "journalProfitFactorValue",
     "journalProfitFactorHint",
+    "journalProfitFactorGainBar",
+    "journalProfitFactorLossBar",
     "journalAvgWinValue",
     "journalAvgLossValue",
     "journalAvgTradeHint",
     "journalAvgWinRValue",
     "journalAvgLossRValue",
+    "journalWeekdayWinrateList",
+    "journalSessionWinrateList",
     "journalErrorsChart",
     "journalErrorsChartEmpty",
     "journalErrorsSummary",
@@ -293,6 +308,7 @@ function bindElements() {
     "journalDisciplineChart",
     "journalDisciplineChartEmpty",
     "journalDisciplineSummary",
+    "journalRecentTradesList",
     "journalErrorTypesList",
     "addJournalErrorButton",
     "manageJournalErrorsButton",
@@ -546,6 +562,7 @@ function bindEvents() {
   els.journalEntriesList.addEventListener("click", handleTableAction);
   els.journalEntriesList.addEventListener("click", handleJournalCardClick);
   els.journalEntriesList.addEventListener("keydown", handleJournalCardKeyDown);
+  els.journalRecentTradesList.addEventListener("click", handleTableAction);
   els.journalErrorTypesList.addEventListener("click", handleTableAction);
 
   document.getElementById("exportJsonButton").addEventListener("click", exportJson);
@@ -1914,12 +1931,15 @@ function fillFirmSelects() {
     .join("");
 
   const filterOptions = `<option value="all">Todas</option>${firmOptions}`;
+  const generalTransactionOption = `<option value="${GENERAL_TRANSACTION_FIRM_VALUE}">${GENERAL_TRANSACTION_OPTION_LABEL}</option>`;
+  const transactionFilterOptions = `${filterOptions}${generalTransactionOption}`;
+  const transactionFirmOptions = `${firmOptions}${generalTransactionOption}`;
   const firstFirmId = state.firms[0]?.id || "";
   setSelectOptions(els.dashboardFirmFilter, filterOptions, "all");
   setSelectOptions(els.accountFirmFilter, filterOptions, "all");
-  setSelectOptions(els.transactionFirmFilter, filterOptions, "all");
+  setSelectOptions(els.transactionFirmFilter, transactionFilterOptions, "all");
   setSelectOptions(els.accountFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
-  setSelectOptions(els.transactionFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
+  setSelectOptions(els.transactionFirm, transactionFirmOptions, firstFirmId || GENERAL_TRANSACTION_FIRM_VALUE);
   setSelectOptions(els.journalFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
   fillDashboardAccountFilter();
   fillJournalAccountFilter();
@@ -1966,13 +1986,16 @@ function fillJournalAccountFilter() {
 }
 
 function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
+  if (!select) return;
+  const isGeneralTransaction = firmId === GENERAL_TRANSACTION_FIRM_VALUE;
   const accounts = state.accounts
-    .filter((account) => !firmId || account.firmId === firmId)
+    .filter((account) => !isGeneralTransaction && (!firmId || account.firmId === firmId))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
   const empty = includeEmpty ? `<option value="">Sin cuenta concreta</option>` : "";
   select.innerHTML = `${empty}${accounts
     .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
     .join("")}`;
+  select.disabled = isGeneralTransaction;
   select.value = selectedId || "";
   syncCustomSelect(select);
 }
@@ -2265,7 +2288,6 @@ function renderRecentTransactions(summary) {
 
   els.recentTransactionsList.innerHTML = rows
     .map((tx) => {
-      const firm = getFirm(resolveFirmId(tx));
       const account = getAccount(tx.accountId);
       const signed = tx.kind === "income" ? tx.amount : -tx.amount;
       return `
@@ -2273,7 +2295,7 @@ function renderRecentTransactions(summary) {
           <span class="badge ${tx.kind}">${tx.kind === "income" ? "Retiro" : "Gasto"}</span>
           <div class="insight-main">
             <strong>${escapeHtml(categoryLabels[tx.category] || tx.category)}</strong>
-            <span>${formatDate(tx.date)} - ${escapeHtml(firm?.name || "Sin firm")} - ${escapeHtml(account?.name || "Sin cuenta")}</span>
+            <span>${formatDate(tx.date)} - ${escapeHtml(getTransactionFirmLabel(tx))} - ${escapeHtml(account?.name || "Sin cuenta")}</span>
           </div>
           <b class="amount ${signed >= 0 ? "positive" : "negative"}">${sensitiveMoney(signed)}</b>
         </div>
@@ -2438,15 +2460,16 @@ function renderTransactionsTable() {
   const search = normalize(els.transactionSearch.value);
 
   const transactions = state.transactions
-    .filter((tx) => firmFilter === "all" || resolveFirmId(tx) === firmFilter)
+    .filter((tx) => matchesTransactionFirmFilter(tx, firmFilter))
     .filter((tx) => kindFilter === "all" || tx.kind === kindFilter)
     .filter((tx) => !from || tx.date >= from)
     .filter((tx) => !to || tx.date <= to)
     .filter((tx) => {
       if (!search) return true;
-      const firm = getFirm(resolveFirmId(tx));
       const account = getAccount(tx.accountId);
-      return normalize(`${categoryLabels[tx.category] || tx.category} ${tx.note || ""} ${firm?.name || ""} ${account?.name || ""}`).includes(search);
+      return normalize(
+        `${categoryLabels[tx.category] || tx.category} ${tx.note || ""} ${getTransactionFirmLabel(tx)} ${account?.name || ""}`
+      ).includes(search);
     })
     .sort((a, b) => {
       const byDate = (b.date || "").localeCompare(a.date || "");
@@ -2455,7 +2478,6 @@ function renderTransactionsTable() {
 
   els.transactionsTableBody.innerHTML = transactions
     .map((tx) => {
-      const firm = getFirm(resolveFirmId(tx));
       const account = getAccount(tx.accountId);
       const signed = tx.kind === "income" ? tx.amount : -tx.amount;
       return `
@@ -2463,7 +2485,7 @@ function renderTransactionsTable() {
           <td data-label="Fecha">${formatDate(tx.date)}</td>
           <td data-label="Tipo"><span class="badge ${tx.kind}">${tx.kind === "income" ? "Retiro" : "Gasto"}</span></td>
           <td data-label="Categoria">${categoryLabels[tx.category] || escapeHtml(tx.category)}</td>
-          <td data-label="Firm">${escapeHtml(firm?.name || "Sin firm")}</td>
+          <td data-label="Firm">${escapeHtml(getTransactionFirmLabel(tx))}</td>
           <td data-label="Cuenta">${escapeHtml(account?.name || "-")}</td>
           <td data-label="Nota">${escapeHtml(tx.note || "-")}</td>
           <td data-label="Importe" class="amount ${signed >= 0 ? "positive" : "negative"}">${formatMoney(signed)}</td>
@@ -2481,14 +2503,6 @@ function renderTransactionsTable() {
   setTableVisible(els.transactionsTableBody, transactions.length > 0);
   if (transactions.length) {
     hideEmptyState(els.transactionsEmpty);
-  } else if (!state.firms.length) {
-    showEmptyState(
-      els.transactionsEmpty,
-      "Primero crea una firm",
-      "Los movimientos se agrupan por firm para que el capital y el ROI salgan correctamente.",
-      "Nueva firm",
-      "add-firm"
-    );
   } else if (!state.transactions.length) {
     showEmptyState(
       els.transactionsEmpty,
@@ -2519,9 +2533,11 @@ function renderJournalDashboard() {
   const entries = getJournalDashboardEntries();
   renderJournalAccountOverview(entries);
   renderJournalPerformanceMetrics(entries);
+  renderJournalWinrateBreakdowns(entries);
   drawJournalPnlChart(entries);
   drawJournalErrorsChart(entries);
   drawJournalDisciplineChart(entries);
+  renderJournalRecentTrades(entries);
   renderJournalErrorSettings();
   renderJournalCalendar();
   scheduleJournalDashboardChartRender();
@@ -2603,6 +2619,7 @@ function renderJournalPerformanceMetrics(entries) {
       : stats.grossProfit > 0
         ? "Sin perdidas registradas"
         : "Ganancias / perdidas";
+  renderJournalProfitFactorMeter(stats);
 
   els.journalAvgWinValue.textContent = stats.avgWin === null ? "-" : sensitiveMoney(stats.avgWin);
   els.journalAvgLossValue.textContent = stats.avgLoss === null ? "-" : sensitiveMoney(-stats.avgLoss);
@@ -2623,6 +2640,144 @@ function renderJournalWinrateGauge(stats) {
   els.journalWinrateWins.textContent = sensitiveCount(stats.wins);
   els.journalWinrateBreakEven.textContent = sensitiveCount(stats.breakEven);
   els.journalWinrateLosses.textContent = sensitiveCount(stats.losses);
+}
+
+function renderJournalProfitFactorMeter(stats) {
+  if (!els.journalProfitFactorGainBar || !els.journalProfitFactorLossBar) return;
+  const total = stats.grossProfit + stats.grossLoss;
+  const hasData = total > 0 && !dashboardPrivacyHidden;
+  const gainWidth = hasData ? clamp((stats.grossProfit / total) * 100, 0, 100) : 50;
+  const lossWidth = hasData ? 100 - gainWidth : 50;
+
+  els.journalProfitFactorGainBar.style.width = `${gainWidth}%`;
+  els.journalProfitFactorLossBar.style.width = `${lossWidth}%`;
+  els.journalProfitFactorGainBar.style.opacity = hasData && stats.grossProfit > 0 ? "1" : "0.35";
+  els.journalProfitFactorLossBar.style.opacity = hasData && stats.grossLoss > 0 ? "1" : "0.35";
+}
+
+function renderJournalWinrateBreakdowns(entries) {
+  renderJournalWeekdayWinrate(entries);
+  renderJournalSessionWinrate(entries);
+}
+
+function renderJournalWeekdayWinrate(entries) {
+  if (!els.journalWeekdayWinrateList) return;
+  const weekdays =
+    getCurrentLanguage() === "en"
+      ? [
+          { day: 1, label: "Mon" },
+          { day: 2, label: "Tue" },
+          { day: 3, label: "Wed" },
+          { day: 4, label: "Thu" },
+          { day: 5, label: "Fri" },
+        ]
+      : [
+          { day: 1, label: "Lun" },
+          { day: 2, label: "Mar" },
+          { day: 3, label: "Mié" },
+          { day: 4, label: "Jue" },
+          { day: 5, label: "Vie" },
+        ];
+
+  els.journalWeekdayWinrateList.innerHTML = weekdays
+    .map((item) => {
+      const stats = getJournalWinrateStats(
+        entries.filter((entry) => entry.date && parseLocalDate(entry.date).getDay() === item.day)
+      );
+      return journalWinrateBreakdownRowHtml({ label: item.label, ...stats });
+    })
+    .join("");
+}
+
+function renderJournalSessionWinrate(entries) {
+  if (!els.journalSessionWinrateList) return;
+  const rows = Object.keys(journalTradingSessionLabels).map((id) => {
+    const stats = getJournalWinrateStats(
+      entries.filter((entry) => getJournalEntryTradingSession(entry) === id)
+    );
+    return { id, label: getJournalTradingSessionLabel(id), ...stats };
+  });
+  const hasSessionData = rows.some((row) => row.closed > 0);
+
+  els.journalSessionWinrateList.innerHTML = hasSessionData
+    ? rows.map(journalWinrateBreakdownRowHtml).join("")
+    : `<div class="journal-winrate-empty">Sin sesiones registradas.</div>`;
+}
+
+function getJournalTradingSessionLabel(id) {
+  if (getCurrentLanguage() !== "en") return journalTradingSessionLabels[id] || id;
+  const labels = {
+    asia: "Asia",
+    london: "London",
+    newYork: "New York",
+    londonNewYork: "London + NY",
+    other: "Other",
+  };
+  return labels[id] || journalTradingSessionLabels[id] || id;
+}
+
+function getJournalWinrateStats(entries) {
+  const wins = entries.filter((entry) => Number(entry.pnl || 0) > 0).length;
+  const losses = entries.filter((entry) => Number(entry.pnl || 0) < 0).length;
+  const closed = wins + losses;
+  return {
+    closed,
+    losses,
+    winrate: closed ? (wins / closed) * 100 : null,
+    wins,
+  };
+}
+
+function journalWinrateBreakdownRowHtml(row) {
+  const hasData = row.closed > 0;
+  const visibleWinrate = hasData && row.winrate !== null && !dashboardPrivacyHidden;
+  const barWidth = visibleWinrate ? clamp(row.winrate, row.winrate > 0 ? 4 : 0, 100) : hasData ? 50 : 0;
+  const tone = !hasData ? "neutral" : row.winrate >= 50 ? "positive" : "negative";
+  const value = hasData ? sensitivePercent(row.winrate) : "-";
+  const detail = hasData
+    ? `${sensitiveCount(row.wins)}W - ${sensitiveCount(row.losses)}L`
+    : "Sin datos";
+
+  return `
+    <div class="journal-winrate-breakdown-row ${tone}" style="--winrate: ${barWidth}%">
+      <span>${escapeHtml(row.label)}</span>
+      <div class="journal-winrate-breakdown-track" aria-hidden="true"><i></i></div>
+      <strong class="${tone}">${value}</strong>
+      <small>${detail}</small>
+    </div>
+  `;
+}
+
+function getJournalEntryTradingSession(entry) {
+  return normalizeJournalTradingSession(entry?.tradingSession || entry?.session || entry?.trading_session || entry?.sessionType);
+}
+
+function normalizeJournalTradingSession(value) {
+  const raw = String(value || "").trim();
+  if (journalTradingSessionLabels[raw]) return raw;
+
+  const key = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s_]+/g, "-");
+  const aliases = {
+    asia: "asia",
+    asian: "asia",
+    londres: "london",
+    london: "london",
+    "new-york": "newYork",
+    newyork: "newYork",
+    ny: "newYork",
+    "nueva-york": "newYork",
+    "london-ny": "londonNewYork",
+    "londres-ny": "londonNewYork",
+    "london-new-york": "londonNewYork",
+    "londres-nueva-york": "londonNewYork",
+    other: "other",
+    otra: "other",
+  };
+  return aliases[key] || "";
 }
 
 function getJournalPerformanceStats(entries) {
@@ -3518,6 +3673,42 @@ function renderJournalEntries() {
     );
   }
   refreshIcons();
+}
+
+function renderJournalRecentTrades(entries) {
+  if (!els.journalRecentTradesList) return;
+  const recentEntries = [...entries]
+    .sort((a, b) => {
+      const byDate = (b.date || "").localeCompare(a.date || "");
+      return byDate || (b.createdAt || "").localeCompare(a.createdAt || "");
+    })
+    .slice(0, 5);
+
+  els.journalRecentTradesList.innerHTML = recentEntries.length
+    ? recentEntries.map(journalRecentTradeHtml).join("")
+    : `<div class="journal-recent-trades-empty">Sin trades recientes.</div>`;
+  refreshIcons();
+}
+
+function journalRecentTradeHtml(entry) {
+  const pnl = Number(entry.pnl || 0);
+  const tone = pnlToneClass(pnl);
+  const direction = normalizeJournalDirection(entry.direction);
+  const directionLabel = getJournalDirectionLabel(entry);
+  const asset = getJournalAssetLabel(entry);
+
+  return `
+    <button class="journal-recent-trade ${tone}" type="button" data-action="open-journal-detail" data-id="${escapeHtml(entry.id)}">
+      <span class="journal-recent-trade-copy">
+        <strong>
+          ${escapeHtml(asset)}
+          ${direction ? `<em class="journal-card-direction ${direction}">${escapeHtml(directionLabel)}</em>` : ""}
+        </strong>
+        <small>${escapeHtml(formatJournalGalleryDate(entry.date))}</small>
+      </span>
+      <span class="journal-recent-trade-pnl ${tone}">${sensitiveSignedMoney(pnl)}</span>
+    </button>
+  `;
 }
 
 function journalCardHtml(entry) {
@@ -4425,15 +4616,11 @@ function openAccountDialog(account = null) {
 }
 
 function openTransactionDialog(transaction = null) {
-  if (!state.firms.length) {
-    openFirmDialog();
-    toast("Crea una firm antes de añadir movimientos.");
-    return;
-  }
-
   fillFirmSelects();
   els.transactionForm.reset();
-  const firmId = transaction?.firmId || resolveFirmId(transaction || {}) || state.firms[0].id;
+  const firmId = transaction
+    ? transaction.firmId || resolveFirmId(transaction) || GENERAL_TRANSACTION_FIRM_VALUE
+    : state.firms[0]?.id || GENERAL_TRANSACTION_FIRM_VALUE;
   els.transactionId.value = transaction?.id || "";
   els.transactionDate.value = transaction?.date || today();
   els.transactionKind.value = transaction?.kind || "expense";
@@ -4488,6 +4675,7 @@ function openJournalDetailDialog(entry) {
   const directionMetric = els.journalDetailDirection?.closest(".journal-detail-metric");
 
   els.journalDetailDialog.dataset.entryId = entry.id;
+  els.journalDetailDialog.dataset.tone = tone;
   els.journalDetailTitle.textContent = getJournalAssetLabel(entry);
   els.journalDetailDate.textContent = formatJournalGalleryDate(entry.date);
   els.journalDetailPnl.textContent = formatSignedMoney(pnl);
@@ -4665,9 +4853,11 @@ function validateTransaction(transaction, selectedAccountId, account) {
   if (!Number.isFinite(transaction.amount) || transaction.amount <= 0) {
     return markInvalid(els.transactionAmount, "El importe debe ser mayor que 0.");
   }
-  if (!getFirm(transaction.firmId)) return markInvalid(els.transactionFirm, "Selecciona una firm valida.");
+  if (transaction.firmId && !getFirm(transaction.firmId)) {
+    return markInvalid(els.transactionFirm, "Selecciona una firm valida.");
+  }
   if (selectedAccountId && !account) return markInvalid(els.transactionAccount, "Selecciona una cuenta valida.");
-  if (account && account.firmId !== transaction.firmId) {
+  if (account && transaction.firmId && account.firmId !== transaction.firmId) {
     return markInvalid(els.transactionAccount, "La cuenta seleccionada no pertenece a esa firm.");
   }
   return true;
@@ -4819,7 +5009,8 @@ async function saveTransactionFromForm(event) {
   const id = els.transactionId.value || createId();
   const existing = state.transactions.find((tx) => tx.id === id);
   const amount = parsePositiveAmount(els.transactionAmount.value);
-  const selectedAccountId = els.transactionAccount.value;
+  const selectedFirmId = normalizeTransactionFirmSelectValue(els.transactionFirm.value);
+  const selectedAccountId = selectedFirmId ? els.transactionAccount.value : "";
   const account = selectedAccountId ? getAccount(selectedAccountId) : null;
   const transaction = {
     id,
@@ -4828,7 +5019,7 @@ async function saveTransactionFromForm(event) {
     category: els.transactionCategory.value,
     amount,
     currency: EURO,
-    firmId: els.transactionFirm.value,
+    firmId: selectedFirmId || account?.firmId || "",
     accountId: account?.id || "",
     note: els.transactionNote.value.trim(),
     createdAt: existing?.createdAt || nowIso(),
@@ -5001,6 +5192,7 @@ function handleTableAction(event) {
   if (action === "edit-account") openAccountDialog(getAccount(id));
   if (action === "edit-transaction") openTransactionDialog(getTransaction(id));
   if (action === "edit-journal") openJournalDialog(getJournalEntry(id));
+  if (action === "open-journal-detail") openJournalDetailDialog(getJournalEntry(id));
   if (action === "edit-journal-error") openJournalErrorDialog(getJournalErrorType(id));
   if (action === "archive-journal-error") requestToggleJournalErrorType(id, false);
   if (action === "restore-journal-error") requestToggleJournalErrorType(id, true);
@@ -5188,14 +5380,13 @@ function exportCsv() {
       .slice()
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
       .map((tx) => {
-        const firm = getFirm(resolveFirmId(tx));
         const account = getAccount(tx.accountId);
         const signed = tx.kind === "income" ? tx.amount : -tx.amount;
         return [
           tx.date,
           tx.kind === "income" ? "retiro" : "gasto",
           categoryLabels[tx.category] || tx.category,
-          firm?.name || "",
+          getTransactionFirmLabel(tx),
           account?.name || "",
           tx.note || "",
           signed.toFixed(2),
@@ -5359,8 +5550,7 @@ function remapStateForCloud(imported) {
         createdAt: transaction.createdAt || nowIso(),
         updatedAt: nowIso(),
       };
-    })
-    .filter((transaction) => transaction.firmId);
+    });
 
   const journalErrorTypes = normalizeJournalErrorTypes(imported.journalErrorTypes);
   const knownErrorIds = new Set(journalErrorTypes.map((type) => type.id));
@@ -5464,6 +5654,23 @@ function getTransaction(id) {
 
 function getJournalEntry(id) {
   return state.journalEntries.find((entry) => entry.id === id);
+}
+
+function normalizeTransactionFirmSelectValue(value) {
+  return value === GENERAL_TRANSACTION_FIRM_VALUE ? "" : value || "";
+}
+
+function matchesTransactionFirmFilter(transaction, firmFilter) {
+  if (firmFilter === "all") return true;
+  const firmId = resolveFirmId(transaction);
+  if (firmFilter === GENERAL_TRANSACTION_FIRM_VALUE) return !firmId;
+  return firmId === firmFilter;
+}
+
+function getTransactionFirmLabel(transaction) {
+  const firmId = resolveFirmId(transaction);
+  if (!firmId) return GENERAL_TRANSACTION_DISPLAY_LABEL;
+  return getFirm(firmId)?.name || "Sin firm";
 }
 
 function resolveFirmId(transaction) {

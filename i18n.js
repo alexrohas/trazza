@@ -89,6 +89,7 @@
       "Modo claro": "Light mode",
 
       "Firm": "Firm",
+      "Firm / origen": "Firm / source",
       "Cuenta": "Account",
       "Periodo": "Period",
       "Todo": "All",
@@ -170,6 +171,8 @@
       "Payout": "Payout",
       "Refund": "Refund",
       "Otro": "Other",
+      "Otro / gasto general": "Other / general expense",
+      "Gasto general": "General expense",
       "Retiro / ingreso": "Withdrawal / income",
       "Nombre, tamaño...": "Name, size...",
       "Nombre, tamaÃ±o...": "Name, size...",
@@ -188,10 +191,22 @@
       "Winrate": "Winrate",
       "Aciertos, empate y pérdidas": "Wins, breakeven and losses",
       "Profit factor": "Profit factor",
+      "Relacion entre ganancias y perdidas": "Profit and loss ratio",
       "Avg win / loss": "Avg win / loss",
       "Avg win": "Avg win",
       "Avg loss": "Avg loss",
       "Promedio por trade cerrado": "Average per closed trade",
+      "Winrate por dia": "Winrate by day",
+      "Winrate por dÃ­a": "Winrate by day",
+      "Media por dia de la semana.": "Average by weekday.",
+      "Media por dÃ­a de la semana.": "Average by weekday.",
+      "Winrate por sesion": "Winrate by session",
+      "Winrate por sesiÃ³n": "Winrate by session",
+      "Londres, Nueva York y otras sesiones.": "London, New York and other sessions.",
+      "Sin sesiones registradas.": "No sessions registered.",
+      "Ultimos trades": "Latest trades",
+      "Resumen rapido de las entradas mas recientes.": "Quick summary of the most recent entries.",
+      "Sin trades recientes.": "No recent trades.",
       "Errores": "Mistakes",
       "errores": "mistakes",
       "error": "mistake",
@@ -274,6 +289,9 @@
       "Ej. Entrar tarde": "E.g. Late entry",
 
       "Sin cuenta concreta": "No specific account",
+      "Sin cuenta": "No account",
+      "Sin firm": "No firm",
+      "Movimientos sin cuenta concreta": "Movements without a specific account",
       "Crea una firm primero": "Create a firm first",
       "Crea una cuenta primero": "Create an account first",
       "No hay firms registradas.": "No firms registered.",
@@ -457,10 +475,14 @@
     if (!root || applying) return;
     applying = true;
     const lang = getLanguage();
-    updateDocumentMeta(lang);
+
+    if (root === document.body || root === document.documentElement) {
+      updateDocumentMeta(lang);
+      updateToggles(lang);
+    }
+
     walkText(root, lang);
     walkAttributes(root, lang);
-    updateToggles(lang);
     applying = false;
   }
 

@@ -492,6 +492,24 @@
                       <p class="empty-chart" id="journalPnlChartEmpty">Sin P&L</p>
                     </div>
                   </article>
+                  <article class="journal-chart-block journal-weekday-winrate-block">
+                    <div class="journal-chart-head">
+                      <div>
+                        <h4>Winrate por día</h4>
+                        <p>Media por día de la semana.</p>
+                      </div>
+                    </div>
+                    <div class="journal-winrate-list" id="journalWeekdayWinrateList"></div>
+                  </article>
+                  <article class="journal-chart-block journal-session-winrate-block">
+                    <div class="journal-chart-head">
+                      <div>
+                        <h4>Winrate por sesión</h4>
+                        <p>Londres, Nueva York y otras sesiones.</p>
+                      </div>
+                    </div>
+                    <div class="journal-winrate-list" id="journalSessionWinrateList"></div>
+                  </article>
                   <div class="journal-kpi-stack">
                     <article class="journal-performance-card journal-winrate-card">
                       <div class="journal-winrate-copy">
@@ -512,9 +530,19 @@
                         </div>
                       </div>
                     </article>
-                    <article class="journal-performance-card">
+                    <article class="journal-performance-card journal-profit-factor-card">
                       <span>Profit factor</span>
                       <strong class="neutral" id="journalProfitFactorValue">-</strong>
+                      <div class="journal-profit-factor-meter" aria-label="Relacion entre ganancias y perdidas">
+                        <div class="journal-profit-factor-track" aria-hidden="true">
+                          <i class="gain" id="journalProfitFactorGainBar"></i>
+                          <i class="loss" id="journalProfitFactorLossBar"></i>
+                        </div>
+                        <div class="journal-profit-factor-labels">
+                          <span>Profit</span>
+                          <span>Loss</span>
+                        </div>
+                      </div>
                       <small id="journalProfitFactorHint">Ganancias / perdidas</small>
                     </article>
                     <article class="journal-performance-card journal-average-trade-card">
@@ -579,31 +607,42 @@
                     </div>
                   </article>
                 </div>
-                <div class="journal-calendar-panel">
-                  <div class="journal-calendar-title">
-                    <div>
-                      <h4 id="journalCalendarMonth">Mes actual</h4>
+                <div class="journal-calendar-row">
+                  <div class="journal-calendar-panel">
+                    <div class="journal-calendar-title">
+                      <div>
+                        <h4 id="journalCalendarMonth">Mes actual</h4>
+                      </div>
+                      <div class="journal-calendar-tools">
+                        <div class="journal-month-total">
+                          <span>Month total</span>
+                          <span aria-hidden="true">:</span>
+                          <strong class="neutral" id="journalMonthTotal">0,00 €</strong>
+                        </div>
+                        <div class="journal-calendar-actions">
+                          <button class="icon-button" type="button" id="journalCalendarPrev" aria-label="Mes anterior">
+                            <i data-lucide="chevron-left"></i>
+                          </button>
+                          <button class="secondary-button compact-button" type="button" id="journalCalendarToday">Hoy</button>
+                          <button class="icon-button" type="button" id="journalCalendarNext" aria-label="Mes siguiente">
+                            <i data-lucide="chevron-right"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div class="journal-calendar-tools">
-                      <div class="journal-month-total">
-                        <span>Month total</span>
-                        <span aria-hidden="true">:</span>
-                        <strong class="neutral" id="journalMonthTotal">0,00 €</strong>
-                      </div>
-                      <div class="journal-calendar-actions">
-                        <button class="icon-button" type="button" id="journalCalendarPrev" aria-label="Mes anterior">
-                          <i data-lucide="chevron-left"></i>
-                        </button>
-                        <button class="secondary-button compact-button" type="button" id="journalCalendarToday">Hoy</button>
-                        <button class="icon-button" type="button" id="journalCalendarNext" aria-label="Mes siguiente">
-                          <i data-lucide="chevron-right"></i>
-                        </button>
-                      </div>
+                    <div class="journal-calendar-wrap">
+                      <div class="journal-calendar-grid" id="journalCalendarGrid"></div>
                     </div>
                   </div>
-                  <div class="journal-calendar-wrap">
-                    <div class="journal-calendar-grid" id="journalCalendarGrid"></div>
-                  </div>
+                  <article class="journal-chart-block journal-recent-trades-block">
+                    <div class="journal-chart-head">
+                      <div>
+                        <h4>Ultimos trades</h4>
+                        <p>Resumen rapido de las entradas mas recientes.</p>
+                      </div>
+                    </div>
+                    <div class="journal-recent-trades-list" id="journalRecentTradesList"></div>
+                  </article>
                 </div>
               </div>
             </div>
@@ -760,7 +799,7 @@
         </div>
         <div class="form-grid">
           <label>
-            Firm
+            Firm / origen
             <select id="transactionFirm" required></select>
           </label>
           <label>
@@ -930,19 +969,21 @@
           </div>
         </div>
         <div class="journal-detail-summary">
-          <div class="journal-detail-metric">
+          <div class="journal-detail-metric journal-detail-pnl-metric">
             <span>P&L</span>
             <strong class="journal-pnl neutral journal-detail-pnl" id="journalDetailPnl">0,00 €</strong>
           </div>
-          <div class="journal-detail-metric" hidden>
-            <span>R</span>
-            <strong class="journal-r-multiple neutral" id="journalDetailR">-</strong>
+          <div class="journal-detail-secondary-grid">
+            <div class="journal-detail-metric" hidden>
+              <span>R</span>
+              <strong class="journal-r-multiple neutral" id="journalDetailR">-</strong>
+            </div>
+            <div class="journal-detail-metric" hidden>
+              <span>Dirección</span>
+              <strong class="journal-detail-direction" id="journalDetailDirection">Sin dirección</strong>
+            </div>
           </div>
-          <div class="journal-detail-metric" hidden>
-            <span>Dirección</span>
-            <strong class="journal-detail-direction" id="journalDetailDirection">Sin dirección</strong>
-          </div>
-          <div class="journal-detail-metric">
+          <div class="journal-detail-metric journal-detail-errors-metric">
             <span>Errores</span>
             <div class="journal-error-tags" id="journalDetailErrors"></div>
           </div>
