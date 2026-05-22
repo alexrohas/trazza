@@ -132,6 +132,7 @@ const NET_CHART_MIN_VISIBLE_POINTS = 6;
 const NET_CHART_PAN_STEP = 0.12;
 const JOURNAL_CHART_MIN_VISIBLE_POINTS = 6;
 const JOURNAL_CHART_PAN_STEP = 0.12;
+const JOURNAL_DEFAULT_RISK_PERCENT = 0.01;
 const JOURNAL_OPERATION_IMAGE_MAX_SIZE = 1200;
 const JOURNAL_OPERATION_IMAGE_QUALITY = 0.82;
 const DASHBOARD_PRIVACY_MASK = "••••••";
@@ -283,6 +284,8 @@ function bindElements() {
     "journalAvgWinValue",
     "journalAvgLossValue",
     "journalAvgTradeHint",
+    "journalAvgWinRValue",
+    "journalAvgLossRValue",
     "journalErrorsChart",
     "journalErrorsChartEmpty",
     "journalErrorsSummary",
@@ -366,6 +369,7 @@ function bindElements() {
     "journalDetailTitle",
     "journalDetailDate",
     "journalDetailPnl",
+    "journalDetailR",
     "journalDetailDirection",
     "journalDetailErrors",
     "journalDetailMediaShell",
@@ -2597,6 +2601,8 @@ function renderJournalPerformanceMetrics(entries) {
   els.journalAvgTradeHint.textContent = stats.closed
     ? `${sensitiveCount(stats.closed)} ${stats.closed === 1 ? "trade cerrado" : "trades cerrados"}`
     : "Sin trades cerrados";
+  els.journalAvgWinRValue.textContent = stats.avgWinR === null ? "-" : sensitiveRMultiple(stats.avgWinR);
+  els.journalAvgLossRValue.textContent = stats.avgLossR === null ? "-" : sensitiveRMultiple(stats.avgLossR);
 }
 
 function renderJournalWinrateGauge(stats) {
@@ -2612,10 +2618,19 @@ function renderJournalWinrateGauge(stats) {
 }
 
 function getJournalPerformanceStats(entries) {
-  const values = entries.map((entry) => Number(entry.pnl)).filter(Number.isFinite);
+  const rows = entries
+    .map((entry) => ({
+      pnl: Number(entry.pnl),
+      rMultiple: getJournalEntryRMultiple(entry),
+    }))
+    .filter((row) => Number.isFinite(row.pnl));
+  const values = rows.map((row) => row.pnl);
   const wins = values.filter((value) => value > 0);
   const losses = values.filter((value) => value < 0);
   const breakEven = values.filter((value) => value === 0).length;
+  const rRows = rows.filter((row) => Number.isFinite(row.rMultiple));
+  const rWins = rRows.filter((row) => row.pnl > 0).map((row) => row.rMultiple);
+  const rLosses = rRows.filter((row) => row.pnl < 0).map((row) => row.rMultiple);
   const grossProfit = sum(wins);
   const grossLoss = Math.abs(sum(losses));
   const closed = wins.length + losses.length;
@@ -2623,10 +2638,14 @@ function getJournalPerformanceStats(entries) {
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : null;
   const avgWin = wins.length ? grossProfit / wins.length : null;
   const avgLoss = losses.length ? grossLoss / losses.length : null;
+  const avgWinR = rWins.length ? sum(rWins) / rWins.length : null;
+  const avgLossR = rLosses.length ? sum(rLosses) / rLosses.length : null;
 
   return {
     avgLoss,
+    avgLossR,
     avgWin,
+    avgWinR,
     breakEven,
     closed,
     grossLoss,
@@ -2636,6 +2655,20 @@ function getJournalPerformanceStats(entries) {
     winrate,
     wins: wins.length,
   };
+}
+
+function getJournalEntryRMultiple(entry) {
+  const pnl = Number(entry?.pnl);
+  const account = getAccount(entry?.accountId);
+  const riskAmount = getAccountRiskAmount(account);
+  if (!Number.isFinite(pnl) || !Number.isFinite(riskAmount) || riskAmount <= 0) return null;
+  return pnl / riskAmount;
+}
+
+function getAccountRiskAmount(account) {
+  const size = parseAccountSizeAmount(account?.size);
+  if (!Number.isFinite(size) || size <= 0) return null;
+  return size * JOURNAL_DEFAULT_RISK_PERCENT;
 }
 
 function syncJournalTimeChartState(kind, fullSeries, seriesKey) {
@@ -2859,12 +2892,26 @@ function buildJournalPnlSeries(entries) {
       totalsByDate.set(entry.date, (totalsByDate.get(entry.date) || 0) + Number(entry.pnl || 0));
     });
 
+  const dates = [...totalsByDate.keys()].sort();
+  if (!dates.length) return [];
+
   let total = 0;
-  return [...totalsByDate.keys()].sort().map((date) => {
+  const series = [
+    {
+      date: shiftIsoDate(dates[0], -1),
+      isBaseline: true,
+      pnl: 0,
+      total: 0,
+    },
+  ];
+
+  dates.forEach((date) => {
     const pnl = totalsByDate.get(date) || 0;
     total += pnl;
-    return { date, pnl, total };
+    series.push({ date, pnl, total });
   });
+
+  return series;
 }
 
 function drawJournalDisciplineChart(entries) {
@@ -2980,7 +3027,7 @@ function drawJournalPnlHover(ctx, model, palette) {
   return getChartTooltipDomLabel(
     x,
     y,
-    formatDate(point.date),
+    point.isBaseline ? "Inicio" : formatDate(point.date),
     [
       { label: "P&L total", value: formatSignedMoney(point.total), color: palette.capital },
       { label: "P&L dia", value: formatSignedMoney(point.pnl), color: point.pnl >= 0 ? palette.green : palette.red },
@@ -3096,41 +3143,74 @@ function drawJournalErrorsChart(entries) {
     )
     .join("");
 
-  const radius = Math.max(1, Math.min(size.width, size.height) * 0.38);
-  const innerRadius = radius * 0.5;
+  const radius = Math.max(1, Math.min(size.width, size.height) * 0.37);
+  const ringWidth = clamp(radius * 0.4, 22, 34);
+  const innerRadius = radius - ringWidth;
+  const ringRadius = innerRadius + ringWidth / 2;
   const centerX = size.width / 2;
   const centerY = size.height / 2;
   let start = -Math.PI / 2;
+  const segmentGap = rows.length > 1 ? Math.min(0.055, Math.max(0.026, 4.5 / radius)) : 0;
   const segments = [];
+
+  ctx.save();
+  ctx.strokeStyle = themeColor("--subtle-bg");
+  ctx.lineWidth = ringWidth;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 
   rows.forEach((row, index) => {
     const angle = (row.count / total) * Math.PI * 2;
     const isHover = journalChartState.errors.hoverIndex === index;
-    const segmentRadius = isHover ? radius + 5 : radius;
+    const visibleGap = rows.length > 1 ? Math.min(segmentGap, angle * 0.35) : 0;
+    const drawStart = start + visibleGap / 2;
+    const drawEnd = start + angle - visibleGap / 2;
     ctx.save();
     if (journalChartState.errors.hoverIndex !== null && !isHover) ctx.globalAlpha = 0.58;
+    ctx.strokeStyle = createJournalErrorSegmentGradient(ctx, row.color, centerX, centerY, radius);
+    ctx.lineWidth = isHover ? ringWidth + 5 : ringWidth;
+    ctx.lineCap = rows.length > 1 ? "butt" : "round";
+    ctx.shadowColor = hexToRgba(row.color, isHover ? 0.36 : 0.18);
+    ctx.shadowBlur = isHover ? 12 : 7;
+    ctx.shadowOffsetY = 2;
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, segmentRadius, start, start + angle);
-    ctx.closePath();
-    ctx.fillStyle = row.color;
-    ctx.fill();
+    ctx.arc(centerX, centerY, isHover ? ringRadius + 1.5 : ringRadius, drawStart, Math.max(drawStart, drawEnd));
+    ctx.stroke();
     ctx.restore();
-    segments.push({ end: start + angle, index, row, start });
+    segments.push({ drawEnd, drawStart, end: start + angle, index, row, start });
     start += angle;
   });
-  journalChartState.errors.model = { canvas, centerX, centerY, innerRadius, radius, segments };
+  journalChartState.errors.model = { canvas, centerX, centerY, innerRadius, radius, ringRadius, segments };
 
-  ctx.globalCompositeOperation = "destination-out";
+  ctx.save();
+  ctx.strokeStyle = themeColor("--surface");
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-
-  ctx.fillStyle = themeColor("--surface");
+  ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.beginPath();
   ctx.arc(centerX, centerY, Math.max(1, innerRadius - 1), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 3;
+  ctx.fillStyle = themeColor("--surface");
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, Math.max(1, innerRadius - 2), 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = themeColor("--line");
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, Math.max(1, innerRadius - 2), 0, Math.PI * 2);
+  ctx.stroke();
 
   const domLabels = [getChartCenterDomLabel(String(total), "errores", centerX, centerY)];
   if (journalChartState.errors.hoverIndex !== null) {
@@ -3174,6 +3254,38 @@ function drawJournalErrorsHover(ctx, model) {
     ],
     model.canvas
   );
+}
+
+function createJournalErrorSegmentGradient(ctx, color, centerX, centerY, radius) {
+  const base = normalizeHexColor(color) || getJournalErrorSeverityColor("minor");
+  const gradient = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+  gradient.addColorStop(0, mixHexColor(base, "#ffffff", 0.18));
+  gradient.addColorStop(0.58, base);
+  gradient.addColorStop(1, mixHexColor(base, "#000000", 0.16));
+  return gradient;
+}
+
+function hexToRgba(color, alpha = 1) {
+  const normalized = normalizeHexColor(color);
+  if (!normalized) return `rgba(0, 0, 0, ${alpha})`;
+  const value = Number.parseInt(normalized.slice(1), 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function mixHexColor(color, target, weight = 0.5) {
+  const source = normalizeHexColor(color);
+  const destination = normalizeHexColor(target);
+  if (!source || !destination) return source || destination || "#888780";
+  const sourceValue = Number.parseInt(source.slice(1), 16);
+  const destinationValue = Number.parseInt(destination.slice(1), 16);
+  const ratio = clamp(weight, 0, 1);
+  const red = Math.round(((sourceValue >> 16) & 255) * (1 - ratio) + ((destinationValue >> 16) & 255) * ratio);
+  const green = Math.round(((sourceValue >> 8) & 255) * (1 - ratio) + ((destinationValue >> 8) & 255) * ratio);
+  const blue = Math.round((sourceValue & 255) * (1 - ratio) + (destinationValue & 255) * ratio);
+  return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function getJournalErrorRows(entries) {
@@ -3936,18 +4048,49 @@ function drawSmoothSeriesPath(ctx, series, key, xFor, yFor, connectFromCurrentPo
   else ctx.moveTo(points[0].x, points[0].y);
 
   if (points.length === 1) return;
-
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const current = points[index];
-    const midX = (previous.x + current.x) / 2;
-    const midY = (previous.y + current.y) / 2;
-    ctx.quadraticCurveTo(previous.x, previous.y, midX, midY);
+  if (points.length === 2) {
+    ctx.lineTo(points[1].x, points[1].y);
+    return;
   }
 
-  const penultimate = points[points.length - 2];
-  const last = points[points.length - 1];
-  ctx.quadraticCurveTo(penultimate.x, penultimate.y, last.x, last.y);
+  const segmentWidths = [];
+  const segmentSlopes = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const width = Math.max(points[index + 1].x - points[index].x, 0.0001);
+    segmentWidths.push(width);
+    segmentSlopes.push((points[index + 1].y - points[index].y) / width);
+  }
+
+  const tangents = points.map((_point, index) => {
+    if (index === 0) return segmentSlopes[0];
+    if (index === points.length - 1) return segmentSlopes[segmentSlopes.length - 1];
+
+    const previousSlope = segmentSlopes[index - 1];
+    const nextSlope = segmentSlopes[index];
+    if (previousSlope === 0 || nextSlope === 0 || Math.sign(previousSlope) !== Math.sign(nextSlope)) {
+      return 0;
+    }
+
+    const previousWidth = segmentWidths[index - 1];
+    const nextWidth = segmentWidths[index];
+    const firstWeight = 2 * nextWidth + previousWidth;
+    const secondWeight = nextWidth + 2 * previousWidth;
+    return (firstWeight + secondWeight) / (firstWeight / previousSlope + secondWeight / nextSlope);
+  });
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const width = segmentWidths[index];
+    ctx.bezierCurveTo(
+      current.x + width / 3,
+      current.y + (tangents[index] * width) / 3,
+      next.x - width / 3,
+      next.y - (tangents[index + 1] * width) / 3,
+      next.x,
+      next.y
+    );
+  }
 }
 
 function drawDateGuides(ctx, canvas, ticks, xFor, palette) {
@@ -4329,8 +4472,10 @@ function openJournalDetailDialog(entry) {
 
   const pnl = Number(entry.pnl || 0);
   const tone = pnlToneClass(pnl);
+  const rMultiple = getJournalEntryRMultiple(entry);
   const direction = normalizeJournalDirection(entry.direction);
   const errors = sanitizeJournalErrors(entry.errors);
+  const rMetric = els.journalDetailR?.closest(".journal-detail-metric");
   const directionMetric = els.journalDetailDirection?.closest(".journal-detail-metric");
 
   els.journalDetailDialog.dataset.entryId = entry.id;
@@ -4338,6 +4483,11 @@ function openJournalDetailDialog(entry) {
   els.journalDetailDate.textContent = formatJournalGalleryDate(entry.date);
   els.journalDetailPnl.textContent = formatSignedMoney(pnl);
   els.journalDetailPnl.className = `journal-pnl ${tone} journal-detail-pnl`;
+  if (els.journalDetailR) {
+    els.journalDetailR.textContent = Number.isFinite(rMultiple) ? formatRMultiple(rMultiple) : "-";
+    els.journalDetailR.className = `journal-r-multiple ${Number.isFinite(rMultiple) ? pnlToneClass(rMultiple) : "neutral"}`;
+  }
+  if (rMetric) rMetric.hidden = !Number.isFinite(rMultiple);
   if (els.journalDetailDirection) {
     els.journalDetailDirection.textContent = direction ? getJournalDirectionLabel(entry) : "Sin direccion";
     els.journalDetailDirection.className = `journal-detail-direction ${direction || "neutral"}`;
@@ -5382,6 +5532,18 @@ function formatRatio(value) {
   }).format(Number(value || 0));
 }
 
+function formatRMultiple(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const formatted = new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(Math.abs(amount));
+  if (amount > 0) return `+${formatted}R`;
+  if (amount < 0) return `-${formatted}R`;
+  return "0,00R";
+}
+
 function formatSignedPercent(value) {
   const amount = Number(value || 0);
   const formatted = formatPercent(Math.abs(amount));
@@ -5424,6 +5586,10 @@ function sensitiveSignedPercent(value) {
 
 function sensitiveRatio(value) {
   return sensitiveText(formatRatio(value));
+}
+
+function sensitiveRMultiple(value) {
+  return sensitiveText(formatRMultiple(value));
 }
 
 function parseAccountSizeAmount(value) {

@@ -2352,6 +2352,40 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.journal-average-trade-values b,
+.journal-r-multiple {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.journal-average-trade-values b.positive,
+.journal-r-multiple.positive {
+  color: var(--green-strong);
+}
+
+.journal-average-trade-values b.negative,
+.journal-r-multiple.negative {
+  color: var(--red-strong);
+}
+
+:root[data-theme="dark"] .journal-average-trade-values b.positive,
+:root[data-theme="dark"] .journal-r-multiple.positive {
+  color: var(--green);
+}
+
+:root[data-theme="dark"] .journal-average-trade-values b.negative,
+:root[data-theme="dark"] .journal-r-multiple.negative {
+  color: var(--red);
+}
+
+.journal-detail-metric .journal-r-multiple {
+  font-size: 24px;
+}
+
 .journal-errors-layout {
   display: grid;
   grid-template-columns: minmax(160px, 0.85fr) minmax(0, 1fr);
