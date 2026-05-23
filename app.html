@@ -917,6 +917,17 @@
           <select id="journalImportAccount" required></select>
         </label>
         <label>
+          SesiÃ³n
+          <select id="journalImportTradingSession">
+            <option value="">Sin sesiÃ³n</option>
+            <option value="asia">Asia</option>
+            <option value="london">Londres</option>
+            <option value="newYork">Nueva York</option>
+            <option value="londonNewYork">Londres + NY</option>
+            <option value="other">Otra</option>
+          </select>
+        </label>
+        <label>
           Archivo CSV
           <input id="journalImportCsvFile" type="file" accept=".csv,text/csv" required />
         </label>
@@ -1039,6 +1050,19 @@
             </select>
           </label>
           <label>
+            SesiÃ³n
+            <select id="journalTradingSession">
+              <option value="">Sin sesiÃ³n</option>
+              <option value="asia">Asia</option>
+              <option value="london">Londres</option>
+              <option value="newYork">Nueva York</option>
+              <option value="londonNewYork">Londres + NY</option>
+              <option value="other">Otra</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label class="span-2">
             P&L
             <span class="journal-money-input">
               <span>€</span>

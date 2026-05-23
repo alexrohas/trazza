@@ -8,6 +8,7 @@ create table if not exists public.journal_entries (
   date date not null,
   title text not null check (length(trim(title)) >= 1),
   trade_direction text check (trade_direction in ('long', 'short')),
+  trading_session text check (trading_session in ('asia', 'london', 'newYork', 'londonNewYork', 'other')),
   session_type text not null check (
     session_type in ('trading-day', 'evaluation', 'funded', 'payout-day', 'news-day', 'review', 'other')
   ),
@@ -39,6 +40,17 @@ alter table public.journal_entries
 
 alter table public.journal_entries
   add constraint journal_entries_trade_direction_check check (trade_direction in ('long', 'short'));
+
+alter table public.journal_entries
+  add column if not exists trading_session text;
+
+alter table public.journal_entries
+  drop constraint if exists journal_entries_trading_session_check;
+
+alter table public.journal_entries
+  add constraint journal_entries_trading_session_check check (
+    trading_session in ('asia', 'london', 'newYork', 'londonNewYork', 'other')
+  );
 
 alter table public.journal_entries
   add column if not exists pnl numeric(12, 2) not null default 0;

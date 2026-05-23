@@ -366,6 +366,7 @@ function bindElements() {
     "journalImportDialog",
     "journalImportForm",
     "journalImportAccount",
+    "journalImportTradingSession",
     "journalImportCsvFile",
     "journalImportBackButton",
     "journalImportPreviewDialog",
@@ -381,6 +382,7 @@ function bindElements() {
     "journalAccount",
     "journalTitle",
     "journalDirection",
+    "journalTradingSession",
     "journalEmotion",
     "journalDiscipline",
     "journalPnl",
@@ -1573,7 +1575,8 @@ function isJournalSetupError(error) {
     message.includes("pnl") ||
     message.includes("errors") ||
     message.includes("operation_url") ||
-    message.includes("trade_direction")
+    message.includes("trade_direction") ||
+    message.includes("trading_session")
   );
 }
 
@@ -1758,6 +1761,7 @@ function fromDbJournalEntry(row) {
     accountId: row.account_id || "",
     title: row.title || "",
     direction: normalizeJournalDirection(row.trade_direction),
+    tradingSession: normalizeJournalTradingSession(row.trading_session),
     sessionType: row.session_type || "trading-day",
     result: row.result || "neutral",
     emotion: row.emotion || "focused",
@@ -1832,6 +1836,7 @@ function journalEntryToDb(entry) {
     date: entry.date,
     title: entry.title,
     trade_direction: entry.direction || null,
+    trading_session: normalizeJournalTradingSession(entry.tradingSession) || null,
     session_type: entry.sessionType,
     result: entry.result,
     emotion: entry.emotion,
@@ -3731,6 +3736,7 @@ function getFilteredJournalEntries(options = {}) {
         entry.pnl,
         entry.operationUrl,
         sanitizeJournalErrors(entry.errors).map(getJournalErrorLabel).join(" "),
+        getJournalTradingSessionLabel(getJournalEntryTradingSession(entry)),
         journalSessionLabels[entry.sessionType],
         journalResultLabels[entry.result],
         journalEmotionLabels[entry.emotion],
@@ -4868,6 +4874,7 @@ function openJournalDialog(entry = null) {
   fillAccountSelect(els.journalAccount, firmId, true, entry?.accountId || "");
   els.journalTitle.value = entry?.title || "";
   els.journalDirection.value = normalizeJournalDirection(entry?.direction);
+  els.journalTradingSession.value = getJournalEntryTradingSession(entry) || "";
   els.journalEmotion.value = entry?.emotion || "focused";
   els.journalDiscipline.value = String(entry?.discipline || 3);
   els.journalPnl.value = entry ? Number(entry.pnl || 0) : "";
@@ -5090,6 +5097,9 @@ function validateJournalEntry(entry, selectedAccountId, account) {
   }
   if (!entry.title) return markInvalid(els.journalTitle, "Pon un activo para la entrada.");
   if (!journalDirectionLabels[entry.direction]) return markInvalid(els.journalDirection, "Selecciona si la operacion fue long o short.");
+  if (entry.tradingSession && !journalTradingSessionLabels[entry.tradingSession]) {
+    return markInvalid(els.journalTradingSession, "Selecciona una sesion valida.");
+  }
   if (!journalEmotionLabels[entry.emotion]) return markInvalid(els.journalEmotion, "Selecciona un estado mental valido.");
   if (!Number.isInteger(entry.discipline) || entry.discipline < 1 || entry.discipline > 5) {
     return markInvalid(els.journalDiscipline, "La disciplina debe estar entre 1 y 5.");
@@ -5116,14 +5126,18 @@ async function handleJournalCsvImportSubmit(event) {
   clearFormValidity(els.journalImportForm);
 
   const account = getAccount(els.journalImportAccount.value);
+  const tradingSession = normalizeJournalTradingSession(els.journalImportTradingSession.value);
   const file = els.journalImportCsvFile.files?.[0];
   if (!account) return markInvalid(els.journalImportAccount, "Selecciona una cuenta valida.");
+  if (els.journalImportTradingSession.value && !tradingSession) {
+    return markInvalid(els.journalImportTradingSession, "Selecciona una sesion valida.");
+  }
   if (!file) return markInvalid(els.journalImportCsvFile, "Selecciona un archivo CSV.");
 
   setFormBusy(els.journalImportForm, true);
   try {
     const text = await file.text();
-    const result = parseTradovatePerformanceCsv(text, account);
+    const result = parseTradovatePerformanceCsv(text, account, tradingSession);
     if (result.entries.length === 1) {
       closeDialog("journalImportDialog");
       openJournalDialog(result.entries[0]);
@@ -5141,7 +5155,7 @@ async function handleJournalCsvImportSubmit(event) {
   }
 }
 
-function parseTradovatePerformanceCsv(text, account) {
+function parseTradovatePerformanceCsv(text, account, tradingSession = "") {
   const rows = parseCsvRows(text);
   if (rows.length < 2) throw new Error("El CSV no contiene operaciones.");
 
@@ -5171,7 +5185,7 @@ function parseTradovatePerformanceCsv(text, account) {
 
   const groupedFills = groupTradovateFills(rawFills);
   const now = nowIso();
-  const entries = groupedFills.map((fills) => createJournalEntryFromTradovateFills(fills, account, now));
+  const entries = groupedFills.map((fills) => createJournalEntryFromTradovateFills(fills, account, now, tradingSession));
   const invalidDate = entries.find((entry) => !isValidIsoDate(entry.date) || entry.date > today());
   if (invalidDate) throw new Error("El CSV contiene fechas invalidas o futuras.");
 
@@ -5335,7 +5349,7 @@ function groupTradovateFills(fills) {
   return Array.from(groups.values());
 }
 
-function createJournalEntryFromTradovateFills(fills, account, timestamp) {
+function createJournalEntryFromTradovateFills(fills, account, timestamp, tradingSession = "") {
   const sortedByEntry = [...fills].sort((a, b) => a.entryTime - b.entryTime);
   const sortedByExit = [...fills].sort((a, b) => a.exitTime - b.exitTime);
   const first = sortedByEntry[0];
@@ -5352,6 +5366,7 @@ function createJournalEntryFromTradovateFills(fills, account, timestamp) {
     accountId: account.id,
     title: normalizeJournalAsset(first.asset),
     direction: first.direction,
+    tradingSession,
     sessionType: "trading-day",
     result: "neutral",
     emotion: "focused",
@@ -5640,6 +5655,7 @@ async function saveJournalFromForm(event) {
     accountId: account?.id || "",
     title: normalizeJournalAsset(els.journalTitle.value),
     direction: normalizeJournalDirection(els.journalDirection.value),
+    tradingSession: normalizeJournalTradingSession(els.journalTradingSession.value),
     sessionType: existing?.sessionType || "trading-day",
     result: existing?.result || "neutral",
     emotion: els.journalEmotion.value,
@@ -6136,6 +6152,7 @@ function remapStateForCloud(imported) {
         accountId,
         title: String(entry.title).trim(),
         direction: normalizeJournalDirection(entry.direction || entry.tradeDirection || entry.trade_direction),
+        tradingSession: normalizeJournalTradingSession(entry.tradingSession || entry.trading_session || entry.session),
         sessionType: journalSessionLabels[entry.sessionType] ? entry.sessionType : "trading-day",
         result: journalResultLabels[entry.result] ? entry.result : "neutral",
         emotion: journalEmotionLabels[entry.emotion] ? entry.emotion : "focused",

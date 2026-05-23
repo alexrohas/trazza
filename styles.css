@@ -4571,6 +4571,10 @@ tbody tr:hover {
   gap: 12px;
 }
 
+.form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
 .modal-actions {
   display: flex;
   flex-wrap: wrap;
