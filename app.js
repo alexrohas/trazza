@@ -213,8 +213,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (els.authScreen && els.appShell) {
       els.authScreen.hidden = false;
       els.appShell.hidden = true;
-      if (els.sessionPill) els.sessionPill.hidden = true;
-      if (els.logoutButton) els.logoutButton.hidden = true;
       els.authMessage.textContent = "No se pudo iniciar la app. Recarga la pagina.";
     }
   }
@@ -413,9 +411,26 @@ function bindElements() {
     "toast",
     "dashboardPrivacyToggleButton",
     "themeToggleButton",
-    "sessionPill",
-    "userEmail",
-    "logoutButton",
+    "sidebarUserCard",
+    "sidebarUserInitial",
+    "sidebarUserName",
+    "sidebarUserEmail",
+    "profileDialog",
+    "profileForm",
+    "profileInitial",
+    "profileDisplayName",
+    "profileDisplayEmail",
+    "profileFirmCount",
+    "profileAccountCount",
+    "profileTransactionCount",
+    "profileJournalCount",
+    "profileUserId",
+    "profileCreatedAt",
+    "profileName",
+    "profileEmail",
+    "profileMessage",
+    "profileSaveButton",
+    "profileLogoutButton",
   ].forEach((id) => {
     els[id] = document.getElementById(id);
   });
@@ -427,7 +442,9 @@ function bindEvents() {
     submitAuthForm();
   });
   els.authSignupButton.addEventListener("click", toggleAuthMode);
-  els.logoutButton.addEventListener("click", signOut);
+  els.sidebarUserCard?.addEventListener("click", openProfileDialog);
+  els.profileForm?.addEventListener("submit", saveProfileFromForm);
+  els.profileLogoutButton?.addEventListener("click", signOut);
 
   document.querySelectorAll(".pillar-button").forEach((button) => {
     button.addEventListener("click", () => setActivePillar(button.dataset.pillar));
@@ -565,11 +582,11 @@ function bindEvents() {
   els.journalRecentTradesList.addEventListener("click", handleTableAction);
   els.journalErrorTypesList.addEventListener("click", handleTableAction);
 
-  document.getElementById("exportJsonButton").addEventListener("click", exportJson);
-  document.getElementById("exportCsvButton").addEventListener("click", exportCsv);
-  document.getElementById("importJsonButton").addEventListener("click", () => els.importFileInput.click());
-  els.importFileInput.addEventListener("change", importJson);
-  els.migrateLocalButton.addEventListener("click", migrateLocalData);
+  document.getElementById("exportJsonButton")?.addEventListener("click", exportJson);
+  document.getElementById("exportCsvButton")?.addEventListener("click", exportCsv);
+  document.getElementById("importJsonButton")?.addEventListener("click", () => els.importFileInput?.click());
+  els.importFileInput?.addEventListener("change", importJson);
+  els.migrateLocalButton?.addEventListener("click", migrateLocalData);
   document.addEventListener("click", handleEmptyStateAction);
 
   els.confirmAcceptButton.addEventListener("click", async () => {
@@ -1146,9 +1163,8 @@ async function handleSession(session) {
 function setAppAccess(isAuthenticated) {
   els.authScreen.hidden = isAuthenticated;
   els.appShell.hidden = !isAuthenticated;
-  els.sessionPill.hidden = !isAuthenticated;
-  els.logoutButton.hidden = !isAuthenticated;
-  els.userEmail.textContent = getCurrentUserDisplayName();
+  if (els.sidebarUserCard) els.sidebarUserCard.hidden = !isAuthenticated;
+  updateUserSurfaces();
   updateMigrationButton();
   refreshIcons();
 }
@@ -1191,7 +1207,117 @@ function getAuthCredentials() {
 function getCurrentUserDisplayName() {
   if (!currentUser) return "";
   const metadata = currentUser.user_metadata || {};
-  return metadata.full_name || metadata.name || currentUser.email || "";
+  return getCurrentUserProfileName() || currentUser.email || "";
+}
+
+function getCurrentUserProfileName() {
+  if (!currentUser) return "";
+  const metadata = currentUser.user_metadata || {};
+  return String(metadata.full_name || metadata.name || "").trim();
+}
+
+function getCurrentUserInitial() {
+  const source = getCurrentUserProfileName() || currentUser?.email || "T";
+  return source.trim().charAt(0).toUpperCase() || "T";
+}
+
+function updateUserSurfaces() {
+  const name = getCurrentUserProfileName();
+  const displayName = currentUser ? name || "Usuario Trazza" : "";
+  const email = currentUser?.email || "Sin email";
+  const initial = currentUser ? getCurrentUserInitial() : "T";
+
+  if (els.sidebarUserInitial) els.sidebarUserInitial.textContent = initial;
+  if (els.sidebarUserName) els.sidebarUserName.textContent = displayName;
+  if (els.sidebarUserEmail) els.sidebarUserEmail.textContent = email;
+  if (els.profileDialog?.open) fillProfileDialog();
+}
+
+function updateProfileStats() {
+  if (els.profileFirmCount) els.profileFirmCount.textContent = String(state.firms.length);
+  if (els.profileAccountCount) els.profileAccountCount.textContent = String(state.accounts.length);
+  if (els.profileTransactionCount) els.profileTransactionCount.textContent = String(state.transactions.length);
+  if (els.profileJournalCount) els.profileJournalCount.textContent = String(state.journalEntries.length);
+}
+
+function fillProfileDialog() {
+  if (!currentUser) return;
+  const name = getCurrentUserProfileName();
+  const displayName = name || "Usuario Trazza";
+  const email = currentUser.email || "Sin email";
+
+  els.profileInitial.textContent = getCurrentUserInitial();
+  els.profileDisplayName.textContent = displayName;
+  els.profileDisplayEmail.textContent = email;
+  els.profileUserId.textContent = currentUser.id || "-";
+  els.profileCreatedAt.textContent = formatUserDate(currentUser.created_at);
+  els.profileName.value = name;
+  els.profileEmail.value = currentUser.email || "";
+  els.profileMessage.hidden = true;
+  els.profileMessage.textContent = "";
+  clearFormValidity(els.profileForm);
+  updateProfileStats();
+}
+
+function openProfileDialog() {
+  if (!currentUser) return;
+  fillProfileDialog();
+  showDialog(els.profileDialog);
+}
+
+async function saveProfileFromForm(event) {
+  event.preventDefault();
+  if (!currentUser || !supabaseClient || isFormBusy(els.profileForm)) return;
+
+  const fullName = els.profileName.value.trim();
+  const email = els.profileEmail.value.trim();
+  if (!email || !els.profileEmail.checkValidity()) {
+    return markInvalid(els.profileEmail, "Introduce un email valido.");
+  }
+
+  const metadata = currentUser.user_metadata || {};
+  const updates = {
+    data: {
+      ...metadata,
+      full_name: fullName,
+      name: fullName,
+    },
+  };
+  const emailChanged = email !== currentUser.email;
+  if (emailChanged) updates.email = email;
+
+  setFormBusy(els.profileForm, true);
+  els.profileMessage.hidden = false;
+  els.profileMessage.textContent = "Guardando...";
+
+  const { data, error } = await supabaseClient.auth.updateUser(updates);
+  setFormBusy(els.profileForm, false);
+
+  if (error) {
+    els.profileMessage.textContent = error.message || "No se pudo actualizar el perfil.";
+    toast(error.message || "No se pudo actualizar el perfil.");
+    return;
+  }
+
+  if (data?.user) {
+    currentUser = data.user;
+    currentSession = currentSession ? { ...currentSession, user: data.user } : currentSession;
+  }
+
+  updateUserSurfaces();
+  closeDialog("profileDialog");
+  toast(emailChanged ? "Perfil actualizado. Revisa tu email si Supabase requiere confirmacion." : "Perfil actualizado.");
+}
+
+function formatUserDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat(getAppLocale(), {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
 function toggleAuthMode() {
@@ -1273,7 +1399,9 @@ async function signOut() {
   const { error } = await supabaseClient.auth.signOut();
   if (error) {
     toast(error.message);
+    return;
   }
+  closeDialog("profileDialog");
 }
 
 async function loadCloudState() {
@@ -1484,6 +1612,7 @@ function handleLanguageChange() {
   setCurrentDate();
   updateThemeToggle();
   updateDashboardPrivacyToggle();
+  updateUserSurfaces();
   refreshAll();
 }
 
@@ -1706,6 +1835,7 @@ function refreshAll() {
   renderAccountsTable();
   renderTransactionsTable();
   renderJournalApp();
+  updateProfileStats();
   syncAllCustomSelects();
   refreshIcons();
 }

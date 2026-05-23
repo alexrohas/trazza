@@ -101,23 +101,15 @@
         </nav>
 
         <div class="sidebar-actions">
-          <button class="ghost-button" id="exportJsonButton" aria-label="Backup JSON" title="Backup JSON">
-            <i data-lucide="download"></i>
-            <span>Backup JSON</span>
+          <p class="sidebar-actions-label">Usuario</p>
+          <button class="user-card" id="sidebarUserCard" type="button" aria-label="Abrir perfil" title="Perfil y datos">
+            <span class="user-avatar" id="sidebarUserInitial" aria-hidden="true">T</span>
+            <span class="user-card-copy">
+              <span class="user-card-name" id="sidebarUserName">Usuario Trazza</span>
+              <span class="user-card-email" id="sidebarUserEmail">tu@email.com</span>
+            </span>
+            <i data-lucide="chevron-right"></i>
           </button>
-          <button class="ghost-button" id="exportCsvButton" aria-label="Exportar CSV" title="Exportar CSV">
-            <i data-lucide="file-down"></i>
-            <span>Exportar CSV</span>
-          </button>
-          <button class="ghost-button" id="importJsonButton" aria-label="Importar JSON" title="Importar JSON">
-            <i data-lucide="upload"></i>
-            <span>Importar JSON</span>
-          </button>
-          <button class="ghost-button" id="migrateLocalButton" hidden aria-label="Subir datos locales" title="Subir datos locales">
-            <i data-lucide="cloud-upload"></i>
-            <span>Subir datos locales</span>
-          </button>
-          <input id="importFileInput" type="file" accept="application/json" hidden />
         </div>
       </aside>
 
@@ -143,14 +135,6 @@
               <i data-lucide="moon"></i>
             </button>
             <button class="theme-toggle language-toggle" type="button" data-language-toggle aria-label="Switch to English" title="English">EN</button>
-            <div class="session-pill" id="sessionPill" hidden>
-              <i data-lucide="user-round"></i>
-              <span id="userEmail"></span>
-            </div>
-            <button class="secondary-button" id="logoutButton" hidden>
-              <i data-lucide="log-out"></i>
-              <span>Salir</span>
-            </button>
           </div>
         </header>
 
@@ -682,6 +666,71 @@
         </section>
       </main>
     </div>
+
+    <dialog class="modal" id="profileDialog">
+      <form method="dialog" id="profileForm" class="modal-card profile-card">
+        <div class="modal-header">
+          <h2>Perfil y datos</h2>
+          <button class="icon-button" type="button" data-close-dialog="profileDialog" aria-label="Cerrar">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="profile-summary">
+          <span class="profile-avatar" id="profileInitial" aria-hidden="true">T</span>
+          <div>
+            <strong id="profileDisplayName">Usuario Trazza</strong>
+            <span id="profileDisplayEmail">tu@email.com</span>
+          </div>
+        </div>
+        <div class="profile-data-grid" aria-label="Datos guardados">
+          <div>
+            <span>Firms</span>
+            <strong id="profileFirmCount">0</strong>
+          </div>
+          <div>
+            <span>Cuentas</span>
+            <strong id="profileAccountCount">0</strong>
+          </div>
+          <div>
+            <span>Movimientos</span>
+            <strong id="profileTransactionCount">0</strong>
+          </div>
+          <div>
+            <span>Entradas</span>
+            <strong id="profileJournalCount">0</strong>
+          </div>
+        </div>
+        <div class="profile-meta-grid">
+          <div>
+            <span>ID de usuario</span>
+            <code id="profileUserId">-</code>
+          </div>
+          <div>
+            <span>Alta</span>
+            <strong id="profileCreatedAt">-</strong>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>
+            Nombre visible
+            <input id="profileName" type="text" autocomplete="name" maxlength="80" placeholder="Tu nombre" />
+          </label>
+          <label>
+            Email
+            <input id="profileEmail" type="email" autocomplete="email" required placeholder="tu@email.com" />
+          </label>
+        </div>
+        <p class="profile-message" id="profileMessage" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions">
+          <button class="secondary-button profile-logout-button" id="profileLogoutButton" type="button">
+            <i data-lucide="log-out"></i>
+            <span>Cerrar sesión</span>
+          </button>
+          <button class="ghost-button" type="button" data-close-dialog="profileDialog">Cancelar</button>
+          <button class="primary-button" id="profileSaveButton" type="submit">Guardar cambios</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog class="modal" id="firmDialog">
       <form method="dialog" id="firmForm" class="modal-card">
