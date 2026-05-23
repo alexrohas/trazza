@@ -4268,10 +4268,22 @@ tbody tr:hover {
   margin-bottom: 4px;
 }
 
+.modal-header > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .modal-header h2 {
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.modal-header .modal-note {
+  margin: 0;
 }
 
 .modal-note {
@@ -4279,6 +4291,278 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+#journalEntryModeDialog,
+#journalImportDialog {
+  width: min(520px, calc(100vw - 24px));
+}
+
+#journalImportPreviewDialog {
+  width: min(760px, calc(100vw - 24px));
+}
+
+.journal-entry-mode-card,
+.journal-import-card,
+.journal-import-preview-card {
+  gap: 16px;
+}
+
+.journal-entry-mode-card .modal-header,
+.journal-import-card .modal-header,
+.journal-import-preview-card .modal-header {
+  align-items: flex-start;
+}
+
+.journal-entry-mode-help {
+  position: relative;
+  justify-self: start;
+  margin-top: -2px;
+}
+
+.info-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: help;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.info-icon:hover,
+.info-icon:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.info-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.journal-entry-mode-help > span {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 5;
+  width: min(360px, calc(100vw - 56px));
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.journal-entry-mode-help:hover > span,
+.journal-entry-mode-help:focus-within > span {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.journal-entry-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.journal-entry-mode-option {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 48%, transparent), transparent 68%),
+    var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.journal-entry-mode-option:hover,
+.journal-entry-mode-option:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 78%, transparent), transparent 70%),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.journal-entry-mode-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.journal-entry-mode-option svg {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.journal-entry-mode-option strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.journal-entry-mode-option span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.journal-import-card label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.journal-import-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-soft) 44%, transparent);
+  color: var(--muted-strong);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.journal-import-note svg {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+
+.journal-import-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.journal-import-summary > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.journal-import-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.journal-import-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-import-summary strong.positive {
+  color: var(--green-strong);
+}
+
+.journal-import-summary strong.negative {
+  color: var(--red-strong);
+}
+
+:root[data-theme="dark"] .journal-import-summary strong.positive {
+  color: var(--green);
+}
+
+:root[data-theme="dark"] .journal-import-summary strong.negative {
+  color: var(--red);
+}
+
+.journal-import-preview-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(440px, calc(100vh - 350px));
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.journal-import-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.journal-import-preview-row.positive {
+  background: color-mix(in srgb, var(--green-soft) 42%, var(--surface-2));
+}
+
+.journal-import-preview-row.negative {
+  background: color-mix(in srgb, var(--red-soft) 38%, var(--surface-2));
+}
+
+.journal-import-preview-row > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.journal-import-preview-row strong:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.journal-import-preview-row span,
+.journal-import-preview-row small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .form-grid {
@@ -5147,6 +5431,8 @@ tbody tr:hover {
   .journal-account-overview-head,
   .journal-account-overview-stats,
   .journal-errors-layout,
+  .journal-entry-mode-grid,
+  .journal-import-summary,
   .journal-manager-head,
   .journal-error-type-row,
   .journal-errors-toolbar,

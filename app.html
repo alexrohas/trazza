@@ -867,6 +867,96 @@
       </form>
     </dialog>
 
+    <dialog class="modal" id="journalEntryModeDialog">
+      <div class="modal-card journal-entry-mode-card">
+        <div class="modal-header">
+          <div>
+            <h2>¿Cómo quieres crear la entrada?</h2>
+            <p class="modal-note">Elige si quieres rellenarla a mano o traer datos desde un CSV compatible.</p>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="journalEntryModeDialog" aria-label="Cerrar">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="journal-entry-mode-help">
+          <button class="info-icon" type="button" aria-label="Información sobre el proceso">
+            <i data-lucide="info"></i>
+          </button>
+          <span>
+            Manual: rellenas todos los campos a mano. CSV: Trazza intenta rellenar fecha, activo, dirección, P&L y cuenta automáticamente. Notas, errores y captura quedan vacíos; disciplina se deja en 3 por defecto.
+          </span>
+        </div>
+        <div class="journal-entry-mode-grid">
+          <button class="journal-entry-mode-option" type="button" id="journalEntryModeManualButton">
+            <i data-lucide="edit-3"></i>
+            <strong>Manual</strong>
+            <span>Rellenar formulario a mano.</span>
+          </button>
+          <button class="journal-entry-mode-option" type="button" id="journalEntryModeCsvButton">
+            <i data-lucide="file-spreadsheet"></i>
+            <strong>Importar CSV</strong>
+            <span>Rellenar desde Tradovate Performance.</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="modal" id="journalImportDialog">
+      <form id="journalImportForm" class="modal-card journal-import-card">
+        <div class="modal-header">
+          <div>
+            <h2>Importar CSV de Tradovate</h2>
+            <p class="modal-note">Selecciona la cuenta de Trazza y sube el CSV exportado desde Performance.</p>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="journalImportDialog" aria-label="Cerrar">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          Cuenta
+          <select id="journalImportAccount" required></select>
+        </label>
+        <label>
+          Archivo CSV
+          <input id="journalImportCsvFile" type="file" accept=".csv,text/csv" required />
+        </label>
+        <div class="journal-import-note">
+          <i data-lucide="info"></i>
+          <span>Notas, errores y capturas quedan vacíos; disciplina se deja en 3 por defecto. Podrás completarlo después desde cada entrada.</span>
+        </div>
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" id="journalImportBackButton">Volver</button>
+          <button class="primary-button" type="submit">
+            <i data-lucide="search"></i>
+            <span>Analizar CSV</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="journalImportPreviewDialog">
+      <div class="modal-card journal-import-preview-card">
+        <div class="modal-header">
+          <div>
+            <h2>Vista previa de importación</h2>
+            <p class="modal-note">Revisa las operaciones detectadas antes de crearlas en el journal.</p>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog="journalImportPreviewDialog" aria-label="Cerrar">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="journal-import-summary" id="journalImportPreviewSummary"></div>
+        <div class="journal-import-preview-list" id="journalImportPreviewList"></div>
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" id="journalImportPreviewBackButton">Volver</button>
+          <button class="primary-button" type="button" id="journalImportConfirmButton">
+            <i data-lucide="plus"></i>
+            <span>Crear entradas</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="modal" id="journalDialog">
       <form method="dialog" id="journalForm" class="modal-card journal-entry-form">
         <div class="modal-header">

@@ -135,6 +135,7 @@ let journalView = getInitialJournalView();
 let journalCalendarMonth = today().slice(0, 7);
 let journalSelectedDate = "";
 let journalDashboardLayoutFrame = 0;
+let journalCsvImportDraftEntries = [];
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const NET_CHART_MIN_VISIBLE_POINTS = 6;
 const NET_CHART_PAN_STEP = 0.12;
@@ -359,6 +360,19 @@ function bindElements() {
     "transactionAccount",
     "transactionNote",
     "journalDialog",
+    "journalEntryModeDialog",
+    "journalEntryModeManualButton",
+    "journalEntryModeCsvButton",
+    "journalImportDialog",
+    "journalImportForm",
+    "journalImportAccount",
+    "journalImportCsvFile",
+    "journalImportBackButton",
+    "journalImportPreviewDialog",
+    "journalImportPreviewSummary",
+    "journalImportPreviewList",
+    "journalImportPreviewBackButton",
+    "journalImportConfirmButton",
     "journalForm",
     "journalDialogTitle",
     "journalId",
@@ -494,6 +508,24 @@ function bindEvents() {
   els.firmForm.addEventListener("submit", saveFirmFromForm);
   els.accountForm.addEventListener("submit", saveAccountFromForm);
   els.transactionForm.addEventListener("submit", saveTransactionFromForm);
+  els.journalEntryModeManualButton?.addEventListener("click", () => {
+    closeDialog("journalEntryModeDialog");
+    openJournalDialog();
+  });
+  els.journalEntryModeCsvButton?.addEventListener("click", () => {
+    closeDialog("journalEntryModeDialog");
+    openJournalImportDialog();
+  });
+  els.journalImportForm?.addEventListener("submit", handleJournalCsvImportSubmit);
+  els.journalImportBackButton?.addEventListener("click", () => {
+    closeDialog("journalImportDialog");
+    openJournalEntryModeDialog();
+  });
+  els.journalImportPreviewBackButton?.addEventListener("click", () => {
+    closeDialog("journalImportPreviewDialog");
+    openJournalImportDialog();
+  });
+  els.journalImportConfirmButton?.addEventListener("click", saveJournalImportedEntries);
   els.journalForm.addEventListener("submit", saveJournalFromForm);
   els.journalErrorForm.addEventListener("submit", saveJournalErrorTypeFromForm);
   els.addJournalErrorButton.addEventListener("click", () => openJournalErrorDialog());
@@ -1956,7 +1988,7 @@ function updateGlobalAddButton() {
     }
   } else if (activePillar === "journal") {
     text = "Nueva entrada";
-    action = () => openJournalDialog();
+    action = () => openJournalEntryModeDialog();
   }
 
   els.globalAddButtonText.textContent = text;
@@ -1989,7 +2021,7 @@ function handleEmptyStateAction(event) {
     "add-firm": () => openFirmDialog(),
     "add-account": () => openAccountDialog(),
     "add-transaction": () => openTransactionDialog(),
-    "add-journal": () => openJournalDialog(),
+    "add-journal": () => openJournalEntryModeDialog(),
     "reset-account-filters": resetAccountFilters,
     "reset-transaction-filters": resetTransactionFilters,
     "reset-journal-filters": resetJournalFilters,
@@ -2104,8 +2136,9 @@ function fillDashboardAccountFilter() {
 }
 
 function fillJournalAccountFilter() {
-  if (!els.journalAccountFilter && !els.journalEntriesAccountFilter) return;
+  if (!els.journalAccountFilter && !els.journalEntriesAccountFilter && !els.journalImportAccount) return;
   const accountOptions = state.accounts
+    .slice()
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
     .join("");
@@ -2113,6 +2146,26 @@ function fillJournalAccountFilter() {
   const options = `<option value="all">Todas</option>${accountOptions}`;
   setSelectOptions(els.journalAccountFilter, options, "all");
   setSelectOptions(els.journalEntriesAccountFilter, options, "all");
+  fillJournalImportAccountSelect();
+}
+
+function fillJournalImportAccountSelect() {
+  if (!els.journalImportAccount) return;
+  const options = state.accounts
+    .slice()
+    .sort((a, b) => {
+      const firmA = getFirm(a.firmId)?.name || "";
+      const firmB = getFirm(b.firmId)?.name || "";
+      return firmA.localeCompare(firmB, "es") || a.name.localeCompare(b.name, "es");
+    })
+    .map((account) => {
+      const firm = getFirm(account.firmId);
+      const label = firm?.name ? `${firm.name} - ${account.name}` : account.name;
+      return `<option value="${escapeHtml(account.id)}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
+  const fallback = state.accounts[0]?.id || "";
+  setSelectOptions(els.journalImportAccount, options || `<option value="">Crea una cuenta primero</option>`, fallback);
 }
 
 function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
@@ -4764,6 +4817,39 @@ function openTransactionDialog(transaction = null) {
   showDialog(els.transactionDialog);
 }
 
+function openJournalEntryModeDialog() {
+  if (!state.firms.length) {
+    openFirmDialog();
+    toast("Crea una firm antes de añadir entradas al journal.");
+    return;
+  }
+
+  if (els.journalEntryModeCsvButton) {
+    const hasAccounts = state.accounts.length > 0;
+    els.journalEntryModeCsvButton.disabled = !hasAccounts;
+    els.journalEntryModeCsvButton.title = hasAccounts
+      ? "Importar entradas desde un CSV de Tradovate Performance"
+      : "Crea una cuenta antes de importar CSV";
+  }
+
+  showDialog(els.journalEntryModeDialog);
+}
+
+function openJournalImportDialog() {
+  if (!state.accounts.length) {
+    openAccountDialog();
+    toast("Crea una cuenta antes de importar un CSV.");
+    return;
+  }
+
+  journalCsvImportDraftEntries = [];
+  fillJournalImportAccountSelect();
+  els.journalImportForm.reset();
+  fillJournalImportAccountSelect();
+  syncAllCustomSelects();
+  showDialog(els.journalImportDialog);
+}
+
 function openJournalDialog(entry = null) {
   if (!state.firms.length) {
     openFirmDialog();
@@ -4775,6 +4861,7 @@ function openJournalDialog(entry = null) {
   els.journalForm.reset();
   const account = getAccount(entry?.accountId);
   const firmId = entry?.firmId || account?.firmId || state.firms[0].id;
+  const isExistingEntry = Boolean(entry?.id && getJournalEntry(entry.id));
   els.journalId.value = entry?.id || "";
   els.journalDate.value = entry?.date || today();
   els.journalFirm.value = firmId;
@@ -4788,7 +4875,7 @@ function openJournalDialog(entry = null) {
   renderJournalErrorChoices(entry?.errors || []);
   setJournalErrorFields(entry?.errors || []);
   els.journalNotes.value = entry?.notes || entry?.lesson || "";
-  els.journalDialogTitle.textContent = entry ? "Editar entrada" : "Nueva entrada";
+  els.journalDialogTitle.textContent = isExistingEntry ? "Editar entrada" : "Nueva entrada";
   syncAllCustomSelects();
   showDialog(els.journalDialog);
 }
@@ -5020,6 +5107,358 @@ function validateJournalEntry(entry, selectedAccountId, account) {
 
 function isValidJournalOperationMedia(value) {
   return isImageDataUrl(value) || isValidUrl(value);
+}
+
+async function handleJournalCsvImportSubmit(event) {
+  event.preventDefault();
+  if (!currentUser) return toast("Inicia sesion para importar entradas.");
+  if (isFormBusy(els.journalImportForm)) return;
+  clearFormValidity(els.journalImportForm);
+
+  const account = getAccount(els.journalImportAccount.value);
+  const file = els.journalImportCsvFile.files?.[0];
+  if (!account) return markInvalid(els.journalImportAccount, "Selecciona una cuenta valida.");
+  if (!file) return markInvalid(els.journalImportCsvFile, "Selecciona un archivo CSV.");
+
+  setFormBusy(els.journalImportForm, true);
+  try {
+    const text = await file.text();
+    const result = parseTradovatePerformanceCsv(text, account);
+    if (result.entries.length === 1) {
+      closeDialog("journalImportDialog");
+      openJournalDialog(result.entries[0]);
+      toast("CSV detectado: 1 entrada rellenada. Revisa y guarda.");
+      return;
+    }
+
+    journalCsvImportDraftEntries = result.entries;
+    closeDialog("journalImportDialog");
+    openJournalImportPreview(result);
+  } catch (error) {
+    toast(error.message || "No se pudo leer el CSV.");
+  } finally {
+    setFormBusy(els.journalImportForm, false);
+  }
+}
+
+function parseTradovatePerformanceCsv(text, account) {
+  const rows = parseCsvRows(text);
+  if (rows.length < 2) throw new Error("El CSV no contiene operaciones.");
+
+  const headers = rows[0].map((header) => String(header || "").replace(/^\uFEFF/, "").trim());
+  const headerIndex = new Map(headers.map((header, index) => [normalizeCsvHeader(header), index]));
+  const requiredHeaders = [
+    "symbol",
+    "qty",
+    "buyPrice",
+    "sellPrice",
+    "pnl",
+    "boughtTimestamp",
+    "soldTimestamp",
+    "buyFillId",
+    "sellFillId",
+  ];
+  const missingHeaders = requiredHeaders.filter((header) => !headerIndex.has(normalizeCsvHeader(header)));
+  if (missingHeaders.length) {
+    throw new Error("El CSV no parece ser un Performance CSV de Tradovate.");
+  }
+
+  const rawFills = rows
+    .slice(1)
+    .filter((row) => row.some((cell) => String(cell || "").trim()))
+    .map((row, index) => parseTradovatePerformanceRow(row, headerIndex, index + 2));
+  if (!rawFills.length) throw new Error("No se detectaron operaciones en el CSV.");
+
+  const groupedFills = groupTradovateFills(rawFills);
+  const now = nowIso();
+  const entries = groupedFills.map((fills) => createJournalEntryFromTradovateFills(fills, account, now));
+  const invalidDate = entries.find((entry) => !isValidIsoDate(entry.date) || entry.date > today());
+  if (invalidDate) throw new Error("El CSV contiene fechas invalidas o futuras.");
+
+  return {
+    rawRows: rawFills.length,
+    entries: entries.sort((a, b) => {
+      const byDate = (a.date || "").localeCompare(b.date || "");
+      return byDate || (a.importMeta?.entryTime || "").localeCompare(b.importMeta?.entryTime || "");
+    }),
+  };
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+  const source = String(text || "");
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === '"') {
+      if (quoted && next === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      row.push(field);
+      field = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+      if (char === "\r" && next === "\n") index += 1;
+    } else {
+      field += char;
+    }
+  }
+
+  row.push(field);
+  rows.push(row);
+  return rows.filter((item) => item.some((cell) => String(cell || "").trim()));
+}
+
+function normalizeCsvHeader(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function readCsvCell(row, headerIndex, header) {
+  const index = headerIndex.get(normalizeCsvHeader(header));
+  return index === undefined ? "" : String(row[index] || "").trim();
+}
+
+function parseTradovatePerformanceRow(row, headerIndex, rowNumber) {
+  const symbol = readCsvCell(row, headerIndex, "symbol");
+  const qty = Number(readCsvCell(row, headerIndex, "qty"));
+  const buyTimestamp = parseTradovateTimestamp(readCsvCell(row, headerIndex, "boughtTimestamp"));
+  const soldTimestamp = parseTradovateTimestamp(readCsvCell(row, headerIndex, "soldTimestamp"));
+  const buyPrice = normalizeFlexibleNumber(readCsvCell(row, headerIndex, "buyPrice"));
+  const sellPrice = normalizeFlexibleNumber(readCsvCell(row, headerIndex, "sellPrice"));
+  const pnl = parseTradovateMoney(readCsvCell(row, headerIndex, "pnl"));
+  const buyFillId = readCsvCell(row, headerIndex, "buyFillId");
+  const sellFillId = readCsvCell(row, headerIndex, "sellFillId");
+
+  if (
+    !symbol ||
+    !Number.isFinite(qty) ||
+    qty <= 0 ||
+    !Number.isFinite(buyPrice) ||
+    !Number.isFinite(sellPrice) ||
+    !Number.isFinite(pnl) ||
+    Number.isNaN(buyTimestamp.getTime()) ||
+    Number.isNaN(soldTimestamp.getTime())
+  ) {
+    throw new Error(`La fila ${rowNumber} del CSV no tiene un formato valido.`);
+  }
+
+  const isLong = buyTimestamp <= soldTimestamp;
+  return {
+    symbol,
+    asset: normalizeTradovateSymbol(symbol),
+    direction: isLong ? "long" : "short",
+    qty,
+    buyFillId,
+    sellFillId,
+    entryTime: isLong ? buyTimestamp : soldTimestamp,
+    exitTime: isLong ? soldTimestamp : buyTimestamp,
+    entryPrice: isLong ? buyPrice : sellPrice,
+    exitPrice: isLong ? sellPrice : buyPrice,
+    pnl,
+  };
+}
+
+function parseTradovateTimestamp(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (!match) return new Date(Number.NaN);
+  const [, month, day, year, hour, minute, second] = match.map(Number);
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+
+function parseTradovateMoney(value) {
+  const text = String(value || "").trim();
+  const isNegative = text.includes("(") && text.includes(")");
+  const amount = normalizeFlexibleNumber(text.replace(/[()$]/g, ""));
+  if (!Number.isFinite(amount)) return Number.NaN;
+  return isNegative ? -Math.abs(amount) : amount;
+}
+
+function normalizeTradovateSymbol(symbol) {
+  const compact = String(symbol || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  const match = compact.match(/^([A-Z]+)([FGHJKMNQUVXZ]\d{1,2})$/);
+  return match ? match[1] : compact;
+}
+
+function groupTradovateFills(fills) {
+  const parents = fills.map((_, index) => index);
+  const find = (index) => {
+    let cursor = index;
+    while (parents[cursor] !== cursor) {
+      parents[cursor] = parents[parents[cursor]];
+      cursor = parents[cursor];
+    }
+    return cursor;
+  };
+  const union = (a, b) => {
+    const rootA = find(a);
+    const rootB = find(b);
+    if (rootA !== rootB) parents[rootB] = rootA;
+  };
+  const fillKeys = new Map();
+
+  fills.forEach((fill, index) => {
+    [fill.buyFillId && `buy:${fill.buyFillId}`, fill.sellFillId && `sell:${fill.sellFillId}`]
+      .filter(Boolean)
+      .forEach((fillKey) => {
+        const key = `${fill.symbol}|${fill.direction}|${fillKey}`;
+        if (fillKeys.has(key)) union(fillKeys.get(key), index);
+        else fillKeys.set(key, index);
+      });
+  });
+
+  const groups = new Map();
+  fills.forEach((fill, index) => {
+    const root = find(index);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(fill);
+  });
+  return Array.from(groups.values());
+}
+
+function createJournalEntryFromTradovateFills(fills, account, timestamp) {
+  const sortedByEntry = [...fills].sort((a, b) => a.entryTime - b.entryTime);
+  const sortedByExit = [...fills].sort((a, b) => a.exitTime - b.exitTime);
+  const first = sortedByEntry[0];
+  const last = sortedByExit.at(-1);
+  const pnl = Math.round(sum(fills.map((fill) => fill.pnl)) * 100) / 100;
+  const qty = sum(fills.map((fill) => fill.qty));
+  const entryTime = first.entryTime;
+  const exitTime = last.exitTime;
+
+  return {
+    id: "",
+    date: dateToIsoDate(entryTime),
+    firmId: account.firmId,
+    accountId: account.id,
+    title: normalizeJournalAsset(first.asset),
+    direction: first.direction,
+    sessionType: "trading-day",
+    result: "neutral",
+    emotion: "focused",
+    discipline: 3,
+    pnl,
+    errors: [],
+    operationUrl: "",
+    notes: "",
+    lesson: "",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    importMeta: {
+      rows: fills.length,
+      qty,
+      entryTime: entryTime.toISOString(),
+      exitTime: exitTime.toISOString(),
+    },
+  };
+}
+
+function openJournalImportPreview(result) {
+  const totalPnl = sum(result.entries.map((entry) => entry.pnl));
+  const account = getAccount(result.entries[0]?.accountId);
+  const accountLabel = account ? `${getFirm(account.firmId)?.name || "Sin firm"} - ${account.name}` : "Cuenta";
+  const groupedLabel =
+    result.rawRows === result.entries.length
+      ? `${result.entries.length} operaciones detectadas`
+      : `${result.rawRows} filas agrupadas en ${result.entries.length} operaciones`;
+
+  els.journalImportPreviewSummary.innerHTML = `
+    <div>
+      <span>Cuenta</span>
+      <strong>${escapeHtml(accountLabel)}</strong>
+    </div>
+    <div>
+      <span>CSV</span>
+      <strong>${escapeHtml(groupedLabel)}</strong>
+    </div>
+    <div>
+      <span>P&L total</span>
+      <strong class="${pnlToneClass(totalPnl)}">${formatSignedMoney(totalPnl)}</strong>
+    </div>
+  `;
+  els.journalImportPreviewList.innerHTML = result.entries.map(journalImportPreviewRowHtml).join("");
+  const buttonLabel = result.entries.length === 1 ? "Crear entrada" : `Crear ${result.entries.length} entradas`;
+  els.journalImportConfirmButton.querySelector("span").textContent = buttonLabel;
+  showDialog(els.journalImportPreviewDialog);
+}
+
+function journalImportPreviewRowHtml(entry) {
+  const pnl = Number(entry.pnl || 0);
+  const tone = pnlToneClass(pnl);
+  const direction = normalizeJournalDirection(entry.direction);
+  const directionLabel = getJournalDirectionLabel(entry);
+  const rows = Number(entry.importMeta?.rows || 1);
+  const qty = Number(entry.importMeta?.qty || 0);
+  const rowLabel = rows === 1 ? "1 fila" : `${rows} filas agrupadas`;
+  const qtyLabel = qty === 1 ? "1 contrato" : `${qty} contratos`;
+
+  return `
+    <article class="journal-import-preview-row ${tone}">
+      <div>
+        <strong>
+          ${escapeHtml(getJournalAssetLabel(entry))}
+          ${direction ? `<em class="journal-card-direction ${direction}">${escapeHtml(directionLabel)}</em>` : ""}
+        </strong>
+        <span>${escapeHtml(formatJournalGalleryDate(entry.date))}</span>
+        <small>${escapeHtml(`${qtyLabel} · ${rowLabel}`)}</small>
+      </div>
+      <strong class="journal-gallery-pnl ${tone}">${formatSignedMoney(pnl)}</strong>
+    </article>
+  `;
+}
+
+async function saveJournalImportedEntries() {
+  if (!currentUser) return toast("Inicia sesion para importar entradas.");
+  if (!journalCsvImportDraftEntries.length) return toast("No hay entradas para importar.");
+  if (els.journalImportConfirmButton.disabled) return;
+
+  els.journalImportConfirmButton.disabled = true;
+  const timestamp = nowIso();
+  const entries = journalCsvImportDraftEntries.map(({ importMeta, ...entry }) => ({
+    ...entry,
+    id: createId(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
+
+  try {
+    const result = await supabaseClient.from("journal_entries").insert(entries.map(journalEntryToDb)).select();
+    if (result.error && isJournalSetupError(result.error)) {
+      throw new Error("Ejecuta supabase-journal.sql en Supabase para actualizar el journal.");
+    }
+    throwIfSupabaseError(result);
+
+    const savedEntries = (result.data || []).map(fromDbJournalEntry);
+    state.journalEntries = [...savedEntries, ...state.journalEntries];
+    journalCsvImportDraftEntries = [];
+    persist();
+    closeDialog("journalImportPreviewDialog");
+    refreshAll();
+    toast(entries.length === 1 ? "Entrada importada." : `${entries.length} entradas importadas.`);
+  } catch (error) {
+    toast(error.message || "No se pudieron importar las entradas.");
+  } finally {
+    els.journalImportConfirmButton.disabled = false;
+  }
 }
 
 async function saveFirmFromForm(event) {
