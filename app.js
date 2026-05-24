@@ -283,7 +283,6 @@ function bindElements() {
     "journalAccountNetPnl",
     "journalAccountReturn",
     "journalWinrateValue",
-    "journalWinrateHint",
     "journalWinrateWinArc",
     "journalWinrateLossArc",
     "journalWinrateWins",
@@ -696,7 +695,7 @@ function syncCustomSelect(select) {
   const menu = shell.querySelector(".select-menu");
   const selectedOption = select.selectedOptions?.[0] || select.options?.[0];
 
-  if (label) label.textContent = selectedOption?.textContent || "Selecciona";
+  if (label) label.textContent = uiText(selectedOption?.textContent || "Selecciona");
   if (button) {
     button.disabled = select.disabled;
     button.setAttribute("aria-expanded", String(shell.classList.contains("open")));
@@ -714,7 +713,7 @@ function syncCustomSelect(select) {
           aria-selected="${option.selected ? "true" : "false"}"
           ${option.disabled ? "disabled" : ""}
         >
-          ${escapeHtml(option.textContent || option.value)}
+          ${escapeHtml(uiText(option.textContent || option.value))}
         </button>
       `
     )
@@ -1649,6 +1648,8 @@ function handleLanguageChange() {
   updateDashboardPrivacyToggle();
   updateUserSurfaces();
   refreshAll();
+  window.TrazzaI18n?.apply?.();
+  syncAllCustomSelects();
 }
 
 function updateThemeToggle() {
@@ -2789,9 +2790,6 @@ function renderJournalPerformanceMetrics(entries) {
 
   els.journalWinrateValue.textContent = stats.winrate === null ? "-" : sensitivePercent(stats.winrate);
   els.journalWinrateValue.className = winrateTone;
-  els.journalWinrateHint.textContent = stats.closed
-    ? `${sensitiveCount(stats.wins)}W - ${sensitiveCount(stats.losses)}L${stats.breakEven ? ` - ${sensitiveCount(stats.breakEven)} BE` : ""}`
-    : "Sin operaciones cerradas";
   renderJournalWinrateGauge(stats);
 
   els.journalProfitFactorValue.textContent =
@@ -2805,15 +2803,15 @@ function renderJournalPerformanceMetrics(entries) {
     stats.grossLoss > 0
       ? `${sensitiveMoney(stats.grossProfit)} / ${sensitiveMoney(stats.grossLoss)}`
       : stats.grossProfit > 0
-        ? "Sin perdidas registradas"
-        : "Ganancias / perdidas";
+        ? uiText("Sin perdidas registradas")
+        : uiText("Ganancias / perdidas");
   renderJournalProfitFactorMeter(stats);
 
   els.journalAvgWinValue.textContent = stats.avgWin === null ? "-" : sensitiveMoney(stats.avgWin);
   els.journalAvgLossValue.textContent = stats.avgLoss === null ? "-" : sensitiveMoney(-stats.avgLoss);
   els.journalAvgTradeHint.textContent = stats.closed
-    ? `${sensitiveCount(stats.closed)} ${stats.closed === 1 ? "trade cerrado" : "trades cerrados"}`
-    : "Sin trades cerrados";
+    ? `${sensitiveCount(stats.closed)} ${uiText(stats.closed === 1 ? "trade cerrado" : "trades cerrados")}`
+    : uiText("Sin trades cerrados");
   els.journalAvgWinRValue.textContent = stats.avgWinR === null ? "-" : sensitiveRMultiple(stats.avgWinR);
   els.journalAvgLossRValue.textContent = stats.avgLossR === null ? "-" : sensitiveRMultiple(stats.avgLossR);
 }
@@ -2889,7 +2887,7 @@ function renderJournalSessionWinrate(entries) {
 
   els.journalSessionWinrateList.innerHTML = hasSessionData
     ? rows.map(journalWinrateBreakdownRowHtml).join("")
-    : `<div class="journal-winrate-empty">Sin sesiones registradas.</div>`;
+    : `<div class="journal-winrate-empty">${escapeHtml(uiText("Sin sesiones registradas."))}</div>`;
 }
 
 function getJournalTradingSessionLabel(id) {
@@ -2924,7 +2922,7 @@ function journalWinrateBreakdownRowHtml(row) {
   const value = hasData ? sensitivePercent(row.winrate) : "-";
   const detail = hasData
     ? `${sensitiveCount(row.wins)}W - ${sensitiveCount(row.losses)}L`
-    : "Sin datos";
+    : uiText("Sin datos");
 
   return `
     <div class="journal-winrate-breakdown-row ${tone}" style="--winrate: ${barWidth}%">
@@ -3380,8 +3378,8 @@ function drawJournalPnlHover(ctx, model, palette) {
     y,
     point.isBaseline ? "Inicio" : formatDate(point.date),
     [
-      { label: "P&L total", value: formatSignedMoney(point.total), color: palette.capital },
-      { label: "P&L dia", value: formatSignedMoney(point.pnl), color: point.pnl >= 0 ? palette.green : palette.red },
+      { label: uiText("P&L total"), value: formatSignedMoney(point.total), color: palette.capital },
+      { label: uiText("P&L dia"), value: formatSignedMoney(point.pnl), color: point.pnl >= 0 ? palette.green : palette.red },
     ],
     model.canvas
   );
@@ -3402,8 +3400,8 @@ function drawJournalDisciplineHover(ctx, model, palette) {
     y,
     formatDate(point.date),
     [
-      { label: "Disciplina", value: `${point.discipline.toFixed(1)}/5`, color },
-      { label: "Entradas", value: String(point.count || 1), color: palette.muted },
+      { label: uiText("Disciplina"), value: `${point.discipline.toFixed(1)}/5`, color },
+      { label: uiText("Entradas"), value: String(point.count || 1), color: palette.muted },
     ],
     model.canvas
   );
@@ -3596,12 +3594,12 @@ function drawJournalErrorsHover(ctx, model) {
     segment.row.label,
     [
       {
-        label: "Gravedad",
+        label: uiText("Gravedad"),
         value: journalErrorSeverityLabels[segment.row.severity] || journalErrorSeverityLabels.moderate,
         color: segment.row.color,
       },
-      { label: "Veces", value: String(segment.row.count), color: segment.row.color },
-      { label: "Peso", value: `${percent.toFixed(0)}%`, color: "var(--muted)" },
+      { label: uiText("Veces"), value: String(segment.row.count), color: segment.row.color },
+      { label: uiText("Peso"), value: `${percent.toFixed(0)}%`, color: "var(--muted)" },
     ],
     model.canvas
   );
@@ -3761,7 +3759,12 @@ function renderJournalCalendar() {
     entriesByDate.get(entry.date).push(entry);
   });
 
-  const header = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+  const headerDays =
+    getCurrentLanguage() === "en"
+      ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+      : ["Lun", "Mar", "Mié", "Jue", "Vie", "Sab", "Dom"];
+  const entryLabel = (count) => uiText(count === 1 ? "entrada" : "entradas");
+  const header = headerDays
     .map((day) => `<div class="journal-calendar-head">${day}</div>`)
     .join("");
   const rows = [];
@@ -3792,7 +3795,7 @@ function renderJournalCalendar() {
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
           ${dayEntries.length ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>` : "<strong></strong>"}
-          ${dayEntries.length && !dashboardPrivacyHidden ? `<small>${dayEntries.length} ${dayEntries.length === 1 ? "entrada" : "entradas"}</small>` : "<small></small>"}
+          ${dayEntries.length && !dashboardPrivacyHidden ? `<small>${dayEntries.length} ${entryLabel(dayEntries.length)}</small>` : "<small></small>"}
         </button>
       `);
       cursor.setDate(cursor.getDate() + 1);
@@ -3802,9 +3805,9 @@ function renderJournalCalendar() {
     rows.push(`
       ${weekCells.join("")}
       <div class="journal-calendar-week-total ${pnlToneClass(weekPnl)}">
-        <span>Semana</span>
+        <span>${escapeHtml(uiText("Semana"))}</span>
         <strong>${sensitiveSignedMoney(weekPnl)}</strong>
-        ${!dashboardPrivacyHidden ? `<small>${weekEntries.length} ${weekEntries.length === 1 ? "entrada" : "entradas"}</small>` : "<small></small>"}
+        ${!dashboardPrivacyHidden ? `<small>${weekEntries.length} ${entryLabel(weekEntries.length)}</small>` : "<small></small>"}
       </div>
     `);
   }
@@ -3815,11 +3818,13 @@ function renderJournalCalendar() {
   els.journalCalendarMonth.textContent = formatMonthLabel(journalCalendarMonth);
   els.journalMonthTotal.textContent = sensitiveSignedMoney(monthPnl);
   els.journalMonthTotal.className = pnlToneClass(monthPnl);
-    els.journalCalendarGrid.innerHTML = `${header}<div class="journal-calendar-head weekly">Semana</div>${rows.join("")}`;
+  els.journalCalendarGrid.innerHTML = `${header}<div class="journal-calendar-head weekly">${escapeHtml(uiText("Semana"))}</div>${rows.join("")}`;
   els.journalViewHeading.hidden = !journalSelectedDate;
   els.journalSelectedDateLabel.hidden = !journalSelectedDate;
   els.journalClearDateButton.hidden = !journalSelectedDate;
-  els.journalSelectedDateLabel.textContent = journalSelectedDate ? `Dia seleccionado: ${formatDate(journalSelectedDate)}` : "";
+  els.journalSelectedDateLabel.textContent = journalSelectedDate
+    ? `${uiText("Dia seleccionado")}: ${formatDate(journalSelectedDate)}`
+    : "";
   refreshIcons();
 }
 
@@ -4321,11 +4326,11 @@ function drawNetChartHover(ctx, model, palette) {
     netY,
     formatDate(point.date),
     [
-      { label: "Capital", value: formatMoney(point.net), color: palette.capital },
-      { label: "Payouts", value: formatMoney(point.income), color: palette.green },
-      { label: "Gastos", value: formatMoney(point.expense), color: palette.red },
+      { label: uiText("Capital"), value: formatMoney(point.net), color: palette.capital },
+      { label: uiText("Payouts"), value: formatMoney(point.income), color: palette.green },
+      { label: uiText("Gastos"), value: formatMoney(point.expense), color: palette.red },
       {
-        label: "Neto dia",
+        label: uiText("Neto dia"),
         value: formatMoney(point.income - point.expense),
         color: point.income - point.expense >= 0 ? palette.green : palette.red,
       },
@@ -6286,6 +6291,10 @@ function getCurrentLanguage() {
   return window.TrazzaI18n?.getLanguage?.() || (navigator.language?.toLowerCase().startsWith("en") ? "en" : "es");
 }
 
+function uiText(value) {
+  return window.TrazzaI18n?.t?.(value) || value;
+}
+
 function getAppLocale() {
   return getCurrentLanguage() === "en" ? "en-US" : "es-ES";
 }
@@ -6773,3 +6782,217 @@ function debounce(fn, wait) {
 
 
 
+
+// ============================================================
+// DASHBOARD CUSTOMIZATION SYSTEM
+// ============================================================
+
+const DASHBOARD_STORAGE_KEY = "trazza-journal-dashboard-v1";
+
+const DASHBOARD_WIDGETS = [
+  { id: "kpis", label: "KPIs (Winrate, Profit Factor…)", size: "full" },
+  { id: "pnl", label: "Balance / P&L", size: "half" },
+  { id: "weekday", label: "Winrate por día", size: "quarter" },
+  { id: "session", label: "Winrate por sesión", size: "quarter" },
+  { id: "errors", label: "Errores", size: "half" },
+  { id: "discipline", label: "Disciplina", size: "half" },
+  { id: "calendar", label: "Calendario P&L", size: "wide" },
+  { id: "recent", label: "Últimos trades", size: "third" },
+];
+
+function normalizeDashboardState(state = {}) {
+  const allIds = DASHBOARD_WIDGETS.map((widget) => widget.id);
+  const savedOrder = Array.isArray(state.order) ? state.order : [];
+  const rawHidden =
+    state.hidden instanceof Set ? [...state.hidden] : Array.isArray(state.hidden) ? state.hidden : [];
+  const hidden = new Set(rawHidden.filter((id) => allIds.includes(id)));
+  const order = [
+    ...savedOrder.filter((id) => allIds.includes(id)),
+    ...allIds.filter((id) => !savedOrder.includes(id)),
+  ];
+
+  return { order, hidden };
+}
+
+function getDashboardState() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    if (raw) {
+      return normalizeDashboardState(JSON.parse(raw));
+    }
+  } catch (_) {}
+  return normalizeDashboardState({
+    order: DASHBOARD_WIDGETS.map((w) => w.id),
+    hidden: [],
+  });
+}
+
+function saveDashboardState(state) {
+  const normalized = normalizeDashboardState(state);
+  try {
+    localStorage.setItem(
+      DASHBOARD_STORAGE_KEY,
+      JSON.stringify({ order: normalized.order, hidden: [...normalized.hidden] })
+    );
+  } catch (_) {}
+}
+
+function getDashboardWidgetElement(id) {
+  return document.querySelector(`[data-widget="${id}"]`);
+}
+
+function refreshDashboardChartsAfterLayout() {
+  window.requestAnimationFrame(() => {
+    if (typeof scheduleJournalDashboardChartRender === "function") {
+      scheduleJournalDashboardChartRender();
+    }
+  });
+}
+
+function applyDashboardLayout(state = getDashboardState()) {
+  const dashboardGrid = document.getElementById("journalDashboardCharts");
+  if (!dashboardGrid) return;
+
+  const normalized = normalizeDashboardState(state);
+  DASHBOARD_WIDGETS.forEach((widget) => {
+    const el = getDashboardWidgetElement(widget.id);
+    if (!el) return;
+    el.dataset.widgetSize = widget.size;
+    el.classList.toggle("is-widget-hidden", normalized.hidden.has(widget.id));
+  });
+
+  normalized.order.forEach((id) => {
+    const el = getDashboardWidgetElement(id);
+    if (el) dashboardGrid.appendChild(el);
+  });
+
+  refreshDashboardChartsAfterLayout();
+}
+
+function buildCustomizePanel(state) {
+  const list = document.getElementById("dashboardWidgetList");
+  if (!list) return;
+
+  const normalized = normalizeDashboardState(state);
+  list.innerHTML = normalized.order.map((id) => {
+    const widget = DASHBOARD_WIDGETS.find((w) => w.id === id);
+    if (!widget) return "";
+    const isVisible = !normalized.hidden.has(id);
+    return `
+      <div class="dashboard-widget-row" draggable="true" data-widget-id="${id}">
+        <div class="drag-handle" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="dashboard-widget-label">${widget.label}</span>
+        <label class="widget-toggle" title="${isVisible ? "Ocultar" : "Mostrar"}">
+          <input type="checkbox" ${isVisible ? "checked" : ""} data-toggle-id="${id}" />
+          <span class="widget-toggle-track"></span>
+          <span class="widget-toggle-thumb"></span>
+        </label>
+      </div>
+    `;
+  }).join("");
+
+  // Toggle visibility
+  list.querySelectorAll("[data-toggle-id]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const id = checkbox.dataset.toggleId;
+      const currentState = getDashboardState();
+      if (checkbox.checked) {
+        currentState.hidden.delete(id);
+      } else {
+        currentState.hidden.add(id);
+      }
+      saveDashboardState(currentState);
+      applyDashboardLayout(currentState);
+      buildCustomizePanel(currentState);
+    });
+  });
+
+  // Drag to reorder
+  let dragSrcId = null;
+
+  list.querySelectorAll(".dashboard-widget-row").forEach((row) => {
+    row.addEventListener("dragstart", (e) => {
+      dragSrcId = row.dataset.widgetId;
+      row.classList.add("is-dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dragSrcId);
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("is-dragging");
+      list.querySelectorAll(".dashboard-widget-row").forEach((r) => r.classList.remove("drag-over"));
+      dragSrcId = null;
+    });
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      list.querySelectorAll(".dashboard-widget-row").forEach((r) => r.classList.remove("drag-over"));
+      if (row.dataset.widgetId !== dragSrcId) row.classList.add("drag-over");
+    });
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const targetId = row.dataset.widgetId;
+      if (!dragSrcId || dragSrcId === targetId) return;
+
+      const currentState = getDashboardState();
+      const srcIdx = currentState.order.indexOf(dragSrcId);
+      if (srcIdx === -1 || !currentState.order.includes(targetId)) return;
+
+      currentState.order.splice(srcIdx, 1);
+      const targetIdx = currentState.order.indexOf(targetId);
+      const targetRect = row.getBoundingClientRect();
+      const insertAfter = e.clientY > targetRect.top + targetRect.height / 2;
+      currentState.order.splice(insertAfter ? targetIdx + 1 : targetIdx, 0, dragSrcId);
+      saveDashboardState(currentState);
+      applyDashboardLayout(currentState);
+      buildCustomizePanel(currentState);
+    });
+  });
+}
+
+function openCustomizePanel() {
+  const panel = document.getElementById("dashboardCustomizePanel");
+  const backdrop = document.getElementById("dashboardCustomizeBackdrop");
+  if (!panel || !backdrop) return;
+  const state = getDashboardState();
+  buildCustomizePanel(state);
+  panel.classList.add("is-open");
+  backdrop.classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCustomizePanel() {
+  const panel = document.getElementById("dashboardCustomizePanel");
+  const backdrop = document.getElementById("dashboardCustomizeBackdrop");
+  if (!panel || !backdrop) return;
+  panel.classList.remove("is-open");
+  backdrop.classList.remove("is-open");
+  document.body.style.overflow = "";
+  // Re-init lucide icons in case panel added new ones
+  if (typeof lucide !== "undefined") lucide.createIcons();
+}
+
+function initDashboardCustomization() {
+  // Apply saved layout on load
+  applyDashboardLayout(getDashboardState());
+
+  const openBtn = document.getElementById("dashboardCustomizeBtn");
+  const closeBtn = document.getElementById("dashboardCustomizeClose");
+  const backdrop = document.getElementById("dashboardCustomizeBackdrop");
+
+  openBtn?.addEventListener("click", openCustomizePanel);
+  closeBtn?.addEventListener("click", closeCustomizePanel);
+  backdrop?.addEventListener("click", closeCustomizePanel);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeCustomizePanel();
+  });
+}
+
+// Init on DOM ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initDashboardCustomization);
+} else {
+  initDashboardCustomization();
+}

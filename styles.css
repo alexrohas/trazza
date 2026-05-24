@@ -2149,35 +2149,42 @@ tbody tr:hover {
 
 .journal-dashboard-charts {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-areas:
-    "kpis kpis kpis kpis"
-    "pnl pnl weekday session"
-    "errors errors discipline discipline";
-  align-items: start;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
   gap: 12px;
 }
 
+.journal-dashboard-charts > [data-widget] {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+.journal-dashboard-charts > [data-widget-size="full"] {
+  grid-column: 1 / -1;
+}
+
+.journal-dashboard-charts > [data-widget-size="wide"] {
+  grid-column: span 8;
+}
+
+.journal-dashboard-charts > [data-widget-size="half"] {
+  grid-column: span 6;
+}
+
+.journal-dashboard-charts > [data-widget-size="third"] {
+  grid-column: span 4;
+}
+
+.journal-dashboard-charts > [data-widget-size="quarter"] {
+  grid-column: span 3;
+}
+
 .journal-pnl-block {
-  grid-area: pnl;
-  align-self: start;
+  align-self: stretch;
 }
 
 .journal-errors-block {
-  grid-area: errors;
   overflow: visible;
-}
-
-.journal-discipline-block {
-  grid-area: discipline;
-}
-
-.journal-weekday-winrate-block {
-  grid-area: weekday;
-}
-
-.journal-session-winrate-block {
-  grid-area: session;
 }
 
 .journal-recent-trades-block {
@@ -2200,6 +2207,15 @@ tbody tr:hover {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.journal-chart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
 }
 
 .journal-chart-head h4,
@@ -2226,7 +2242,7 @@ tbody tr:hover {
 }
 
 .journal-pnl-block .journal-canvas {
-  height: clamp(180px, 16vw, 220px);
+  height: clamp(190px, 17vw, 240px);
 }
 
 .journal-weekday-winrate-block,
@@ -2236,7 +2252,6 @@ tbody tr:hover {
 
 .journal-kpi-stack {
   display: grid;
-  grid-area: kpis;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   gap: 12px;
@@ -2269,10 +2284,6 @@ tbody tr:hover {
 
 .journal-winrate-copy strong {
   order: 2;
-}
-
-.journal-winrate-copy small {
-  order: 4;
 }
 
 .journal-performance-card span {
@@ -2539,18 +2550,23 @@ tbody tr:hover {
 
 .journal-winrate-breakdown-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
   align-items: center;
-  gap: 7px 9px;
+  gap: 3px 8px;
 }
 
 .journal-winrate-breakdown-row span {
+  grid-column: 1 / -1;
+  grid-row: 1;
   color: var(--text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .journal-winrate-breakdown-row strong {
+  grid-column: 2;
+  grid-row: 2;
   color: var(--text);
   font-size: 12px;
   font-weight: 850;
@@ -2576,16 +2592,18 @@ tbody tr:hover {
 }
 
 .journal-winrate-breakdown-row small {
-  grid-column: 2 / 4;
-  margin-top: -4px;
+  grid-column: 1 / -1;
+  grid-row: 3;
   color: var(--muted);
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.1;
 }
 
 .journal-winrate-breakdown-track {
-  height: 8px;
+  grid-column: 1;
+  grid-row: 2;
+  height: 7px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--line);
@@ -2624,12 +2642,18 @@ tbody tr:hover {
 
 @media (max-width: 1180px) {
   .journal-dashboard-charts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      "kpis kpis"
-      "pnl pnl"
-      "weekday session"
-      "errors discipline";
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .journal-dashboard-charts > [data-widget-size="full"],
+  .journal-dashboard-charts > [data-widget-size="wide"] {
+    grid-column: 1 / -1;
+  }
+
+  .journal-dashboard-charts > [data-widget-size="half"],
+  .journal-dashboard-charts > [data-widget-size="third"],
+  .journal-dashboard-charts > [data-widget-size="quarter"] {
+    grid-column: span 3;
   }
 
   .journal-kpi-stack {
@@ -2724,6 +2748,10 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.28fr);
   align-items: stretch;
   gap: 12px;
+}
+
+.journal-calendar-row:empty {
+  display: none;
 }
 
 .journal-calendar-row .journal-recent-trades-block {
@@ -2836,6 +2864,11 @@ tbody tr:hover {
   width: min(230px, 34vw);
   min-width: 190px;
   margin-left: auto;
+}
+
+.journal-pnl-block .journal-dashboard-filter {
+  width: min(220px, 100%);
+  min-width: 160px;
 }
 
 .journal-dashboard-filter .select-display {
@@ -5526,6 +5559,10 @@ tbody tr:hover {
     display: grid;
   }
 
+  .journal-chart-actions {
+    justify-content: flex-start;
+  }
+
   .journal-pnl-block .journal-canvas {
     height: 200px;
   }
@@ -5538,14 +5575,13 @@ tbody tr:hover {
     min-height: 132px;
   }
 
-  .journal-dashboard-charts {
-    grid-template-areas:
-      "kpis"
-      "pnl"
-      "weekday"
-      "session"
-      "errors"
-      "discipline";
+  .journal-dashboard-charts > [data-widget],
+  .journal-dashboard-charts > [data-widget-size="full"],
+  .journal-dashboard-charts > [data-widget-size="wide"],
+  .journal-dashboard-charts > [data-widget-size="half"],
+  .journal-dashboard-charts > [data-widget-size="third"],
+  .journal-dashboard-charts > [data-widget-size="quarter"] {
+    grid-column: 1 / -1;
   }
 
   .journal-recent-trades-list {
@@ -5587,6 +5623,7 @@ tbody tr:hover {
   .journal-session-winrate-block,
   .journal-errors-block,
   .journal-discipline-block,
+  .journal-calendar-panel,
   .journal-recent-trades-block {
     grid-column: auto;
     grid-row: auto;
@@ -5608,4 +5645,291 @@ tbody tr:hover {
     grid-column: 1 / -1;
     justify-self: start;
   }
+}
+
+/* ============= CARD INFO TOOLTIP ============= */
+
+.card-info-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  cursor: help;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.card-info-btn::before {
+  content: "i";
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.card-info-btn:hover,
+.card-info-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.card-info-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 40px));
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2, var(--surface));
+  color: var(--muted-strong, var(--text));
+  font-size: 12px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.5;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms var(--ease),
+    transform 140ms var(--ease);
+  white-space: normal;
+  text-align: left;
+}
+
+.card-info-btn:hover .card-info-popup,
+.card-info-btn:focus-visible .card-info-popup {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* ============= DASHBOARD CUSTOMIZE ============= */
+
+.journal-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.dashboard-customize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.dashboard-customize-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--hover-bg, var(--surface-2));
+  color: var(--text);
+}
+
+.dashboard-customize-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Customize panel */
+.dashboard-customize-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(320px, 100vw);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-xl, -8px 0 32px rgba(0,0,0,0.25));
+  transform: translateX(100%);
+  transition: transform 240ms var(--ease);
+}
+
+.dashboard-customize-panel.is-open {
+  transform: translateX(0);
+}
+
+.dashboard-customize-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.dashboard-customize-panel-head h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dashboard-customize-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-widget-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  cursor: grab;
+  user-select: none;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.dashboard-widget-row:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.dashboard-widget-row.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.dashboard-widget-row.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.drag-handle {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  cursor: grab;
+  padding: 2px;
+}
+
+.drag-handle span {
+  display: block;
+  width: 14px;
+  height: 1.5px;
+  background: var(--muted2, var(--muted));
+  border-radius: 2px;
+}
+
+.dashboard-widget-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Toggle switch */
+.widget-toggle {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.widget-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.widget-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--line-strong);
+  cursor: pointer;
+  transition: background 180ms var(--ease);
+}
+
+.widget-toggle input:checked + .widget-toggle-track {
+  background: var(--accent);
+}
+
+.widget-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  pointer-events: none;
+  transition: transform 180ms var(--ease);
+}
+
+.widget-toggle input:checked ~ .widget-toggle-thumb {
+  transform: translateX(14px);
+}
+
+/* Hidden widget visual state */
+.journal-dashboard-charts > [data-widget].is-widget-hidden,
+.journal-calendar-row > [data-widget].is-widget-hidden {
+  display: none;
+}
+
+/* Panel backdrop */
+.dashboard-customize-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(0,0,0,0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms var(--ease);
+}
+
+.dashboard-customize-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+:root[data-theme="dark"] .dashboard-customize-panel {
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5);
 }

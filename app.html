@@ -453,17 +453,30 @@
                     </div>
                   </div>
                 </article>
-                <div class="journal-dashboard-charts">
-                  <article class="journal-chart-block journal-pnl-block">
+                <div class="journal-dashboard-header">
+                  <button type="button" class="dashboard-customize-btn" id="dashboardCustomizeBtn">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                      <circle cx="8" cy="4" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="12" r="1.5"/>
+                      <line x1="10" y1="4" x2="14" y2="4"/><line x1="2" y1="4" x2="6" y2="4"/>
+                      <line x1="10" y1="8" x2="14" y2="8"/><line x1="2" y1="8" x2="6" y2="8"/>
+                      <line x1="10" y1="12" x2="14" y2="12"/><line x1="2" y1="12" x2="6" y2="12"/>
+                    </svg>
+                    Personalizar panel
+                  </button>
+                </div>
+                <div class="journal-dashboard-charts" id="journalDashboardCharts">
+                  <article class="journal-chart-block journal-pnl-block" data-widget="pnl">
                     <div class="journal-chart-head">
                       <div>
                         <h4>Balance</h4>
-                        <p id="journalPnlSummary">Resultado acumulado del journal.</p>
                       </div>
-                      <label class="journal-dashboard-filter">
-                        Cuenta
-                        <select id="journalAccountFilter"></select>
-                      </label>
+                      <div class="journal-chart-actions">
+                        <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Resultado acumulado del journal. Muestra la evolución del P&L total a lo largo del tiempo.</span></button><p id="journalPnlSummary" hidden></p>
+                        <label class="journal-dashboard-filter">
+                          Cuenta
+                          <select id="journalAccountFilter"></select>
+                        </label>
+                      </div>
                     </div>
                     <div class="canvas-wrap compact journal-canvas">
                       <canvas
@@ -476,30 +489,29 @@
                       <p class="empty-chart" id="journalPnlChartEmpty">Sin P&L</p>
                     </div>
                   </article>
-                  <article class="journal-chart-block journal-weekday-winrate-block">
+                  <article class="journal-chart-block journal-weekday-winrate-block" data-widget="weekday">
                     <div class="journal-chart-head">
                       <div>
                         <h4>Winrate por día</h4>
-                        <p>Media por día de la semana.</p>
                       </div>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Winrate medio por día de la semana. Útil para detectar en qué días operas mejor.</span></button>
                     </div>
                     <div class="journal-winrate-list" id="journalWeekdayWinrateList"></div>
                   </article>
-                  <article class="journal-chart-block journal-session-winrate-block">
+                  <article class="journal-chart-block journal-session-winrate-block" data-widget="session">
                     <div class="journal-chart-head">
                       <div>
                         <h4>Winrate por sesión</h4>
-                        <p>Londres, Nueva York y otras sesiones.</p>
                       </div>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Winrate desglosado por sesión de mercado: Asia, Londres, Nueva York y otras.</span></button>
                     </div>
                     <div class="journal-winrate-list" id="journalSessionWinrateList"></div>
                   </article>
-                  <div class="journal-kpi-stack">
+                  <div class="journal-kpi-stack" data-widget="kpis">
                     <article class="journal-performance-card journal-winrate-card">
                       <div class="journal-winrate-copy">
                         <span>Winrate</span>
                         <strong class="neutral" id="journalWinrateValue">-</strong>
-                        <small id="journalWinrateHint">Sin operaciones cerradas</small>
                       </div>
                       <div class="journal-winrate-gauge" aria-label="Aciertos, empate y pérdidas">
                         <svg viewBox="0 0 120 76" role="img" aria-hidden="true">
@@ -527,7 +539,7 @@
                           <span>Loss</span>
                         </div>
                       </div>
-                      <small id="journalProfitFactorHint">Ganancias / perdidas</small>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Ratio entre ganancias totales y pérdidas totales. Un valor >1 significa que ganas más de lo que pierdes.</span></button><small id="journalProfitFactorHint" hidden></small>
                     </article>
                     <article class="journal-performance-card journal-average-trade-card">
                       <span>Avg win / loss</span>
@@ -549,15 +561,15 @@
                           </div>
                         </div>
                       </div>
-                      <small id="journalAvgTradeHint">Promedio por trade cerrado</small>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Promedio de ganancia en trades ganadores vs. promedio de pérdida en trades perdedores.</span></button><small id="journalAvgTradeHint" hidden></small>
                     </article>
                   </div>
-                  <article class="journal-chart-block journal-errors-block">
+                  <article class="journal-chart-block journal-errors-block" data-widget="errors">
                     <div class="journal-chart-head">
                       <div>
                         <h4>Errores</h4>
-                        <p id="journalErrorsSummary">Distribucion de errores registrados.</p>
                       </div>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Distribución de errores registrados en tus operaciones. Identifica qué errores cometes con más frecuencia.</span></button><p id="journalErrorsSummary" hidden></p>
                     </div>
                     <div class="journal-errors-layout">
                       <div class="canvas-wrap compact journal-donut-wrap">
@@ -572,12 +584,12 @@
                       <div class="journal-errors-legend" id="journalErrorsLegend"></div>
                     </div>
                   </article>
-                  <article class="journal-chart-block journal-discipline-block">
+                  <article class="journal-chart-block journal-discipline-block" data-widget="discipline">
                     <div class="journal-chart-head">
                       <div>
                         <h4>Disciplina</h4>
-                        <p id="journalDisciplineSummary">Evolucion de disciplina en el tiempo.</p>
                       </div>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Evolución de tu nota de disciplina en el tiempo. Una tendencia ascendente indica mejora en el seguimiento de tu plan.</span></button><p id="journalDisciplineSummary" hidden></p>
                     </div>
                     <div class="canvas-wrap compact journal-canvas">
                       <canvas
@@ -592,7 +604,7 @@
                   </article>
                 </div>
                 <div class="journal-calendar-row">
-                  <div class="journal-calendar-panel">
+                  <div class="journal-calendar-panel" data-widget="calendar">
                     <div class="journal-calendar-title">
                       <div>
                         <h4 id="journalCalendarMonth">Mes actual</h4>
@@ -618,12 +630,12 @@
                       <div class="journal-calendar-grid" id="journalCalendarGrid"></div>
                     </div>
                   </div>
-                  <article class="journal-chart-block journal-recent-trades-block">
+                  <article class="journal-chart-block journal-recent-trades-block" data-widget="recent">
                     <div class="journal-chart-head">
                       <div>
-                        <h4>Ultimos trades</h4>
-                        <p>Resumen rapido de las entradas mas recientes.</p>
+                        <h4>Últimos trades</h4>
                       </div>
+                      <button type="button" class="card-info-btn" tabindex="0"><span class="card-info-popup">Resumen rápido de las entradas más recientes del journal.</span></button>
                     </div>
                     <div class="journal-recent-trades-list" id="journalRecentTradesList"></div>
                   </article>
@@ -917,9 +929,9 @@
           <select id="journalImportAccount" required></select>
         </label>
         <label>
-          SesiÃ³n
+          Sesión
           <select id="journalImportTradingSession">
-            <option value="">Sin sesiÃ³n</option>
+            <option value="">Sin sesión</option>
             <option value="asia">Asia</option>
             <option value="london">Londres</option>
             <option value="newYork">Nueva York</option>
@@ -1050,9 +1062,9 @@
             </select>
           </label>
           <label>
-            SesiÃ³n
+            Sesión
             <select id="journalTradingSession">
-              <option value="">Sin sesiÃ³n</option>
+              <option value="">Sin sesión</option>
               <option value="asia">Asia</option>
               <option value="london">Londres</option>
               <option value="newYork">Nueva York</option>
@@ -1247,5 +1259,21 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  </body>
+
+  <!-- Dashboard customize backdrop -->
+  <div class="dashboard-customize-backdrop" id="dashboardCustomizeBackdrop"></div>
+
+  <!-- Dashboard customize panel -->
+  <aside class="dashboard-customize-panel" id="dashboardCustomizePanel" aria-label="Personalizar panel">
+    <div class="dashboard-customize-panel-head">
+      <h3>Personalizar panel</h3>
+      <button type="button" class="icon-button" id="dashboardCustomizeClose" aria-label="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="dashboard-customize-panel-body" id="dashboardWidgetList">
+      <!-- Populated by JS -->
+    </div>
+  </aside>
+</body>
 </html>

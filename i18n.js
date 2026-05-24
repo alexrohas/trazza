@@ -54,6 +54,8 @@
       "Cuenta creada. Revisa tu email para confirmar el acceso.":
         "Account created. Check your email to confirm access.",
       "Cuenta creada. Entrando...": "Account created. Signing in...",
+      "No se pudo iniciar la app. Recarga la pagina.": "The app could not start. Reload the page.",
+      "No se pudo cargar Supabase. Revisa tu conexion.": "Supabase could not be loaded. Check your connection.",
 
       "Areas principales": "Main areas",
       "Menu del area activa": "Active area menu",
@@ -226,6 +228,8 @@
       "Beneficio": "Return",
       "Balance": "Balance",
       "Resultado acumulado del journal.": "Accumulated journal result.",
+      "Resultado acumulado del journal. Muestra la evolución del P&L total a lo largo del tiempo.":
+        "Accumulated journal result. Shows total P&L evolution over time.",
       "Grafico interactivo de P&L total del journal": "Interactive total journal P&L chart",
       "Gráfico interactivo de P&L total del journal": "Interactive total journal P&L chart",
       "Sin P&L": "No P&L",
@@ -233,34 +237,64 @@
       "Aciertos, empate y pérdidas": "Wins, breakeven and losses",
       "Profit factor": "Profit factor",
       "Relacion entre ganancias y perdidas": "Profit and loss ratio",
+      "Relación entre ganancias y pérdidas": "Profit and loss ratio",
+      "Ratio entre ganancias totales y pérdidas totales. Un valor >1 significa que ganas más de lo que pierdes.":
+        "Ratio between total profits and total losses. A value above 1 means you win more than you lose.",
+      "Sin perdidas registradas": "No losses registered",
+      "Sin pérdidas registradas": "No losses registered",
+      "Ganancias / perdidas": "Profits / losses",
+      "Ganancias / pérdidas": "Profits / losses",
       "Avg win / loss": "Avg win / loss",
       "Avg win": "Avg win",
       "Avg loss": "Avg loss",
+      "Promedio de ganancia y perdida": "Average win and loss",
+      "Promedio de ganancia y pérdida": "Average win and loss",
+      "Promedio de ganancia en trades ganadores vs. promedio de pérdida en trades perdedores.":
+        "Average win on winning trades vs. average loss on losing trades.",
       "Promedio por trade cerrado": "Average per closed trade",
       "Winrate por dia": "Winrate by day",
+      "Winrate por día": "Winrate by day",
       "Winrate por dÃ­a": "Winrate by day",
+      "Winrate medio por día de la semana. Útil para detectar en qué días operas mejor.":
+        "Average winrate by weekday. Useful for spotting which days you trade best.",
       "Media por dia de la semana.": "Average by weekday.",
       "Media por dÃ­a de la semana.": "Average by weekday.",
       "Winrate por sesion": "Winrate by session",
+      "Winrate por sesión": "Winrate by session",
       "Winrate por sesiÃ³n": "Winrate by session",
+      "Winrate desglosado por sesión de mercado: Asia, Londres, Nueva York y otras.":
+        "Winrate split by market session: Asia, London, New York and others.",
       "Londres, Nueva York y otras sesiones.": "London, New York and other sessions.",
       "Sin sesiones registradas.": "No sessions registered.",
       "Ultimos trades": "Latest trades",
+      "Últimos trades": "Latest trades",
       "Resumen rapido de las entradas mas recientes.": "Quick summary of the most recent entries.",
+      "Resumen rápido de las entradas más recientes del journal.": "Quick summary of the most recent journal entries.",
       "Sin trades recientes.": "No recent trades.",
+      "Sin trades cerrados": "No closed trades",
+      "trade cerrado": "closed trade",
+      "trades cerrados": "closed trades",
       "Errores": "Mistakes",
       "errores": "mistakes",
       "error": "mistake",
       "Distribucion de errores registrados.": "Registered mistake distribution.",
       "Distribución de errores registrados.": "Registered mistake distribution.",
+      "Distribución de errores registrados en tus operaciones. Identifica qué errores cometes con más frecuencia.":
+        "Distribution of mistakes registered in your trades. Identify which mistakes happen most often.",
       "Disciplina": "Discipline",
       "Evolucion de disciplina en el tiempo.": "Discipline evolution over time.",
       "Evolución de disciplina en el tiempo.": "Discipline evolution over time.",
+      "Evolución de tu nota de disciplina en el tiempo. Una tendencia ascendente indica mejora en el seguimiento de tu plan.":
+        "Evolution of your discipline score over time. An upward trend shows better plan execution.",
       "Mayo de 2026": "May 2026",
       "Month total": "Month total",
       "Hoy": "Today",
       "Semana": "Week",
       "SEMANA": "WEEK",
+      "Mes anterior": "Previous month",
+      "Mes siguiente": "Next month",
+      "Quitar dia": "Clear day",
+      "Quitar día": "Clear day",
       "Buscar": "Search",
       "Activo, dirección, notas...": "Asset, direction, notes...",
       "Activo, direccion, notas...": "Asset, direction, notes...",
@@ -269,12 +303,22 @@
       "Inicio": "Start",
       "Fin": "End",
       "Sin fecha": "No date",
+      "Dia seleccionado": "Selected day",
+      "Día seleccionado": "Selected day",
       "P&L total": "Total P&L",
       "P&L dia": "Daily P&L",
       "P&L día": "Daily P&L",
+      "Neto dia": "Daily net",
+      "Neto día": "Daily net",
       "Veces": "Times",
       "Peso": "Weight",
       "Entradas": "Entries",
+      "Personalizar panel": "Customize dashboard",
+      "KPIs (Winrate, Profit Factor…)": "KPIs (Winrate, Profit Factor…)",
+      "Balance / P&L": "Balance / P&L",
+      "Calendario P&L": "P&L calendar",
+      "Ocultar": "Hide",
+      "Mostrar": "Show",
 
       "Estado mental": "Mental state",
       "Calmado": "Calm",
@@ -287,8 +331,10 @@
       "Ej. MNQ, NQ, ES, MES...": "E.g. MNQ, NQ, ES, MES...",
       "Dirección": "Direction",
       "Direccion": "Direction",
+      "Sesión": "Session",
       "SesiÃ³n": "Session",
       "Sesion": "Session",
+      "Sin sesión": "No session",
       "Sin sesiÃ³n": "No session",
       "Sin sesion": "No session",
       "Londres": "London",
@@ -348,6 +394,23 @@
       "No hay movimientos registrados.": "No movements registered.",
       "No hay entradas registradas.": "No entries registered.",
       "No hay errores configurados.": "No mistakes configured.",
+      "Primero crea una firm": "Create a firm first",
+      "Todavia no hay firms": "No firms yet",
+      "Todavía no hay firms": "No firms yet",
+      "Todavia no hay cuentas": "No accounts yet",
+      "Todavía no hay cuentas": "No accounts yet",
+      "Todavia no hay movimientos": "No movements yet",
+      "Todavía no hay movimientos": "No movements yet",
+      "Todavia no hay entradas": "No entries yet",
+      "Todavía no hay entradas": "No entries yet",
+      "Registra compras, resets, fees o payouts para alimentar el dashboard.":
+        "Register purchases, resets, fees or payouts to feed the dashboard.",
+      "Registra operaciones, decisiones y notas sin mezclarlo con los movimientos economicos.":
+        "Log trades, decisions and notes without mixing them with financial movements.",
+      "Prueba con otra firm, otro estado o limpia la busqueda.":
+        "Try another firm, another status or clear the search.",
+      "Ajusta la cuenta, el periodo o la busqueda para ver mas resultados.":
+        "Adjust the account, period or search to see more results.",
       "Sin entradas con P&L registrado.": "No entries with registered P&L.",
       "Sin entradas con disciplina.": "No entries with discipline.",
       "Sin errores registrados.": "No mistakes registered.",
@@ -389,6 +452,7 @@
       "Selecciona una cuenta valida.": "Select a valid account.",
       "Selecciona una sesion valida.": "Select a valid session.",
       "Selecciona una sesiÃ³n valida.": "Select a valid session.",
+      "Selecciona una gravedad valida.": "Select a valid severity.",
       "Selecciona un archivo CSV.": "Select a CSV file.",
       "Crea una cuenta antes de importar un CSV.": "Create an account before importing a CSV.",
       "Crea una cuenta antes de importar CSV": "Create an account before importing CSV",
@@ -415,6 +479,7 @@
       "El P&L debe ser un numero valido.": "P&L must be a valid number.",
       "El P&L debe ser un número valido.": "P&L must be a valid number.",
       "Pega una imagen valida para la operacion.": "Paste a valid image for the trade.",
+      "Pega o arrastra una imagen valida.": "Paste or drag a valid image.",
       "Hay un error de journal no valido.": "There is an invalid journal mistake.",
     })
   );
@@ -489,7 +554,16 @@
 
   function translateTextNode(node, lang) {
     if (!node.nodeValue || !normalize(node.nodeValue) || shouldSkip(node)) return;
-    if (!node[ORIGINAL_TEXT_KEY]) node[ORIGINAL_TEXT_KEY] = node.nodeValue;
+    if (!node[ORIGINAL_TEXT_KEY]) {
+      node[ORIGINAL_TEXT_KEY] = node.nodeValue;
+    } else {
+      const current = normalize(node.nodeValue);
+      const original = normalize(node[ORIGINAL_TEXT_KEY]);
+      const translated = normalize(translateText(node[ORIGINAL_TEXT_KEY]));
+      if (current && current !== original && current !== translated) {
+        node[ORIGINAL_TEXT_KEY] = node.nodeValue;
+      }
+    }
     const original = node[ORIGINAL_TEXT_KEY];
     const leading = original.match(/^\s*/)?.[0] || "";
     const trailing = original.match(/\s*$/)?.[0] || "";
@@ -502,6 +576,13 @@
     const originalAttribute = `data-i18n-original-${attribute}`;
     if (!element.hasAttribute(originalAttribute)) {
       element.setAttribute(originalAttribute, element.getAttribute(attribute));
+    } else {
+      const current = normalize(element.getAttribute(attribute));
+      const original = normalize(element.getAttribute(originalAttribute));
+      const translated = normalize(translateText(element.getAttribute(originalAttribute)));
+      if (current && current !== original && current !== translated) {
+        element.setAttribute(originalAttribute, element.getAttribute(attribute));
+      }
     }
     const original = element.getAttribute(originalAttribute);
     const next = lang === "en" ? translateText(original) : original;
