@@ -2870,9 +2870,10 @@ function renderJournalWeekdayWinrate(entries) {
       const stats = getJournalWinrateStats(
         entries.filter((entry) => entry.date && parseLocalDate(entry.date).getDay() === item.day)
       );
-      return journalWinrateBreakdownRowHtml({ label: item.label, ...stats });
+      return journalWeekdayWinrateBarHtml({ label: item.label, ...stats });
     })
     .join("");
+  els.journalWeekdayWinrateList.classList.add("is-bar-chart");
 }
 
 function renderJournalSessionWinrate(entries) {
@@ -2930,6 +2931,27 @@ function journalWinrateBreakdownRowHtml(row) {
       <div class="journal-winrate-breakdown-track" aria-hidden="true"><i></i></div>
       <strong class="${tone}">${value}</strong>
       <small>${detail}</small>
+    </div>
+  `;
+}
+
+function journalWeekdayWinrateBarHtml(row) {
+  const hasData = row.closed > 0;
+  const visibleWinrate = hasData && row.winrate !== null && !dashboardPrivacyHidden;
+  const barHeight = visibleWinrate ? clamp(row.winrate, row.winrate > 0 ? 4 : 0, 100) : hasData ? 50 : 0;
+  const value = hasData ? sensitivePercent(row.winrate) : "-";
+  const detail = hasData
+    ? `${sensitiveCount(row.wins)}W - ${sensitiveCount(row.losses)}L`
+    : uiText("Sin datos");
+  const label = `${row.label}: ${value} - ${detail}`;
+
+  return `
+    <div class="journal-weekday-winrate-item" style="--winrate: ${barHeight}%" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+      <div class="journal-weekday-winrate-track" aria-hidden="true">
+        <strong>${escapeHtml(value)}</strong>
+        <i></i>
+      </div>
+      <span>${escapeHtml(row.label)}</span>
     </div>
   `;
 }
