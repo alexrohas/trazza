@@ -364,86 +364,90 @@
 
     .product-preview {
       position: relative;
-      width: min(100%, 620px);
-      min-height: 600px;
+      width: min(100%, 720px);
+      min-height: 500px;
       justify-self: end;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 32px;
-      background:
-        radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.25), transparent 12rem),
-        linear-gradient(135deg, #4b28ff 0%, #8a5cf6 48%, #ec4899 100%);
-      box-shadow: 0 34px 110px rgba(0, 0, 0, 0.52), 0 0 70px rgba(124, 92, 252, 0.22);
-      overflow: hidden;
-      isolation: isolate;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
     }
 
     .product-preview::before {
       content: "";
       position: absolute;
-      inset: 18px;
-      border-radius: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.06);
-      opacity: 0.7;
-      z-index: -1;
+      inset: 12% -5% 8% 4%;
+      border-radius: 34px;
+      background: rgba(157, 130, 253, 0.22);
+      filter: blur(42px);
+      opacity: 0.86;
+      pointer-events: none;
     }
 
-    .preview-card {
-      position: absolute;
+    :root[data-theme="light"] .product-preview::before {
+      background: rgba(124, 92, 252, 0.13);
+      opacity: 0.78;
+    }
+
+    .product-preview-frame {
+      position: relative;
+      z-index: 1;
+      width: min(780px, 116%);
       overflow: hidden;
-      border: 4px solid rgba(246, 241, 255, 0.9);
       border-radius: 18px;
-      background: #111219;
-      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
-      transform: translateZ(0);
-      backface-visibility: hidden;
+      background: #09090b;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 28px 68px rgba(0, 0, 0, 0.32);
+      transform: perspective(1100px) rotateY(-4deg) rotateX(2deg);
     }
 
-    .preview-card img {
+    :root[data-theme="light"] .product-preview-frame {
+      background: #ffffff;
+      border-color: rgba(17, 16, 20, 0.12);
+      box-shadow: 0 32px 76px rgba(72, 54, 112, 0.2);
+    }
+
+    .product-preview-topbar {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0f0f14;
+    }
+
+    :root[data-theme="light"] .product-preview-topbar {
+      border-bottom-color: rgba(17, 16, 20, 0.08);
+      background: #f5f3fb;
+    }
+
+    .product-preview-topbar span {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.26);
+    }
+
+    :root[data-theme="light"] .product-preview-topbar span {
+      background: rgba(17, 16, 20, 0.22);
+    }
+
+    .product-preview-image {
       display: block;
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      height: auto;
       image-rendering: -webkit-optimize-contrast;
-      transform: translateZ(0);
-      filter: contrast(1.04) saturate(1.02);
     }
 
-    .preview-card.dashboard {
-      top: 7%;
-      left: 8%;
-      width: 84%;
-      aspect-ratio: 2.05;
+    .product-preview-image.is-light {
+      display: none;
     }
 
-    .preview-card.entries {
-      left: 6%;
-      bottom: 7%;
-      width: 47%;
-      aspect-ratio: 1.62;
+    :root[data-theme="light"] .product-preview-image.is-dark {
+      display: none;
     }
 
-    .preview-card.calendar {
-      right: 5%;
-      bottom: 10%;
-      width: 60%;
-      aspect-ratio: 1.78;
-    }
-
-    .preview-label {
-      position: absolute;
-      top: 22px;
-      right: 24px;
-      padding: 8px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      border-radius: 999px;
-      background: rgba(7, 8, 13, 0.44);
-      color: rgba(255, 255, 255, 0.82);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      backdrop-filter: blur(14px);
+    :root[data-theme="light"] .product-preview-image.is-light {
+      display: block;
     }
 
     .footer {
@@ -479,35 +483,50 @@
 
       .product-preview {
         justify-self: center;
-        min-height: min(86vw, 520px);
+        min-height: 0;
+        width: min(100%, 760px);
+      }
+
+      .product-preview-frame {
+        width: 100%;
+        transform: none;
       }
     }
 
     @media (max-width: 640px) {
       .nav {
         width: min(100% - 28px, 1120px);
+        gap: 8px;
         padding: 20px 0;
       }
 
       .logo {
-        width: 180px;
-        height: 56px;
-        margin-left: -24px;
+        width: 138px;
+        height: 48px;
+        margin-left: -14px;
       }
 
       .logo img {
-        width: 190px;
-        transform: translate(-24px, -1px) scale(1.08);
+        width: 154px;
+        transform: translate(-16px, -1px) scale(1.05);
+      }
+
+      .nav-actions {
+        gap: 6px;
       }
 
       .login-link {
         min-height: 38px;
-        padding: 0 14px;
+        padding: 0 10px;
+        font-size: 12px;
+        white-space: nowrap;
       }
 
-      .language-toggle {
+      .language-toggle,
+      .landing-theme-toggle {
         min-width: 40px;
         min-height: 38px;
+        padding: 0 10px;
       }
 
       .hero {
@@ -516,38 +535,14 @@
       }
 
       h1 {
-        font-size: clamp(48px, 15vw, 72px);
+        max-width: 360px;
+        margin: 0 auto;
+        font-size: clamp(42px, 13vw, 56px);
+        line-height: 0.96;
       }
 
       .product-preview {
-        min-height: 410px;
-        border-radius: 24px;
-      }
-
-      .preview-card {
-        border-width: 4px;
-        border-radius: 14px;
-      }
-
-      .preview-card.dashboard {
-        top: 10%;
-        left: 8%;
-        width: 84%;
-        aspect-ratio: 2.05;
-      }
-
-      .preview-card.entries {
-        left: 6%;
-        bottom: 8%;
-        width: 49%;
-        aspect-ratio: 1.62;
-      }
-
-      .preview-card.calendar {
-        right: 5%;
-        bottom: 11%;
-        width: 63%;
-        aspect-ratio: 1.78;
+        margin-top: 10px;
       }
 
       .waitlist-form {
@@ -605,15 +600,14 @@
       </section>
 
       <aside class="product-preview" aria-label="Vistas de la aplicación Trazza">
-        <span class="preview-label">Preview</span>
-        <figure class="preview-card dashboard">
-          <img src="./assets/landing/dashboard.png" alt="Dashboard del journal de Trazza" />
-        </figure>
-        <figure class="preview-card entries">
-          <img src="./assets/landing/entries.png" alt="Galería de entradas del journal" />
-        </figure>
-        <figure class="preview-card calendar">
-          <img src="./assets/landing/calendar.png" alt="Calendario de P&L del journal" />
+        <figure class="product-preview-frame">
+          <div class="product-preview-topbar" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <img class="product-preview-image is-dark" src="./assets/landing/login-dashboard.png" alt="Dashboard real de Trazza" />
+          <img class="product-preview-image is-light" src="./assets/landing/login-dashboard-light.png" alt="Dashboard real de Trazza en modo claro" />
         </figure>
       </aside>
     </main>
