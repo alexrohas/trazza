@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    (() => {
+      const stored = localStorage.getItem("trazza:theme") || localStorage.getItem("finix:theme") || localStorage.getItem("prop-firm-tracker:theme");
+      const theme = stored === "light" || stored === "dark" ? stored : "dark";
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -26,6 +34,18 @@
       --green: #22c97a;
       --font-head: "Bricolage Grotesque", sans-serif;
       --font-body: "DM Sans", sans-serif;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f7f6fb;
+      --text: #111014;
+      --muted: #67616f;
+      --muted-strong: #3f3949;
+      --line: rgba(17, 16, 20, 0.13);
+      --field: rgba(255, 255, 255, 0.82);
+      --accent: #7c5cfc;
+      --accent-strong: #6d28d9;
+      --green: #16a34a;
     }
 
     html {
@@ -62,6 +82,17 @@
         radial-gradient(circle at 78% 38%, rgba(124, 92, 252, 0.3), transparent 30rem),
         radial-gradient(circle at 22% 26%, rgba(157, 130, 253, 0.18), transparent 28rem),
         linear-gradient(180deg, rgba(7, 8, 13, 0.72), rgba(7, 8, 13, 0.95) 70%, #07080d);
+    }
+
+    :root[data-theme="light"] body::before {
+      opacity: 0.07;
+    }
+
+    :root[data-theme="light"] body::after {
+      background:
+        radial-gradient(circle at 78% 38%, rgba(124, 92, 252, 0.14), transparent 30rem),
+        radial-gradient(circle at 22% 26%, rgba(157, 130, 253, 0.12), transparent 28rem),
+        linear-gradient(180deg, rgba(247, 246, 251, 0.8), rgba(247, 246, 251, 0.96) 70%, #f7f6fb);
     }
 
     .page {
@@ -131,7 +162,8 @@
       transform: translateY(-1px);
     }
 
-    .language-toggle {
+    .language-toggle,
+    .landing-theme-toggle {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -149,10 +181,16 @@
       transition: border-color 0.18s, background 0.18s, transform 0.18s;
     }
 
-    .language-toggle:hover {
+    .language-toggle:hover,
+    .landing-theme-toggle:hover {
       border-color: rgba(157, 130, 253, 0.58);
       background: rgba(124, 92, 252, 0.16);
       transform: translateY(-1px);
+    }
+
+    .landing-theme-toggle {
+      letter-spacing: 0;
+      text-transform: none;
     }
 
     .hero {
@@ -534,6 +572,7 @@
         <img src="./assets/trazza.png" alt="Trazza" />
       </a>
       <div class="nav-actions">
+        <button class="landing-theme-toggle" id="landingThemeToggle" type="button" data-theme-toggle aria-label="Cambiar a modo claro" title="Cambiar tema">Tema</button>
         <button class="language-toggle" type="button" data-language-toggle aria-label="Switch to English">EN</button>
         <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Ya tengo acceso</a>
       </div>
@@ -595,6 +634,30 @@
     const emailInput = document.getElementById("waitlistEmail");
     const message = document.getElementById("formMessage");
     const submitButton = form.querySelector("button");
+    const themeButton = document.getElementById("landingThemeToggle");
+
+    function currentLanguage() {
+      return window.TrazzaI18n?.getLanguage?.() || (navigator.language?.toLowerCase().startsWith("en") ? "en" : "es");
+    }
+
+    function updateThemeButton() {
+      if (!themeButton) return;
+      const isDark = document.documentElement.dataset.theme === "dark";
+      const nextLabel = isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+      themeButton.setAttribute("aria-label", nextLabel);
+      themeButton.title = currentLanguage() === "en" ? (isDark ? "Light mode" : "Dark mode") : (isDark ? "Modo claro" : "Modo oscuro");
+    }
+
+    themeButton?.addEventListener("click", () => {
+      const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem("trazza:theme", nextTheme);
+      document.documentElement.dataset.theme = nextTheme;
+      document.documentElement.style.colorScheme = nextTheme;
+      updateThemeButton();
+    });
+
+    window.addEventListener("trazza:language-change", updateThemeButton);
+    updateThemeButton();
 
     function setMessage(text, type = "") {
       message.textContent = text;

@@ -36,19 +36,37 @@
       "No hemos podido guardar tu correo ahora mismo. Inténtalo de nuevo en unos minutos.":
         "We could not save your email right now. Try again in a few minutes.",
       "No se pudo guardar el correo.": "The email could not be saved.",
+      "Tema": "Theme",
 
+      "Workspace de trading": "Trading workspace",
+      "Tu centro de control de trading": "Your trading control center",
+      "Journal, prop firms y métricas sincronizadas en un solo panel.":
+        "Journal, prop firms and metrics synced in one dashboard.",
+      "Dashboard del journal": "Journal dashboard",
+      "Dashboard real de Trazza": "Real Trazza dashboard",
+      "Dashboard real de Trazza en modo claro": "Real Trazza dashboard in light mode",
+      "Winrate": "Winrate",
+      "Profit factor": "Profit factor",
+      "Vista previa de Trazza": "Trazza preview",
+      "¿Quieres empezar con Trazza?": "Want to start with Trazza?",
       "Accede para sincronizar tus firms, cuentas, movimientos y journal.":
         "Sign in to sync your firms, accounts, movements and journal.",
       "Nombre y apellidos": "Full name",
       "Password": "Password",
+      "Contraseña": "Password",
       "Minimo 6 caracteres": "Minimum 6 characters",
       "Entrar": "Sign in",
       "Crear cuenta": "Create account",
       "No tienes cuenta?": "Do not have an account?",
+      "Acceso privado por invitación": "Private invitation access",
+      "Solicitar acceso": "Request access",
       "Ya tienes cuenta?": "Already have an account?",
       "El registro está cerrado. Únete a la waitlist en la página principal.":
         "Registration is closed. Join the waitlist on the main page.",
+      "El registro está cerrado. Pide acceso por invitación.":
+        "Registration is closed. Request invitation access.",
       "Crea tu acceso para guardar tus datos en la nube.": "Create your access to save your data in the cloud.",
+      "Comprobando sesion...": "Checking session...",
       "Entrando...": "Signing in...",
       "Creando cuenta...": "Creating account...",
       "Cuenta creada. Revisa tu email para confirmar el acceso.":
@@ -56,6 +74,14 @@
       "Cuenta creada. Entrando...": "Account created. Signing in...",
       "No se pudo iniciar la app. Recarga la pagina.": "The app could not start. Reload the page.",
       "No se pudo cargar Supabase. Revisa tu conexion.": "Supabase could not be loaded. Check your connection.",
+      "Introduce tu nombre para crear el acceso.": "Enter your name to create access.",
+      "La contraseña debe tener al menos 6 caracteres.": "Password must be at least 6 characters.",
+      "Email o contraseña incorrectos.": "Email or password is incorrect.",
+      "Confirma tu email antes de entrar.": "Confirm your email before signing in.",
+      "Confirma tu email antes de entrar. Revisa tu bandeja de entrada.":
+        "Confirm your email before signing in. Check your inbox.",
+      "No se pudo comprobar la sesión. Vuelve a entrar.": "The session could not be verified. Sign in again.",
+      "No se pudo completar el acceso.": "The access request could not be completed.",
 
       "Areas principales": "Main areas",
       "Menu del area activa": "Active area menu",
@@ -78,6 +104,9 @@
       "Alta": "Joined",
       "Nombre visible": "Display name",
       "Tu nombre": "Your name",
+      "Divisa": "Currency",
+      "EUR (€)": "EUR (€)",
+      "USD ($)": "USD ($)",
       "Guardar cambios": "Save changes",
       "Sin email": "No email",
       "Introduce un email valido.": "Enter a valid email.",

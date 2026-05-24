@@ -213,54 +213,82 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: clamp(18px, 4vw, 44px);
   background:
-    radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 34%),
-    var(--bg);
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 60%, transparent), transparent 34%),
+    linear-gradient(180deg, var(--bg-top), var(--bg));
+}
+
+.auth-shell {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(340px, 430px) minmax(470px, 1fr);
+  align-items: stretch;
+  gap: 22px;
 }
 
 .auth-card {
   position: relative;
   display: grid;
-  gap: 13px;
-  width: min(420px, 100%);
-  padding: 26px 32px 24px;
+  align-content: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 560px;
+  padding: 34px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--shadow-xl);
 }
 
-.auth-language-toggle {
+.auth-toolbar {
   position: absolute;
   top: 14px;
   right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .auth-logo {
-  display: grid;
-  place-items: center;
-  height: 82px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  height: 54px;
 }
 
 .auth-logo img {
-  width: clamp(250px, 84%, 350px);
+  width: 154px;
   height: auto;
-  margin-top: -60px;
   display: block;
 }
 
 .auth-copy {
   display: grid;
-  gap: 4px;
-  text-align: center;
+  gap: 8px;
+  margin: 12px 0 8px;
+  text-align: left;
+}
+
+.auth-kicker {
+  width: fit-content;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .auth-card h1 {
-  margin-top: 0;
-  font-size: 34px;
-  font-weight: 700;
+  max-width: 360px;
+  margin: 0;
+  color: var(--text);
+  font-size: 42px;
+  line-height: 1.02;
+  font-weight: 800;
 }
 
 .auth-card p {
@@ -280,7 +308,7 @@ body {
 
 .auth-switch {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: 4px;
   color: var(--muted);
@@ -306,6 +334,132 @@ body {
   min-height: 20px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.auth-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-preview::before {
+  content: "";
+  position: absolute;
+  inset: 12% -5% 8% 4%;
+  pointer-events: none;
+  border-radius: 34px;
+  background: color-mix(in srgb, var(--accent-soft) 72%, transparent);
+  filter: blur(42px);
+  opacity: 0.86;
+}
+
+.auth-preview-frame {
+  position: relative;
+  z-index: 1;
+  width: min(780px, 112%);
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: #09090b;
+  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.24);
+  transform: perspective(1100px) rotateY(-4deg) rotateX(2deg);
+}
+
+.auth-preview-topbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f0f14;
+}
+
+.auth-preview-topbar span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.auth-preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.auth-preview-image.is-light {
+  display: none;
+}
+
+:root[data-theme="light"] .auth-preview-image.is-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .auth-preview-image.is-light {
+  display: block;
+}
+
+@media (max-width: 920px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+    width: min(520px, 100%);
+  }
+
+  .auth-card {
+    min-height: auto;
+  }
+
+  .auth-preview {
+    min-height: 330px;
+  }
+
+  .auth-preview-frame {
+    width: 100%;
+    transform: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .auth-screen {
+    padding: 14px;
+  }
+
+  .auth-card {
+    padding: 26px 20px 22px;
+  }
+
+  .auth-logo {
+    justify-content: center;
+  }
+
+  .auth-copy {
+    text-align: center;
+  }
+
+  .auth-kicker {
+    margin-inline: auto;
+  }
+
+  .auth-card h1 {
+    max-width: none;
+    font-size: 34px;
+  }
+
+  .auth-switch {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .auth-preview {
+    display: none;
+  }
 }
 
 button,

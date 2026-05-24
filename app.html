@@ -16,36 +16,56 @@
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
-      <form class="auth-card" id="authForm">
-        <button class="theme-toggle language-toggle auth-language-toggle" type="button" data-language-toggle aria-label="Switch to English" title="English">EN</button>
-        <div class="auth-logo">
-          <img src="./assets/trazza.png" alt="trazza" />
-        </div>
-        <div class="auth-copy">
-          <h1 id="authTitle">trazza</h1>
-          <p id="authIntro">Accede para sincronizar tus firms, cuentas, movimientos y journal.</p>
-        </div>
-        <label id="authNameField" hidden>
-          Nombre y apellidos
-          <input id="authName" type="text" autocomplete="name" disabled placeholder="Alex Rodriguez" />
-        </label>
-        <label>
-          Email
-          <input id="authEmail" type="email" autocomplete="email" required placeholder="tu@email.com" />
-        </label>
-        <label>
-          Password
-          <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Minimo 6 caracteres" />
-        </label>
-        <div class="auth-actions">
-          <button class="primary-button" id="authLoginButton" type="submit">Entrar</button>
-        </div>
-        <p class="auth-switch">
-          <span id="authSwitchText">No tienes cuenta?</span>
-          <button class="auth-switch-button" id="authSignupButton" type="button">Crear cuenta</button>
-        </p>
-        <p class="auth-message" id="authMessage"></p>
-      </form>
+      <div class="auth-shell">
+        <form class="auth-card" id="authForm">
+          <div class="auth-toolbar">
+            <button class="theme-toggle" id="authThemeToggleButton" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar tema">
+              <i data-lucide="moon"></i>
+            </button>
+            <button class="theme-toggle language-toggle" type="button" data-language-toggle aria-label="Switch to English" title="English">EN</button>
+          </div>
+          <div class="auth-logo">
+            <img src="./assets/trazza.png" alt="trazza" />
+          </div>
+          <div class="auth-copy">
+            <span class="auth-kicker">Workspace de trading</span>
+            <h1 id="authTitle">Tu centro de control de trading</h1>
+            <p id="authIntro">Journal, prop firms y métricas sincronizadas en un solo panel.</p>
+          </div>
+          <label id="authNameField" hidden>
+            Nombre y apellidos
+            <input id="authName" type="text" autocomplete="name" disabled placeholder="Alex Rodriguez" />
+          </label>
+          <label>
+            Email
+            <input id="authEmail" type="email" autocomplete="email" required placeholder="tu@email.com" />
+          </label>
+          <label>
+            Contraseña
+            <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Minimo 6 caracteres" />
+          </label>
+          <div class="auth-actions">
+            <button class="primary-button" id="authLoginButton" type="submit">Entrar</button>
+          </div>
+          <p class="auth-switch">
+            <span id="authSwitchText">¿Quieres empezar con Trazza?</span>
+            <button class="auth-switch-button" id="authSignupButton" type="button">Solicitar acceso</button>
+          </p>
+          <p class="auth-message" id="authMessage"></p>
+        </form>
+
+        <aside class="auth-preview" aria-label="Vista previa de Trazza">
+          <div class="auth-preview-frame">
+            <div class="auth-preview-topbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <img class="auth-preview-image is-dark" src="./assets/landing/login-dashboard.png" alt="Dashboard real de Trazza" />
+            <img class="auth-preview-image is-light" src="./assets/landing/login-dashboard-light.png" alt="Dashboard real de Trazza en modo claro" />
+          </div>
+        </aside>
+      </div>
     </section>
 
     <div class="app-shell" id="appShell">
@@ -179,7 +199,7 @@
                 <span>Neto total</span>
                 <span class="metric-icon" data-tone="accent"><i data-lucide="activity"></i></span>
               </div>
-              <strong id="metricNet">0,00 EUR</strong>
+              <strong id="metricNet">0,00 €</strong>
 
             </article>
             <article class="metric-card">
@@ -187,7 +207,7 @@
                 <span>Gasto total</span>
                 <span class="metric-icon" data-tone="red"><i data-lucide="arrow-down-left"></i></span>
               </div>
-              <strong id="metricExpenses">0,00 EUR</strong>
+              <strong id="metricExpenses">0,00 €</strong>
 
             </article>
             <article class="metric-card">
@@ -195,7 +215,7 @@
                 <span>Retiros</span>
                 <span class="metric-icon" data-tone="green"><i data-lucide="arrow-up-right"></i></span>
               </div>
-              <strong id="metricIncome">0,00 EUR</strong>
+              <strong id="metricIncome">0,00 €</strong>
 
             </article>
             <article class="metric-card">
@@ -211,7 +231,7 @@
                 <span>Break-even</span>
                 <span class="metric-icon" data-tone="amber"><i data-lucide="target"></i></span>
               </div>
-              <strong id="metricBreakEven">0,00 EUR</strong>
+              <strong id="metricBreakEven">0,00 €</strong>
 
             </article>
             <article class="metric-card">
@@ -258,15 +278,15 @@
               <div class="month-summary">
                 <div>
                   <span>Gasto</span>
-                  <strong id="monthExpenses">0,00 EUR</strong>
+                  <strong id="monthExpenses">0,00 €</strong>
                 </div>
                 <div>
                   <span>Retiros</span>
-                  <strong id="monthIncome">0,00 EUR</strong>
+                  <strong id="monthIncome">0,00 €</strong>
                 </div>
                 <div>
                   <span>Neto</span>
-                  <strong id="monthNet">0,00 EUR</strong>
+                  <strong id="monthNet">0,00 €</strong>
                 </div>
               </div>
               <div class="canvas-wrap compact">
@@ -456,11 +476,11 @@
                   <div class="journal-account-overview-stats">
                     <div>
                       <span>Balance total</span>
-                      <strong id="journalAccountBalance">$0.00</strong>
+                      <strong id="journalAccountBalance">0,00 €</strong>
                     </div>
                     <div>
                       <span>Net P&L</span>
-                      <strong id="journalAccountNetPnl">$0.00</strong>
+                      <strong id="journalAccountNetPnl">0,00 €</strong>
                     </div>
                     <div>
                       <span>Beneficio</span>
@@ -730,6 +750,13 @@
           <label>
             Email
             <input id="profileEmail" type="email" autocomplete="email" required placeholder="tu@email.com" />
+          </label>
+          <label>
+            Divisa
+            <select id="profileCurrency" required>
+              <option value="EUR">EUR (€)</option>
+              <option value="USD">USD ($)</option>
+            </select>
           </label>
         </div>
         <p class="profile-message" id="profileMessage" role="status" aria-live="polite" hidden></p>
@@ -1077,7 +1104,7 @@
           <label class="span-2">
             P&L
             <span class="journal-money-input">
-              <span>€</span>
+              <span id="journalPnlCurrencyPrefix">€</span>
               <input id="journalPnl" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
             </span>
           </label>

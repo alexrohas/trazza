@@ -10,7 +10,12 @@ const LOCAL_MIGRATED_KEY = "trazza:local-migrated-to-cloud";
 const SUPABASE_URL = "https://sfdxbchjvhcdnjlpuffg.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZHhiY2hqdmhjZG5qbHB1ZmZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NzUyMDYsImV4cCI6MjA5MzU1MTIwNn0.hYqL43T7yGc2WYCaNCpI78VaKYh9mgYO3mnrkclVp5g";
-const EURO = "EUR";
+const DEFAULT_CURRENCY = "EUR";
+const SUPPORTED_CURRENCIES = new Set(["EUR", "USD"]);
+const CURRENCY_SYMBOLS = {
+  EUR: "€",
+  USD: "$",
+};
 
 const categoryLabels = {
   challenge: "Compra challenge",
@@ -127,7 +132,6 @@ let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
 let cloudLoading = false;
-let authMode = "login";
 let activePillar = getInitialPillar();
 let activeSection = pillarDefaultSections[activePillar] || "overview";
 let dashboardPrivacyHidden = getInitialDashboardPrivacy();
@@ -233,6 +237,7 @@ function bindElements() {
     "authSwitchText",
     "authSignupButton",
     "authMessage",
+    "authThemeToggleButton",
     "globalAddButton",
     "globalAddButtonText",
     "appShell",
@@ -385,6 +390,7 @@ function bindElements() {
     "journalEmotion",
     "journalDiscipline",
     "journalPnl",
+    "journalPnlCurrencyPrefix",
     "journalOperationUrl",
     "journalOperationImageInput",
     "journalOperationDropzone",
@@ -443,6 +449,7 @@ function bindElements() {
     "profileCreatedAt",
     "profileName",
     "profileEmail",
+    "profileCurrency",
     "profileMessage",
     "profileSaveButton",
     "profileLogoutButton",
@@ -476,6 +483,7 @@ function bindEvents() {
   
   els.dashboardPrivacyToggleButton.addEventListener("click", toggleDashboardPrivacy);
   els.themeToggleButton.addEventListener("click", toggleTheme);
+  els.authThemeToggleButton?.addEventListener("click", toggleTheme);
   window.addEventListener("trazza:language-change", handleLanguageChange);
   els.dashboardFirmFilter.addEventListener("input", () => {
     fillDashboardAccountFilter();
@@ -1179,18 +1187,62 @@ async function initializeCloud() {
 }
 
 async function handleSession(session) {
-  currentSession = session;
-  currentUser = session?.user || null;
+  let verifiedSession = session;
+  let user = session?.user || null;
+
+  if (user) {
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error || !data?.user) {
+      await rejectAuthSession("No se pudo comprobar la sesión. Vuelve a entrar.");
+      return;
+    }
+    verifiedSession = { ...session, user: data.user };
+    user = data.user;
+  }
+
+  if (user && !isAuthEmailConfirmed(user)) {
+    await rejectUnconfirmedAuthSession();
+    return;
+  }
+
+  currentSession = verifiedSession;
+  currentUser = user;
   setAppAccess(Boolean(currentUser));
 
   if (!currentUser) {
-    setAuthMode("login");
+    setAuthMode();
     state = loadState();
     refreshAll();
     return;
   }
 
   await loadCloudState();
+}
+
+function isAuthEmailConfirmed(user) {
+  return Boolean(
+    user?.email_confirmed_at ||
+      user?.confirmed_at ||
+      user?.email_verified ||
+      user?.user_metadata?.email_verified
+  );
+}
+
+async function rejectAuthSession(message) {
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+  currentSession = null;
+  currentUser = null;
+  setAppAccess(false);
+  setAuthMode();
+  state = loadState();
+  refreshAll();
+  els.authMessage.textContent = message;
+}
+
+async function rejectUnconfirmedAuthSession() {
+  await rejectAuthSession("Confirma tu email antes de entrar. Revisa tu bandeja de entrada.");
 }
 
 function setAppAccess(isAuthenticated) {
@@ -1237,6 +1289,32 @@ function getAuthCredentials() {
   };
 }
 
+function validateAuthCredentials({ requireName = false } = {}) {
+  clearFormValidity(els.authForm);
+  const credentials = getAuthCredentials();
+
+  if (requireName && credentials.fullName.length < 2) {
+    return markInvalid(els.authName, "Introduce tu nombre para crear el acceso.");
+  }
+  if (!credentials.email || !els.authEmail.checkValidity()) {
+    return markInvalid(els.authEmail, "Introduce un email valido.");
+  }
+  if (!credentials.password || credentials.password.length < 6) {
+    return markInvalid(els.authPassword, "La contraseña debe tener al menos 6 caracteres.");
+  }
+
+  return credentials;
+}
+
+function getAuthErrorMessage(error) {
+  const message = String(error?.message || "").trim();
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid login credentials")) return "Email o contraseña incorrectos.";
+  if (normalized.includes("email not confirmed")) return "Confirma tu email antes de entrar.";
+  if (normalized.includes("signup")) return "El registro está cerrado. Pide acceso por invitación.";
+  return message || "No se pudo completar el acceso.";
+}
+
 function getCurrentUserDisplayName() {
   if (!currentUser) return "";
   const metadata = currentUser.user_metadata || {};
@@ -1247,6 +1325,26 @@ function getCurrentUserProfileName() {
   if (!currentUser) return "";
   const metadata = currentUser.user_metadata || {};
   return String(metadata.full_name || metadata.name || "").trim();
+}
+
+function normalizeCurrency(value) {
+  const currency = String(value || "").trim().toUpperCase();
+  return SUPPORTED_CURRENCIES.has(currency) ? currency : DEFAULT_CURRENCY;
+}
+
+function getCurrentCurrency() {
+  const metadata = currentUser?.user_metadata || {};
+  return normalizeCurrency(metadata.currency || metadata.preferred_currency);
+}
+
+function getCurrencySymbol(currency = getCurrentCurrency()) {
+  return CURRENCY_SYMBOLS[normalizeCurrency(currency)] || CURRENCY_SYMBOLS[DEFAULT_CURRENCY];
+}
+
+function updateCurrencySurfaces() {
+  if (els.journalPnlCurrencyPrefix) {
+    els.journalPnlCurrencyPrefix.textContent = getCurrencySymbol();
+  }
 }
 
 function getCurrentUserInitial() {
@@ -1286,6 +1384,8 @@ function fillProfileDialog() {
   els.profileCreatedAt.textContent = formatUserDate(currentUser.created_at);
   els.profileName.value = name;
   els.profileEmail.value = currentUser.email || "";
+  els.profileCurrency.value = getCurrentCurrency();
+  syncCustomSelect(els.profileCurrency);
   els.profileMessage.hidden = true;
   els.profileMessage.textContent = "";
   clearFormValidity(els.profileForm);
@@ -1304,6 +1404,7 @@ async function saveProfileFromForm(event) {
 
   const fullName = els.profileName.value.trim();
   const email = els.profileEmail.value.trim();
+  const currency = normalizeCurrency(els.profileCurrency.value);
   if (!email || !els.profileEmail.checkValidity()) {
     return markInvalid(els.profileEmail, "Introduce un email valido.");
   }
@@ -1314,6 +1415,7 @@ async function saveProfileFromForm(event) {
       ...metadata,
       full_name: fullName,
       name: fullName,
+      currency,
     },
   };
   const emailChanged = email !== currentUser.email;
@@ -1338,6 +1440,7 @@ async function saveProfileFromForm(event) {
   }
 
   updateUserSurfaces();
+  refreshAll();
   closeDialog("profileDialog");
   toast(emailChanged ? "Perfil actualizado. Revisa tu email si Supabase requiere confirmacion." : "Perfil actualizado.");
 }
@@ -1354,77 +1457,53 @@ function formatUserDate(value) {
 }
 
 function toggleAuthMode() {
-  els.authMessage.textContent = "El registro está cerrado. Únete a la waitlist en la página principal.";
+  window.location.assign("./index.html");
 }
 
-function setAuthMode(mode) {
-  authMode = mode;
-  const isSignup = authMode === "signup";
-  els.authTitle.hidden = !isSignup;
-  els.authTitle.textContent = isSignup ? "Crear cuenta" : "";
-  els.authIntro.textContent = isSignup
-    ? "Crea tu acceso para guardar tus datos en la nube."
-    : "Accede para sincronizar tus firms, cuentas, movimientos y journal.";
-  els.authNameField.hidden = !isSignup;
-  els.authName.disabled = !isSignup;
-  els.authName.required = isSignup;
-  els.authLoginButton.textContent = isSignup ? "Crear cuenta" : "Entrar";
-  els.authSwitchText.textContent = isSignup ? "Ya tienes cuenta?" : "No tienes cuenta?";
-  els.authSignupButton.textContent = isSignup ? "Entrar" : "Crear cuenta";
-  els.authPassword.autocomplete = isSignup ? "new-password" : "current-password";
+function setAuthMode() {
+  els.authTitle.hidden = false;
+  els.authTitle.textContent = uiText("Tu centro de control de trading");
+  els.authIntro.textContent = uiText("Journal, prop firms y métricas sincronizadas en un solo panel.");
+  els.authNameField.hidden = true;
+  els.authName.disabled = true;
+  els.authName.required = false;
+  els.authLoginButton.textContent = uiText("Entrar");
+  els.authSwitchText.textContent = uiText("¿Quieres empezar con Trazza?");
+  els.authSignupButton.textContent = uiText("Solicitar acceso");
+  els.authPassword.autocomplete = "current-password";
   els.authMessage.textContent = "";
 }
 
 function submitAuthForm() {
-  if (authMode === "signup") {
-    signUp();
-    return;
-  }
   signIn();
 }
 
 async function signIn() {
-  const { email, password } = getAuthCredentials();
-  if (!email || !password || !supabaseClient) return;
+  if (!supabaseClient) return;
+  const credentials = validateAuthCredentials();
+  if (!credentials) return;
 
   setAuthBusy(true, "Entrando...");
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: credentials.email,
+    password: credentials.password,
+  });
   setAuthBusy(false);
 
   if (error) {
-    els.authMessage.textContent = error.message;
+    els.authMessage.textContent = getAuthErrorMessage(error);
+    return;
+  }
+
+  if (data?.user && !isAuthEmailConfirmed(data.user)) {
+    await rejectUnconfirmedAuthSession();
     return;
   }
   els.authMessage.textContent = "";
 }
 
 async function signUp() {
-  const { fullName, email, password } = getAuthCredentials();
-  if (!fullName || !email || !password || !supabaseClient) return;
-
-  setAuthBusy(true, "Creando cuenta...");
-  const { data, error } = await supabaseClient.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-      },
-    },
-  });
-  setAuthBusy(false);
-
-  if (error) {
-    els.authMessage.textContent = error.message;
-    return;
-  }
-
-  if (!data.session) {
-    els.authMessage.textContent = "Cuenta creada. Revisa tu email para confirmar el acceso.";
-    return;
-  }
-
-  els.authMessage.textContent = "Cuenta creada. Entrando...";
+  els.authMessage.textContent = "El registro está cerrado. Pide acceso por invitación.";
 }
 
 async function signOut() {
@@ -1653,11 +1732,12 @@ function handleLanguageChange() {
 }
 
 function updateThemeToggle() {
-  if (!els.themeToggleButton) return;
   const isDark = document.documentElement.dataset.theme === "dark";
-  els.themeToggleButton.innerHTML = `<i data-lucide="${isDark ? "sun" : "moon"}"></i>`;
-  els.themeToggleButton.setAttribute("aria-label", isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
-  els.themeToggleButton.title = isDark ? "Modo claro" : "Modo oscuro";
+  [els.themeToggleButton, els.authThemeToggleButton].filter(Boolean).forEach((button) => {
+    button.innerHTML = `<i data-lucide="${isDark ? "sun" : "moon"}"></i>`;
+    button.setAttribute("aria-label", isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+    button.title = isDark ? "Modo claro" : "Modo oscuro";
+  });
   refreshIcons();
 }
 
@@ -1745,7 +1825,7 @@ function fromDbTransaction(row) {
     kind: row.kind,
     category: row.category,
     amount: Number(row.amount || 0),
-    currency: EURO,
+    currency: getCurrentCurrency(),
     firmId: row.firm_id || "",
     accountId: row.account_id || "",
     note: row.note || "",
@@ -1864,6 +1944,7 @@ function journalErrorTypeToDb(type) {
 }
 
 function refreshAll() {
+  updateCurrencySurfaces();
   fillFirmSelects();
   renderJournalErrorChoices();
   updateDashboardDateInputs();
@@ -5326,7 +5407,7 @@ function parseTradovateTimestamp(value) {
 function parseTradovateMoney(value) {
   const text = String(value || "").trim();
   const isNegative = text.includes("(") && text.includes(")");
-  const amount = normalizeFlexibleNumber(text.replace(/[()$]/g, ""));
+  const amount = normalizeFlexibleNumber(text.replace(/[()$€]/g, ""));
   if (!Number.isFinite(amount)) return Number.NaN;
   return isNegative ? -Math.abs(amount) : amount;
 }
@@ -5629,7 +5710,7 @@ async function saveTransactionFromForm(event) {
     kind: els.transactionKind.value,
     category: els.transactionCategory.value,
     amount,
-    currency: EURO,
+    currency: getCurrentCurrency(),
     firmId: selectedFirmId || account?.firmId || "",
     accountId: account?.id || "",
     note: els.transactionNote.value.trim(),
@@ -6002,7 +6083,7 @@ function exportCsv() {
           account?.name || "",
           tx.note || "",
           signed.toFixed(2),
-          tx.currency || EURO,
+          getCurrentCurrency(),
         ];
       }),
   ];
@@ -6155,7 +6236,7 @@ function remapStateForCloud(imported) {
         kind: transaction.kind,
         category: transaction.category,
         amount: Math.abs(Number(transaction.amount)),
-        currency: EURO,
+        currency: getCurrentCurrency(),
         firmId,
         accountId,
         note: transaction.note || "",
@@ -6321,11 +6402,16 @@ function getAppLocale() {
   return getCurrentLanguage() === "en" ? "en-US" : "es-ES";
 }
 
-function formatMoney(value) {
-  return new Intl.NumberFormat(getAppLocale(), {
+function getCurrencyLocale(currency = getCurrentCurrency()) {
+  return normalizeCurrency(currency) === "USD" ? "en-US" : getAppLocale();
+}
+
+function formatMoney(value, currency = getCurrentCurrency(), maximumFractionDigits = 2) {
+  const normalizedCurrency = normalizeCurrency(currency);
+  return new Intl.NumberFormat(getCurrencyLocale(normalizedCurrency), {
     style: "currency",
-    currency: EURO,
-    maximumFractionDigits: 2,
+    currency: normalizedCurrency,
+    maximumFractionDigits,
   }).format(Number(value || 0));
 }
 
@@ -6337,26 +6423,15 @@ function formatSignedMoney(value) {
 }
 
 function formatTradingMoney(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+  return formatMoney(value);
 }
 
 function formatSignedTradingMoney(value) {
-  const amount = Number(value || 0);
-  if (amount > 0) return `+${formatTradingMoney(amount)}`;
-  if (amount < 0) return `-${formatTradingMoney(Math.abs(amount))}`;
-  return formatTradingMoney(0);
+  return formatSignedMoney(value);
 }
 
 function formatAxisMoney(value) {
-  return new Intl.NumberFormat(getAppLocale(), {
-    style: "currency",
-    currency: EURO,
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+  return formatMoney(value, getCurrentCurrency(), 0);
 }
 
 function formatPercent(value) {
