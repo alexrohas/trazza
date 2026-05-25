@@ -3,6 +3,7 @@ const LEGACY_THEME_STORAGE_KEYS = ["finix:theme", "prop-firm-tracker:theme"];
 const STORAGE_KEY = "trazza:v1";
 const THEME_STORAGE_KEY = "trazza:theme";
 const DASHBOARD_PRIVACY_STORAGE_KEY = "trazza:dashboard-privacy";
+const SIDEBAR_STORAGE_KEY = "trazza:sidebar";
 const PILLAR_STORAGE_KEY = "trazza:pillar";
 const JOURNAL_VIEW_STORAGE_KEY = "trazza:journal-view";
 const LOCAL_MIGRATION_BACKUP_KEY = "trazza:local-backup-before-cloud";
@@ -135,6 +136,7 @@ let cloudLoading = false;
 let activePillar = getInitialPillar();
 let activeSection = pillarDefaultSections[activePillar] || "overview";
 let dashboardPrivacyHidden = getInitialDashboardPrivacy();
+let sidebarCollapsed = getInitialSidebarCollapsed();
 let journalView = getInitialJournalView();
 let journalCalendarMonth = today().slice(0, 7);
 let journalSelectedDate = "";
@@ -202,6 +204,7 @@ const els = {};
 
 applyTheme(getInitialTheme());
 applyDashboardPrivacyState();
+applySidebarState();
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -212,6 +215,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     initializeNavigation();
     updateThemeToggle();
     updateDashboardPrivacyToggle();
+    updateSidebarToggle();
     await initializeCloud();
   } catch (error) {
     console.error(error);
@@ -287,6 +291,15 @@ function bindElements() {
     "journalAccountBalance",
     "journalAccountNetPnl",
     "journalAccountReturn",
+    "journalAccountTargetStatus",
+    "journalAccountTargetBar",
+    "journalAccountTargetHint",
+    "journalAccountMaxDrawdownStatus",
+    "journalAccountMaxDrawdownBar",
+    "journalAccountMaxDrawdownHint",
+    "journalAccountDailyDrawdownStatus",
+    "journalAccountDailyDrawdownBar",
+    "journalAccountDailyDrawdownHint",
     "journalWinrateValue",
     "journalWinrateWinArc",
     "journalWinrateLossArc",
@@ -351,6 +364,9 @@ function bindElements() {
     "accountSize",
     "accountStatus",
     "accountPurchasedAt",
+    "accountPhaseTarget",
+    "accountMaxDrawdown",
+    "accountDailyDrawdown",
     "accountNotes",
     "transactionDialog",
     "transactionForm",
@@ -432,6 +448,7 @@ function bindElements() {
     "toast",
     "dashboardPrivacyToggleButton",
     "themeToggleButton",
+    "sidebarToggleButton",
     "sidebarUserCard",
     "sidebarUserInitial",
     "sidebarUserName",
@@ -482,6 +499,7 @@ function bindEvents() {
 
   
   els.dashboardPrivacyToggleButton.addEventListener("click", toggleDashboardPrivacy);
+  els.sidebarToggleButton?.addEventListener("click", toggleSidebarCollapsed);
   els.themeToggleButton.addEventListener("click", toggleTheme);
   els.authThemeToggleButton?.addEventListener("click", toggleTheme);
   window.addEventListener("trazza:language-change", handleLanguageChange);
@@ -1644,11 +1662,20 @@ function isMissingJournalErrorTypesTableError(error) {
   );
 }
 
+function isAccountRulesSetupError(error) {
+  const message = String(error?.message || "");
+  return (
+    error?.code === "PGRST204" &&
+    (message.includes("phase_target") || message.includes("max_drawdown") || message.includes("daily_drawdown"))
+  );
+}
+
 function isJournalSetupError(error) {
   const message = String(error?.message || "");
   return (
     isMissingJournalTableError(error) ||
     isMissingJournalErrorTypesTableError(error) ||
+    isAccountRulesSetupError(error) ||
     error?.code === "PGRST204" ||
     message.includes("pnl") ||
     message.includes("errors") ||
@@ -1684,6 +1711,10 @@ function getInitialDashboardPrivacy() {
   return localStorage.getItem(DASHBOARD_PRIVACY_STORAGE_KEY) === "hidden";
 }
 
+function getInitialSidebarCollapsed() {
+  return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "collapsed";
+}
+
 function getInitialPillar() {
   const stored = localStorage.getItem(PILLAR_STORAGE_KEY);
   return stored === "journal" ? "journal" : "tracker";
@@ -1701,6 +1732,11 @@ function applyTheme(theme) {
 
 function applyDashboardPrivacyState() {
   document.documentElement.dataset.dashboardPrivacy = dashboardPrivacyHidden ? "hidden" : "visible";
+}
+
+function applySidebarState() {
+  document.documentElement.dataset.sidebar = sidebarCollapsed ? "collapsed" : "expanded";
+  updateSidebarToggle();
 }
 
 function toggleTheme() {
@@ -1721,10 +1757,18 @@ function toggleDashboardPrivacy() {
   renderJournalDashboard();
 }
 
+function toggleSidebarCollapsed() {
+  sidebarCollapsed = !sidebarCollapsed;
+  localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarCollapsed ? "collapsed" : "expanded");
+  applySidebarState();
+  refreshIcons();
+}
+
 function handleLanguageChange() {
   setCurrentDate();
   updateThemeToggle();
   updateDashboardPrivacyToggle();
+  updateSidebarToggle();
   updateUserSurfaces();
   refreshAll();
   window.TrazzaI18n?.apply?.();
@@ -1750,6 +1794,16 @@ function updateDashboardPrivacyToggle() {
   );
   els.dashboardPrivacyToggleButton.setAttribute("aria-pressed", String(dashboardPrivacyHidden));
   els.dashboardPrivacyToggleButton.title = dashboardPrivacyHidden ? "Mostrar datos" : "Ocultar datos";
+  refreshIcons();
+}
+
+function updateSidebarToggle() {
+  if (!els.sidebarToggleButton) return;
+  const label = sidebarCollapsed ? "Expandir menu" : "Contraer menu";
+  els.sidebarToggleButton.innerHTML = `<i data-lucide="${sidebarCollapsed ? "panel-left-open" : "panel-left-close"}"></i>`;
+  els.sidebarToggleButton.setAttribute("aria-label", uiText(label));
+  els.sidebarToggleButton.setAttribute("aria-pressed", String(sidebarCollapsed));
+  els.sidebarToggleButton.title = uiText(label);
   refreshIcons();
 }
 
@@ -1793,6 +1847,12 @@ function throwIfSupabaseError(result) {
   if (result.error) throw result.error;
 }
 
+function dbAmountOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function fromDbFirm(row) {
   return {
     id: row.id,
@@ -1812,6 +1872,9 @@ function fromDbAccount(row) {
     size: row.size || "",
     status: row.status,
     purchasedAt: row.purchased_at || "",
+    phaseTarget: dbAmountOrNull(row.phase_target),
+    maxDrawdown: dbAmountOrNull(row.max_drawdown),
+    dailyDrawdown: dbAmountOrNull(row.daily_drawdown),
     notes: row.notes || "",
     createdAt: row.created_at,
     updatedAt: row.created_at,
@@ -1890,6 +1953,9 @@ function accountToDb(account) {
     size: account.size || null,
     status: account.status,
     purchased_at: account.purchasedAt || null,
+    phase_target: account.phaseTarget ?? null,
+    max_drawdown: account.maxDrawdown ?? null,
+    daily_drawdown: account.dailyDrawdown ?? null,
     notes: account.notes || null,
   };
 }
@@ -2653,7 +2719,9 @@ function renderAccountsTable() {
     .filter((account) => {
       if (!search) return true;
       const firm = getFirm(account.firmId);
-      return normalize(`${account.name} ${account.size} ${firm?.name || ""} ${account.notes || ""}`).includes(search);
+      return normalize(
+        `${account.name} ${account.size} ${firm?.name || ""} ${account.phaseTarget ?? ""} ${account.maxDrawdown ?? ""} ${account.dailyDrawdown ?? ""} ${account.notes || ""}`
+      ).includes(search);
     })
     .sort((a, b) => (b.purchasedAt || "").localeCompare(a.purchasedAt || ""));
 
@@ -2664,12 +2732,13 @@ function renderAccountsTable() {
       const expenses = sum(txs.filter((tx) => tx.kind === "expense").map((tx) => tx.amount));
       const income = sum(txs.filter((tx) => tx.kind === "income").map((tx) => tx.amount));
       const net = income - expenses;
+      const accountMeta = [account.notes, getAccountRulesSummary(account)].filter(Boolean).join(" · ");
       return `
         <tr>
           <td data-label="Cuenta">
             <div class="table-title">
               <strong>${escapeHtml(account.name)}</strong>
-              <span>${escapeHtml(account.notes || "")}</span>
+              <span>${escapeHtml(accountMeta)}</span>
             </div>
           </td>
           <td data-label="Firm">${escapeHtml(firm?.name || "Sin firm")}</td>
@@ -2720,6 +2789,17 @@ function renderAccountsTable() {
     );
   }
   refreshIcons();
+}
+
+function getAccountRulesSummary(account) {
+  const rules = [];
+  const target = getAccountRuleAmount(account?.phaseTarget);
+  const maxDrawdown = getAccountRuleAmount(account?.maxDrawdown);
+  const dailyDrawdown = getAccountRuleAmount(account?.dailyDrawdown);
+  if (target) rules.push(`${uiText("Target fase")} ${formatTradingMoney(target)}`);
+  if (maxDrawdown) rules.push(`${uiText("DD máx.")} ${formatTradingMoney(maxDrawdown)}`);
+  if (dailyDrawdown) rules.push(`${uiText("DD diario")} ${formatTradingMoney(dailyDrawdown)}`);
+  return rules.join(" · ");
 }
 
 function renderTransactionsTable() {
@@ -2850,6 +2930,11 @@ function renderJournalAccountOverview(entries) {
   const netPnl = sum(entries.map((entry) => entry.pnl));
   const balance = Number.isFinite(base) ? base + netPnl : netPnl;
   const returnPercent = Number.isFinite(base) && base > 0 ? (netPnl / base) * 100 : null;
+  const todayPnl = sum(
+    state.journalEntries
+      .filter((entry) => entry.accountId === accountId && entry.date === today())
+      .map((entry) => Number(entry.pnl || 0))
+  );
 
   els.journalAccountOverview.hidden = false;
   els.journalAccountOverviewName.textContent = [account?.name || "Cuenta", firm?.name].filter(Boolean).join(" - ");
@@ -2861,6 +2946,154 @@ function renderJournalAccountOverview(entries) {
   els.journalAccountNetPnl.className = pnlToneClass(netPnl);
   els.journalAccountReturn.textContent = returnPercent === null ? "-" : sensitiveSignedPercent(returnPercent);
   els.journalAccountReturn.className = returnPercent === null ? "neutral" : pnlToneClass(returnPercent);
+
+  renderJournalAccountTargetRule(account, netPnl);
+  renderJournalAccountEodDrawdownRule({
+    amount: getAccountRuleAmount(account?.maxDrawdown),
+    base,
+    bar: els.journalAccountMaxDrawdownBar,
+    entries,
+    hint: els.journalAccountMaxDrawdownHint,
+    pnl: netPnl,
+    status: els.journalAccountMaxDrawdownStatus,
+    unconfiguredHint: "Sin drawdown máximo configurado.",
+    unconfiguredStatus: "Sin DD máx.",
+  });
+  renderJournalAccountDrawdownRule({
+    amount: getAccountRuleAmount(account?.dailyDrawdown),
+    bar: els.journalAccountDailyDrawdownBar,
+    hint: els.journalAccountDailyDrawdownHint,
+    label: "Hoy",
+    pnl: todayPnl,
+    status: els.journalAccountDailyDrawdownStatus,
+    unconfiguredHint: "Esta cuenta no tiene límite diario.",
+    unconfiguredStatus: "Sin DD diario",
+  });
+}
+
+function getAccountRuleAmount(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+function setJournalAccountRuleBar(bar, percent) {
+  if (!bar) return;
+  bar.style.width = `${clamp(percent, 0, 100)}%`;
+}
+
+function setJournalAccountRuleStatus(element, value, tone = "neutral") {
+  if (!element) return;
+  element.textContent = value;
+  element.className = tone;
+}
+
+function renderJournalAccountTargetRule(account, netPnl) {
+  const target = getAccountRuleAmount(account?.phaseTarget);
+  if (!target) {
+    setJournalAccountRuleStatus(els.journalAccountTargetStatus, uiText("Sin target"), "neutral");
+    setJournalAccountRuleBar(els.journalAccountTargetBar, 0);
+    els.journalAccountTargetHint.textContent = uiText("Añade target de fase en la cuenta.");
+    return;
+  }
+
+  const progress = clamp((netPnl / target) * 100, 0, 100);
+  const remaining = target - netPnl;
+  const isReached = remaining <= 0;
+  setJournalAccountRuleStatus(
+    els.journalAccountTargetStatus,
+    sensitiveText(isReached ? uiText("Target conseguido") : `${uiText("Quedan")} ${formatTradingMoney(Math.max(remaining, 0))}`),
+    isReached ? "positive" : "neutral"
+  );
+  setJournalAccountRuleBar(els.journalAccountTargetBar, progress);
+  els.journalAccountTargetHint.textContent = `${sensitiveSignedTradingMoney(netPnl)} / ${sensitiveTradingMoney(target)}`;
+}
+
+function renderJournalAccountEodDrawdownRule({
+  amount,
+  base,
+  bar,
+  entries,
+  hint,
+  pnl,
+  status,
+  unconfiguredHint,
+  unconfiguredStatus,
+}) {
+  if (!amount) {
+    setJournalAccountRuleStatus(status, uiText(unconfiguredStatus), "neutral");
+    setJournalAccountRuleBar(bar, 0);
+    hint.textContent = uiText(unconfiguredHint);
+    return;
+  }
+
+  const model = getAccountEodDrawdownModel({ amount, base, entries, pnl });
+  const percent = clamp((model.remaining / amount) * 100, 0, 100);
+  const isBreached = model.remaining <= 0;
+  setJournalAccountRuleStatus(
+    status,
+    sensitiveText(isBreached ? uiText("Límite superado") : `${uiText("Quedan")} ${formatTradingMoney(model.remaining)}`),
+    isBreached ? "negative" : percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive"
+  );
+  setJournalAccountRuleBar(bar, percent);
+  hint.textContent = `${uiText("Límite actual")} ${sensitiveTradingMoney(model.limit)} · ${uiText("EOD máx.")} ${sensitiveTradingMoney(model.highWatermark)}`;
+}
+
+function getAccountEodDrawdownModel({ amount, base, entries, pnl }) {
+  const startBalance = Number.isFinite(base) ? base : 0;
+  const todayIso = today();
+  const dailyPnl = new Map();
+
+  entries.forEach((entry) => {
+    if (!entry.date || entry.date >= todayIso) return;
+    dailyPnl.set(entry.date, (dailyPnl.get(entry.date) || 0) + Number(entry.pnl || 0));
+  });
+
+  let cumulative = 0;
+  let highWatermark = startBalance;
+  [...dailyPnl.entries()]
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .forEach(([, dayPnl]) => {
+      cumulative += dayPnl;
+      highWatermark = Math.max(highWatermark, startBalance + cumulative);
+    });
+
+  const currentBalance = startBalance + Number(pnl || 0);
+  const limit = highWatermark - amount;
+  return {
+    currentBalance,
+    highWatermark,
+    limit,
+    remaining: currentBalance - limit,
+  };
+}
+
+function renderJournalAccountDrawdownRule({
+  amount,
+  bar,
+  hint,
+  label,
+  pnl,
+  status,
+  unconfiguredHint,
+  unconfiguredStatus,
+}) {
+  if (!amount) {
+    setJournalAccountRuleStatus(status, uiText(unconfiguredStatus), "neutral");
+    setJournalAccountRuleBar(bar, 0);
+    hint.textContent = uiText(unconfiguredHint);
+    return;
+  }
+
+  const remaining = amount + Number(pnl || 0);
+  const percent = clamp((remaining / amount) * 100, 0, 100);
+  const isBreached = remaining <= 0;
+  setJournalAccountRuleStatus(
+    status,
+    sensitiveText(isBreached ? uiText("Límite superado") : `${uiText("Quedan")} ${formatTradingMoney(remaining)}`),
+    isBreached ? "negative" : percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive"
+  );
+  setJournalAccountRuleBar(bar, percent);
+  hint.textContent = `${uiText(label)} ${sensitiveSignedTradingMoney(pnl)} / -${sensitiveTradingMoney(amount)}`;
 }
 
 function renderJournalPerformanceMetrics(entries) {
@@ -4906,6 +5139,9 @@ function openAccountDialog(account = null) {
   els.accountSize.value = account?.size || "";
   els.accountStatus.value = account?.status || "active";
   els.accountPurchasedAt.value = account?.purchasedAt || today();
+  els.accountPhaseTarget.value = account?.phaseTarget ?? "";
+  els.accountMaxDrawdown.value = account?.maxDrawdown ?? "";
+  els.accountDailyDrawdown.value = account?.dailyDrawdown ?? "";
   els.accountNotes.value = account?.notes || "";
   els.accountDialogTitle.textContent = account ? "Editar cuenta" : "Nueva cuenta";
   syncAllCustomSelects();
@@ -5134,6 +5370,18 @@ function parseSignedAmount(value) {
   return Number(text);
 }
 
+function parseOptionalRuleAmount(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const amount = normalizeFlexibleNumber(text);
+  return Number.isFinite(amount) && amount >= 0 ? amount : Number.NaN;
+}
+
+function parseImportedRuleAmount(value) {
+  const amount = parseOptionalRuleAmount(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function isValidIsoDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
   const date = parseLocalDate(value);
@@ -5161,6 +5409,15 @@ function validateAccount(account, id) {
   }
   if (account.purchasedAt && account.purchasedAt > today()) {
     return markInvalid(els.accountPurchasedAt, "La fecha de compra no puede ser futura.");
+  }
+  if (Number.isNaN(account.phaseTarget) || (account.phaseTarget !== null && account.phaseTarget < 0)) {
+    return markInvalid(els.accountPhaseTarget, "El target debe ser un importe valido.");
+  }
+  if (Number.isNaN(account.maxDrawdown) || (account.maxDrawdown !== null && account.maxDrawdown < 0)) {
+    return markInvalid(els.accountMaxDrawdown, "El drawdown maximo debe ser un importe valido.");
+  }
+  if (Number.isNaN(account.dailyDrawdown) || (account.dailyDrawdown !== null && account.dailyDrawdown < 0)) {
+    return markInvalid(els.accountDailyDrawdown, "El drawdown diario debe ser un importe valido.");
   }
   const duplicated = state.accounts.some(
     (item) =>
@@ -5634,6 +5891,9 @@ async function saveAccountFromForm(event) {
 
   const id = els.accountId.value || createId();
   const existing = state.accounts.find((account) => account.id === id);
+  const phaseTarget = parseOptionalRuleAmount(els.accountPhaseTarget.value);
+  const maxDrawdown = parseOptionalRuleAmount(els.accountMaxDrawdown.value);
+  const dailyDrawdown = parseOptionalRuleAmount(els.accountDailyDrawdown.value);
   const account = {
     id,
     firmId: els.accountFirm.value,
@@ -5641,6 +5901,9 @@ async function saveAccountFromForm(event) {
     size: els.accountSize.value.trim(),
     status: els.accountStatus.value,
     purchasedAt: els.accountPurchasedAt.value,
+    phaseTarget,
+    maxDrawdown,
+    dailyDrawdown,
     notes: els.accountNotes.value.trim(),
     createdAt: existing?.createdAt || nowIso(),
     updatedAt: nowIso(),
@@ -5686,7 +5949,11 @@ async function saveAccountFromForm(event) {
     refreshAll();
     toast("Cuenta guardada.");
   } catch (error) {
-    toast(error.message || "No se pudo guardar la cuenta.");
+    toast(
+      isAccountRulesSetupError(error)
+        ? "Ejecuta supabase-journal.sql en Supabase para actualizar las reglas de cuenta."
+        : error.message || "No se pudo guardar la cuenta."
+    );
   } finally {
     setFormBusy(els.accountForm, false);
   }
@@ -6218,6 +6485,9 @@ function remapStateForCloud(imported) {
         size: account.size || "",
         status: account.status || "active",
         purchasedAt: account.purchasedAt || "",
+        phaseTarget: parseImportedRuleAmount(account.phaseTarget ?? account.phase_target),
+        maxDrawdown: parseImportedRuleAmount(account.maxDrawdown ?? account.max_drawdown),
+        dailyDrawdown: parseImportedRuleAmount(account.dailyDrawdown ?? account.daily_drawdown),
         notes: account.notes || "",
         createdAt: account.createdAt || nowIso(),
         updatedAt: nowIso(),

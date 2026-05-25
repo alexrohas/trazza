@@ -491,6 +491,7 @@ button:disabled {
   display: grid;
   grid-template-columns: var(--sidebar) minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns var(--dur) var(--ease);
 }
 
 .sidebar {
@@ -508,6 +509,8 @@ button:disabled {
 .brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-height: 40px;
   padding: 2px 8px 8px;
 }
@@ -534,6 +537,37 @@ button:disabled {
 
 :root[data-theme="dark"] .brand-mark img {
   mix-blend-mode: normal;
+}
+
+.sidebar-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--line-strong);
+  background: var(--hover-bg);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.sidebar-toggle svg {
+  width: 17px;
+  height: 17px;
 }
 
 .brand-name,
@@ -721,8 +755,8 @@ p {
   grid-template-columns: 1fr;
   gap: 8px;
   margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  padding-top: 0;
+  border-top: 0;
 }
 
 .sidebar-actions-label {
@@ -810,6 +844,66 @@ p {
   width: 16px;
   height: 16px;
   color: var(--muted);
+}
+
+@media (min-width: 841px) {
+  :root[data-sidebar="collapsed"] {
+    --sidebar: 76px;
+  }
+
+  :root[data-sidebar="collapsed"] .sidebar {
+    gap: 16px;
+    padding-inline: 10px;
+  }
+
+  :root[data-sidebar="collapsed"] .brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  :root[data-sidebar="collapsed"] .brand-mark {
+    display: none;
+  }
+
+  :root[data-sidebar="collapsed"] .pillar-button,
+  :root[data-sidebar="collapsed"] .nav-item,
+  :root[data-sidebar="collapsed"] .user-card {
+    justify-content: center;
+    justify-items: center;
+    grid-template-columns: 1fr;
+    padding-inline: 0;
+    text-align: center;
+  }
+
+  :root[data-sidebar="collapsed"] .pillar-button {
+    min-height: 46px;
+  }
+
+  :root[data-sidebar="collapsed"] .nav-item {
+    min-height: 42px;
+  }
+
+  :root[data-sidebar="collapsed"] .nav-item.active {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  :root[data-sidebar="collapsed"] .pillar-button span,
+  :root[data-sidebar="collapsed"] .nav-label,
+  :root[data-sidebar="collapsed"] .nav-item span,
+  :root[data-sidebar="collapsed"] .user-card-copy,
+  :root[data-sidebar="collapsed"] .user-card > svg {
+    display: none;
+  }
+
+  :root[data-sidebar="collapsed"] .pillar-button svg,
+  :root[data-sidebar="collapsed"] .nav-item svg {
+    justify-self: center;
+  }
+
+  :root[data-sidebar="collapsed"] .user-card {
+    min-height: 48px;
+  }
 }
 
 /* ============= BUTTONS ============= */
@@ -985,6 +1079,7 @@ p {
 .danger-button:focus-visible,
 .auth-switch-button:focus-visible,
 .icon-button:focus-visible,
+.sidebar-toggle:focus-visible,
 .user-card:focus-visible,
 .theme-toggle:focus-visible,
 .pillar-button:focus-visible,
@@ -3189,11 +3284,97 @@ tbody tr:hover {
   color: var(--red-strong);
 }
 
+.journal-account-rules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.journal-account-rule {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-muted) 68%, transparent);
+}
+
+.journal-account-rule-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.journal-account-rule-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.journal-account-rule-head strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.journal-account-rule-head strong.positive {
+  color: var(--green-strong);
+}
+
+.journal-account-rule-head strong.negative {
+  color: var(--red-strong);
+}
+
+.journal-account-rule-track {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+.journal-account-rule-track i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+  transition: width 0.24s ease;
+}
+
+.journal-account-rule-track.danger i {
+  background: linear-gradient(90deg, var(--red), var(--green));
+}
+
+.journal-account-rule-track.warning i {
+  background: linear-gradient(90deg, var(--amber), var(--green));
+}
+
+.journal-account-rule small {
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
 :root[data-theme="dark"] .journal-account-overview-stats strong.positive {
   color: var(--green);
 }
 
 :root[data-theme="dark"] .journal-account-overview-stats strong.negative {
+  color: var(--red);
+}
+
+:root[data-theme="dark"] .journal-account-rule-head strong.positive {
+  color: var(--green);
+}
+
+:root[data-theme="dark"] .journal-account-rule-head strong.negative {
   color: var(--red);
 }
 
@@ -5376,6 +5557,10 @@ tbody tr:hover {
     transform: translate(-52px, -35px);
   }
 
+  .sidebar-toggle {
+    display: none;
+  }
+
   .pillar-switch {
     grid-column: 2;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5692,6 +5877,7 @@ tbody tr:hover {
   .journal-calendar-row,
   .journal-account-overview-head,
   .journal-account-overview-stats,
+  .journal-account-rules,
   .journal-errors-layout,
   .journal-entry-mode-grid,
   .journal-import-summary,

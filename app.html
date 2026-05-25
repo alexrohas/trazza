@@ -74,6 +74,9 @@
           <div class="brand-mark">
             <img src="./assets/trazza.png" alt="trazza" />
           </div>
+          <button class="sidebar-toggle" id="sidebarToggleButton" type="button" aria-label="Contraer menu" title="Contraer menu">
+            <i data-lucide="panel-left-close"></i>
+          </button>
         </div>
 
         <div class="pillar-switch" aria-label="Areas principales">
@@ -121,7 +124,6 @@
         </nav>
 
         <div class="sidebar-actions">
-          <p class="sidebar-actions-label">Usuario</p>
           <button class="user-card" id="sidebarUserCard" type="button" aria-label="Abrir perfil" title="Perfil y datos">
             <span class="user-avatar" id="sidebarUserInitial" aria-hidden="true">T</span>
             <span class="user-card-copy">
@@ -487,6 +489,38 @@
                       <strong id="journalAccountReturn">0.00%</strong>
                     </div>
                   </div>
+                  <div class="journal-account-rules">
+                    <div class="journal-account-rule">
+                      <div class="journal-account-rule-head">
+                        <span>Target fase</span>
+                        <strong class="neutral" id="journalAccountTargetStatus">-</strong>
+                      </div>
+                      <div class="journal-account-rule-track" aria-hidden="true">
+                        <i id="journalAccountTargetBar"></i>
+                      </div>
+                      <small id="journalAccountTargetHint">Sin target configurado.</small>
+                    </div>
+                    <div class="journal-account-rule">
+                      <div class="journal-account-rule-head">
+                        <span>Drawdown máx. EOD</span>
+                        <strong class="neutral" id="journalAccountMaxDrawdownStatus">-</strong>
+                      </div>
+                      <div class="journal-account-rule-track danger" aria-hidden="true">
+                        <i id="journalAccountMaxDrawdownBar"></i>
+                      </div>
+                      <small id="journalAccountMaxDrawdownHint">Sin drawdown máximo.</small>
+                    </div>
+                    <div class="journal-account-rule">
+                      <div class="journal-account-rule-head">
+                        <span>Drawdown diario</span>
+                        <strong class="neutral" id="journalAccountDailyDrawdownStatus">-</strong>
+                      </div>
+                      <div class="journal-account-rule-track warning" aria-hidden="true">
+                        <i id="journalAccountDailyDrawdownBar"></i>
+                      </div>
+                      <small id="journalAccountDailyDrawdownHint">Sin límite diario.</small>
+                    </div>
+                  </div>
                 </article>
                 <div class="journal-dashboard-charts" id="journalDashboardCharts">
                   <article class="journal-chart-block journal-pnl-block" data-widget="pnl">
@@ -842,6 +876,20 @@
             <input id="accountPurchasedAt" type="date" />
           </label>
         </div>
+        <div class="form-grid">
+          <label>
+            Target fase
+            <input id="accountPhaseTarget" type="text" inputmode="decimal" placeholder="3000" />
+          </label>
+          <label>
+            Drawdown máx.
+            <input id="accountMaxDrawdown" type="text" inputmode="decimal" placeholder="2500" />
+          </label>
+        </div>
+        <label>
+          Drawdown diario
+          <input id="accountDailyDrawdown" type="text" inputmode="decimal" placeholder="Opcional" />
+        </label>
         <label>
           Notas
           <textarea id="accountNotes" rows="3" placeholder="Objetivo, drawdown, payout rules..."></textarea>

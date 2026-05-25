@@ -1,5 +1,10 @@
 create extension if not exists pgcrypto;
 
+alter table public.accounts
+  add column if not exists phase_target numeric(12, 2),
+  add column if not exists max_drawdown numeric(12, 2),
+  add column if not exists daily_drawdown numeric(12, 2);
+
 create table if not exists public.journal_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
