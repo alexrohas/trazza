@@ -30,7 +30,7 @@
           <div class="auth-copy">
             <span class="auth-kicker">Workspace de trading</span>
             <h1 id="authTitle">Tu centro de control de trading</h1>
-            <p id="authIntro">Journal, prop firms y métricas sincronizadas en un solo panel.</p>
+            <p id="authIntro">Journal, finanzas y métricas sincronizadas en un solo panel.</p>
           </div>
           <label id="authNameField" hidden>
             Nombre y apellidos
@@ -82,7 +82,7 @@
         <div class="pillar-switch" aria-label="Areas principales">
           <button class="pillar-button active" type="button" data-pillar="tracker">
             <i data-lucide="briefcase-business"></i>
-            <span>Prop Firm Tracker</span>
+            <span>Finanzas</span>
           </button>
           <button class="pillar-button" type="button" data-pillar="journal">
             <i data-lucide="book-open-check"></i>
@@ -92,14 +92,14 @@
 
         <nav class="nav-list" aria-label="Menu del area activa">
           <div class="nav-group active" data-pillar-menu="tracker">
-            <p class="nav-label">Prop Firm Tracker</p>
+            <p class="nav-label">Finanzas</p>
             <button class="nav-item active" data-section="overview">
               <i data-lucide="layout-dashboard"></i>
               <span>Panel</span>
             </button>
             <button class="nav-item" data-section="firms">
               <i data-lucide="building-2"></i>
-              <span>Firms</span>
+              <span>Empresas</span>
             </button>
             <button class="nav-item" data-section="accounts">
               <i data-lucide="wallet-cards"></i>
@@ -135,7 +135,7 @@
         </div>
       </aside>
 
-      <main class="main-content">
+      <main class="main-content" id="mainContent">
         <header class="topbar">
           <div>
             <p class="eyebrow" id="currentDateLabel"></p>
@@ -163,7 +163,7 @@
         <section class="section-panel active" id="overviewSection">
           <div class="dashboard-filters" aria-label="Filtros del dashboard">
             <label>
-              Firm
+              Empresa
               <select id="dashboardFirmFilter"></select>
             </label>
             <label>
@@ -335,7 +335,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Firm</th>
+                    <th>Empresa</th>
                     <th>Tipo</th>
                     <th>Cuentas</th>
                     <th>Gastado</th>
@@ -348,7 +348,7 @@
                 <tbody id="firmsTableBody"></tbody>
               </table>
             </div>
-            <div class="empty-state" id="firmsEmpty">No hay firms registradas.</div>
+            <div class="empty-state" id="firmsEmpty">No hay empresas registradas.</div>
           </div>
         </section>
 
@@ -357,7 +357,7 @@
 
             <div class="filters-row">
               <label>
-                Firm
+                Empresa
                 <select id="accountFirmFilter"></select>
               </label>
               <label>
@@ -381,7 +381,7 @@
                 <thead>
                   <tr>
                     <th>Cuenta</th>
-                    <th>Firm</th>
+                    <th>Empresa</th>
                     <th>Tamaño</th>
                     <th>Estado</th>
                     <th>Comprada</th>
@@ -403,7 +403,7 @@
 
             <div class="filters-row">
               <label>
-                Firm
+                Empresa
                 <select id="transactionFirmFilter"></select>
               </label>
               <label>
@@ -434,7 +434,7 @@
                     <th>Fecha</th>
                     <th>Tipo</th>
                     <th>Categoria</th>
-                    <th>Firm</th>
+                    <th>Empresa</th>
                     <th>Cuenta</th>
                     <th>Nota</th>
                     <th>Importe</th>
@@ -750,7 +750,7 @@
         </div>
         <div class="profile-data-grid" aria-label="Datos guardados">
           <div>
-            <span>Firms</span>
+            <span>Empresas</span>
             <strong id="profileFirmCount">0</strong>
           </div>
           <div>
@@ -808,7 +808,7 @@
     <dialog class="modal" id="firmDialog">
       <form method="dialog" id="firmForm" class="modal-card">
         <div class="modal-header">
-          <h2 id="firmDialogTitle">Nueva firm</h2>
+          <h2 id="firmDialogTitle">Nueva empresa</h2>
           <button class="icon-button" type="button" data-close-dialog="firmDialog" aria-label="Cerrar">
             <i data-lucide="x"></i>
           </button>
@@ -848,7 +848,7 @@
         <input type="hidden" id="accountId" />
         <div class="form-grid">
           <label>
-            Firm
+            Empresa
             <select id="accountFirm" required></select>
           </label>
           <label>
@@ -935,7 +935,7 @@
         </div>
         <div class="form-grid">
           <label>
-            Firm / origen
+            Empresa / origen
             <select id="transactionFirm" required></select>
           </label>
           <label>
@@ -1070,7 +1070,7 @@
             <input id="journalDate" type="date" required />
           </label>
           <label>
-            Firm
+            Empresa
             <select id="journalFirm" required></select>
           </label>
         </div>

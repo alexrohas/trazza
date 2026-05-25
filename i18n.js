@@ -7,15 +7,19 @@
   const translations = new Map(
     Object.entries({
       "Trazza — Waitlist": "Trazza — Waitlist",
+      "Trazza es un journal de trading y finanzas hecho por traders, para traders.":
+        "Trazza is a trading journal and finance workspace built by traders, for traders.",
       "Trazza es un journal de trading y prop firm tracker hecho por traders, para traders.":
-        "Trazza is a trading journal and prop firm tracker built by traders, for traders.",
+        "Trazza is a trading journal and finance workspace built by traders, for traders.",
       "Ya tengo acceso": "I already have access",
       "Para usuarios con acceso privado": "For private access users",
       "Trazza waitlist": "Trazza waitlist",
       "Hecho por traders,": "Built by traders,",
       "para traders.": "for traders.",
+      "Un journal de trading y finanzas simple, visual y pensado para usarlo de verdad.":
+        "A simple, visual trading journal and finance workspace built for real daily use.",
       "Un journal de trading y prop firm tracker simple, visual y pensado para usarlo de verdad.":
-        "A simple, visual trading journal and prop firm tracker built for real daily use.",
+        "A simple, visual trading journal and finance workspace built for real daily use.",
       "Correo electrónico": "Email address",
       "Unirme a la waitlist": "Join the waitlist",
       "Algunos traders ya la están probando en acceso privado. Déjanos tu correo y te avisaremos cuando abramos más plazas. Sin spam.":
@@ -40,8 +44,10 @@
 
       "Workspace de trading": "Trading workspace",
       "Tu centro de control de trading": "Your trading control center",
+      "Journal, finanzas y métricas sincronizadas en un solo panel.":
+        "Journal, finance and metrics synced in one dashboard.",
       "Journal, prop firms y métricas sincronizadas en un solo panel.":
-        "Journal, prop firms and metrics synced in one dashboard.",
+        "Journal, finance and metrics synced in one dashboard.",
       "Dashboard del journal": "Journal dashboard",
       "Dashboard real de Trazza": "Real Trazza dashboard",
       "Dashboard real de Trazza en modo claro": "Real Trazza dashboard in light mode",
@@ -49,8 +55,10 @@
       "Profit factor": "Profit factor",
       "Vista previa de Trazza": "Trazza preview",
       "¿Quieres empezar con Trazza?": "Want to start with Trazza?",
+      "Accede para sincronizar tus finanzas, cuentas, movimientos y journal.":
+        "Sign in to sync your finance data, accounts, movements and journal.",
       "Accede para sincronizar tus firms, cuentas, movimientos y journal.":
-        "Sign in to sync your firms, accounts, movements and journal.",
+        "Sign in to sync your finance data, accounts, movements and journal.",
       "Nombre y apellidos": "Full name",
       "Password": "Password",
       "Contraseña": "Password",
@@ -87,12 +95,14 @@
       "Menu del area activa": "Active area menu",
       "Contraer menu": "Collapse menu",
       "Expandir menu": "Expand menu",
-      "Prop Firm Tracker": "Prop Firm Tracker",
+      "Finanzas": "Finance",
+      "Prop Firm Tracker": "Finance",
       "Journal": "Journal",
       "Panel": "Dashboard",
       "Dashboard": "Dashboard",
       "Journal - Entradas": "Journal - Entries",
       "Journal - Dashboard": "Journal - Dashboard",
+      "Empresas": "Firms",
       "Firms": "Firms",
       "Cuentas": "Accounts",
       "Movimientos": "Movements",
@@ -139,6 +149,8 @@
       "Modo oscuro": "Dark mode",
       "Modo claro": "Light mode",
 
+      "Empresa": "Firm",
+      "Empresa / origen": "Firm / source",
       "Firm": "Firm",
       "Firm / origen": "Firm / source",
       "Cuenta": "Account",
@@ -194,6 +206,8 @@
       "Acciones": "Actions",
       "Nombre": "Name",
       "Notas": "Notes",
+      "Nueva empresa": "New firm",
+      "Editar empresa": "Edit firm",
       "Nueva firm": "New firm",
       "Editar firm": "Edit firm",
       "Nueva cuenta": "New account",
@@ -448,16 +462,22 @@
 
       "Sin cuenta concreta": "No specific account",
       "Sin cuenta": "No account",
+      "Sin empresa": "No firm",
       "Sin firm": "No firm",
       "Movimientos sin cuenta concreta": "Movements without a specific account",
+      "Crea una empresa primero": "Create a firm first",
       "Crea una firm primero": "Create a firm first",
       "Crea una cuenta primero": "Create an account first",
+      "No hay empresas registradas.": "No firms registered.",
       "No hay firms registradas.": "No firms registered.",
       "No hay cuentas registradas.": "No accounts registered.",
       "No hay movimientos registrados.": "No movements registered.",
       "No hay entradas registradas.": "No entries registered.",
       "No hay errores configurados.": "No mistakes configured.",
+      "Primero crea una empresa": "Create a firm first",
       "Primero crea una firm": "Create a firm first",
+      "Todavia no hay empresas": "No firms yet",
+      "Todavía no hay empresas": "No firms yet",
       "Todavia no hay firms": "No firms yet",
       "Todavía no hay firms": "No firms yet",
       "Todavia no hay cuentas": "No accounts yet",
@@ -470,8 +490,20 @@
         "Register purchases, resets, fees or payouts to feed the dashboard.",
       "Registra operaciones, decisiones y notas sin mezclarlo con los movimientos economicos.":
         "Log trades, decisions and notes without mixing them with financial movements.",
+      "Crea una empresa antes de añadir cuentas.": "Create a firm before adding accounts.",
+      "Crea una empresa antes de añadir entradas al journal.": "Create a firm before adding journal entries.",
+      "Crea tu primera empresa para empezar a organizar cuentas, compras y payouts.":
+        "Create your first firm to start organizing accounts, purchases and payouts.",
+      "Las cuentas necesitan una empresa asociada para que el dashboard pueda agrupar los resultados.":
+        "Accounts need an associated firm so the dashboard can group results.",
+      "Prueba con otra empresa, otro estado o limpia la busqueda.":
+        "Try another firm, another status or clear the search.",
       "Prueba con otra firm, otro estado o limpia la busqueda.":
         "Try another firm, another status or clear the search.",
+      "Ajusta la empresa, el tipo, las fechas o la busqueda para ver mas resultados.":
+        "Adjust the firm, type, dates or search to see more results.",
+      "El journal se organiza por empresa para que puedas revisar cada etapa con contexto.":
+        "The journal is organized by firm so you can review each stage with context.",
       "Ajusta la cuenta, el periodo o la busqueda para ver mas resultados.":
         "Adjust the account, period or search to see more results.",
       "Sin entradas con P&L registrado.": "No entries with registered P&L.",
@@ -479,6 +511,8 @@
       "Sin errores registrados.": "No mistakes registered.",
       "Añade errores desde el dashboard para marcarlos aqui.": "Add mistakes from the dashboard to select them here.",
       "Añade errores desde el dashboard para marcarlos aquí.": "Add mistakes from the dashboard to select them here.",
+      "Empresa guardada.": "Firm saved.",
+      "Empresa eliminada.": "Firm deleted.",
       "Firm guardada.": "Firm saved.",
       "Firm eliminada.": "Firm deleted.",
       "Cuenta guardada.": "Account saved.",
@@ -490,11 +524,13 @@
       "Error guardado.": "Mistake saved.",
       "Error ocultado.": "Mistake hidden.",
       "Error restaurado.": "Mistake restored.",
+      "No se pudo guardar la empresa.": "The firm could not be saved.",
       "No se pudo guardar la firm.": "The firm could not be saved.",
       "No se pudo guardar la cuenta.": "The account could not be saved.",
       "No se pudo guardar el movimiento.": "The movement could not be saved.",
       "No se pudo guardar la entrada.": "The entry could not be saved.",
       "No se pudo guardar el error.": "The mistake could not be saved.",
+      "No se pudo eliminar la empresa.": "The firm could not be deleted.",
       "No se pudo eliminar la firm.": "The firm could not be deleted.",
       "No se pudo eliminar la cuenta.": "The account could not be deleted.",
       "No se pudo eliminar el movimiento.": "The movement could not be deleted.",
@@ -502,16 +538,26 @@
       "Confirmar": "Confirm",
       "Confirmar acción": "Confirm action",
       "Esta acción no se puede deshacer.": "This action cannot be undone.",
+      "Eliminar empresa": "Delete firm",
+      "Eliminar esta empresa?": "Delete this firm?",
       "Eliminar firm": "Delete firm",
       "Eliminar cuenta": "Delete account",
       "Eliminar movimiento": "Delete movement",
       "Eliminar entrada": "Delete entry",
       "Eliminar esta entrada de journal?": "Delete this journal entry?",
+      "No puedes eliminar una empresa con cuentas, movimientos o entradas de journal.":
+        "You cannot delete a firm with accounts, movements or journal entries.",
       "No puedes eliminar una firm con cuentas, movimientos o entradas de journal.":
         "You cannot delete a firm with accounts, movements or journal entries.",
       "No puedes eliminar una cuenta con movimientos o entradas de journal.":
         "You cannot delete an account with movements or journal entries.",
+      "Selecciona una empresa valida.": "Select a valid firm.",
       "Selecciona una firm valida.": "Select a valid firm.",
+      "Pon un nombre para la empresa.": "Enter a firm name.",
+      "El nombre de la empresa es demasiado corto.": "The firm name is too short.",
+      "Selecciona un tipo de empresa valido.": "Select a valid firm type.",
+      "Ya existe una empresa con ese nombre.": "A firm with that name already exists.",
+      "Ya hay una cuenta con ese nombre en esta empresa.": "There is already an account with that name in this firm.",
       "Selecciona una cuenta valida.": "Select a valid account.",
       "Selecciona una sesion valida.": "Select a valid session.",
       "Selecciona una sesiÃ³n valida.": "Select a valid session.",
@@ -530,6 +576,7 @@
       "No hay entradas para importar.": "There are no entries to import.",
       "No se pudieron importar las entradas.": "The entries could not be imported.",
       "Entrada importada.": "Entry imported.",
+      "La cuenta seleccionada no pertenece a esa empresa.": "The selected account does not belong to that firm.",
       "La cuenta seleccionada no pertenece a esa firm.": "The selected account does not belong to that firm.",
       "La fecha no es valida.": "The date is not valid.",
       "La fecha de la entrada no es valida.": "The entry date is not valid.",
@@ -578,6 +625,7 @@
     [/^Sin entradas con esos filtros$/i, "No entries with those filters"],
     [/^Sin movimientos con esos filtros$/i, "No movements with those filters"],
     [/^Sin cuentas con esos filtros$/i, "No accounts with those filters"],
+    [/^Sin empresas con esos filtros$/i, "No firms with those filters"],
     [/^Sin firms con esos filtros$/i, "No firms with those filters"],
     [/^Eliminar (.+)\?$/i, "Delete $1?"],
   ];

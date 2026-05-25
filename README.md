@@ -1,6 +1,6 @@
 # trazza
 
-Dashboard web para controlar el resultado real de cuentas de prop firms: compras,
+Dashboard web para controlar finanzas de trading y el resultado real de cuentas: compras,
 resets, activaciones, fees, payouts y refunds.
 
 ## Uso
@@ -22,7 +22,7 @@ Despues abre `http://localhost:5173` para la landing o
 ## Datos y sesion
 
 - Login con email/password mediante Supabase Auth.
-- Firms, cuentas, movimientos y journal se sincronizan en Supabase.
+- Empresas, cuentas, movimientos y journal se sincronizan en Supabase.
 - `localStorage` se usa para respaldo local y migracion de datos antiguos.
 - Puedes exportar/importar una copia en JSON desde la propia app.
 
@@ -38,10 +38,10 @@ editor del proyecto. El formulario de `index.html` guarda los correos en
 
 - Dashboard con resultado neto, gastos, retiros, ROI, break-even y cuentas activas.
 - Grafico interactivo de evolucion del capital con tooltip, zoom y arrastre.
-- Registro de firms.
+- Registro de empresas.
 - Registro de cuentas.
 - Registro de movimientos economicos.
 - Journal independiente con calendario mensual, P&L diario, P&L semanal, disciplina, estado mental y aprendizajes.
-- Filtros y vistas por firm, cuenta, movimiento y journal.
+- Filtros y vistas por empresa, cuenta, movimiento y journal.
 - Vista movil optimizada con tablas convertidas en tarjetas.
 - Exportacion JSON/CSV e importacion JSON.

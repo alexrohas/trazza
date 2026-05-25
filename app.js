@@ -201,6 +201,8 @@ const journalChartState = {
 };
 
 const els = {};
+const sidebarChartRefreshTimers = new Set();
+let layoutResizeFrame = 0;
 
 applyTheme(getInitialTheme());
 applyDashboardPrivacyState();
@@ -448,6 +450,7 @@ function bindElements() {
     "toast",
     "dashboardPrivacyToggleButton",
     "themeToggleButton",
+    "mainContent",
     "sidebarToggleButton",
     "sidebarUserCard",
     "sidebarUserInitial",
@@ -502,7 +505,9 @@ function bindEvents() {
   els.sidebarToggleButton?.addEventListener("click", toggleSidebarCollapsed);
   els.themeToggleButton.addEventListener("click", toggleTheme);
   els.authThemeToggleButton?.addEventListener("click", toggleTheme);
+  els.appShell?.addEventListener("transitionend", handleAppShellTransitionEnd);
   window.addEventListener("trazza:language-change", handleLanguageChange);
+  bindLayoutResizeObserver();
   els.dashboardFirmFilter.addEventListener("input", () => {
     fillDashboardAccountFilter();
     resetNetChartInteraction();
@@ -1481,7 +1486,7 @@ function toggleAuthMode() {
 function setAuthMode() {
   els.authTitle.hidden = false;
   els.authTitle.textContent = uiText("Tu centro de control de trading");
-  els.authIntro.textContent = uiText("Journal, prop firms y métricas sincronizadas en un solo panel.");
+  els.authIntro.textContent = uiText("Journal, finanzas y métricas sincronizadas en un solo panel.");
   els.authNameField.hidden = true;
   els.authName.disabled = true;
   els.authName.required = false;
@@ -1761,7 +1766,56 @@ function toggleSidebarCollapsed() {
   sidebarCollapsed = !sidebarCollapsed;
   localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarCollapsed ? "collapsed" : "expanded");
   applySidebarState();
+  refreshChartsAfterSidebarChange();
   refreshIcons();
+}
+
+function handleAppShellTransitionEnd(event) {
+  if (event.propertyName !== "grid-template-columns") return;
+  refreshChartsAfterSidebarChange();
+}
+
+function bindLayoutResizeObserver() {
+  if (!els.mainContent || typeof ResizeObserver !== "function") return;
+  const observer = new ResizeObserver(() => requestLayoutRefresh());
+  observer.observe(els.mainContent);
+}
+
+function requestLayoutRefresh() {
+  if (layoutResizeFrame) return;
+  layoutResizeFrame = requestAnimationFrame(() => {
+    layoutResizeFrame = 0;
+    refreshVisibleLayouts();
+  });
+}
+
+function refreshVisibleLayouts() {
+  if (activeSection === "overview") {
+    drawCharts(getDashboardSummary());
+  }
+  if (activeSection === "journal" && journalView === "dashboard") {
+    resetJournalChartCanvasCache();
+    scheduleJournalDashboardChartRender();
+  }
+}
+
+function refreshChartsAfterSidebarChange() {
+  sidebarChartRefreshTimers.forEach((timer) => window.clearTimeout(timer));
+  sidebarChartRefreshTimers.clear();
+  [0, 80, 190, 280].forEach((delay) => {
+    const timer = window.setTimeout(() => {
+      sidebarChartRefreshTimers.delete(timer);
+      refreshVisibleLayouts();
+    }, delay);
+    sidebarChartRefreshTimers.add(timer);
+  });
+}
+
+function resetJournalChartCanvasCache() {
+  [els.journalPnlChart, els.journalErrorsChart, els.journalDisciplineChart].filter(Boolean).forEach((canvas) => {
+    canvas.chartWidth = 0;
+    canvas.chartHeight = 0;
+  });
 }
 
 function handleLanguageChange() {
@@ -2085,7 +2139,7 @@ function setActiveSection(section) {
   if (!sectionPillars[section]) return;
   const titles = {
     overview: "Panel",
-    firms: "Firms",
+    firms: "Empresas",
     accounts: "Cuentas",
     transactions: "Movimientos",
     journal: journalView === "entries" ? "Journal - Entradas" : "Journal - Dashboard",
@@ -2130,7 +2184,7 @@ function updateGlobalAddButton() {
 
   if (activePillar === "tracker") {
     if (activeSection === "firms") {
-      text = "Nueva firm";
+      text = "Nueva empresa";
       action = () => openFirmDialog();
     } else if (activeSection === "accounts") {
       text = "Nueva cuenta";
@@ -2253,9 +2307,9 @@ function fillFirmSelects() {
   setSelectOptions(els.dashboardFirmFilter, filterOptions, "all");
   setSelectOptions(els.accountFirmFilter, filterOptions, "all");
   setSelectOptions(els.transactionFirmFilter, transactionFilterOptions, "all");
-  setSelectOptions(els.accountFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
+  setSelectOptions(els.accountFirm, firmOptions || `<option value="">Crea una empresa primero</option>`, firstFirmId);
   setSelectOptions(els.transactionFirm, transactionFirmOptions, firstFirmId || GENERAL_TRANSACTION_FIRM_VALUE);
-  setSelectOptions(els.journalFirm, firmOptions || `<option value="">Crea una firm primero</option>`, firstFirmId);
+  setSelectOptions(els.journalFirm, firmOptions || `<option value="">Crea una empresa primero</option>`, firstFirmId);
   fillDashboardAccountFilter();
   fillJournalAccountFilter();
 }
@@ -2556,7 +2610,7 @@ function renderExpenseBreakdown(summary) {
 function renderAccountBreakdown(summary) {
   const accountRows = summary.accounts.map((account) => {
     const transactions = summary.transactions.filter((tx) => tx.accountId === account.id);
-    return accountBreakdownRow(account.name, getFirm(account.firmId)?.name || "Sin firm", transactions);
+    return accountBreakdownRow(account.name, getFirm(account.firmId)?.name || "Sin empresa", transactions);
   });
   const looseTransactions = summary.transactions.filter((tx) => !tx.accountId);
   const rows = [
@@ -2669,7 +2723,7 @@ function renderFirmsTable() {
       const accountCount = state.accounts.filter((account) => account.firmId === firm.id).length;
       return `
         <tr>
-          <td data-label="Firm">
+          <td data-label="Empresa">
             <div class="table-title">
               <strong>${escapeHtml(firm.name)}</strong>
               <span>${escapeHtml(firm.notes || "")}</span>
@@ -2699,9 +2753,9 @@ function renderFirmsTable() {
   } else {
     showEmptyState(
       els.firmsEmpty,
-      "Todavia no hay firms",
-      "Crea tu primera firm para empezar a organizar cuentas, compras y payouts.",
-      "Nueva firm",
+      "Todavia no hay empresas",
+      "Crea tu primera empresa para empezar a organizar cuentas, compras y payouts.",
+      "Nueva empresa",
       "add-firm"
     );
   }
@@ -2741,7 +2795,7 @@ function renderAccountsTable() {
               <span>${escapeHtml(accountMeta)}</span>
             </div>
           </td>
-          <td data-label="Firm">${escapeHtml(firm?.name || "Sin firm")}</td>
+          <td data-label="Empresa">${escapeHtml(firm?.name || "Sin empresa")}</td>
           <td data-label="Tamaño">${escapeHtml(account.size || "-")}</td>
           <td data-label="Estado"><span class="badge ${account.status}">${statusLabels[account.status] || account.status}</span></td>
           <td data-label="Compra">${formatDate(account.purchasedAt)}</td>
@@ -2765,9 +2819,9 @@ function renderAccountsTable() {
   } else if (!state.firms.length) {
     showEmptyState(
       els.accountsEmpty,
-      "Primero crea una firm",
-      "Las cuentas necesitan una firm asociada para que el dashboard pueda agrupar los resultados.",
-      "Nueva firm",
+      "Primero crea una empresa",
+      "Las cuentas necesitan una empresa asociada para que el dashboard pueda agrupar los resultados.",
+      "Nueva empresa",
       "add-firm"
     );
   } else if (!state.accounts.length) {
@@ -2782,7 +2836,7 @@ function renderAccountsTable() {
     showEmptyState(
       els.accountsEmpty,
       "Sin cuentas con esos filtros",
-      "Prueba con otra firm, otro estado o limpia la busqueda.",
+      "Prueba con otra empresa, otro estado o limpia la busqueda.",
       "Limpiar filtros",
       "reset-account-filters",
       "rotate-ccw"
@@ -2835,7 +2889,7 @@ function renderTransactionsTable() {
           <td data-label="Fecha">${formatDate(tx.date)}</td>
           <td data-label="Tipo"><span class="badge ${tx.kind}">${tx.kind === "income" ? "Retiro" : "Gasto"}</span></td>
           <td data-label="Categoria">${categoryLabels[tx.category] || escapeHtml(tx.category)}</td>
-          <td data-label="Firm">${escapeHtml(getTransactionFirmLabel(tx))}</td>
+          <td data-label="Empresa">${escapeHtml(getTransactionFirmLabel(tx))}</td>
           <td data-label="Cuenta">${escapeHtml(account?.name || "-")}</td>
           <td data-label="Nota">${escapeHtml(tx.note || "-")}</td>
           <td data-label="Importe" class="amount ${signed >= 0 ? "positive" : "negative"}">${formatMoney(signed)}</td>
@@ -2865,7 +2919,7 @@ function renderTransactionsTable() {
     showEmptyState(
       els.transactionsEmpty,
       "Sin movimientos con esos filtros",
-      "Ajusta la firm, el tipo, las fechas o la busqueda para ver mas resultados.",
+      "Ajusta la empresa, el tipo, las fechas o la busqueda para ver mas resultados.",
       "Limpiar filtros",
       "reset-transaction-filters",
       "rotate-ccw"
@@ -4179,9 +4233,9 @@ function renderJournalEntries() {
   } else if (!state.firms.length) {
     showEmptyState(
       els.journalEmpty,
-      "Primero crea una firm",
-      "El journal se organiza por firm para que puedas revisar cada etapa con contexto.",
-      "Nueva firm",
+      "Primero crea una empresa",
+      "El journal se organiza por empresa para que puedas revisar cada etapa con contexto.",
+      "Nueva empresa",
       "add-firm"
     );
   } else if (!state.journalEntries.length) {
@@ -5119,7 +5173,7 @@ function openFirmDialog(firm = null) {
   els.firmName.value = firm?.name || "";
   els.firmType.value = firm?.type || "Futuros";
   els.firmNotes.value = firm?.notes || "";
-  els.firmDialogTitle.textContent = firm ? "Editar firm" : "Nueva firm";
+  els.firmDialogTitle.textContent = firm ? "Editar empresa" : "Nueva empresa";
   syncAllCustomSelects();
   showDialog(els.firmDialog);
 }
@@ -5127,7 +5181,7 @@ function openFirmDialog(firm = null) {
 function openAccountDialog(account = null) {
   if (!state.firms.length) {
     openFirmDialog();
-    toast("Crea una firm antes de añadir cuentas.");
+    toast("Crea una empresa antes de añadir cuentas.");
     return;
   }
 
@@ -5170,7 +5224,7 @@ function openTransactionDialog(transaction = null) {
 function openJournalEntryModeDialog() {
   if (!state.firms.length) {
     openFirmDialog();
-    toast("Crea una firm antes de añadir entradas al journal.");
+    toast("Crea una empresa antes de añadir entradas al journal.");
     return;
   }
 
@@ -5203,7 +5257,7 @@ function openJournalImportDialog() {
 function openJournalDialog(entry = null) {
   if (!state.firms.length) {
     openFirmDialog();
-    toast("Crea una firm antes de añadir entradas al journal.");
+    toast("Crea una empresa antes de añadir entradas al journal.");
     return;
   }
 
@@ -5389,18 +5443,18 @@ function isValidIsoDate(value) {
 }
 
 function validateFirm(firm, id) {
-  if (!firm.name) return markInvalid(els.firmName, "Pon un nombre para la firm.");
-  if (firm.name.length < 2) return markInvalid(els.firmName, "El nombre de la firm es demasiado corto.");
+  if (!firm.name) return markInvalid(els.firmName, "Pon un nombre para la empresa.");
+  if (firm.name.length < 2) return markInvalid(els.firmName, "El nombre de la empresa es demasiado corto.");
   if (!["Futuros", "CFDs", "Mixta"].includes(firm.type)) {
-    return markInvalid(els.firmType, "Selecciona un tipo de firm valido.");
+    return markInvalid(els.firmType, "Selecciona un tipo de empresa valido.");
   }
   const duplicated = state.firms.some((item) => item.id !== id && normalize(item.name) === normalize(firm.name));
-  if (duplicated) return markInvalid(els.firmName, "Ya existe una firm con ese nombre.");
+  if (duplicated) return markInvalid(els.firmName, "Ya existe una empresa con ese nombre.");
   return true;
 }
 
 function validateAccount(account, id) {
-  if (!getFirm(account.firmId)) return markInvalid(els.accountFirm, "Selecciona una firm valida.");
+  if (!getFirm(account.firmId)) return markInvalid(els.accountFirm, "Selecciona una empresa valida.");
   if (!account.name) return markInvalid(els.accountName, "Pon un nombre para la cuenta.");
   if (account.name.length < 2) return markInvalid(els.accountName, "El nombre de la cuenta es demasiado corto.");
   if (!statusLabels[account.status]) return markInvalid(els.accountStatus, "Selecciona un estado valido.");
@@ -5425,7 +5479,7 @@ function validateAccount(account, id) {
       item.firmId === account.firmId &&
       normalize(item.name) === normalize(account.name)
   );
-  if (duplicated) return markInvalid(els.accountName, "Ya hay una cuenta con ese nombre en esta firm.");
+  if (duplicated) return markInvalid(els.accountName, "Ya hay una cuenta con ese nombre en esta empresa.");
   return true;
 }
 
@@ -5443,11 +5497,11 @@ function validateTransaction(transaction, selectedAccountId, account) {
     return markInvalid(els.transactionAmount, "El importe debe ser mayor que 0.");
   }
   if (transaction.firmId && !getFirm(transaction.firmId)) {
-    return markInvalid(els.transactionFirm, "Selecciona una firm valida.");
+    return markInvalid(els.transactionFirm, "Selecciona una empresa valida.");
   }
   if (selectedAccountId && !account) return markInvalid(els.transactionAccount, "Selecciona una cuenta valida.");
   if (account && transaction.firmId && account.firmId !== transaction.firmId) {
-    return markInvalid(els.transactionAccount, "La cuenta seleccionada no pertenece a esa firm.");
+    return markInvalid(els.transactionAccount, "La cuenta seleccionada no pertenece a esa empresa.");
   }
   return true;
 }
@@ -5455,10 +5509,10 @@ function validateTransaction(transaction, selectedAccountId, account) {
 function validateJournalEntry(entry, selectedAccountId, account) {
   if (!isValidIsoDate(entry.date)) return markInvalid(els.journalDate, "La fecha de la entrada no es valida.");
   if (entry.date > today()) return markInvalid(els.journalDate, "La fecha de la entrada no puede ser futura.");
-  if (!getFirm(entry.firmId)) return markInvalid(els.journalFirm, "Selecciona una firm valida.");
+  if (!getFirm(entry.firmId)) return markInvalid(els.journalFirm, "Selecciona una empresa valida.");
   if (selectedAccountId && !account) return markInvalid(els.journalAccount, "Selecciona una cuenta valida.");
   if (account && account.firmId !== entry.firmId) {
-    return markInvalid(els.journalAccount, "La cuenta seleccionada no pertenece a esa firm.");
+    return markInvalid(els.journalAccount, "La cuenta seleccionada no pertenece a esa empresa.");
   }
   if (!entry.title) return markInvalid(els.journalTitle, "Pon un activo para la entrada.");
   if (!journalDirectionLabels[entry.direction]) return markInvalid(els.journalDirection, "Selecciona si la operacion fue long o short.");
@@ -5755,7 +5809,7 @@ function createJournalEntryFromTradovateFills(fills, account, timestamp, trading
 function openJournalImportPreview(result) {
   const totalPnl = sum(result.entries.map((entry) => entry.pnl));
   const account = getAccount(result.entries[0]?.accountId);
-  const accountLabel = account ? `${getFirm(account.firmId)?.name || "Sin firm"} - ${account.name}` : "Cuenta";
+  const accountLabel = account ? `${getFirm(account.firmId)?.name || "Sin empresa"} - ${account.name}` : "Cuenta";
   const groupedLabel =
     result.rawRows === result.entries.length
       ? `${result.entries.length} operaciones detectadas`
@@ -5875,9 +5929,9 @@ async function saveFirmFromForm(event) {
     persist();
     closeDialog("firmDialog");
     refreshAll();
-    toast("Firm guardada.");
+    toast("Empresa guardada.");
   } catch (error) {
-    toast(error.message || "No se pudo guardar la firm.");
+    toast(error.message || "No se pudo guardar la empresa.");
   } finally {
     setFormBusy(els.firmForm, false);
   }
@@ -6224,20 +6278,20 @@ function requestDeleteFirm(id) {
   const hasJournalEntries = state.journalEntries.some((entry) => entry.firmId === id);
 
   if (hasAccounts || hasTransactions || hasJournalEntries) {
-    toast("No puedes eliminar una firm con cuentas, movimientos o entradas de journal.");
+    toast("No puedes eliminar una empresa con cuentas, movimientos o entradas de journal.");
     return;
   }
 
-  openConfirm("Eliminar firm", `Eliminar ${firm?.name || "esta firm"}?`, async () => {
+  openConfirm("Eliminar empresa", `Eliminar ${firm?.name || "esta empresa"}?`, async () => {
     try {
       const result = await supabaseClient.from("firms").delete().eq("id", id);
       throwIfSupabaseError(result);
       state.firms = state.firms.filter((item) => item.id !== id);
       persist();
       refreshAll();
-      toast("Firm eliminada.");
+      toast("Empresa eliminada.");
     } catch (error) {
-      toast(error.message || "No se pudo eliminar la firm.");
+      toast(error.message || "No se pudo eliminar la empresa.");
     }
   });
 }
@@ -6634,7 +6688,7 @@ function matchesTransactionFirmFilter(transaction, firmFilter) {
 function getTransactionFirmLabel(transaction) {
   const firmId = resolveFirmId(transaction);
   if (!firmId) return GENERAL_TRANSACTION_DISPLAY_LABEL;
-  return getFirm(firmId)?.name || "Sin firm";
+  return getFirm(firmId)?.name || "Sin empresa";
 }
 
 function resolveFirmId(transaction) {
