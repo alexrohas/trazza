@@ -45,3 +45,11 @@ editor del proyecto. El formulario de `index.html` guarda los correos en
 - Filtros y vistas por empresa, cuenta, movimiento y journal.
 - Vista movil optimizada con tablas convertidas en tarjetas.
 - Exportacion JSON/CSV e importacion JSON.
+- Pagina legal base con aviso legal, privacidad, cookies, terminos y disclaimer financiero.
+
+## Lanzamiento publico
+
+- Revisa `LEGAL_LAUNCH_CHECKLIST.md` antes de abrir registros o pagos.
+- Revisa `legal.html` antes de abrir pagos o cambiar las condiciones de la beta gratuita.
+- Ejecuta `supabase-waitlist.sql` para guardar consentimiento de privacidad en la waitlist.
+- Ejecuta `supabase-rls.sql` antes de abrir registros publicos para aislar los datos por usuario.

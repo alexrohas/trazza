@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trazza - Legal</title>
+    <meta name="description" content="Aviso legal, privacidad, cookies y terminos de uso de Trazza." />
+    <link rel="icon" href="./assets/trazza.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --surface: #141418;
+        --surface-2: #1b1b21;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --line: #282830;
+        --accent: #a78bfa;
+        --accent-strong: #8b5cf6;
+        --green: #22c55e;
+        font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 10% 0%, rgba(167, 139, 250, 0.18), transparent 30rem),
+          var(--bg);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .legal-shell {
+        width: min(1080px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 24px 0 64px;
+      }
+
+      .legal-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 36px;
+      }
+
+      .legal-logo {
+        display: inline-flex;
+        align-items: center;
+        width: 150px;
+        height: 44px;
+        overflow: hidden;
+      }
+
+      .legal-logo img {
+        width: 182px;
+        max-width: none;
+        transform: translate(-23px, -2px);
+      }
+
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .hero {
+        display: grid;
+        gap: 14px;
+        max-width: 760px;
+        margin-bottom: 24px;
+      }
+
+      .hero span {
+        width: fit-content;
+        padding: 6px 9px;
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        border-radius: 8px;
+        background: rgba(167, 139, 250, 0.12);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(34px, 6vw, 64px);
+        line-height: 0.98;
+        letter-spacing: -0.055em;
+      }
+
+      .hero p,
+      .legal-card p,
+      .legal-card li {
+        color: var(--muted);
+        font-size: 14.5px;
+        line-height: 1.65;
+      }
+
+      .notice {
+        margin: 24px 0;
+        padding: 14px 16px;
+        border: 1px solid rgba(251, 191, 36, 0.34);
+        border-radius: 12px;
+        background: rgba(251, 191, 36, 0.08);
+        color: #f8e7b0;
+        font-size: 13.5px;
+        line-height: 1.55;
+      }
+
+      .legal-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 26px 0;
+      }
+
+      .legal-nav a {
+        padding: 8px 11px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .legal-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .legal-card {
+        padding: clamp(18px, 3vw, 28px);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+      }
+
+      .legal-card h2 {
+        margin: 0 0 12px;
+        font-size: clamp(22px, 3vw, 30px);
+        letter-spacing: -0.035em;
+      }
+
+      .legal-card h3 {
+        margin: 22px 0 8px;
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .legal-card ul {
+        margin: 10px 0 0;
+        padding-left: 20px;
+      }
+
+      .legal-footer {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 12.5px;
+        text-align: center;
+      }
+
+      @media (max-width: 640px) {
+        .legal-topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="legal-shell">
+      <header class="legal-topbar">
+        <a class="legal-logo" href="./" aria-label="Volver a Trazza">
+          <img src="./assets/trazza.png" alt="Trazza" />
+        </a>
+        <a class="back-link" href="./">Volver</a>
+      </header>
+
+      <section class="hero">
+        <span>Base legal</span>
+        <h1>Documentos legales de Trazza</h1>
+        <p>Esta pagina centraliza el aviso legal, privacidad, cookies, terminos y disclaimer financiero antes de abrir Trazza al publico.</p>
+      </section>
+
+      <div class="notice">
+        Trazza se encuentra en fase beta gratuita. Este documento recoge la informacion legal basica del servicio, pero no sustituye una revision profesional si mas adelante se activan pagos, suscripciones o funcionalidades de mayor alcance.
+      </div>
+
+      <nav class="legal-nav" aria-label="Secciones legales">
+        <a href="#aviso-legal">Aviso legal</a>
+        <a href="#privacidad">Privacidad</a>
+        <a href="#cookies">Cookies</a>
+        <a href="#terminos">Terminos</a>
+        <a href="#disclaimer">Disclaimer financiero</a>
+      </nav>
+
+      <div class="legal-grid">
+        <section class="legal-card" id="aviso-legal">
+          <h2>Aviso legal</h2>
+          <p>Ultima actualizacion: 30 de mayo de 2026.</p>
+          <h3>Titular del sitio</h3>
+          <p>
+            Titular: Alejandro Rojas Garcia<br />
+            Ubicacion: Jaen, Espana<br />
+            Dominio: trazajournal.com<br />
+            Email de contacto: <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>
+          </p>
+          <p>La direccion completa del titular no se publica en esta version beta gratuita por motivos de privacidad. Podra solicitarse por motivos legitimos a traves del email de contacto.</p>
+          <h3>Objeto</h3>
+          <p>Trazza es una aplicacion web para registrar, organizar y analizar informacion de trading: entradas de journal, cuentas, movimientos economicos, metricas, capturas, CSV importados y notas personales.</p>
+          <h3>Responsabilidad</h3>
+          <p>El usuario es responsable de la informacion que introduce en Trazza y de sus decisiones de trading. Trazza no ejecuta operaciones, no gestiona cuentas y no garantiza resultados.</p>
+        </section>
+
+        <section class="legal-card" id="privacidad">
+          <h2>Politica de privacidad</h2>
+          <h3>Responsable del tratamiento</h3>
+          <p>Responsable: Alejandro Rojas Garcia. Contacto de privacidad: <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>.</p>
+          <h3>Datos tratados</h3>
+          <ul>
+            <li>Datos de cuenta: nombre, email, identificador de usuario, fecha de alta y datos tecnicos asociados a la autenticacion. La contrasena se gestiona mediante Supabase y no se almacena en texto legible por Trazza.</li>
+            <li>Datos introducidos por el usuario: empresas o cuentas de fondeo, cuentas, movimientos, entradas de journal, capturas o imagenes de trades, notas, errores, disciplina, P&amp;L, CSV importados, idioma, tema, divisa y configuracion del dashboard.</li>
+            <li>Waitlist: email, fecha de alta, origen, consentimiento de comunicaciones y datos tecnicos basicos como el user agent.</li>
+            <li>Emails transaccionales: datos necesarios para enviar confirmaciones de cuenta, avisos de acceso y comunicaciones operativas.</li>
+          </ul>
+          <h3>Finalidades</h3>
+          <ul>
+            <li>Prestar el servicio y sincronizar datos del usuario.</li>
+            <li>Gestionar registro, inicio de sesion, soporte, seguridad y comunicaciones necesarias.</li>
+            <li>Enviar avisos de lanzamiento a usuarios apuntados en la waitlist.</li>
+            <li>Analizar incidencias, prevenir abusos y mantener la integridad tecnica de la plataforma.</li>
+            <li>Cumplir obligaciones legales si en el futuro se habilitan pagos o facturacion.</li>
+          </ul>
+          <h3>Base juridica</h3>
+          <p>La base juridica principal es la ejecucion del servicio solicitado por el usuario. Para la waitlist y comunicaciones no estrictamente necesarias se utiliza el consentimiento. Para seguridad, prevencion de abuso y mejora tecnica se utiliza el interes legitimo. Para obligaciones fiscales o legales, si en el futuro aplican, se utilizara el cumplimiento de obligaciones legales.</p>
+          <h3>Proveedores</h3>
+          <p>Trazza utiliza Supabase para autenticacion, base de datos y almacenamiento; Vercel para alojamiento web; Brevo para emails transaccionales; y Porkbun como proveedor del dominio. Actualmente no se usan Stripe ni herramientas de analitica o publicidad.</p>
+          <h3>Derechos</h3>
+          <p>El usuario puede solicitar acceso, rectificacion, eliminacion, oposicion, limitacion, portabilidad de sus datos o retirada del consentimiento escribiendo a <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>. En la practica, esto significa que puede pedir saber que datos se guardan, corregirlos, exportarlos o solicitar la eliminacion de su cuenta y datos asociados.</p>
+          <h3>Conservacion</h3>
+          <p>Los datos se conservaran mientras exista la cuenta, mientras sean necesarios para prestar el servicio o durante los plazos legales aplicables. La waitlist se conservara hasta gestionar el lanzamiento, apertura de acceso o retirada del consentimiento.</p>
+          <h3>Usuarios menores de edad</h3>
+          <p>Trazza no esta dirigida especificamente a menores. Si una persona menor de edad utiliza la aplicacion, debe contar con autorizacion de sus padres, tutores o representantes legales cuando sea necesario.</p>
+          <h3>Usuarios internacionales</h3>
+          <p>Trazza puede ser utilizada por usuarios de distintos paises, pero el responsable del servicio se encuentra en Espana. El usuario es responsable de utilizar la aplicacion conforme a la normativa que le resulte aplicable en su jurisdiccion.</p>
+        </section>
+
+        <section class="legal-card" id="cookies">
+          <h2>Politica de cookies</h2>
+          <p>Trazza puede utilizar almacenamiento local y cookies tecnicas para mantener sesion, idioma, tema visual, preferencias del dashboard y funcionamiento basico de la aplicacion.</p>
+          <p>Actualmente no se utilizan cookies de analitica, publicidad, seguimiento o medicion no estrictamente necesarias. Si en el futuro se activan herramientas de este tipo, se mostrara un banner de consentimiento y se permitira aceptar, rechazar o configurar su uso.</p>
+        </section>
+
+        <section class="legal-card" id="terminos">
+          <h2>Terminos y condiciones</h2>
+          <h3>Estado beta gratuita</h3>
+          <p>Trazza se ofrece actualmente como beta gratuita. El acceso puede estar limitado, evolucionar con el tiempo o cambiar de condiciones si en el futuro se incorporan planes de pago. Cualquier cambio relevante se comunicara antes de aplicar condiciones economicas.</p>
+          <h3>Uso permitido</h3>
+          <p>El usuario se compromete a usar Trazza de forma licita, sin intentar acceder a datos de terceros, alterar la plataforma, introducir contenido malicioso, automatizar abusivamente peticiones, revender accesos, suplantar identidades o utilizar la app para actividades ilegales.</p>
+          <h3>Cuenta y seguridad</h3>
+          <p>El usuario debe custodiar sus credenciales. Trazza puede suspender o limitar cuentas si detecta uso abusivo, fraude, riesgo tecnico o incumplimiento de estos terminos.</p>
+          <h3>Suscripciones y pagos</h3>
+          <p>Actualmente Trazza no cobra suscripciones ni pagos dentro de la aplicacion. Si en el futuro se habilitan pagos, los precios, renovaciones, impuestos, cancelaciones y reembolsos se mostraran antes de contratar.</p>
+          <h3>Disponibilidad</h3>
+          <p>Se intentara mantener el servicio disponible, pero durante la beta pueden existir paradas por mantenimiento, incidencias de proveedores o mejoras tecnicas. El soporte se prestara por email en un plazo razonable, sin garantia de disponibilidad continua.</p>
+          <h3>Eliminacion y exportacion</h3>
+          <p>El usuario puede solicitar la eliminacion de su cuenta o la exportacion de sus datos escribiendo a <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>. Durante la beta, estas solicitudes se gestionaran manualmente.</p>
+        </section>
+
+        <section class="legal-card" id="disclaimer">
+          <h2>Disclaimer financiero</h2>
+          <p>Trazza es una herramienta de registro, organizacion y analisis personal de trading. No presta asesoramiento financiero, no recomienda comprar o vender instrumentos financieros, no gestiona capital de terceros y no ejecuta ordenes.</p>
+          <p>Las metricas, graficos y calculos se muestran para ayudar al usuario a revisar su propio historial. No constituyen recomendacion de inversion ni garantizan resultados futuros.</p>
+          <p>El trading implica riesgo elevado. El usuario es el unico responsable de sus decisiones, gestion del riesgo y cumplimiento de las normas de sus cuentas o proveedores.</p>
+        </section>
+      </div>
+
+      <p class="legal-footer">Trazza - documentos legales base para revision antes de lanzamiento publico.</p>
+    </main>
+  </body>
+</html>

@@ -132,6 +132,7 @@ let state = loadState();
 let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
+let authMode = "signin";
 let cloudLoading = false;
 let activePillar = getInitialPillar();
 let activeSection = pillarDefaultSections[activePillar] || "overview";
@@ -224,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (els.authScreen && els.appShell) {
       els.authScreen.hidden = false;
       els.appShell.hidden = true;
-      els.authMessage.textContent = "No se pudo iniciar la app. Recarga la pagina.";
+      setAuthMessage("No se pudo iniciar la app. Recarga la pagina.", "error");
     }
   }
 });
@@ -1188,7 +1189,7 @@ async function initializeCloud() {
 
   if (!supabaseClient) {
     setAppAccess(false);
-    els.authMessage.textContent = "No se pudo cargar Supabase. Revisa tu conexion.";
+    setAuthMessage("No se pudo cargar Supabase. Revisa tu conexion.", "error");
     return;
   }
 
@@ -1198,7 +1199,7 @@ async function initializeCloud() {
   const { data, error } = await supabaseClient.auth.getSession();
   setAuthBusy(false);
   if (error) {
-    els.authMessage.textContent = error.message;
+    setAuthMessage(error.message, "error");
     return;
   }
 
@@ -1261,7 +1262,7 @@ async function rejectAuthSession(message) {
   setAuthMode();
   state = loadState();
   refreshAll();
-  els.authMessage.textContent = message;
+  setAuthMessage(message, "error");
 }
 
 async function rejectUnconfirmedAuthSession() {
@@ -1280,7 +1281,13 @@ function setAppAccess(isAuthenticated) {
 function setAuthBusy(isBusy, message = "") {
   els.authLoginButton.disabled = isBusy;
   els.authSignupButton.disabled = isBusy;
-  els.authMessage.textContent = message;
+  setAuthMessage(message, message ? "info" : "");
+}
+
+function setAuthMessage(message = "", type = "") {
+  if (!els.authMessage) return;
+  els.authMessage.textContent = message ? uiText(message) : "";
+  els.authMessage.className = `auth-message${type ? ` ${type}` : ""}`;
 }
 
 function setSyncStatus(status, message = "") {
@@ -1312,6 +1319,10 @@ function getAuthCredentials() {
   };
 }
 
+function getAuthRedirectUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
 function validateAuthCredentials({ requireName = false } = {}) {
   clearFormValidity(els.authForm);
   const credentials = getAuthCredentials();
@@ -1334,7 +1345,11 @@ function getAuthErrorMessage(error) {
   const normalized = message.toLowerCase();
   if (normalized.includes("invalid login credentials")) return "Email o contraseña incorrectos.";
   if (normalized.includes("email not confirmed")) return "Confirma tu email antes de entrar.";
-  if (normalized.includes("signup")) return "El registro está cerrado. Pide acceso por invitación.";
+  if (normalized.includes("already registered") || normalized.includes("already been registered")) {
+    return "Ya existe una cuenta con este email. Entra con tu contraseña.";
+  }
+  if (normalized.includes("signup")) return "El registro no está habilitado en Supabase.";
+  if (normalized.includes("rate limit")) return "Demasiados intentos seguidos. Espera unos minutos y vuelve a probar.";
   return message || "No se pudo completar el acceso.";
 }
 
@@ -1480,25 +1495,32 @@ function formatUserDate(value) {
 }
 
 function toggleAuthMode() {
-  window.location.assign("./index.html");
+  setAuthMode(authMode === "signin" ? "signup" : "signin");
 }
 
-function setAuthMode() {
+function setAuthMode(mode = authMode) {
+  authMode = mode === "signup" ? "signup" : "signin";
+  const isSignup = authMode === "signup";
+
   els.authTitle.hidden = false;
-  els.authTitle.textContent = uiText("Tu centro de control de trading");
-  els.authIntro.textContent = uiText("Journal, finanzas y métricas sincronizadas en un solo panel.");
-  els.authNameField.hidden = true;
-  els.authName.disabled = true;
-  els.authName.required = false;
-  els.authLoginButton.textContent = uiText("Entrar");
-  els.authSwitchText.textContent = uiText("¿Quieres empezar con Trazza?");
-  els.authSignupButton.textContent = uiText("Solicitar acceso");
-  els.authPassword.autocomplete = "current-password";
-  els.authMessage.textContent = "";
+  els.authTitle.textContent = uiText(isSignup ? "Crea tu cuenta gratis" : "Tu centro de control de trading");
+  els.authIntro.textContent = uiText(
+    isSignup
+      ? "Empieza gratis y guarda tus cuentas, movimientos y journal en la nube."
+      : "Journal, finanzas y métricas sincronizadas en un solo panel."
+  );
+  els.authNameField.hidden = !isSignup;
+  els.authName.disabled = !isSignup;
+  els.authName.required = isSignup;
+  els.authLoginButton.textContent = uiText(isSignup ? "Crear cuenta gratis" : "Entrar");
+  els.authSwitchText.textContent = uiText(isSignup ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?");
+  els.authSignupButton.textContent = uiText(isSignup ? "Entrar" : "Crear cuenta gratis");
+  els.authPassword.autocomplete = isSignup ? "new-password" : "current-password";
+  setAuthMessage();
 }
 
 function submitAuthForm() {
-  signIn();
+  authMode === "signup" ? signUp() : signIn();
 }
 
 async function signIn() {
@@ -1506,7 +1528,7 @@ async function signIn() {
   const credentials = validateAuthCredentials();
   if (!credentials) return;
 
-  setAuthBusy(true, "Entrando...");
+  setAuthBusy(true, uiText("Entrando..."));
   const { data, error } = await supabaseClient.auth.signInWithPassword({
     email: credentials.email,
     password: credentials.password,
@@ -1514,7 +1536,7 @@ async function signIn() {
   setAuthBusy(false);
 
   if (error) {
-    els.authMessage.textContent = getAuthErrorMessage(error);
+    setAuthMessage(getAuthErrorMessage(error), "error");
     return;
   }
 
@@ -1522,11 +1544,43 @@ async function signIn() {
     await rejectUnconfirmedAuthSession();
     return;
   }
-  els.authMessage.textContent = "";
+  setAuthMessage();
 }
 
 async function signUp() {
-  els.authMessage.textContent = "El registro está cerrado. Pide acceso por invitación.";
+  if (!supabaseClient) return;
+  const credentials = validateAuthCredentials({ requireName: true });
+  if (!credentials) return;
+
+  setAuthBusy(true, uiText("Creando cuenta..."));
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: credentials.email,
+    password: credentials.password,
+    options: {
+      data: {
+        full_name: credentials.fullName,
+        name: credentials.fullName,
+      },
+      emailRedirectTo: getAuthRedirectUrl(),
+    },
+  });
+  setAuthBusy(false);
+
+  if (error) {
+    setAuthMessage(getAuthErrorMessage(error), "error");
+    return;
+  }
+
+  if (data?.session && data?.user && isAuthEmailConfirmed(data.user)) {
+    setAuthMessage("Cuenta creada. Entrando...", "success");
+    await handleSession(data.session);
+    return;
+  }
+
+  els.authPassword.value = "";
+  setAuthMode("signin");
+  els.authEmail.value = credentials.email;
+  setAuthMessage("Cuenta creada. Revisa tu email para confirmar el acceso.", "success");
 }
 
 async function signOut() {

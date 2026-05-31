@@ -272,7 +272,7 @@
       border: 0;
     }
 
-    .waitlist-form input {
+    .waitlist-form input[type="email"] {
       min-width: 0;
       height: 50px;
       padding: 0 16px;
@@ -284,11 +284,11 @@
       font: 600 15px var(--font-body);
     }
 
-    .waitlist-form input::placeholder {
+    .waitlist-form input[type="email"]::placeholder {
       color: #6f6b79;
     }
 
-    .waitlist-form input:focus {
+    .waitlist-form input[type="email"]:focus {
       box-shadow: inset 0 0 0 1px rgba(157, 130, 253, 0.58);
     }
 
@@ -324,6 +324,45 @@
       color: var(--muted);
       font-size: 13px;
       line-height: 1.45;
+    }
+
+    .legal-consent {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      margin: 0 4px 2px;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .legal-consent input {
+      width: 17px;
+      height: 17px;
+      margin: 1px 0 0;
+      accent-color: var(--accent);
+    }
+
+    .legal-consent span {
+      min-width: 0;
+    }
+
+    .legal-consent a,
+    .footer-links a {
+      color: var(--muted-strong);
+      font-weight: 800;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(157, 130, 253, 0.38);
+    }
+
+    .legal-consent a:hover,
+    .footer-links a:hover {
+      color: var(--text);
+      border-bottom-color: var(--accent);
     }
 
     .form-message {
@@ -459,6 +498,14 @@
       text-align: center;
     }
 
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 16px;
+      margin-top: 10px;
+    }
+
     @media (max-width: 920px) {
       .hero {
         grid-template-columns: 1fr;
@@ -468,6 +515,7 @@
 
       .hero-copy {
         text-align: center;
+        min-width: 0;
       }
 
       .subtitle,
@@ -512,13 +560,19 @@
       }
 
       .nav-actions {
+        min-width: 0;
+        flex: 1;
+        justify-content: flex-end;
         gap: 6px;
       }
 
       .login-link {
+        max-width: none;
         min-height: 38px;
-        padding: 0 10px;
+        padding: 0 12px;
+        overflow: hidden;
         font-size: 12px;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
 
@@ -531,11 +585,12 @@
 
       .hero {
         width: min(100% - 28px, 920px);
+        overflow: hidden;
         padding: 54px 0 72px;
       }
 
       h1 {
-        max-width: 360px;
+        max-width: 342px;
         margin: 0 auto;
         font-size: clamp(42px, 13vw, 56px);
         line-height: 0.96;
@@ -547,6 +602,8 @@
 
       .waitlist-form {
         grid-template-columns: 1fr;
+        width: 100%;
+        max-width: 100%;
         border-radius: 16px;
       }
 
@@ -569,7 +626,7 @@
       <div class="nav-actions">
         <button class="landing-theme-toggle" id="landingThemeToggle" type="button" data-theme-toggle aria-label="Cambiar a modo claro" title="Cambiar tema">Tema</button>
         <button class="language-toggle" type="button" data-language-toggle aria-label="Switch to English">EN</button>
-        <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Ya tengo acceso</a>
+        <a class="login-link" href="./app.html" title="Para usuarios con acceso privado">Entrar</a>
       </div>
     </header>
 
@@ -588,6 +645,10 @@
           <label class="sr-only" for="waitlistEmail">Correo electrónico</label>
           <input id="waitlistEmail" type="email" autocomplete="email" placeholder="tu@email.com" required />
           <button type="submit">Unirme a la waitlist</button>
+          <label class="legal-consent">
+            <input id="waitlistConsent" type="checkbox" required />
+            <span>Acepto la <a href="./legal.html#privacidad">política de privacidad</a> y autorizo a Trazza a escribirme para avisarme del lanzamiento y acceso a la app.</span>
+          </label>
         </form>
         <p class="waitlist-note">Algunos traders ya la están probando en acceso privado. Déjanos tu correo y te avisaremos cuando abramos más plazas. Sin spam.</p>
         <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
@@ -613,7 +674,13 @@
     </main>
 
     <footer class="footer">
-      © 2026 Trazza. Construyendo una herramienta seria para traders consistentes.
+      <div>© 2026 Trazza. Construyendo una herramienta seria para traders consistentes.</div>
+      <nav class="footer-links" aria-label="Enlaces legales">
+        <a href="./legal.html#aviso-legal">Aviso legal</a>
+        <a href="./legal.html#privacidad">Privacidad</a>
+        <a href="./legal.html#cookies">Cookies</a>
+        <a href="./legal.html#terminos">Términos</a>
+      </nav>
     </footer>
   </div>
 
@@ -626,9 +693,12 @@
 
     const form = document.getElementById("waitlistForm");
     const emailInput = document.getElementById("waitlistEmail");
+    const consentInput = document.getElementById("waitlistConsent");
     const message = document.getElementById("formMessage");
     const submitButton = form.querySelector("button");
     const themeButton = document.getElementById("landingThemeToggle");
+    const WAITLIST_CONSENT_TEXT =
+      "Acepto la política de privacidad y autorizo a Trazza a escribirme para avisarme del lanzamiento y acceso a la app.";
 
     function currentLanguage() {
       return window.TrazzaI18n?.getLanguage?.() || (navigator.language?.toLowerCase().startsWith("en") ? "en" : "es");
@@ -654,11 +724,11 @@
     updateThemeButton();
 
     function setMessage(text, type = "") {
-      message.textContent = text;
+      message.textContent = window.TrazzaI18n?.t?.(text) || text;
       message.className = `form-message${type ? ` ${type}` : ""}`;
     }
 
-    async function saveWaitlistEmail(email) {
+    async function postWaitlistPayload(payload) {
       const response = await fetch(WAITLIST_ENDPOINT, {
         method: "POST",
         headers: {
@@ -667,19 +737,36 @@
           "Content-Type": "application/json",
           Prefer: "return=minimal",
         },
-        body: JSON.stringify({
-          email,
-          source: "landing",
-          user_agent: navigator.userAgent.slice(0, 500),
-        }),
+        body: JSON.stringify(payload),
       });
+      const errorBody = response.ok ? null : await response.json().catch(() => null);
+      return { response, errorBody };
+    }
+
+    async function saveWaitlistEmail(email) {
+      const basePayload = {
+        email,
+        source: "landing",
+        user_agent: navigator.userAgent.slice(0, 500),
+      };
+      const consentPayload = {
+        ...basePayload,
+        launch_updates_consent: true,
+        privacy_accepted_at: new Date().toISOString(),
+        consent_text: WAITLIST_CONSENT_TEXT,
+      };
+
+      let { response, errorBody } = await postWaitlistPayload(consentPayload);
+      if (!response.ok && (errorBody?.code === "PGRST204" || /launch_updates_consent|privacy_accepted_at|consent_text/i.test(errorBody?.message || ""))) {
+        console.warn("Waitlist consent columns are missing. Run supabase-waitlist.sql before public launch.");
+        ({ response, errorBody } = await postWaitlistPayload(basePayload));
+      }
 
       if (response.status === 409) {
         return "duplicate";
       }
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
         if (errorBody?.code === "23505") {
           return "duplicate";
         }
@@ -697,9 +784,14 @@
         setMessage("Introduce un correo válido.", "error");
         return;
       }
+      if (!consentInput.checked) {
+        setMessage("Acepta la política de privacidad para unirte a la waitlist.", "error");
+        consentInput.focus();
+        return;
+      }
 
       submitButton.disabled = true;
-      submitButton.textContent = "Guardando...";
+      submitButton.textContent = window.TrazzaI18n?.t?.("Guardando...") || "Guardando...";
       setMessage("");
 
       try {
@@ -716,7 +808,7 @@
         setMessage("No hemos podido guardar tu correo ahora mismo. Inténtalo de nuevo en unos minutos.", "error");
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = "Unirme a la waitlist";
+        submitButton.textContent = window.TrazzaI18n?.t?.("Unirme a la waitlist") || "Unirme a la waitlist";
       }
     });
   </script>

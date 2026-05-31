@@ -22,6 +22,22 @@
         "A simple, visual trading journal and finance workspace built for real daily use.",
       "Correo electrónico": "Email address",
       "Unirme a la waitlist": "Join the waitlist",
+      "Acepto la polÃ­tica de privacidad y autorizo a Trazza a escribirme para avisarme del lanzamiento y acceso a la app.":
+        "I accept the privacy policy and authorize Trazza to contact me about the launch and app access.",
+      "Acepto la política de privacidad y autorizo a Trazza a escribirme para avisarme del lanzamiento y acceso a la app.":
+        "I accept the privacy policy and authorize Trazza to contact me about the launch and app access.",
+      "Acepta la política de privacidad para unirte a la waitlist.": "Accept the privacy policy to join the waitlist.",
+      "Acepto la": "I accept the",
+      "polÃ­tica de privacidad": "privacy policy",
+      "política de privacidad": "privacy policy",
+      "y autorizo a Trazza a escribirme para avisarme del lanzamiento y acceso a la app.":
+        "and authorize Trazza to contact me about the launch and app access.",
+      "Aviso legal": "Legal notice",
+      "Privacidad": "Privacy",
+      "Cookies": "Cookies",
+      "Términos": "Terms",
+      "Terminos": "Terms",
+      "Enlaces legales": "Legal links",
       "Algunos traders ya la están probando en acceso privado. Déjanos tu correo y te avisaremos cuando abramos más plazas. Sin spam.":
         "Some traders are already testing it with private access. Leave your email and we will let you know when more spots open. No spam.",
       "Journal visual": "Visual journal",
@@ -54,6 +70,19 @@
       "Winrate": "Winrate",
       "Profit factor": "Profit factor",
       "Vista previa de Trazza": "Trazza preview",
+      "Al entrar aceptas los términos y la política de privacidad. Trazza es una herramienta de registro y análisis, no asesoramiento financiero.":
+        "By signing in you accept the terms and privacy policy. Trazza is a logging and analytics tool, not financial advice.",
+      "Al entrar o crear una cuenta aceptas los términos y la política de privacidad. Trazza es una herramienta de registro y análisis, no asesoramiento financiero.":
+        "By signing in or creating an account, you accept the terms and privacy policy. Trazza is a logging and analytics tool, not financial advice.",
+      "Al entrar aceptas los": "By signing in you accept the",
+      "Al entrar o crear una cuenta aceptas los": "By signing in or creating an account, you accept the",
+      "tÃ©rminos": "terms",
+      "términos": "terms",
+      "y la": "and the",
+      ". Trazza es una herramienta de registro y anÃ¡lisis, no asesoramiento financiero.":
+        ". Trazza is a logging and analytics tool, not financial advice.",
+      ". Trazza es una herramienta de registro y análisis, no asesoramiento financiero.":
+        ". Trazza is a logging and analytics tool, not financial advice.",
       "¿Quieres empezar con Trazza?": "Want to start with Trazza?",
       "Accede para sincronizar tus finanzas, cuentas, movimientos y journal.":
         "Sign in to sync your finance data, accounts, movements and journal.",
@@ -65,10 +94,16 @@
       "Minimo 6 caracteres": "Minimum 6 characters",
       "Entrar": "Sign in",
       "Crear cuenta": "Create account",
+      "Crear cuenta gratis": "Create free account",
+      "Crea tu cuenta gratis": "Create your free account",
+      "Empieza gratis y guarda tus cuentas, movimientos y journal en la nube.":
+        "Start for free and save your accounts, movements and journal in the cloud.",
       "No tienes cuenta?": "Do not have an account?",
+      "¿No tienes cuenta?": "Do not have an account?",
       "Acceso privado por invitación": "Private invitation access",
       "Solicitar acceso": "Request access",
       "Ya tienes cuenta?": "Already have an account?",
+      "¿Ya tienes cuenta?": "Already have an account?",
       "El registro está cerrado. Únete a la waitlist en la página principal.":
         "Registration is closed. Join the waitlist on the main page.",
       "El registro está cerrado. Pide acceso por invitación.":
@@ -88,6 +123,11 @@
       "Confirma tu email antes de entrar.": "Confirm your email before signing in.",
       "Confirma tu email antes de entrar. Revisa tu bandeja de entrada.":
         "Confirm your email before signing in. Check your inbox.",
+      "Ya existe una cuenta con este email. Entra con tu contraseña.":
+        "An account already exists with this email. Sign in with your password.",
+      "El registro no está habilitado en Supabase.": "Signups are not enabled in Supabase.",
+      "Demasiados intentos seguidos. Espera unos minutos y vuelve a probar.":
+        "Too many attempts in a row. Wait a few minutes and try again.",
       "No se pudo comprobar la sesión. Vuelve a entrar.": "The session could not be verified. Sign in again.",
       "No se pudo completar el acceso.": "The access request could not be completed.",
 
