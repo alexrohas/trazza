@@ -796,6 +796,36 @@
             </select>
           </label>
         </div>
+        <details class="profile-migration">
+          <summary>
+            <span>Migración de datos</span>
+            <i data-lucide="chevron-down"></i>
+          </summary>
+          <div class="profile-migration-body">
+            <p>
+              Usa el JSON para mover todos tus datos a otra cuenta. El CSV solo exporta movimientos para consulta.
+            </p>
+            <div class="profile-migration-actions">
+              <button class="secondary-button" id="exportJsonButton" type="button">
+                <i data-lucide="download"></i>
+                <span>Descargar JSON</span>
+              </button>
+              <button class="secondary-button" id="importJsonButton" type="button">
+                <i data-lucide="upload"></i>
+                <span>Importar JSON</span>
+              </button>
+              <button class="ghost-button" id="exportCsvButton" type="button">
+                <i data-lucide="file-spreadsheet"></i>
+                <span>CSV movimientos</span>
+              </button>
+              <button class="ghost-button" id="migrateLocalButton" type="button" hidden>
+                <i data-lucide="cloud-upload"></i>
+                <span>Subir datos locales</span>
+              </button>
+            </div>
+            <input id="importFileInput" type="file" accept=".json,application/json" hidden />
+          </div>
+        </details>
         <p class="profile-message" id="profileMessage" role="status" aria-live="polite" hidden></p>
         <div class="modal-actions">
           <button class="secondary-button profile-logout-button" id="profileLogoutButton" type="button">

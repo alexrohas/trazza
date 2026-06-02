@@ -6476,23 +6476,40 @@ function importJson(event) {
       const parsed = JSON.parse(String(reader.result));
       const imported = parsed.data || parsed;
       if (!Array.isArray(imported.firms) || !Array.isArray(imported.accounts) || !Array.isArray(imported.transactions)) {
-        throw new Error("Invalid file");
+        throw new Error("El archivo no es valido.");
       }
 
-      if (currentUser) {
-        await replaceCloudState(imported);
+      const applyImport = async () => {
+        try {
+          if (currentUser) {
+            await replaceCloudState(imported);
+          } else {
+            state = {
+              firms: imported.firms,
+              accounts: imported.accounts,
+              transactions: imported.transactions,
+              journalEntries: Array.isArray(imported.journalEntries) ? imported.journalEntries : [],
+              journalErrorTypes: normalizeJournalErrorTypes(imported.journalErrorTypes),
+            };
+            persist();
+            refreshAll();
+          }
+          toast("Datos importados.");
+          closeDialog("profileDialog");
+        } catch (error) {
+          toast(error.message || "No se pudieron importar los datos.");
+        }
+      };
+
+      if (currentUser && hasStateData(state)) {
+        openConfirm(
+          "Importar copia",
+          "La importación JSON sustituirá los datos actuales de esta cuenta. Descarga una copia antes si quieres conservarlos.",
+          applyImport
+        );
       } else {
-        state = {
-          firms: imported.firms,
-          accounts: imported.accounts,
-          transactions: imported.transactions,
-          journalEntries: Array.isArray(imported.journalEntries) ? imported.journalEntries : [],
-          journalErrorTypes: normalizeJournalErrorTypes(imported.journalErrorTypes),
-        };
-        persist();
-        refreshAll();
+        await applyImport();
       }
-      toast("Datos importados.");
     } catch (error) {
       toast(error.message || "El archivo no es valido.");
     } finally {
@@ -6626,7 +6643,7 @@ function remapStateForCloud(imported) {
   const journalErrorTypes = normalizeJournalErrorTypes(imported.journalErrorTypes);
   const knownErrorIds = new Set(journalErrorTypes.map((type) => type.id));
   const journalEntries = (Array.isArray(imported.journalEntries) ? imported.journalEntries : [])
-    .filter((entry) => entry?.date && entry?.title)
+    .filter((entry) => entry?.date)
     .map((entry) => {
       const accountId = accountIds.get(entry.accountId) || "";
       const account = accounts.find((item) => item.id === accountId);
@@ -6636,7 +6653,7 @@ function remapStateForCloud(imported) {
         date: entry.date,
         firmId,
         accountId,
-        title: String(entry.title).trim(),
+        title: String(entry.title || entry.asset || "Trade").trim(),
         direction: normalizeJournalDirection(entry.direction || entry.tradeDirection || entry.trade_direction),
         tradingSession: normalizeJournalTradingSession(entry.tradingSession || entry.trading_session || entry.session),
         sessionType: journalSessionLabels[entry.sessionType] ? entry.sessionType : "trading-day",

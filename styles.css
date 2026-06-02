@@ -4781,6 +4781,66 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+.profile-migration {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-migration summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.profile-migration summary::-webkit-details-marker {
+  display: none;
+}
+
+.profile-migration summary svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+  transition: transform var(--dur) var(--ease);
+}
+
+.profile-migration[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.profile-migration-body {
+  display: grid;
+  gap: 11px;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--panel-header-line);
+}
+
+.profile-migration-body p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.profile-migration-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-migration-actions button {
+  min-width: 0;
+  justify-content: center;
+}
+
 .profile-message {
   margin: -4px 0 0;
   color: var(--muted);
@@ -5942,6 +6002,10 @@ tbody tr:hover {
   }
 
   .profile-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-migration-actions {
     grid-template-columns: 1fr;
   }
 
