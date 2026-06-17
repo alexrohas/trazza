@@ -7,12 +7,77 @@
   const translations = new Map(
     Object.entries({
       "Trazza — Waitlist": "Trazza — Waitlist",
+      "Trazza — Journal y finanzas de trading": "Trazza — Trading journal and finance",
       "Trazza es un journal de trading y finanzas hecho por traders, para traders.":
         "Trazza is a trading journal and finance workspace built by traders, for traders.",
+      "Trazza une journal de trading, finanzas, reglas de cuentas y métricas reales en un workspace visual para traders.":
+        "Trazza brings together trading journal, finance, account rules and real metrics in a visual workspace for traders.",
       "Trazza es un journal de trading y prop firm tracker hecho por traders, para traders.":
         "Trazza is a trading journal and finance workspace built by traders, for traders.",
+      "Navegación principal": "Main navigation",
+      "Producto": "Product",
       "Ya tengo acceso": "I already have access",
       "Para usuarios con acceso privado": "For private access users",
+      "Tu journal y finanzas de trading": "Your trading journal and finance",
+      "Journal y finanzas de trading": "Trading journal and finance",
+      "en un solo lugar.": "in one place.",
+      "Registra operaciones, controla cuentas, gastos, payouts, reglas y disciplina con un dashboard pensado para traders que quieren ver su resultado real.":
+        "Log trades, manage accounts, expenses, payouts, rules and discipline with a dashboard built for traders who want to see their real result.",
+      "Registra operaciones, controla cuentas, gastos, payouts y disciplina con un dashboard pensado para traders que quieren ver su resultado real.":
+        "Log trades, manage accounts, expenses, payouts and discipline with a dashboard built for traders who want to see their real result.",
+      "Ver cómo funciona": "See how it works",
+      "Resumen del producto": "Product summary",
+      "Entradas con P&L, errores y capturas.": "Entries with P&L, mistakes and screenshots.",
+      "Fees, compras, resets y payouts en contexto.": "Fees, purchases, resets and payouts in context.",
+      "Reglas": "Rules",
+      "Target, drawdown y disciplina por cuenta.": "Target, drawdown and discipline per account.",
+      "Dashboard real de Trazza": "Real Trazza dashboard",
+      "Dashboard de journal de Trazza": "Trazza journal dashboard",
+      "Dashboard de journal de Trazza en modo claro": "Trazza journal dashboard in light mode",
+      "Resultado visible": "Visible result",
+      "Calendario, balance y métricas trabajando juntos.": "Calendar, balance and metrics working together.",
+      "Convierte cada sesión en información útil.": "Turn every session into useful information.",
+      "Trazza no es solo una lista de trades. Une captura, activo, dirección, disciplina, estado mental, errores y P&L para que puedas revisar patrones sin perderte en hojas sueltas.":
+        "Trazza is not just a list of trades. It connects screenshot, asset, direction, discipline, mental state, mistakes and P&L so you can review patterns without getting lost in loose spreadsheets.",
+      "Guarda operaciones con captura, notas y errores para revisar rápido qué hiciste bien y qué se repite.":
+        "Save trades with screenshot, notes and mistakes so you can quickly review what you did well and what keeps repeating.",
+      "Ve días verdes, días rojos, totales semanales y evolución mensual sin reconstruir nada a mano.":
+        "See green days, red days, weekly totals and monthly evolution without rebuilding anything by hand.",
+      "Métricas de verdad": "Real metrics",
+      "Winrate, profit factor, errores, disciplina y balance conectados con tus entradas reales.":
+        "Winrate, profit factor, mistakes, discipline and balance connected to your real entries.",
+      "Del trade aislado a una lectura completa de tu rendimiento.": "From isolated trade to complete performance reading.",
+      "La vista de dashboard resume tu evolución, mientras las pantallas de detalle te dejan bajar hasta cada operación cuando necesitas revisar contexto.":
+        "The dashboard view summarizes your evolution, while detail screens let you drill into each trade when you need context.",
+      "Dashboard con balance, errores, disciplina y winrate": "Dashboard with balance, mistakes, discipline and winrate",
+      "Dashboard para revisar de un vistazo": "Dashboard for at-a-glance review",
+      "Balance, winrate, profit factor, disciplina y errores se actualizan con cada entrada.":
+        "Balance, winrate, profit factor, discipline and mistakes update with every entry.",
+      "Galería de operaciones con capturas": "Trade gallery with screenshots",
+      "Entradas con contexto": "Entries with context",
+      "Filtra por cuenta, periodo, activo, dirección o notas.": "Filter by account, period, asset, direction or notes.",
+      "Calendario de resultados por día": "Daily results calendar",
+      "Calendario operativo": "Trading calendar",
+      "Detecta semanas buenas, sesiones flojas y rachas de pérdida.": "Spot good weeks, weak sessions and losing streaks.",
+      "También mide el dinero que sale de la cuenta.": "Also measure the money leaving the account.",
+      "Una cuenta puede parecer rentable hasta que sumas compras, resets, activaciones, comisiones y payouts. Trazza te ayuda a ver el neto real.":
+        "An account can look profitable until you add purchases, resets, activations, commissions and payouts. Trazza helps you see the real net result.",
+      "Métricas principales": "Main metrics",
+      "Resultado real después de gastos y retiros.": "Real result after expenses and withdrawals.",
+      "Rentabilidad sobre lo que has invertido.": "Return on what you have invested.",
+      "Cuánto necesitas recuperar para estar plano.": "How much you need to recover to break even.",
+      "Drawdown": "Drawdown",
+      "Reglas de cuenta visibles en el journal.": "Account rules visible in the journal.",
+      "Control financiero para prop firms y cuentas personales": "Financial control for prop firms and personal accounts",
+      "Registra empresas, cuentas, movimientos y estados para no mezclar rendimiento operativo con dinero gastado.":
+        "Track firms, accounts, movements and statuses so you do not mix trading performance with money spent.",
+      "Compras de challenge, resets, activaciones y mensualidades.": "Challenge purchases, resets, activations and subscriptions.",
+      "Payouts, refunds, comisiones y gastos generales.": "Payouts, refunds, commissions and general expenses.",
+      "Filtros por empresa, cuenta, periodo y tipo de movimiento.": "Filters by firm, account, period and movement type.",
+      "Panel financiero de Trazza": "Trazza finance dashboard",
+      "Empieza a registrar tu trading con más claridad.": "Start tracking your trading with more clarity.",
+      "Crea tu cuenta gratis y usa Trazza como centro de control para tus operaciones, finanzas y revisión diaria.":
+        "Create your free account and use Trazza as the control center for your trades, finances and daily review.",
       "Trazza waitlist": "Trazza waitlist",
       "Hecho por traders,": "Built by traders,",
       "para traders.": "for traders.",

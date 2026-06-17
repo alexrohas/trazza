@@ -132,7 +132,7 @@ let state = loadState();
 let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
-let authMode = "signin";
+let authMode = getInitialAuthMode();
 let cloudLoading = false;
 let activePillar = getInitialPillar();
 let activeSection = pillarDefaultSections[activePillar] || "overview";
@@ -1753,6 +1753,12 @@ function handleJournalTableResult(result, requireTable = false) {
   }
   throwIfSupabaseError(result);
   return true;
+}
+
+function getInitialAuthMode() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedMode = params.get("mode") || params.get("auth") || window.location.hash.replace("#", "");
+  return requestedMode === "signup" || requestedMode === "register" ? "signup" : "signin";
 }
 
 function getInitialTheme() {
