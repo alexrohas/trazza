@@ -229,21 +229,18 @@ body {
 }
 
 .auth-shell {
-  width: min(1080px, 100%);
+  width: min(380px, 100%);
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(470px, 1fr);
-  align-items: center;
-  gap: 20px;
 }
 
 .auth-card {
   position: relative;
   display: grid;
   align-content: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   min-height: 0;
-  padding: 76px 28px 28px;
+  padding: 64px 28px 26px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -259,53 +256,11 @@ body {
   gap: 7px;
 }
 
-.auth-logo {
-  position: absolute;
-  top: 15px;
-  left: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 168px;
-  height: 52px;
-  overflow: hidden;
-}
-
-.auth-logo img {
-  width: 344px;
-  max-width: none;
-  height: auto;
-  display: block;
-  transform: translate(-89px, 4px);
-  transform-origin: left center;
-}
-
-.auth-copy {
-  display: grid;
-  gap: 6px;
-  margin: 4px 0;
-  text-align: left;
-}
-
-.auth-kicker {
-  width: fit-content;
-  padding: 5px 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-  border-radius: var(--radius-xs);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 .auth-card h1 {
-  max-width: 320px;
   margin: 0;
   color: var(--text);
-  font-size: 34px;
-  line-height: 1.02;
+  font-size: 28px;
+  line-height: 1.08;
   font-weight: 800;
 }
 
@@ -362,7 +317,7 @@ body {
 }
 
 .auth-legal {
-  max-width: 320px;
+  max-width: 300px;
   color: var(--muted);
   font-size: 10.8px;
   line-height: 1.45;
@@ -438,93 +393,13 @@ body {
   color: var(--red);
 }
 
-.auth-preview {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 500px;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.auth-preview::before {
-  content: "";
-  position: absolute;
-  inset: 12% -5% 8% 4%;
-  pointer-events: none;
-  border-radius: 34px;
-  background: color-mix(in srgb, var(--accent-soft) 72%, transparent);
-  filter: blur(42px);
-  opacity: 0.86;
-}
-
-.auth-preview-frame {
-  position: relative;
-  z-index: 1;
-  width: min(780px, 112%);
-  overflow: hidden;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  background: #09090b;
-  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.24);
-  transform: perspective(1100px) rotateY(-4deg) rotateX(2deg);
-}
-
-.auth-preview-topbar {
-  display: flex;
-  gap: 6px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0f0f14;
-}
-
-.auth-preview-topbar span {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.26);
-}
-
-.auth-preview-image {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.auth-preview-image.is-light {
-  display: none;
-}
-
-:root[data-theme="light"] .auth-preview-image.is-dark {
-  display: none;
-}
-
-:root[data-theme="light"] .auth-preview-image.is-light {
-  display: block;
-}
-
 @media (max-width: 920px) {
   .auth-shell {
-    grid-template-columns: 1fr;
-    width: min(440px, 100%);
+    width: min(380px, 100%);
   }
 
   .auth-card {
     min-height: auto;
-  }
-
-  .auth-preview {
-    min-height: 330px;
-  }
-
-  .auth-preview-frame {
-    width: 100%;
-    transform: none;
   }
 }
 
@@ -537,39 +412,14 @@ body {
     padding: 22px 20px 20px;
   }
 
-  .auth-logo {
-    position: static;
-    justify-content: flex-start;
-    width: 164px;
-    height: 52px;
-    margin: 32px auto 0;
-  }
-
-  .auth-logo img {
-    width: 330px;
-    transform: translate(-85px, 4px);
-  }
-
-  .auth-copy {
-    text-align: center;
-  }
-
-  .auth-kicker {
-    margin-inline: auto;
-  }
-
   .auth-card h1 {
     max-width: none;
-    font-size: 28px;
+    font-size: 26px;
   }
 
   .auth-switch {
     justify-content: center;
     flex-wrap: wrap;
-  }
-
-  .auth-preview {
-    display: none;
   }
 }
 
