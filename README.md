@@ -13,11 +13,14 @@ Supabase.
 Opcion local:
 
 ```bash
-python -m http.server 5173
+py -m http.server 5173
 ```
 
 Despues abre `http://localhost:5173` para la landing o
 `http://localhost:5173/app.html` para la app.
+
+En macOS/Linux, o si `python` apunta a una instalacion real de Python en
+Windows, tambien puedes usar `python -m http.server 5173`.
 
 ## Datos y sesion
 
