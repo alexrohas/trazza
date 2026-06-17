@@ -98,10 +98,16 @@
       min-height: 100vh;
     }
 
-    .nav {
+    .site-header {
       position: sticky;
       top: 0;
       z-index: 20;
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -109,7 +115,6 @@
       width: min(1180px, calc(100% - 40px));
       margin: 0 auto;
       padding: 18px 0;
-      backdrop-filter: blur(18px);
     }
 
     .logo {
@@ -209,7 +214,15 @@
     }
 
     .landing-theme-toggle {
-      min-width: 54px;
+      width: 42px;
+      min-width: 42px;
+      padding: 0;
+    }
+
+    .landing-theme-toggle svg {
+      width: 17px;
+      height: 17px;
+      stroke-width: 2;
     }
 
     .login-link:hover,
@@ -801,10 +814,6 @@
         font-size: 12px;
       }
 
-      .landing-theme-toggle {
-        display: none;
-      }
-
       .nav-actions .primary-link {
         display: none;
       }
@@ -868,20 +877,22 @@
 </head>
 <body>
   <div class="page">
-    <header class="nav">
-      <a class="logo" href="./" aria-label="Trazza">
-        <img src="./assets/trazza.png" alt="Trazza" />
-      </a>
-      <nav class="nav-links" aria-label="Navegación principal">
-        <a href="#producto">Producto</a>
-        <a href="#journal">Journal</a>
-        <a href="#finanzas">Finanzas</a>
-      </nav>
-      <div class="nav-actions">
-        <button class="landing-theme-toggle" id="landingThemeToggle" type="button" data-theme-toggle aria-label="Cambiar a modo claro" title="Cambiar tema">Tema</button>
-        <button class="language-toggle" type="button" data-language-toggle aria-label="Switch to English">EN</button>
-        <a class="login-link" href="./app.html">Entrar</a>
-        <a class="primary-link" href="./app.html?mode=signup">Crear cuenta</a>
+    <header class="site-header">
+      <div class="nav">
+        <a class="logo" href="./" aria-label="Trazza">
+          <img src="./assets/trazza.png" alt="Trazza" />
+        </a>
+        <nav class="nav-links" aria-label="Navegación principal">
+          <a href="#producto">Producto</a>
+          <a href="#journal">Journal</a>
+          <a href="#finanzas">Finanzas</a>
+        </nav>
+        <div class="nav-actions">
+          <button class="landing-theme-toggle" id="landingThemeToggle" type="button" data-theme-toggle aria-label="Cambiar a modo claro" title="Cambiar tema"></button>
+          <button class="language-toggle" type="button" data-language-toggle aria-label="Switch to English">EN</button>
+          <a class="login-link" href="./app.html">Entrar</a>
+          <a class="primary-link" href="./app.html?mode=signup">Crear cuenta</a>
+        </div>
       </div>
     </header>
 
@@ -1083,6 +1094,10 @@
   <script src="./i18n.js"></script>
   <script>
     const themeButton = document.getElementById("landingThemeToggle");
+    const themeIcons = {
+      sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>',
+      moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.99 13.18A9 9 0 1 1 10.82 3.01 7 7 0 0 0 20.99 13.18Z"></path></svg>',
+    };
 
     function currentLanguage() {
       return window.TrazzaI18n?.getLanguage?.() || (navigator.language?.toLowerCase().startsWith("en") ? "en" : "es");
@@ -1091,9 +1106,13 @@
     function updateThemeButton() {
       if (!themeButton) return;
       const isDark = document.documentElement.dataset.theme === "dark";
-      const nextLabel = isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+      const isEnglish = currentLanguage() === "en";
+      const nextLabel = isEnglish
+        ? (isDark ? "Switch to light mode" : "Switch to dark mode")
+        : (isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+      themeButton.innerHTML = isDark ? themeIcons.sun : themeIcons.moon;
       themeButton.setAttribute("aria-label", nextLabel);
-      themeButton.title = currentLanguage() === "en" ? (isDark ? "Light mode" : "Dark mode") : (isDark ? "Modo claro" : "Modo oscuro");
+      themeButton.title = isEnglish ? (isDark ? "Light mode" : "Dark mode") : (isDark ? "Modo claro" : "Modo oscuro");
     }
 
     themeButton?.addEventListener("click", () => {

@@ -243,7 +243,7 @@ body {
   gap: 14px;
   width: 100%;
   min-height: 560px;
-  padding: 34px;
+  padding: 92px 34px 34px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--surface);
@@ -260,15 +260,24 @@ body {
 }
 
 .auth-logo {
+  position: absolute;
+  top: 18px;
+  left: 20px;
   display: flex;
   align-items: center;
-  height: 54px;
+  justify-content: flex-start;
+  width: 188px;
+  height: 60px;
+  overflow: hidden;
 }
 
 .auth-logo img {
-  width: 154px;
+  width: 386px;
+  max-width: none;
   height: auto;
   display: block;
+  transform: translate(-100px, 4px);
+  transform-origin: left center;
 }
 
 .auth-copy {
@@ -507,7 +516,16 @@ body {
   }
 
   .auth-logo {
-    justify-content: center;
+    position: static;
+    justify-content: flex-start;
+    width: 184px;
+    height: 58px;
+    margin: 36px auto 0;
+  }
+
+  .auth-logo img {
+    width: 370px;
+    transform: translate(-96px, 4px);
   }
 
   .auth-copy {
