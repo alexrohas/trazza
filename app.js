@@ -292,6 +292,7 @@ function bindElements() {
     "journalAccountOverviewBase",
     "journalAccountBalance",
     "journalAccountNetPnl",
+    "journalAccountPayouts",
     "journalAccountReturn",
     "journalAccountTargetStatus",
     "journalAccountTargetBar",
@@ -378,6 +379,11 @@ function bindElements() {
     "transactionKind",
     "transactionCategory",
     "transactionAmount",
+    "transactionAmountLabel",
+    "transactionPayoutFields",
+    "transactionProfitSplit",
+    "transactionPayoutNet",
+    "transactionPayoutGross",
     "transactionFirm",
     "transactionAccount",
     "transactionNote",
@@ -590,7 +596,11 @@ function bindEvents() {
 
   els.transactionKind.addEventListener("change", () => {
     fillTransactionCategories(els.transactionKind.value, els.transactionCategory.value);
+    syncTransactionPayoutFields();
   });
+  els.transactionCategory.addEventListener("change", syncTransactionPayoutFields);
+  els.transactionAmount.addEventListener("input", updateTransactionPayoutPreview);
+  els.transactionProfitSplit.addEventListener("input", updateTransactionPayoutPreview);
   els.transactionFirm.addEventListener("change", () => {
     fillAccountSelect(els.transactionAccount, els.transactionFirm.value, true);
   });
@@ -1961,6 +1971,11 @@ function dbAmountOrNull(value) {
   return Number.isFinite(amount) ? amount : null;
 }
 
+function dbPositiveAmountOrNull(value) {
+  const amount = dbAmountOrNull(value);
+  return amount !== null && amount > 0 ? amount : null;
+}
+
 function fromDbFirm(row) {
   return {
     id: row.id,
@@ -1996,6 +2011,8 @@ function fromDbTransaction(row) {
     kind: row.kind,
     category: row.category,
     amount: Number(row.amount || 0),
+    payoutGrossAmount: dbPositiveAmountOrNull(row.payout_gross_amount),
+    payoutProfitSplit: dbPositiveAmountOrNull(row.payout_profit_split),
     currency: getCurrentCurrency(),
     firmId: row.firm_id || "",
     accountId: row.account_id || "",
@@ -2078,6 +2095,12 @@ function transactionToDb(transaction) {
     kind: transaction.kind,
     category: transaction.category,
     amount: transaction.amount,
+    ...(isPayoutTransaction(transaction)
+      ? {
+          payout_gross_amount: getPayoutGrossAmount(transaction),
+          payout_profit_split: getPayoutProfitSplit(transaction),
+        }
+      : {}),
     note: transaction.note || null,
   };
 }
@@ -2938,11 +2961,20 @@ function renderTransactionsTable() {
     .map((tx) => {
       const account = getAccount(tx.accountId);
       const signed = tx.kind === "income" ? tx.amount : -tx.amount;
+      const categoryLabel = categoryLabels[tx.category] || tx.category;
+      const payoutDetail = isPayoutTransaction(tx)
+        ? `${formatMoney(getPayoutGrossAmount(tx))} ${uiText("bruto")} · ${getPayoutProfitSplit(tx)}%`
+        : "";
       return `
         <tr>
           <td data-label="Fecha">${formatDate(tx.date)}</td>
           <td data-label="Tipo"><span class="badge ${tx.kind}">${tx.kind === "income" ? "Retiro" : "Gasto"}</span></td>
-          <td data-label="Categoria">${categoryLabels[tx.category] || escapeHtml(tx.category)}</td>
+          <td data-label="Categoria">
+            <div class="table-title">
+              <strong>${escapeHtml(categoryLabel)}</strong>
+              ${payoutDetail ? `<span>${escapeHtml(payoutDetail)}</span>` : ""}
+            </div>
+          </td>
           <td data-label="Empresa">${escapeHtml(getTransactionFirmLabel(tx))}</td>
           <td data-label="Cuenta">${escapeHtml(account?.name || "-")}</td>
           <td data-label="Nota">${escapeHtml(tx.note || "-")}</td>
@@ -3036,7 +3068,12 @@ function renderJournalAccountOverview(entries) {
   const firm = getFirm(account?.firmId);
   const base = parseAccountSizeAmount(account?.size);
   const netPnl = sum(entries.map((entry) => entry.pnl));
-  const balance = Number.isFinite(base) ? base + netPnl : netPnl;
+  const payouts = sum(
+    state.transactions
+      .filter((transaction) => isPayoutTransaction(transaction) && transaction.accountId === accountId)
+      .map(getPayoutGrossAmount)
+  );
+  const balance = (Number.isFinite(base) ? base + netPnl : netPnl) - payouts;
   const returnPercent = Number.isFinite(base) && base > 0 ? (netPnl / base) * 100 : null;
   const todayPnl = sum(
     state.journalEntries
@@ -3052,6 +3089,8 @@ function renderJournalAccountOverview(entries) {
   els.journalAccountBalance.textContent = sensitiveTradingMoney(balance);
   els.journalAccountNetPnl.textContent = sensitiveSignedTradingMoney(netPnl);
   els.journalAccountNetPnl.className = pnlToneClass(netPnl);
+  els.journalAccountPayouts.textContent = payouts ? sensitiveSignedTradingMoney(-payouts) : sensitiveTradingMoney(0);
+  els.journalAccountPayouts.className = payouts ? "negative" : "neutral";
   els.journalAccountReturn.textContent = returnPercent === null ? "-" : sensitiveSignedPercent(returnPercent);
   els.journalAccountReturn.className = returnPercent === null ? "neutral" : pnlToneClass(returnPercent);
 
@@ -4197,11 +4236,25 @@ function renderJournalCalendar() {
   cursor.setDate(cursor.getDate() - startOffset);
   const entries = getFilteredJournalEntries({ includePeriod: false, includeSearch: false, includeSelectedDate: false });
   const entriesByDate = new Map();
+  const selectedAccountId = els.journalAccountFilter.value || "all";
+  const payoutsByDate = new Map();
 
   entries.forEach((entry) => {
     if (!entriesByDate.has(entry.date)) entriesByDate.set(entry.date, []);
     entriesByDate.get(entry.date).push(entry);
   });
+
+  state.transactions
+    .filter(
+      (transaction) =>
+        isPayoutTransaction(transaction) &&
+        transaction.accountId &&
+        (selectedAccountId === "all" || transaction.accountId === selectedAccountId)
+    )
+    .forEach((transaction) => {
+      if (!payoutsByDate.has(transaction.date)) payoutsByDate.set(transaction.date, []);
+      payoutsByDate.get(transaction.date).push(transaction);
+    });
 
   const headerDays =
     getCurrentLanguage() === "en"
@@ -4221,12 +4274,21 @@ function renderJournalCalendar() {
     for (let day = 0; day < 7; day += 1) {
       const iso = dateToIsoDate(cursor);
       const dayEntries = entriesByDate.get(iso) || [];
+      const dayPayouts = payoutsByDate.get(iso) || [];
       const dayPnl = sum(dayEntries.map((entry) => entry.pnl));
+      const dayPayoutGross = sum(dayPayouts.map(getPayoutGrossAmount));
+      const dayMeta = [
+        dayEntries.length ? `${dayEntries.length} ${entryLabel(dayEntries.length)}` : "",
+        dayPayouts.length ? `${uiText("Payout")} -${formatTradingMoney(dayPayoutGross)}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
       const isCurrentMonth = cursor.getMonth() === monthStart.getMonth();
       const className = [
         "journal-calendar-day",
         isCurrentMonth ? "is-current" : "is-adjacent",
         dayEntries.length ? "has-entries" : "",
+        dayPayouts.length ? "has-payout" : "",
         journalSelectedDate === iso ? "is-selected" : "",
         pnlToneClass(dayPnl),
       ]
@@ -4238,8 +4300,14 @@ function renderJournalCalendar() {
       weekCells.push(`
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
-          ${dayEntries.length ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>` : "<strong></strong>"}
-          ${dayEntries.length && !dashboardPrivacyHidden ? `<small>${dayEntries.length} ${entryLabel(dayEntries.length)}</small>` : "<small></small>"}
+          ${
+            dayEntries.length
+              ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>`
+              : dayPayouts.length
+                ? `<strong>${sensitiveSignedTradingMoney(-dayPayoutGross)}</strong>`
+                : "<strong></strong>"
+          }
+          ${dayMeta && !dashboardPrivacyHidden ? `<small>${escapeHtml(dayMeta)}</small>` : "<small></small>"}
         </button>
       `);
       cursor.setDate(cursor.getDate() + 1);
@@ -5266,11 +5334,17 @@ function openTransactionDialog(transaction = null) {
   els.transactionDate.value = transaction?.date || today();
   els.transactionKind.value = transaction?.kind || "expense";
   fillTransactionCategories(els.transactionKind.value, transaction?.category);
-  els.transactionAmount.value = transaction?.amount ?? "";
+  els.transactionAmount.value = transaction
+    ? isPayoutTransaction(transaction)
+      ? getPayoutGrossAmount(transaction)
+      : transaction.amount
+    : "";
+  els.transactionProfitSplit.value = transaction && isPayoutTransaction(transaction) ? getPayoutProfitSplit(transaction) : 100;
   els.transactionFirm.value = firmId;
   fillAccountSelect(els.transactionAccount, firmId, true, transaction?.accountId || "");
   els.transactionNote.value = transaction?.note || "";
   els.transactionDialogTitle.textContent = transaction ? "Editar movimiento" : "Nuevo movimiento";
+  syncTransactionPayoutFields();
   syncAllCustomSelects();
   showDialog(els.transactionDialog);
 }
@@ -5472,6 +5546,48 @@ function parsePositiveAmount(value) {
   return Number(text);
 }
 
+function isPayoutTransaction(transaction) {
+  return transaction?.kind === "income" && transaction?.category === "payout";
+}
+
+function getPayoutGrossAmount(transaction) {
+  if (!isPayoutTransaction(transaction)) return 0;
+  const grossAmount = Number(transaction?.payoutGrossAmount);
+  return Number.isFinite(grossAmount) && grossAmount > 0 ? grossAmount : Math.abs(Number(transaction?.amount || 0));
+}
+
+function getPayoutProfitSplit(transaction) {
+  const profitSplit = Number(transaction?.payoutProfitSplit);
+  return Number.isFinite(profitSplit) && profitSplit > 0 && profitSplit <= 100 ? profitSplit : 100;
+}
+
+function calculatePayoutNetAmount(grossAmount, profitSplit) {
+  const safeGross = Number.isFinite(grossAmount) ? Math.max(0, grossAmount) : 0;
+  const safeSplit = Number.isFinite(profitSplit) ? Math.min(100, Math.max(0, profitSplit)) : 100;
+  return Math.round(safeGross * (safeSplit / 100) * 100) / 100;
+}
+
+function syncTransactionPayoutFields() {
+  const isPayout = els.transactionKind.value === "income" && els.transactionCategory.value === "payout";
+  els.transactionPayoutFields.hidden = !isPayout;
+  els.transactionAmountLabel.textContent = uiText(isPayout ? "Payout solicitado" : "Importe");
+  els.transactionProfitSplit.required = isPayout;
+  if (isPayout && !String(els.transactionProfitSplit.value || "").trim()) {
+    els.transactionProfitSplit.value = 100;
+  }
+  updateTransactionPayoutPreview();
+}
+
+function updateTransactionPayoutPreview() {
+  if (els.transactionPayoutFields.hidden) return;
+  const grossAmount = parsePositiveAmount(els.transactionAmount.value);
+  const profitSplit = parsePositiveAmount(els.transactionProfitSplit.value);
+  const safeGross = Number.isFinite(grossAmount) ? grossAmount : 0;
+  const netAmount = calculatePayoutNetAmount(safeGross, profitSplit);
+  els.transactionPayoutNet.textContent = formatSignedMoney(netAmount);
+  els.transactionPayoutGross.textContent = formatSignedMoney(-safeGross);
+}
+
 function parseSignedAmount(value) {
   const text = String(value || "").trim().replace(",", ".");
   if (!text) return 0;
@@ -5549,6 +5665,18 @@ function validateTransaction(transaction, selectedAccountId, account) {
   }
   if (!Number.isFinite(transaction.amount) || transaction.amount <= 0) {
     return markInvalid(els.transactionAmount, "El importe debe ser mayor que 0.");
+  }
+  if (isPayoutTransaction(transaction)) {
+    if (!Number.isFinite(transaction.payoutGrossAmount) || transaction.payoutGrossAmount <= 0) {
+      return markInvalid(els.transactionAmount, "El payout solicitado debe ser mayor que 0.");
+    }
+    if (
+      !Number.isFinite(transaction.payoutProfitSplit) ||
+      transaction.payoutProfitSplit <= 0 ||
+      transaction.payoutProfitSplit > 100
+    ) {
+      return markInvalid(els.transactionProfitSplit, "El profit split debe estar entre 1% y 100%.");
+    }
   }
   if (transaction.firmId && !getFirm(transaction.firmId)) {
     return markInvalid(els.transactionFirm, "Selecciona una empresa valida.");
@@ -6075,16 +6203,24 @@ async function saveTransactionFromForm(event) {
 
   const id = els.transactionId.value || createId();
   const existing = state.transactions.find((tx) => tx.id === id);
-  const amount = parsePositiveAmount(els.transactionAmount.value);
+  const enteredAmount = parsePositiveAmount(els.transactionAmount.value);
+  const kind = els.transactionKind.value;
+  const category = els.transactionCategory.value;
+  const isPayout = kind === "income" && category === "payout";
+  const payoutProfitSplit = isPayout ? parsePositiveAmount(els.transactionProfitSplit.value) : null;
+  const payoutGrossAmount = isPayout ? enteredAmount : null;
+  const amount = isPayout ? calculatePayoutNetAmount(payoutGrossAmount, payoutProfitSplit) : enteredAmount;
   const selectedFirmId = normalizeTransactionFirmSelectValue(els.transactionFirm.value);
   const selectedAccountId = selectedFirmId ? els.transactionAccount.value : "";
   const account = selectedAccountId ? getAccount(selectedAccountId) : null;
   const transaction = {
     id,
     date: els.transactionDate.value,
-    kind: els.transactionKind.value,
-    category: els.transactionCategory.value,
+    kind,
+    category,
     amount,
+    payoutGrossAmount,
+    payoutProfitSplit,
     currency: getCurrentCurrency(),
     firmId: selectedFirmId || account?.firmId || "",
     accountId: account?.id || "",
@@ -6112,7 +6248,16 @@ async function saveTransactionFromForm(event) {
     refreshAll();
     toast("Movimiento guardado.");
   } catch (error) {
-    toast(error.message || "No se pudo guardar el movimiento.");
+    const message = String(error?.message || "");
+    const missingPayoutColumns =
+      message.includes("payout_gross_amount") ||
+      message.includes("payout_profit_split") ||
+      message.includes("schema cache");
+    toast(
+      missingPayoutColumns
+        ? "Ejecuta supabase-payouts.sql en Supabase para guardar payouts con profit split."
+        : message || "No se pudo guardar el movimiento."
+    );
   } finally {
     setFormBusy(els.transactionForm, false);
   }
@@ -6443,7 +6588,7 @@ function exportJson() {
 
 function exportCsv() {
   const rows = [
-    ["fecha", "tipo", "categoria", "firm", "cuenta", "nota", "importe", "moneda"],
+    ["fecha", "tipo", "categoria", "firm", "cuenta", "nota", "importe_neto", "payout_bruto", "profit_split", "moneda"],
     ...state.transactions
       .slice()
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
@@ -6458,6 +6603,8 @@ function exportCsv() {
           account?.name || "",
           tx.note || "",
           signed.toFixed(2),
+          isPayoutTransaction(tx) ? getPayoutGrossAmount(tx).toFixed(2) : "",
+          isPayoutTransaction(tx) ? getPayoutProfitSplit(tx).toFixed(2) : "",
           getCurrentCurrency(),
         ];
       }),
@@ -6631,6 +6778,14 @@ function remapStateForCloud(imported) {
         kind: transaction.kind,
         category: transaction.category,
         amount: Math.abs(Number(transaction.amount)),
+        payoutGrossAmount:
+          transaction.category === "payout"
+            ? Number(transaction.payoutGrossAmount ?? transaction.payout_gross_amount) || Math.abs(Number(transaction.amount))
+            : null,
+        payoutProfitSplit:
+          transaction.category === "payout"
+            ? Number(transaction.payoutProfitSplit ?? transaction.payout_profit_split) || 100
+            : null,
         currency: getCurrentCurrency(),
         firmId,
         accountId,

@@ -3315,7 +3315,7 @@ tbody tr:hover {
 
 .journal-account-overview-stats {
   display: grid;
-  grid-template-columns: 1.25fr 1fr 1fr;
+  grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3586,6 +3586,15 @@ tbody tr:hover {
   background: color-mix(in srgb, var(--red-soft) 70%, var(--surface-elevated));
 }
 
+.journal-calendar-day.has-payout {
+  background: color-mix(in srgb, #38bdf8 17%, var(--surface-elevated));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #38bdf8 72%, transparent);
+}
+
+:root[data-theme="dark"] .journal-calendar-day.has-payout {
+  background: color-mix(in srgb, #38bdf8 13%, var(--surface-elevated));
+}
+
 .journal-calendar-date {
   color: var(--muted);
   font-size: 12px;
@@ -3653,6 +3662,14 @@ tbody tr:hover {
 .journal-calendar-week-total.neutral strong,
 .journal-pnl.neutral {
   color: var(--muted-strong);
+}
+
+.journal-calendar-day.has-payout strong {
+  color: #0284c7;
+}
+
+:root[data-theme="dark"] .journal-calendar-day.has-payout strong {
+  color: #7dd3fc;
 }
 
 .journal-selected-date {
@@ -5142,6 +5159,77 @@ tbody tr:hover {
   grid-column: 1 / -1;
 }
 
+.transaction-payout-fields {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.75fr) repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--panel-header-line);
+  border-bottom: 1px solid var(--panel-header-line);
+}
+
+.transaction-payout-fields[hidden] {
+  display: none;
+}
+
+.input-suffix {
+  position: relative;
+}
+
+.input-suffix input {
+  padding-right: 38px;
+}
+
+.input-suffix > span {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.transaction-payout-result {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 4px 6px;
+}
+
+.transaction-payout-result span {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.transaction-payout-result strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-payout-result strong.positive {
+  color: var(--green-strong);
+}
+
+.transaction-payout-result strong.negative {
+  color: var(--red-strong);
+}
+
+:root[data-theme="dark"] .transaction-payout-result strong.positive {
+  color: var(--green);
+}
+
+:root[data-theme="dark"] .transaction-payout-result strong.negative {
+  color: var(--red);
+}
+
 .modal-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5900,7 +5988,8 @@ tbody tr:hover {
   .metrics-grid,
   .dashboard-filters,
   .filters-row,
-  .form-grid {
+  .form-grid,
+  .transaction-payout-fields {
     grid-template-columns: 1fr;
   }
 

@@ -472,6 +472,10 @@
                       <strong id="journalAccountNetPnl">0,00 €</strong>
                     </div>
                     <div>
+                      <span>Payouts</span>
+                      <strong class="neutral" id="journalAccountPayouts">0,00 €</strong>
+                    </div>
+                    <div>
                       <span>Beneficio</span>
                       <strong id="journalAccountReturn">0.00%</strong>
                     </div>
@@ -946,9 +950,26 @@
             <select id="transactionCategory" required></select>
           </label>
           <label>
-            Importe
+            <span id="transactionAmountLabel">Importe</span>
             <input id="transactionAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0.00" />
           </label>
+        </div>
+        <div class="transaction-payout-fields" id="transactionPayoutFields" hidden>
+          <label>
+            Profit split
+            <div class="input-suffix">
+              <input id="transactionProfitSplit" type="number" min="1" max="100" step="0.01" inputmode="decimal" value="100" />
+              <span>%</span>
+            </div>
+          </label>
+          <div class="transaction-payout-result">
+            <span>Recibes en Finanzas</span>
+            <strong class="positive" id="transactionPayoutNet">+0,00 €</strong>
+          </div>
+          <div class="transaction-payout-result">
+            <span>Se descuenta de la cuenta</span>
+            <strong class="negative" id="transactionPayoutGross">-0,00 €</strong>
+          </div>
         </div>
         <div class="form-grid">
           <label>
