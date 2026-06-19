@@ -5060,7 +5060,7 @@ tbody tr:hover {
 
 .journal-import-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 8px;
 }
 
@@ -5155,6 +5155,17 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
+}
+
+.journal-import-preview-amounts {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  text-align: right;
+}
+
+.journal-import-preview-amounts small {
+  white-space: nowrap;
 }
 
 .form-grid {

@@ -22,12 +22,19 @@ alter table public.transactions enable row level security;
 alter table public.journal_entries enable row level security;
 alter table public.journal_error_types enable row level security;
 
+alter table public.firms force row level security;
+alter table public.accounts force row level security;
+alter table public.transactions force row level security;
+alter table public.journal_entries force row level security;
+alter table public.journal_error_types force row level security;
+
 revoke all on table public.firms from anon;
 revoke all on table public.accounts from anon;
 revoke all on table public.transactions from anon;
 revoke all on table public.journal_entries from anon;
 revoke all on table public.journal_error_types from anon;
 
+grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.firms to authenticated;
 grant select, insert, update, delete on table public.accounts to authenticated;
 grant select, insert, update, delete on table public.transactions to authenticated;
@@ -57,22 +64,24 @@ end $$;
 create policy "Firms are private"
   on public.firms
   for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 create policy "Accounts are private"
   on public.accounts
   for all
-  using (auth.uid() = user_id)
+  to authenticated
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       firm_id is null
       or exists (
         select 1
         from public.firms
         where firms.id = accounts.firm_id
-          and firms.user_id = auth.uid()
+          and firms.user_id = (select auth.uid())
       )
     )
   );
@@ -80,16 +89,17 @@ create policy "Accounts are private"
 create policy "Transactions are private"
   on public.transactions
   for all
-  using (auth.uid() = user_id)
+  to authenticated
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       firm_id is null
       or exists (
         select 1
         from public.firms
         where firms.id = transactions.firm_id
-          and firms.user_id = auth.uid()
+          and firms.user_id = (select auth.uid())
       )
     )
     and (
@@ -98,7 +108,7 @@ create policy "Transactions are private"
         select 1
         from public.accounts
         where accounts.id = transactions.account_id
-          and accounts.user_id = auth.uid()
+          and accounts.user_id = (select auth.uid())
       )
     )
   );
@@ -106,16 +116,17 @@ create policy "Transactions are private"
 create policy "Journal entries are private"
   on public.journal_entries
   for all
-  using (auth.uid() = user_id)
+  to authenticated
+  using ((select auth.uid()) = user_id)
   with check (
-    auth.uid() = user_id
+    (select auth.uid()) = user_id
     and (
       firm_id is null
       or exists (
         select 1
         from public.firms
         where firms.id = journal_entries.firm_id
-          and firms.user_id = auth.uid()
+          and firms.user_id = (select auth.uid())
       )
     )
     and (
@@ -124,7 +135,7 @@ create policy "Journal entries are private"
         select 1
         from public.accounts
         where accounts.id = journal_entries.account_id
-          and accounts.user_id = auth.uid()
+          and accounts.user_id = (select auth.uid())
       )
     )
   );
@@ -132,5 +143,6 @@ create policy "Journal entries are private"
 create policy "Journal error types are private"
   on public.journal_error_types
   for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);

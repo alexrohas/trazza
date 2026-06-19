@@ -155,6 +155,43 @@ const GENERAL_TRANSACTION_FIRM_VALUE = "__general__";
 const GENERAL_TRANSACTION_OPTION_LABEL = "Otro / gasto general";
 const GENERAL_TRANSACTION_DISPLAY_LABEL = "Gasto general";
 const DASHBOARD_PRIVACY_MASK = "••••••";
+const TRADOVATE_COMMISSION_PRESETS = Object.freeze([
+  {
+    label: "Alpha Futures",
+    match: ["alpha", "alpha futures", "alpha capital"],
+    rates: { MNQ: 1.82, MES: 1.82, NQ: 5.76, ES: 5.76 },
+  },
+  {
+    label: "Lucid",
+    match: ["lucid", "lucid trading", "lucid flex"],
+    rates: { MNQ: 1, MES: 1, NQ: 3.5, ES: 3.5 },
+  },
+  {
+    label: "Apex",
+    match: ["apex", "apex trader funding"],
+    rates: { MNQ: 1.04, MES: 1.04, NQ: 3.1, ES: 3.1 },
+  },
+  {
+    label: "Take Profit Trader",
+    match: ["take profit", "takeprofit", "takeprofittrader", "tpt"],
+    rates: { MNQ: 0.5, MES: 0.5, NQ: 5, ES: 5 },
+  },
+  {
+    label: "Tradeify",
+    match: ["tradeify"],
+    rates: { MNQ: 1.82, MES: 1.82, NQ: 5.76, ES: 5.76 },
+  },
+  {
+    label: "MyFundedFutures",
+    match: ["myfundedfutures", "my funded futures", "mffu"],
+    rates: { MNQ: 1.9, MES: 1.9, NQ: 4.68, ES: 4.68 },
+  },
+  {
+    label: "Top One Futures",
+    match: ["top one", "topone", "top one futures"],
+    rates: { MNQ: 1.9, MES: 1.9, NQ: 5.76, ES: 5.76 },
+  },
+]);
 
 const netChartState = {
   dragStartView: null,
@@ -5612,9 +5649,13 @@ async function handleJournalCsvImportSubmit(event) {
     const text = await file.text();
     const result = parseTradovatePerformanceCsv(text, account, tradingSession);
     if (result.entries.length === 1) {
+      const commission = Number(result.entries[0].importMeta?.commission || 0);
+      const commissionText = commission > 0
+        ? ` P&L neto: ${formatSignedMoney(result.entries[0].pnl)} tras ${formatMoney(commission)} de comisiones.`
+        : "";
       closeDialog("journalImportDialog");
       openJournalDialog(result.entries[0]);
-      toast("CSV detectado: 1 entrada rellenada. Revisa y guarda.");
+      toast(`CSV detectado: 1 entrada rellenada. Revisa y guarda.${commissionText}`);
       return;
     }
 
@@ -5786,6 +5827,42 @@ function normalizeTradovateSymbol(symbol) {
   return match ? match[1] : compact;
 }
 
+function findTradovateCommissionPreset(account) {
+  const firmName = normalize(getFirm(account?.firmId)?.name || "");
+  if (!firmName) return null;
+  return (
+    TRADOVATE_COMMISSION_PRESETS.find((preset) =>
+      preset.match.some((item) => {
+        const pattern = normalize(item);
+        return pattern && firmName.includes(pattern);
+      })
+    ) || null
+  );
+}
+
+function calculateTradovateCommission(fills, account) {
+  const preset = findTradovateCommissionPreset(account);
+  const missingSymbols = new Set();
+  let amount = 0;
+
+  fills.forEach((fill) => {
+    const symbol = normalizeTradovateSymbol(fill.asset || fill.symbol);
+    const rate = Number(preset?.rates?.[symbol]);
+    if (!Number.isFinite(rate)) {
+      missingSymbols.add(symbol);
+      return;
+    }
+    amount += Math.max(0, Number(fill.qty || 0)) * rate;
+  });
+
+  return {
+    amount: roundFinancialAmount(amount),
+    missingSymbols: [...missingSymbols].filter(Boolean),
+    presetLabel: preset?.label || "",
+    source: preset ? "preset" : "none",
+  };
+}
+
 function groupTradovateFills(fills) {
   const parents = fills.map((_, index) => index);
   const find = (index) => {
@@ -5827,7 +5904,9 @@ function createJournalEntryFromTradovateFills(fills, account, timestamp, trading
   const sortedByExit = [...fills].sort((a, b) => a.exitTime - b.exitTime);
   const first = sortedByEntry[0];
   const last = sortedByExit.at(-1);
-  const pnl = Math.round(sum(fills.map((fill) => fill.pnl)) * 100) / 100;
+  const grossPnl = roundFinancialAmount(sum(fills.map((fill) => fill.pnl)));
+  const commission = calculateTradovateCommission(fills, account);
+  const pnl = roundFinancialAmount(grossPnl - commission.amount);
   const qty = sum(fills.map((fill) => fill.qty));
   const entryTime = first.entryTime;
   const exitTime = last.exitTime;
@@ -5854,6 +5933,11 @@ function createJournalEntryFromTradovateFills(fills, account, timestamp, trading
     importMeta: {
       rows: fills.length,
       qty,
+      grossPnl,
+      commission: commission.amount,
+      commissionMissingSymbols: commission.missingSymbols,
+      commissionPreset: commission.presetLabel,
+      commissionSource: commission.source,
       entryTime: entryTime.toISOString(),
       exitTime: exitTime.toISOString(),
     },
@@ -5861,7 +5945,11 @@ function createJournalEntryFromTradovateFills(fills, account, timestamp, trading
 }
 
 function openJournalImportPreview(result) {
-  const totalPnl = sum(result.entries.map((entry) => entry.pnl));
+  const totalGrossPnl = roundFinancialAmount(
+    sum(result.entries.map((entry) => entry.importMeta?.grossPnl ?? entry.pnl))
+  );
+  const totalCommission = roundFinancialAmount(sum(result.entries.map((entry) => entry.importMeta?.commission)));
+  const totalPnl = roundFinancialAmount(sum(result.entries.map((entry) => entry.pnl)));
   const account = getAccount(result.entries[0]?.accountId);
   const accountLabel = account ? `${getFirm(account.firmId)?.name || "Sin empresa"} - ${account.name}` : "Cuenta";
   const groupedLabel =
@@ -5879,7 +5967,15 @@ function openJournalImportPreview(result) {
       <strong>${escapeHtml(groupedLabel)}</strong>
     </div>
     <div>
-      <span>P&L total</span>
+      <span>${escapeHtml(uiText("P&L bruto"))}</span>
+      <strong class="${pnlToneClass(totalGrossPnl)}">${formatSignedMoney(totalGrossPnl)}</strong>
+    </div>
+    <div>
+      <span>${escapeHtml(uiText("Comision estimada"))}</span>
+      <strong>${formatMoney(totalCommission)}</strong>
+    </div>
+    <div>
+      <span>${escapeHtml(uiText("P&L neto"))}</span>
       <strong class="${pnlToneClass(totalPnl)}">${formatSignedMoney(totalPnl)}</strong>
     </div>
   `;
@@ -5896,8 +5992,12 @@ function journalImportPreviewRowHtml(entry) {
   const directionLabel = getJournalDirectionLabel(entry);
   const rows = Number(entry.importMeta?.rows || 1);
   const qty = Number(entry.importMeta?.qty || 0);
+  const grossPnl = Number(entry.importMeta?.grossPnl ?? pnl);
+  const commission = Number(entry.importMeta?.commission || 0);
   const rowLabel = rows === 1 ? "1 fila" : `${rows} filas agrupadas`;
   const qtyLabel = qty === 1 ? "1 contrato" : `${qty} contratos`;
+  const commissionLabel =
+    commission > 0 ? `${uiText("Comision")} ${formatMoney(commission)}` : uiText("Sin tarifa aplicada");
 
   return `
     <article class="journal-import-preview-row ${tone}">
@@ -5907,9 +6007,12 @@ function journalImportPreviewRowHtml(entry) {
           ${direction ? `<em class="journal-card-direction ${direction}">${escapeHtml(directionLabel)}</em>` : ""}
         </strong>
         <span>${escapeHtml(formatJournalGalleryDate(entry.date))}</span>
-        <small>${escapeHtml(`${qtyLabel} · ${rowLabel}`)}</small>
+        <small>${escapeHtml(`${qtyLabel} - ${rowLabel} - ${commissionLabel}`)}</small>
       </div>
-      <strong class="journal-gallery-pnl ${tone}">${formatSignedMoney(pnl)}</strong>
+      <div class="journal-import-preview-amounts">
+        <small>${escapeHtml(uiText("Bruto"))} ${formatSignedMoney(grossPnl)}</small>
+        <strong class="journal-gallery-pnl ${tone}">${formatSignedMoney(pnl)}</strong>
+      </div>
     </article>
   `;
 }
@@ -6779,6 +6882,10 @@ function actionButton(action, id, label, icon) {
 
 function sum(values) {
   return values.reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function roundFinancialAmount(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
 }
 
 function clamp(value, min, max) {

@@ -71,13 +71,38 @@ create index if not exists journal_entries_user_firm_idx on public.journal_entri
 create index if not exists journal_entries_user_account_idx on public.journal_entries (user_id, account_id);
 
 alter table public.journal_entries enable row level security;
+alter table public.journal_entries force row level security;
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.journal_entries to authenticated;
 
 drop policy if exists "Journal entries are private" on public.journal_entries;
 create policy "Journal entries are private"
   on public.journal_entries
   for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      firm_id is null
+      or exists (
+        select 1
+        from public.firms
+        where firms.id = journal_entries.firm_id
+          and firms.user_id = (select auth.uid())
+      )
+    )
+    and (
+      account_id is null
+      or exists (
+        select 1
+        from public.accounts
+        where accounts.id = journal_entries.account_id
+          and accounts.user_id = (select auth.uid())
+      )
+    )
+  );
 
 create or replace function public.trazza_set_updated_at()
 returns trigger
@@ -111,13 +136,17 @@ create index if not exists journal_error_types_user_position_idx
   on public.journal_error_types (user_id, position, label);
 
 alter table public.journal_error_types enable row level security;
+alter table public.journal_error_types force row level security;
+
+grant select, insert, update, delete on table public.journal_error_types to authenticated;
 
 drop policy if exists "Journal error types are private" on public.journal_error_types;
 create policy "Journal error types are private"
   on public.journal_error_types
   for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 drop trigger if exists journal_error_types_set_updated_at on public.journal_error_types;
 create trigger journal_error_types_set_updated_at

@@ -284,6 +284,8 @@
       "Archivo CSV": "CSV file",
       "Notas, errores y capturas quedan vacíos; disciplina se deja en 3 por defecto. Podrás completarlo después desde cada entrada.":
         "Notes, mistakes and screenshots stay empty; discipline is set to 3 by default. You can complete it later from each entry.",
+      "Notas, errores y capturas quedan vacíos; disciplina se deja en 3 por defecto. Si Trazza reconoce la empresa y el activo, descuenta comisiones y guarda el P&L neto.":
+        "Notes, mistakes and screenshots stay empty; discipline is set to 3 by default. If Trazza recognizes the firm and asset, it deducts commissions and saves net P&L.",
       "Analizar CSV": "Analyze CSV",
       "Volver": "Back",
       "Vista previa de importación": "Import preview",
@@ -291,6 +293,11 @@
         "Review the detected trades before creating them in the journal.",
       "Crear entradas": "Create entries",
       "Crear entrada": "Create entry",
+      "P&L bruto": "Gross P&L",
+      "P&L neto": "Net P&L",
+      "Comision estimada": "Estimated commission",
+      "Bruto": "Gross",
+      "Sin tarifa aplicada": "No fee applied",
       "Guardar": "Save",
       "Cancelar": "Cancel",
       "Eliminar": "Delete",
