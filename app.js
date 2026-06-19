@@ -132,7 +132,7 @@ let state = loadState();
 let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
-let authMode = "signin";
+let authMode = getInitialAuthMode();
 let cloudLoading = false;
 let activePillar = getInitialPillar();
 let activeSection = pillarDefaultSections[activePillar] || "overview";
@@ -276,7 +276,6 @@ function bindElements() {
     "authEmail",
     "authPassword",
     "authTitle",
-    "authIntro",
     "authLoginButton",
     "authSwitchText",
     "authSignupButton",
@@ -1540,18 +1539,13 @@ function setAuthMode(mode = authMode) {
   const isSignup = authMode === "signup";
 
   els.authTitle.hidden = false;
-  els.authTitle.textContent = uiText(isSignup ? "Crea tu cuenta gratis" : "Tu centro de control de trading");
-  els.authIntro.textContent = uiText(
-    isSignup
-      ? "Empieza gratis y guarda tus cuentas, movimientos y journal en la nube."
-      : "Journal, finanzas y métricas sincronizadas en un solo panel."
-  );
+  els.authTitle.textContent = uiText(isSignup ? "Crear cuenta" : "Iniciar sesi\u00f3n");
   els.authNameField.hidden = !isSignup;
   els.authName.disabled = !isSignup;
   els.authName.required = isSignup;
-  els.authLoginButton.textContent = uiText(isSignup ? "Crear cuenta gratis" : "Entrar");
+  els.authLoginButton.textContent = uiText(isSignup ? "Crear cuenta" : "Iniciar sesi\u00f3n");
   els.authSwitchText.textContent = uiText(isSignup ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?");
-  els.authSignupButton.textContent = uiText(isSignup ? "Entrar" : "Crear cuenta gratis");
+  els.authSignupButton.textContent = uiText(isSignup ? "Iniciar sesi\u00f3n" : "Crear cuenta");
   els.authPassword.autocomplete = isSignup ? "new-password" : "current-password";
   setAuthMessage();
 }
@@ -1792,6 +1786,12 @@ function handleJournalTableResult(result, requireTable = false) {
   return true;
 }
 
+function getInitialAuthMode() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedMode = params.get("mode") || params.get("auth") || window.location.hash.replace("#", "");
+  return requestedMode === "signup" || requestedMode === "register" ? "signup" : "signin";
+}
+
 function getInitialTheme() {
   const stored =
     localStorage.getItem(THEME_STORAGE_KEY) ||
@@ -1924,8 +1924,8 @@ function updateThemeToggle() {
   const isDark = document.documentElement.dataset.theme === "dark";
   [els.themeToggleButton, els.authThemeToggleButton].filter(Boolean).forEach((button) => {
     button.innerHTML = `<i data-lucide="${isDark ? "sun" : "moon"}"></i>`;
-    button.setAttribute("aria-label", isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
-    button.title = isDark ? "Modo claro" : "Modo oscuro";
+    button.setAttribute("aria-label", uiText(isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"));
+    button.title = uiText(isDark ? "Modo claro" : "Modo oscuro");
   });
   refreshIcons();
 }

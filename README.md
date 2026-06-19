@@ -19,6 +19,9 @@ python -m http.server 5173
 Despues abre `http://localhost:5173` para la landing o
 `http://localhost:5173/app.html` para la app.
 
+En macOS/Linux, o si `python` apunta a una instalacion real de Python en
+Windows, tambien puedes usar `python -m http.server 5173`.
+
 ## Nueva base React
 
 La migracion profesional empieza en `web/`. Es una app React + Vite +
