@@ -3037,6 +3037,16 @@ function getJournalDashboardEntries() {
   return getFilteredJournalEntries({ includePeriod: false, includeSearch: false, includeSelectedDate: false });
 }
 
+function getJournalDashboardPayoutAdjustments() {
+  const accountId = els.journalAccountFilter.value || "all";
+  if (accountId === "all") return [];
+
+  return getPayoutTransactionsForAccount(accountId).map((transaction) => ({
+    date: transaction.date,
+    pnl: -getPayoutGrossAmount(transaction),
+  }));
+}
+
 function scheduleJournalDashboardChartRender(attempt = 0) {
   if (journalDashboardLayoutFrame) return;
   journalDashboardLayoutFrame = requestAnimationFrame(() => {
@@ -3068,13 +3078,11 @@ function renderJournalAccountOverview(entries) {
   const firm = getFirm(account?.firmId);
   const base = parseAccountSizeAmount(account?.size);
   const netPnl = sum(entries.map((entry) => entry.pnl));
-  const payouts = sum(
-    state.transactions
-      .filter((transaction) => isPayoutTransaction(transaction) && transaction.accountId === accountId)
-      .map(getPayoutGrossAmount)
-  );
-  const balance = (Number.isFinite(base) ? base + netPnl : netPnl) - payouts;
-  const returnPercent = Number.isFinite(base) && base > 0 ? (netPnl / base) * 100 : null;
+  const payoutTransactions = getPayoutTransactionsForAccount(accountId);
+  const payouts = sum(payoutTransactions.map(getPayoutGrossAmount));
+  const accountPnl = netPnl - payouts;
+  const balance = Number.isFinite(base) ? base + accountPnl : accountPnl;
+  const returnPercent = Number.isFinite(base) && base > 0 ? (accountPnl / base) * 100 : null;
   const todayPnl = sum(
     state.journalEntries
       .filter((entry) => entry.accountId === accountId && entry.date === today())
@@ -3087,21 +3095,22 @@ function renderJournalAccountOverview(entries) {
     ? `Base ${sensitiveTradingMoney(base)}`
     : "Añade tamaño de cuenta para calcular %";
   els.journalAccountBalance.textContent = sensitiveTradingMoney(balance);
-  els.journalAccountNetPnl.textContent = sensitiveSignedTradingMoney(netPnl);
-  els.journalAccountNetPnl.className = pnlToneClass(netPnl);
+  els.journalAccountNetPnl.textContent = sensitiveSignedTradingMoney(accountPnl);
+  els.journalAccountNetPnl.className = pnlToneClass(accountPnl);
   els.journalAccountPayouts.textContent = payouts ? sensitiveSignedTradingMoney(-payouts) : sensitiveTradingMoney(0);
   els.journalAccountPayouts.className = payouts ? "negative" : "neutral";
   els.journalAccountReturn.textContent = returnPercent === null ? "-" : sensitiveSignedPercent(returnPercent);
   els.journalAccountReturn.className = returnPercent === null ? "neutral" : pnlToneClass(returnPercent);
 
-  renderJournalAccountTargetRule(account, netPnl);
+  renderJournalAccountTargetRule(account, accountPnl);
   renderJournalAccountEodDrawdownRule({
     amount: getAccountRuleAmount(account?.maxDrawdown),
     base,
     bar: els.journalAccountMaxDrawdownBar,
     entries,
     hint: els.journalAccountMaxDrawdownHint,
-    pnl: netPnl,
+    payoutTransactions,
+    pnl: accountPnl,
     status: els.journalAccountMaxDrawdownStatus,
     unconfiguredHint: "Sin drawdown máximo configurado.",
     unconfiguredStatus: "Sin DD máx.",
@@ -3161,6 +3170,7 @@ function renderJournalAccountEodDrawdownRule({
   bar,
   entries,
   hint,
+  payoutTransactions = [],
   pnl,
   status,
   unconfiguredHint,
@@ -3173,7 +3183,7 @@ function renderJournalAccountEodDrawdownRule({
     return;
   }
 
-  const model = getAccountEodDrawdownModel({ amount, base, entries, pnl });
+  const model = getAccountEodDrawdownModel({ amount, base, entries, payoutTransactions, pnl });
   const percent = clamp((model.remaining / amount) * 100, 0, 100);
   const isBreached = model.remaining <= 0;
   setJournalAccountRuleStatus(
@@ -3185,7 +3195,7 @@ function renderJournalAccountEodDrawdownRule({
   hint.textContent = `${uiText("Límite actual")} ${sensitiveTradingMoney(model.limit)} · ${uiText("EOD máx.")} ${sensitiveTradingMoney(model.highWatermark)}`;
 }
 
-function getAccountEodDrawdownModel({ amount, base, entries, pnl }) {
+function getAccountEodDrawdownModel({ amount, base, entries, payoutTransactions = [], pnl }) {
   const startBalance = Number.isFinite(base) ? base : 0;
   const todayIso = today();
   const dailyPnl = new Map();
@@ -3193,6 +3203,12 @@ function getAccountEodDrawdownModel({ amount, base, entries, pnl }) {
   entries.forEach((entry) => {
     if (!entry.date || entry.date >= todayIso) return;
     dailyPnl.set(entry.date, (dailyPnl.get(entry.date) || 0) + Number(entry.pnl || 0));
+  });
+
+  payoutTransactions.forEach((transaction) => {
+    const payoutAmount = getPayoutGrossAmount(transaction);
+    if (!transaction.date || transaction.date >= todayIso || payoutAmount <= 0) return;
+    dailyPnl.set(transaction.date, (dailyPnl.get(transaction.date) || 0) - payoutAmount);
   });
 
   let cumulative = 0;
@@ -3629,7 +3645,7 @@ function drawJournalPnlChart(entries) {
   if (!canDrawCanvas(canvas)) return;
   const ctx = canvas.getContext("2d");
   const palette = chartPalette();
-  const fullSeries = buildJournalPnlSeries(entries);
+  const fullSeries = buildJournalPnlSeries(entries, getJournalDashboardPayoutAdjustments());
   setupCanvas(canvas, ctx);
   const size = chartSize(canvas);
   ctx.clearRect(0, 0, size.width, size.height);
@@ -3716,12 +3732,18 @@ function drawJournalPnlChart(entries) {
   setCanvasDomLabels(canvas, domLabels);
 }
 
-function buildJournalPnlSeries(entries) {
+function buildJournalPnlSeries(entries, adjustments = []) {
   const totalsByDate = new Map();
   entries
     .filter((entry) => entry.date && Number.isFinite(Number(entry.pnl)))
     .forEach((entry) => {
       totalsByDate.set(entry.date, (totalsByDate.get(entry.date) || 0) + Number(entry.pnl || 0));
+    });
+
+  adjustments
+    .filter((item) => item.date && Number.isFinite(Number(item.pnl)))
+    .forEach((item) => {
+      totalsByDate.set(item.date, (totalsByDate.get(item.date) || 0) + Number(item.pnl || 0));
     });
 
   const dates = [...totalsByDate.keys()].sort();
@@ -4237,6 +4259,7 @@ function renderJournalCalendar() {
   const entries = getFilteredJournalEntries({ includePeriod: false, includeSearch: false, includeSelectedDate: false });
   const entriesByDate = new Map();
   const selectedAccountId = els.journalAccountFilter.value || "all";
+  const applyAccountPayouts = selectedAccountId !== "all";
   const payoutsByDate = new Map();
 
   entries.forEach((entry) => {
@@ -4266,10 +4289,12 @@ function renderJournalCalendar() {
     .join("");
   const rows = [];
   const monthEntries = [];
+  let monthPayoutGross = 0;
 
   while (cursor <= monthEnd || rows.length === 0) {
     const weekCells = [];
     const weekEntries = [];
+    let weekPayoutGross = 0;
 
     for (let day = 0; day < 7; day += 1) {
       const iso = dateToIsoDate(cursor);
@@ -4277,6 +4302,8 @@ function renderJournalCalendar() {
       const dayPayouts = payoutsByDate.get(iso) || [];
       const dayPnl = sum(dayEntries.map((entry) => entry.pnl));
       const dayPayoutGross = sum(dayPayouts.map(getPayoutGrossAmount));
+      const dayAccountPayoutGross = applyAccountPayouts ? dayPayoutGross : 0;
+      const dayBalancePnl = dayPnl - dayAccountPayoutGross;
       const dayMeta = [
         dayEntries.length ? `${dayEntries.length} ${entryLabel(dayEntries.length)}` : "",
         dayPayouts.length ? `${uiText("Payout")} -${formatTradingMoney(dayPayoutGross)}` : "",
@@ -4290,19 +4317,23 @@ function renderJournalCalendar() {
         dayEntries.length ? "has-entries" : "",
         dayPayouts.length ? "has-payout" : "",
         journalSelectedDate === iso ? "is-selected" : "",
-        pnlToneClass(dayPnl),
+        pnlToneClass(dayEntries.length || dayAccountPayoutGross ? dayBalancePnl : -dayPayoutGross),
       ]
         .filter(Boolean)
         .join(" ");
 
-      if (isCurrentMonth) monthEntries.push(...dayEntries);
+      if (isCurrentMonth) {
+        monthEntries.push(...dayEntries);
+        monthPayoutGross += dayAccountPayoutGross;
+      }
       weekEntries.push(...dayEntries);
+      weekPayoutGross += dayAccountPayoutGross;
       weekCells.push(`
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
           ${
-            dayEntries.length
-              ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>`
+            dayEntries.length || dayAccountPayoutGross
+              ? `<strong>${sensitiveSignedMoney(dayBalancePnl)}</strong>`
               : dayPayouts.length
                 ? `<strong>${sensitiveSignedTradingMoney(-dayPayoutGross)}</strong>`
                 : "<strong></strong>"
@@ -4313,7 +4344,7 @@ function renderJournalCalendar() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const weekPnl = sum(weekEntries.map((entry) => entry.pnl));
+    const weekPnl = sum(weekEntries.map((entry) => entry.pnl)) - weekPayoutGross;
     rows.push(`
       ${weekCells.join("")}
       <div class="journal-calendar-week-total ${pnlToneClass(weekPnl)}">
@@ -4324,7 +4355,7 @@ function renderJournalCalendar() {
     `);
   }
 
-  const monthPnl = sum(monthEntries.map((entry) => entry.pnl));
+  const monthPnl = sum(monthEntries.map((entry) => entry.pnl)) - monthPayoutGross;
   const activeDays = new Set(monthEntries.map((entry) => entry.date));
   const winningDays = [...activeDays].filter((date) => sum((entriesByDate.get(date) || []).map((entry) => entry.pnl)) > 0);
   els.journalCalendarMonth.textContent = formatMonthLabel(journalCalendarMonth);
@@ -5548,6 +5579,11 @@ function parsePositiveAmount(value) {
 
 function isPayoutTransaction(transaction) {
   return transaction?.kind === "income" && transaction?.category === "payout";
+}
+
+function getPayoutTransactionsForAccount(accountId) {
+  if (!accountId || accountId === "all") return [];
+  return state.transactions.filter((transaction) => isPayoutTransaction(transaction) && transaction.accountId === accountId);
 }
 
 function getPayoutGrossAmount(transaction) {
