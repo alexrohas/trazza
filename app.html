@@ -371,6 +371,7 @@
                     <th>Empresa</th>
                     <th>Tamaño</th>
                     <th>Estado</th>
+                    <th>Journal</th>
                     <th>Comprada</th>
                     <th>Gastado</th>
                     <th>Retirado</th>
@@ -910,6 +911,17 @@
         <label>
           Drawdown diario
           <input id="accountDailyDrawdown" type="text" inputmode="decimal" placeholder="Opcional" />
+        </label>
+        <label class="form-switch-row">
+          <span>
+            <strong>Mostrar en Journal</strong>
+            <small>Aparece en los selectores del dashboard, entradas e importación CSV.</small>
+          </span>
+          <span class="widget-toggle account-journal-toggle">
+            <input id="accountJournalVisible" type="checkbox" checked />
+            <span class="widget-toggle-track"></span>
+            <span class="widget-toggle-thumb"></span>
+          </span>
         </label>
         <label>
           Notas

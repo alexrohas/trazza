@@ -342,6 +342,17 @@
       "Editar firm": "Edit firm",
       "Nueva cuenta": "New account",
       "Editar cuenta": "Edit account",
+      "Mostrar en Journal": "Show in Journal",
+      "Aparece en los selectores del dashboard, entradas e importación CSV.":
+        "Appears in the dashboard, entries and CSV import selectors.",
+      "Aparece en los selectores del dashboard, entradas e importacion CSV.":
+        "Appears in the dashboard, entries and CSV import selectors.",
+      "Journal": "Journal",
+      "Visible": "Visible",
+      "Oculta": "Hidden",
+      "No hay cuentas visibles en Journal": "No accounts visible in Journal",
+      "Ejecuta supabase-account-visibility.sql en Supabase para guardar la visibilidad de cuentas en Journal.":
+        "Run supabase-account-visibility.sql in Supabase to save account visibility in Journal.",
       "Nuevo movimiento": "New movement",
       "Editar movimiento": "Edit movement",
       "Nueva entrada": "New entry",

@@ -370,6 +370,7 @@ function bindElements() {
     "accountPhaseTarget",
     "accountMaxDrawdown",
     "accountDailyDrawdown",
+    "accountJournalVisible",
     "accountNotes",
     "transactionDialog",
     "transactionForm",
@@ -1733,12 +1734,18 @@ function isAccountRulesSetupError(error) {
   );
 }
 
+function isAccountVisibilitySetupError(error) {
+  const message = String(error?.message || "");
+  return error?.code === "PGRST204" && message.includes("journal_visible");
+}
+
 function isJournalSetupError(error) {
   const message = String(error?.message || "");
   return (
     isMissingJournalTableError(error) ||
     isMissingJournalErrorTypesTableError(error) ||
     isAccountRulesSetupError(error) ||
+    isAccountVisibilitySetupError(error) ||
     error?.code === "PGRST204" ||
     message.includes("pnl") ||
     message.includes("errors") ||
@@ -1980,6 +1987,10 @@ function dbPositiveAmountOrNull(value) {
   return amount !== null && amount > 0 ? amount : null;
 }
 
+function isAccountVisibleInJournal(account) {
+  return account?.journalVisible !== false;
+}
+
 function fromDbFirm(row) {
   return {
     id: row.id,
@@ -2002,6 +2013,7 @@ function fromDbAccount(row) {
     phaseTarget: dbAmountOrNull(row.phase_target),
     maxDrawdown: dbAmountOrNull(row.max_drawdown),
     dailyDrawdown: dbAmountOrNull(row.daily_drawdown),
+    journalVisible: row.journal_visible !== false,
     notes: row.notes || "",
     createdAt: row.created_at,
     updatedAt: row.created_at,
@@ -2085,6 +2097,7 @@ function accountToDb(account) {
     phase_target: account.phaseTarget ?? null,
     max_drawdown: account.maxDrawdown ?? null,
     daily_drawdown: account.dailyDrawdown ?? null,
+    journal_visible: isAccountVisibleInJournal(account),
     notes: account.notes || null,
   };
 }
@@ -2427,6 +2440,7 @@ function fillJournalAccountFilter() {
   if (!els.journalAccountFilter && !els.journalEntriesAccountFilter && !els.journalImportAccount) return;
   const accountOptions = state.accounts
     .slice()
+    .filter(isAccountVisibleInJournal)
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
     .join("");
@@ -2441,6 +2455,7 @@ function fillJournalImportAccountSelect() {
   if (!els.journalImportAccount) return;
   const options = state.accounts
     .slice()
+    .filter(isAccountVisibleInJournal)
     .sort((a, b) => {
       const firmA = getFirm(a.firmId)?.name || "";
       const firmB = getFirm(b.firmId)?.name || "";
@@ -2452,15 +2467,18 @@ function fillJournalImportAccountSelect() {
       return `<option value="${escapeHtml(account.id)}">${escapeHtml(label)}</option>`;
     })
     .join("");
-  const fallback = state.accounts[0]?.id || "";
-  setSelectOptions(els.journalImportAccount, options || `<option value="">Crea una cuenta primero</option>`, fallback);
+  const fallback = state.accounts.find(isAccountVisibleInJournal)?.id || "";
+  const emptyLabel = state.accounts.length ? "No hay cuentas visibles en Journal" : "Crea una cuenta primero";
+  setSelectOptions(els.journalImportAccount, options || `<option value="">${escapeHtml(emptyLabel)}</option>`, fallback);
 }
 
-function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
+function fillAccountSelect(select, firmId, includeEmpty, selectedId = "", options = {}) {
   if (!select) return;
   const isGeneralTransaction = firmId === GENERAL_TRANSACTION_FIRM_VALUE;
+  const visibleInJournalOnly = options.visibleInJournalOnly || select === els.journalAccount;
   const accounts = state.accounts
     .filter((account) => !isGeneralTransaction && (!firmId || account.firmId === firmId))
+    .filter((account) => !visibleInJournalOnly || isAccountVisibleInJournal(account) || account.id === selectedId)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
   const empty = includeEmpty ? `<option value="">Sin cuenta concreta</option>` : "";
   select.innerHTML = `${empty}${accounts
@@ -2855,7 +2873,7 @@ function renderAccountsTable() {
       if (!search) return true;
       const firm = getFirm(account.firmId);
       return normalize(
-        `${account.name} ${account.size} ${firm?.name || ""} ${account.phaseTarget ?? ""} ${account.maxDrawdown ?? ""} ${account.dailyDrawdown ?? ""} ${account.notes || ""}`
+        `${account.name} ${account.size} ${firm?.name || ""} ${account.phaseTarget ?? ""} ${account.maxDrawdown ?? ""} ${account.dailyDrawdown ?? ""} ${isAccountVisibleInJournal(account) ? "visible journal" : "oculta journal"} ${account.notes || ""}`
       ).includes(search);
     })
     .sort((a, b) => (b.purchasedAt || "").localeCompare(a.purchasedAt || ""));
@@ -2879,6 +2897,11 @@ function renderAccountsTable() {
           <td data-label="Empresa">${escapeHtml(firm?.name || "Sin empresa")}</td>
           <td data-label="Tamaño">${escapeHtml(account.size || "-")}</td>
           <td data-label="Estado"><span class="badge ${account.status}">${statusLabels[account.status] || account.status}</span></td>
+          <td data-label="Journal">
+            <span class="badge ${isAccountVisibleInJournal(account) ? "journal-visible" : "journal-hidden"}">
+              ${isAccountVisibleInJournal(account) ? "Visible" : "Oculta"}
+            </span>
+          </td>
           <td data-label="Compra">${formatDate(account.purchasedAt)}</td>
           <td data-label="Gastos" class="amount negative">${formatMoney(expenses)}</td>
           <td data-label="Retiros" class="amount positive">${formatMoney(income)}</td>
@@ -5355,6 +5378,7 @@ function openAccountDialog(account = null) {
   els.accountPhaseTarget.value = account?.phaseTarget ?? "";
   els.accountMaxDrawdown.value = account?.maxDrawdown ?? "";
   els.accountDailyDrawdown.value = account?.dailyDrawdown ?? "";
+  els.accountJournalVisible.checked = isAccountVisibleInJournal(account);
   els.accountNotes.value = account?.notes || "";
   els.accountDialogTitle.textContent = account ? "Editar cuenta" : "Nueva cuenta";
   syncAllCustomSelects();
@@ -5395,20 +5419,23 @@ function openJournalEntryModeDialog() {
   }
 
   if (els.journalEntryModeCsvButton) {
-    const hasAccounts = state.accounts.length > 0;
+    const hasAccounts = state.accounts.some(isAccountVisibleInJournal);
     els.journalEntryModeCsvButton.disabled = !hasAccounts;
     els.journalEntryModeCsvButton.title = hasAccounts
       ? "Importar entradas desde un CSV de Tradovate Performance"
-      : "Crea una cuenta antes de importar CSV";
+      : state.accounts.length
+        ? "Activa una cuenta visible en Journal antes de importar CSV"
+        : "Crea una cuenta antes de importar CSV";
   }
 
   showDialog(els.journalEntryModeDialog);
 }
 
 function openJournalImportDialog() {
-  if (!state.accounts.length) {
+  const visibleJournalAccounts = state.accounts.filter(isAccountVisibleInJournal);
+  if (!visibleJournalAccounts.length) {
     openAccountDialog();
-    toast("Crea una cuenta antes de importar un CSV.");
+    toast(state.accounts.length ? "Activa una cuenta visible en Journal antes de importar un CSV." : "Crea una cuenta antes de importar un CSV.");
     return;
   }
 
@@ -6202,6 +6229,7 @@ async function saveAccountFromForm(event) {
     phaseTarget,
     maxDrawdown,
     dailyDrawdown,
+    journalVisible: els.accountJournalVisible.checked,
     notes: els.accountNotes.value.trim(),
     createdAt: existing?.createdAt || nowIso(),
     updatedAt: nowIso(),
@@ -6246,7 +6274,9 @@ async function saveAccountFromForm(event) {
     completeSuccessfulFormSave("accountDialog", "Cuenta guardada.");
   } catch (error) {
     toast(
-      isAccountRulesSetupError(error)
+      isAccountVisibilitySetupError(error)
+        ? "Ejecuta supabase-account-visibility.sql en Supabase para guardar la visibilidad de cuentas en Journal."
+        : isAccountRulesSetupError(error)
         ? "Ejecuta supabase-journal.sql en Supabase para actualizar las reglas de cuenta."
         : error.message || "No se pudo guardar la cuenta."
     );
@@ -6814,6 +6844,7 @@ function remapStateForCloud(imported) {
         phaseTarget: parseImportedRuleAmount(account.phaseTarget ?? account.phase_target),
         maxDrawdown: parseImportedRuleAmount(account.maxDrawdown ?? account.max_drawdown),
         dailyDrawdown: parseImportedRuleAmount(account.dailyDrawdown ?? account.daily_drawdown),
+        journalVisible: account.journalVisible ?? account.journal_visible ?? true,
         notes: account.notes || "",
         createdAt: account.createdAt || nowIso(),
         updatedAt: nowIso(),
