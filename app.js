@@ -4286,7 +4286,6 @@ function renderJournalCalendar() {
   const entries = getFilteredJournalEntries({ includePeriod: false, includeSearch: false, includeSelectedDate: false });
   const entriesByDate = new Map();
   const selectedAccountId = els.journalAccountFilter.value || "all";
-  const applyAccountPayouts = selectedAccountId !== "all";
   const payoutsByDate = new Map();
 
   entries.forEach((entry) => {
@@ -4316,12 +4315,10 @@ function renderJournalCalendar() {
     .join("");
   const rows = [];
   const monthEntries = [];
-  let monthPayoutGross = 0;
 
   while (cursor <= monthEnd || rows.length === 0) {
     const weekCells = [];
     const weekEntries = [];
-    let weekPayoutGross = 0;
 
     for (let day = 0; day < 7; day += 1) {
       const iso = dateToIsoDate(cursor);
@@ -4329,8 +4326,6 @@ function renderJournalCalendar() {
       const dayPayouts = payoutsByDate.get(iso) || [];
       const dayPnl = sum(dayEntries.map((entry) => entry.pnl));
       const dayPayoutGross = sum(dayPayouts.map(getPayoutGrossAmount));
-      const dayAccountPayoutGross = applyAccountPayouts ? dayPayoutGross : 0;
-      const dayBalancePnl = dayPnl - dayAccountPayoutGross;
       const dayMeta = [
         dayEntries.length ? `${dayEntries.length} ${entryLabel(dayEntries.length)}` : "",
         dayPayouts.length ? `${uiText("Payout")} -${formatTradingMoney(dayPayoutGross)}` : "",
@@ -4344,26 +4339,18 @@ function renderJournalCalendar() {
         dayEntries.length ? "has-entries" : "",
         dayPayouts.length ? "has-payout" : "",
         journalSelectedDate === iso ? "is-selected" : "",
-        pnlToneClass(dayEntries.length || dayAccountPayoutGross ? dayBalancePnl : -dayPayoutGross),
+        dayEntries.length ? pnlToneClass(dayPnl) : "neutral",
       ]
         .filter(Boolean)
         .join(" ");
 
-      if (isCurrentMonth) {
-        monthEntries.push(...dayEntries);
-        monthPayoutGross += dayAccountPayoutGross;
-      }
+      if (isCurrentMonth) monthEntries.push(...dayEntries);
       weekEntries.push(...dayEntries);
-      weekPayoutGross += dayAccountPayoutGross;
       weekCells.push(`
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
           ${
-            dayEntries.length || dayAccountPayoutGross
-              ? `<strong>${sensitiveSignedMoney(dayBalancePnl)}</strong>`
-              : dayPayouts.length
-                ? `<strong>${sensitiveSignedTradingMoney(-dayPayoutGross)}</strong>`
-                : "<strong></strong>"
+            dayEntries.length ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>` : "<strong></strong>"
           }
           ${dayMeta && !dashboardPrivacyHidden ? `<small>${escapeHtml(dayMeta)}</small>` : "<small></small>"}
         </button>
@@ -4371,7 +4358,7 @@ function renderJournalCalendar() {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    const weekPnl = sum(weekEntries.map((entry) => entry.pnl)) - weekPayoutGross;
+    const weekPnl = sum(weekEntries.map((entry) => entry.pnl));
     rows.push(`
       ${weekCells.join("")}
       <div class="journal-calendar-week-total ${pnlToneClass(weekPnl)}">
@@ -4382,7 +4369,7 @@ function renderJournalCalendar() {
     `);
   }
 
-  const monthPnl = sum(monthEntries.map((entry) => entry.pnl)) - monthPayoutGross;
+  const monthPnl = sum(monthEntries.map((entry) => entry.pnl));
   const activeDays = new Set(monthEntries.map((entry) => entry.date));
   const winningDays = [...activeDays].filter((date) => sum((entriesByDate.get(date) || []).map((entry) => entry.pnl)) > 0);
   els.journalCalendarMonth.textContent = formatMonthLabel(journalCalendarMonth);
