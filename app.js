@@ -1958,7 +1958,11 @@ function loadState() {
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn("Could not update local cache after saving cloud data.", error);
+  }
 }
 
 function throwIfSupabaseError(result) {
@@ -5321,6 +5325,7 @@ function drawChartLabel(ctx, canvas, label, x, y, align = "left") {
 }
 
 function openFirmDialog(firm = null) {
+  setFormBusy(els.firmForm, false);
   els.firmForm.reset();
   els.firmId.value = firm?.id || "";
   els.firmName.value = firm?.name || "";
@@ -5339,6 +5344,7 @@ function openAccountDialog(account = null) {
   }
 
   fillFirmSelects();
+  setFormBusy(els.accountForm, false);
   els.accountForm.reset();
   els.accountId.value = account?.id || "";
   els.accountFirm.value = account?.firmId || state.firms[0].id;
@@ -5357,6 +5363,7 @@ function openAccountDialog(account = null) {
 
 function openTransactionDialog(transaction = null) {
   fillFirmSelects();
+  setFormBusy(els.transactionForm, false);
   els.transactionForm.reset();
   const firmId = transaction
     ? transaction.firmId || resolveFirmId(transaction) || GENERAL_TRANSACTION_FIRM_VALUE
@@ -5407,6 +5414,7 @@ function openJournalImportDialog() {
 
   journalCsvImportDraftEntries = [];
   fillJournalImportAccountSelect();
+  setFormBusy(els.journalImportForm, false);
   els.journalImportForm.reset();
   fillJournalImportAccountSelect();
   syncAllCustomSelects();
@@ -5421,6 +5429,7 @@ function openJournalDialog(entry = null) {
   }
 
   fillFirmSelects();
+  setFormBusy(els.journalForm, false);
   els.journalForm.reset();
   const account = getAccount(entry?.accountId);
   const firmId = entry?.firmId || account?.firmId || state.firms[0].id;
@@ -5526,6 +5535,7 @@ function deleteSelectedJournalDetail() {
 }
 
 function openJournalErrorDialog(type = null) {
+  setFormBusy(els.journalErrorForm, false);
   els.journalErrorForm.reset();
   els.journalErrorTypeId.value = type?.id || "";
   els.journalErrorLabel.value = type?.label || "";
@@ -5566,9 +5576,27 @@ function isFormBusy(form) {
 function setFormBusy(form, isBusy) {
   if (!form) return;
   form.dataset.busy = isBusy ? "true" : "false";
+  form.setAttribute("aria-busy", isBusy ? "true" : "false");
   form.querySelectorAll('button[type="submit"]').forEach((button) => {
     button.disabled = isBusy;
   });
+}
+
+function getOrCreateFormRecordId(field) {
+  if (!field) return createId();
+  if (!field.value) field.value = createId();
+  return field.value;
+}
+
+function completeSuccessfulFormSave(dialogId, message) {
+  closeDialog(dialogId);
+  try {
+    refreshAll();
+    toast(message);
+  } catch (error) {
+    console.error("Saved, but the UI refresh failed.", error);
+    toast(`${message} Recarga la pagina si no ves los cambios.`);
+  }
 }
 
 function parsePositiveAmount(value) {
@@ -6119,7 +6147,7 @@ async function saveFirmFromForm(event) {
   if (isFormBusy(els.firmForm)) return;
   clearFormValidity(els.firmForm);
 
-  const id = els.firmId.value || createId();
+  const id = getOrCreateFormRecordId(els.firmId);
   const existing = state.firms.find((firm) => firm.id === id);
   const firm = {
     id,
@@ -6145,9 +6173,7 @@ async function saveFirmFromForm(event) {
     }
 
     persist();
-    closeDialog("firmDialog");
-    refreshAll();
-    toast("Empresa guardada.");
+    completeSuccessfulFormSave("firmDialog", "Empresa guardada.");
   } catch (error) {
     toast(error.message || "No se pudo guardar la empresa.");
   } finally {
@@ -6161,7 +6187,7 @@ async function saveAccountFromForm(event) {
   if (isFormBusy(els.accountForm)) return;
   clearFormValidity(els.accountForm);
 
-  const id = els.accountId.value || createId();
+  const id = getOrCreateFormRecordId(els.accountId);
   const existing = state.accounts.find((account) => account.id === id);
   const phaseTarget = parseOptionalRuleAmount(els.accountPhaseTarget.value);
   const maxDrawdown = parseOptionalRuleAmount(els.accountMaxDrawdown.value);
@@ -6217,9 +6243,7 @@ async function saveAccountFromForm(event) {
     }
 
     persist();
-    closeDialog("accountDialog");
-    refreshAll();
-    toast("Cuenta guardada.");
+    completeSuccessfulFormSave("accountDialog", "Cuenta guardada.");
   } catch (error) {
     toast(
       isAccountRulesSetupError(error)
@@ -6237,7 +6261,7 @@ async function saveTransactionFromForm(event) {
   if (isFormBusy(els.transactionForm)) return;
   clearFormValidity(els.transactionForm);
 
-  const id = els.transactionId.value || createId();
+  const id = getOrCreateFormRecordId(els.transactionId);
   const existing = state.transactions.find((tx) => tx.id === id);
   const enteredAmount = parsePositiveAmount(els.transactionAmount.value);
   const kind = els.transactionKind.value;
@@ -6280,9 +6304,7 @@ async function saveTransactionFromForm(event) {
     }
 
     persist();
-    closeDialog("transactionDialog");
-    refreshAll();
-    toast("Movimiento guardado.");
+    completeSuccessfulFormSave("transactionDialog", "Movimiento guardado.");
   } catch (error) {
     const message = String(error?.message || "");
     const missingPayoutColumns =
@@ -6305,7 +6327,7 @@ async function saveJournalFromForm(event) {
   if (isFormBusy(els.journalForm)) return;
   clearFormValidity(els.journalForm);
 
-  const id = els.journalId.value || createId();
+  const id = getOrCreateFormRecordId(els.journalId);
   const existing = state.journalEntries.find((entry) => entry.id === id);
   const selectedAccountId = els.journalAccount.value;
   const account = selectedAccountId ? getAccount(selectedAccountId) : null;
@@ -6351,9 +6373,7 @@ async function saveJournalFromForm(event) {
     }
 
     persist();
-    closeDialog("journalDialog");
-    refreshAll();
-    toast("Entrada guardada.");
+    completeSuccessfulFormSave("journalDialog", "Entrada guardada.");
   } catch (error) {
     toast(error.message || "No se pudo guardar la entrada.");
   } finally {
@@ -6367,7 +6387,7 @@ async function saveJournalErrorTypeFromForm(event) {
   if (isFormBusy(els.journalErrorForm)) return;
   clearFormValidity(els.journalErrorForm);
 
-  const id = els.journalErrorTypeId.value || createId();
+  const id = getOrCreateFormRecordId(els.journalErrorTypeId);
   const existing = getJournalErrorType(id);
   const label = els.journalErrorLabel.value.trim();
   if (!journalErrorSeverityLabels[els.journalErrorSeverity.value]) {
@@ -6420,9 +6440,7 @@ async function saveJournalErrorTypeFromForm(event) {
 
     state.journalErrorTypes = normalizeJournalErrorTypes(state.journalErrorTypes);
     persist();
-    closeDialog("journalErrorDialog");
-    refreshAll();
-    toast("Error guardado.");
+    completeSuccessfulFormSave("journalErrorDialog", "Error guardado.");
   } catch (error) {
     toast(error.message || "No se pudo guardar el error.");
   } finally {
