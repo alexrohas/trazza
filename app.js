@@ -4326,12 +4326,23 @@ function renderJournalCalendar() {
       const dayPayouts = payoutsByDate.get(iso) || [];
       const dayPnl = sum(dayEntries.map((entry) => entry.pnl));
       const dayPayoutGross = sum(dayPayouts.map(getPayoutGrossAmount));
-      const dayMeta = [
-        dayEntries.length ? `${dayEntries.length} ${entryLabel(dayEntries.length)}` : "",
-        dayPayouts.length ? `${uiText("Payout")} -${formatTradingMoney(dayPayoutGross)}` : "",
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      const tradeLine = dayEntries.length
+        ? `
+          <span class="journal-calendar-trade-line">
+            <strong>${sensitiveSignedMoney(dayPnl)}</strong>
+            ${!dashboardPrivacyHidden ? `<small>${dayEntries.length} ${entryLabel(dayEntries.length)}</small>` : "<small></small>"}
+          </span>
+        `
+        : "";
+      const payoutLine =
+        dayPayouts.length && !dashboardPrivacyHidden
+          ? `
+            <span class="journal-calendar-payout-line">
+              <span>${escapeHtml(uiText("Payout"))}</span>
+              <strong>${sensitiveSignedTradingMoney(-dayPayoutGross)}</strong>
+            </span>
+          `
+          : "";
       const isCurrentMonth = cursor.getMonth() === monthStart.getMonth();
       const className = [
         "journal-calendar-day",
@@ -4349,10 +4360,10 @@ function renderJournalCalendar() {
       weekCells.push(`
         <button class="${className}" type="button" data-action="select-journal-day" data-date="${iso}">
           <span class="journal-calendar-date">${cursor.getDate()}</span>
-          ${
-            dayEntries.length ? `<strong>${sensitiveSignedMoney(dayPnl)}</strong>` : "<strong></strong>"
-          }
-          ${dayMeta && !dashboardPrivacyHidden ? `<small>${escapeHtml(dayMeta)}</small>` : "<small></small>"}
+          <span class="journal-calendar-day-body">
+            ${tradeLine || '<span class="journal-calendar-empty-line"></span>'}
+            ${payoutLine}
+          </span>
         </button>
       `);
       cursor.setDate(cursor.getDate() + 1);
