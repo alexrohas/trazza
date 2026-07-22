@@ -3064,16 +3064,6 @@ function getJournalDashboardEntries() {
   return getFilteredJournalEntries({ includePeriod: false, includeSearch: false, includeSelectedDate: false });
 }
 
-function getJournalDashboardPayoutAdjustments() {
-  const accountId = els.journalAccountFilter.value || "all";
-  if (accountId === "all") return [];
-
-  return getPayoutTransactionsForAccount(accountId).map((transaction) => ({
-    date: transaction.date,
-    pnl: -getPayoutGrossAmount(transaction),
-  }));
-}
-
 function scheduleJournalDashboardChartRender(attempt = 0) {
   if (journalDashboardLayoutFrame) return;
   journalDashboardLayoutFrame = requestAnimationFrame(() => {
@@ -3672,7 +3662,7 @@ function drawJournalPnlChart(entries) {
   if (!canDrawCanvas(canvas)) return;
   const ctx = canvas.getContext("2d");
   const palette = chartPalette();
-  const fullSeries = buildJournalPnlSeries(entries, getJournalDashboardPayoutAdjustments());
+  const fullSeries = buildJournalPnlSeries(entries);
   setupCanvas(canvas, ctx);
   const size = chartSize(canvas);
   ctx.clearRect(0, 0, size.width, size.height);
@@ -3759,18 +3749,12 @@ function drawJournalPnlChart(entries) {
   setCanvasDomLabels(canvas, domLabels);
 }
 
-function buildJournalPnlSeries(entries, adjustments = []) {
+function buildJournalPnlSeries(entries) {
   const totalsByDate = new Map();
   entries
     .filter((entry) => entry.date && Number.isFinite(Number(entry.pnl)))
     .forEach((entry) => {
       totalsByDate.set(entry.date, (totalsByDate.get(entry.date) || 0) + Number(entry.pnl || 0));
-    });
-
-  adjustments
-    .filter((item) => item.date && Number.isFinite(Number(item.pnl)))
-    .forEach((item) => {
-      totalsByDate.set(item.date, (totalsByDate.get(item.date) || 0) + Number(item.pnl || 0));
     });
 
   const dates = [...totalsByDate.keys()].sort();
