@@ -528,6 +528,7 @@ function bindElements() {
     "profileMessage",
     "profileSaveButton",
     "profileLogoutButton",
+    "deleteAccountButton",
   ].forEach((id) => {
     els[id] = document.getElementById(id);
   });
@@ -542,6 +543,7 @@ function bindEvents() {
   els.sidebarUserCard?.addEventListener("click", openProfileDialog);
   els.profileForm?.addEventListener("submit", saveProfileFromForm);
   els.profileLogoutButton?.addEventListener("click", signOut);
+  els.deleteAccountButton?.addEventListener("click", requestDeleteMyAccount);
   els.viewPlansButton?.addEventListener("click", openPlansDialog);
   els.manageSubscriptionButton?.addEventListener("click", openBillingPortal);
   els.planMonthlyButton?.addEventListener("click", () => startCheckout("monthly"));
@@ -1661,6 +1663,37 @@ async function signOut() {
     return;
   }
   closeDialog("profileDialog");
+}
+
+function requestDeleteMyAccount() {
+  if (!currentUser) return;
+  openConfirm(
+    "Eliminar cuenta",
+    `Se eliminara permanentemente la cuenta ${currentUser.email} y todos tus datos (empresas, cuentas, movimientos y journal). Esta accion no se puede deshacer.`,
+    deleteMyAccount
+  );
+}
+
+async function deleteMyAccount() {
+  if (!supabaseClient || !currentUser) return;
+  try {
+    const { error } = await supabaseClient.functions.invoke("delete-account");
+    if (error) throw error;
+    toast("Tu cuenta ha sido eliminada.");
+    // La cuenta ya no existe en el servidor en este punto: el signOut server-side
+    // fallara con "user_not_found", es esperado, lo ignoramos y reseteamos el
+    // estado local directamente (mismo efecto que handleSession(null)).
+    await supabaseClient.auth.signOut().catch(() => {});
+    closeDialog("profileDialog");
+    currentSession = null;
+    currentUser = null;
+    setAppAccess(false);
+    setAuthMode();
+    state = loadState();
+    refreshAll();
+  } catch (error) {
+    toast(error.message || "No se pudo eliminar la cuenta.");
+  }
 }
 
 async function loadCloudState() {
