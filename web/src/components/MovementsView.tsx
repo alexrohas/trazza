@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { Modal } from "./Modal";
-import { formatMoney, getAccountName } from "../lib/metrics";
+import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAmount } from "../lib/metrics";
+import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
   Currency,
@@ -32,23 +33,27 @@ type MovementsViewProps = {
 const expenseCategories: MovementCategory[] = ["challenge", "reset", "activation", "subscription", "platform", "commission", "other"];
 const incomeCategories: MovementCategory[] = ["payout", "refund", "other"];
 const allCategories = [...expenseCategories, ...incomeCategories.filter((category) => !expenseCategories.includes(category))];
-const categoryLabels: Record<MovementCategory, string> = {
-  challenge: "Challenge",
-  reset: "Reset",
-  activation: "Activacion",
-  subscription: "Suscripcion",
-  platform: "Plataforma",
-  commission: "Comision",
-  payout: "Payout",
-  refund: "Refund",
-  other: "Otro",
-};
+
+export function getMovementCategoryLabels(t: ReturnType<typeof useT>): Record<MovementCategory, string> {
+  return {
+    challenge: t("movement.category.challenge"),
+    reset: t("movement.category.reset"),
+    activation: t("movement.category.activation"),
+    subscription: t("movement.category.subscription"),
+    platform: t("movement.category.platform"),
+    commission: t("movement.category.commission"),
+    payout: t("movement.category.payout"),
+    refund: t("movement.category.refund"),
+    other: t("movement.category.other"),
+  };
+}
 
 const emptyMovementInput: MovementInput = {
   date: new Date().toISOString().slice(0, 10),
   kind: "expense",
   category: "challenge",
   amount: 0,
+  payoutProfitSplit: 100,
   firmId: "",
   accountId: "",
   note: "",
@@ -76,8 +81,13 @@ export function MovementsView({
   const [kindFilter, setKindFilter] = useState<"all" | MovementKind>("all");
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [toFilter, setToFilter] = useState("");
+  const t = useT();
+  const categoryLabels = useMemo(() => getMovementCategoryLabels(t), [t]);
   const canWrite = dataMode === "cloud";
   const categories = draft.kind === "income" ? incomeCategories : expenseCategories;
+  const isPayout = draft.kind === "income" && draft.category === "payout";
+  const payoutGrossAmount = draft.payoutGrossAmount || 0;
+  const payoutProfitSplit = draft.payoutProfitSplit || 100;
   const accountsForFirm = useMemo(
     () => (draft.firmId ? accounts.filter((account) => account.firmId === draft.firmId) : accounts),
     [accounts, draft.firmId],
@@ -128,6 +138,8 @@ export function MovementsView({
       kind: movement.kind,
       category: movement.category,
       amount: movement.amount,
+      payoutGrossAmount: movement.category === "payout" ? getPayoutGrossAmount(movement) : undefined,
+      payoutProfitSplit: movement.category === "payout" ? movement.payoutProfitSplit || 100 : undefined,
       firmId: movement.firmId,
       accountId: movement.accountId || "",
       note: movement.note || "",
@@ -146,19 +158,27 @@ export function MovementsView({
       {screen === "form" && (
       <Modal
         onClose={closeForm}
-        title={editingId ? "Editar movimiento" : "Nuevo movimiento"}
-        subtitle="Registra el pago o ingreso sin salir del historial."
+        title={editingId ? t("movement.modal.editTitle") : t("movement.modal.newTitle")}
+        subtitle={t("movement.modal.subtitle")}
       >
         <form
           className="entity-form resource-form-grid modal-form-grid"
           onSubmit={async (event) => {
             event.preventDefault();
-            const saved = await onSaveMovement(draft, editingId);
+            const input = isPayout
+              ? {
+                  ...draft,
+                  amount: calculatePayoutNetAmount(payoutGrossAmount, payoutProfitSplit),
+                  payoutGrossAmount,
+                  payoutProfitSplit,
+                }
+              : { ...draft, payoutGrossAmount: undefined, payoutProfitSplit: undefined };
+            const saved = await onSaveMovement(input, editingId);
             if (saved) closeForm();
           }}
         >
           <label>
-            <span>Fecha</span>
+            <span>{t("movement.field.date")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))}
@@ -168,7 +188,7 @@ export function MovementsView({
             />
           </label>
           <label>
-            <span>Tipo</span>
+            <span>{t("movement.field.kind")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => {
@@ -177,19 +197,30 @@ export function MovementsView({
                   ...current,
                   kind,
                   category: kind === "income" ? "payout" : "challenge",
+                  amount: kind === "income" ? calculatePayoutNetAmount(current.amount, 100) : current.amount,
+                  payoutGrossAmount: kind === "income" ? current.amount || undefined : undefined,
+                  payoutProfitSplit: kind === "income" ? 100 : undefined,
                 }));
               }}
               value={draft.kind}
             >
-              <option value="expense">Gasto</option>
-              <option value="income">Ingreso</option>
+              <option value="expense">{t("movement.kind.expense")}</option>
+              <option value="income">{t("movement.kind.income")}</option>
             </select>
           </label>
           <label>
-            <span>Categoria</span>
+            <span>{t("movement.field.category")}</span>
             <select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value as MovementCategory }))}
+              onChange={(event) => {
+                const category = event.target.value as MovementCategory;
+                setDraft((current) => ({
+                  ...current,
+                  category,
+                  payoutGrossAmount: category === "payout" ? current.payoutGrossAmount || current.amount || undefined : undefined,
+                  payoutProfitSplit: category === "payout" ? current.payoutProfitSplit || 100 : undefined,
+                }));
+              }}
               value={draft.category}
             >
               {categories.map((category) => (
@@ -199,26 +230,83 @@ export function MovementsView({
               ))}
             </select>
           </label>
+          {isPayout ? (
+            <>
+              <label>
+                <span>{t("movement.field.payoutRequested")}</span>
+                <input
+                  disabled={!canWrite || mutating}
+                  min="0.01"
+                  onChange={(event) => {
+                    const grossAmount = Number(event.target.value);
+                    setDraft((current) => ({
+                      ...current,
+                      amount: calculatePayoutNetAmount(grossAmount, current.payoutProfitSplit || 100),
+                      payoutGrossAmount: grossAmount,
+                    }));
+                  }}
+                  required
+                  step="0.01"
+                  type="number"
+                  value={draft.payoutGrossAmount || ""}
+                />
+              </label>
+              <label>
+                <span>{t("movement.field.profitSplit")}</span>
+                <div className="input-with-suffix">
+                  <input
+                    disabled={!canWrite || mutating}
+                    max="100"
+                    min="1"
+                    onChange={(event) => {
+                      const split = Number(event.target.value);
+                      setDraft((current) => ({
+                        ...current,
+                        amount: calculatePayoutNetAmount(current.payoutGrossAmount || 0, split),
+                        payoutProfitSplit: split,
+                      }));
+                    }}
+                    required
+                    step="0.01"
+                    type="number"
+                    value={draft.payoutProfitSplit || ""}
+                  />
+                  <span>%</span>
+                </div>
+              </label>
+              <div className="payout-calculation wide-field" aria-live="polite">
+                <span>
+                  <small>{t("movement.payout.receiveInFinance")}</small>
+                  <strong className="positive">+{formatMoney(draft.amount, currency)}</strong>
+                </span>
+                <span>
+                  <small>{t("movement.payout.deductedFromAccount")}</small>
+                  <strong className="negative">-{formatMoney(payoutGrossAmount, currency)}</strong>
+                </span>
+              </div>
+            </>
+          ) : (
+            <label>
+              <span>{t("movement.field.amount")}</span>
+              <input
+                disabled={!canWrite || mutating}
+                min="0.01"
+                onChange={(event) => setDraft((current) => ({ ...current, amount: Number(event.target.value) }))}
+                required
+                step="0.01"
+                type="number"
+                value={draft.amount || ""}
+              />
+            </label>
+          )}
           <label>
-            <span>Importe</span>
-            <input
-              disabled={!canWrite || mutating}
-              min="0.01"
-              onChange={(event) => setDraft((current) => ({ ...current, amount: Number(event.target.value) }))}
-              required
-              step="0.01"
-              type="number"
-              value={draft.amount || ""}
-            />
-          </label>
-          <label>
-            <span>Empresa</span>
+            <span>{t("movement.field.firm")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value, accountId: "" }))}
               value={draft.firmId || ""}
             >
-              <option value="">General / sin empresa</option>
+              <option value="">{t("movement.field.firmGeneral")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -227,7 +315,7 @@ export function MovementsView({
             </select>
           </label>
           <label>
-            <span>Cuenta</span>
+            <span>{t("movement.field.account")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => {
@@ -240,7 +328,7 @@ export function MovementsView({
               }}
               value={draft.accountId || ""}
             >
-              <option value="">Sin cuenta</option>
+              <option value="">{t("movement.field.noAccount")}</option>
               {accountsForFirm.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
@@ -249,11 +337,11 @@ export function MovementsView({
             </select>
           </label>
           <label className="wide-field">
-            <span>Nota</span>
+            <span>{t("movement.field.note")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))}
-              placeholder="Detalle del pago o retiro"
+              placeholder={t("movement.field.notePlaceholder")}
               type="text"
               value={draft.note || ""}
             />
@@ -263,11 +351,11 @@ export function MovementsView({
 
           <div className="form-action-row">
             <button className="ghost-action" onClick={closeForm} type="button">
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button className="primary-action" disabled={!canWrite || mutating} type="submit">
               <Check size={17} strokeWidth={2.2} />
-              {mutating ? "Guardando..." : editingId ? "Guardar cambios" : "Crear movimiento"}
+              {mutating ? t("common.saving") : editingId ? t("common.saveChanges") : t("movement.modal.create")}
             </button>
           </div>
         </form>
@@ -278,15 +366,15 @@ export function MovementsView({
       <section className="panel view-filter-panel">
         <div className="resource-list-toolbar">
           <div>
-            <h2>Movimientos</h2>
-            <p>Historial financiero separado de la pantalla de creacion.</p>
+            <h2>{t("movement.list.title")}</h2>
+            <p>{t("movement.list.subtitle")}</p>
           </div>
         </div>
         <div className="view-filters">
           <label>
-            <span>Empresa</span>
+            <span>{t("movement.field.firm")}</span>
             <select value={firmFilter} onChange={(event) => setFirmFilter(event.target.value)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -295,17 +383,17 @@ export function MovementsView({
             </select>
           </label>
           <label>
-            <span>Tipo</span>
+            <span>{t("movement.field.kind")}</span>
             <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as "all" | MovementKind)}>
-              <option value="all">Todos</option>
-              <option value="expense">Gastos</option>
-              <option value="income">Ingresos</option>
+              <option value="all">{t("movement.filter.kindAll")}</option>
+              <option value="expense">{t("movement.filter.expenses")}</option>
+              <option value="income">{t("movement.filter.incomes")}</option>
             </select>
           </label>
           <label>
-            <span>Categoria</span>
+            <span>{t("movement.field.category")}</span>
             <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as "all" | MovementCategory)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {allCategories.map((category) => (
                 <option key={category} value={category}>
                   {categoryLabels[category]}
@@ -314,11 +402,11 @@ export function MovementsView({
             </select>
           </label>
           <label>
-            <span>Desde</span>
+            <span>{t("movement.filter.from")}</span>
             <input type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
           </label>
           <label>
-            <span>Hasta</span>
+            <span>{t("movement.filter.to")}</span>
             <input type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
           </label>
           <button
@@ -332,10 +420,10 @@ export function MovementsView({
             }}
             type="button"
           >
-            Reset filtros
+            {t("movement.filter.resetFilters")}
           </button>
           <span className="result-count">
-            {filteredMovements.length} de {movements.length} movimientos
+            {filteredMovements.length} {t("common.of")} {movements.length} {t("movement.filter.countSuffix")}
           </span>
         </div>
       </section>
@@ -343,36 +431,45 @@ export function MovementsView({
       <section className="panel table-panel">
         <div className="panel-heading">
           <div>
-            <h2>Movimientos</h2>
-            <p>Historial editable de ingresos y gastos.</p>
+            <h2>{t("movement.table.title")}</h2>
+            <p>{t("movement.table.subtitle")}</p>
           </div>
         </div>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Empresa</th>
-                <th>Cuenta</th>
-                <th>Categoria</th>
-                <th>Nota</th>
-                <th className="align-right">Importe</th>
-                <th className="align-right">Acciones</th>
+                <th>{t("movement.table.date")}</th>
+                <th>{t("movement.table.firm")}</th>
+                <th>{t("movement.table.account")}</th>
+                <th>{t("movement.table.category")}</th>
+                <th>{t("movement.table.note")}</th>
+                <th className="align-right">{t("movement.table.amount")}</th>
+                <th className="align-right">{t("movement.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {filteredMovements.map((movement) => (
                 <tr key={movement.id}>
-                  <td>{movement.date}</td>
-                  <td>{firmNameById.get(movement.firmId) || "General"}</td>
-                  <td>{getAccountName(accounts, movement.accountId)}</td>
-                  <td>{categoryLabels[movement.category]}</td>
-                  <td>{movement.note || "-"}</td>
-                  <td className={`align-right amount ${movement.kind}`}>
+                  <td data-label={t("movement.table.date")}>{movement.date}</td>
+                  <td data-label={t("movement.table.firm")}>{firmNameById.get(movement.firmId) || t("movement.table.generalFirm")}</td>
+                  <td data-label={t("movement.table.account")}>{getAccountName(accounts, movement.accountId)}</td>
+                  <td data-label={t("movement.table.category")}>
+                    <span className="movement-category-copy">
+                      <strong>{categoryLabels[movement.category]}</strong>
+                      {movement.category === "payout" && (
+                        <small>
+                          {formatMoney(getPayoutGrossAmount(movement), currency)} {t("movement.table.grossSuffix")} · {movement.payoutProfitSplit || 100}%
+                        </small>
+                      )}
+                    </span>
+                  </td>
+                  <td data-label={t("movement.table.note")}>{movement.note || "-"}</td>
+                  <td className={`align-right amount ${movement.kind}`} data-label={t("movement.table.amount")}>
                     {movement.kind === "income" ? "+" : "-"}
                     {formatMoney(movement.amount, currency)}
                   </td>
-                  <td className="align-right">
+                  <td className="align-right" data-label={t("movement.table.actions")}>
                     <div className="row-actions">
                         <button
                           className="secondary-action"
@@ -381,19 +478,19 @@ export function MovementsView({
                           type="button"
                         >
                         <Pencil size={16} strokeWidth={2.2} />
-                        Editar
+                        {t("common.edit")}
                       </button>
                       <button
                         className="danger-action"
                         disabled={!canWrite || mutating}
                         onClick={() => {
-                          if (!window.confirm("Eliminar movimiento?")) return;
+                          if (!window.confirm(t("movement.deleteConfirm"))) return;
                           void onDeleteMovement(movement.id);
                         }}
                         type="button"
                       >
                         <Trash2 size={16} strokeWidth={2.2} />
-                        Eliminar
+                        {t("common.delete")}
                       </button>
                     </div>
                   </td>
@@ -405,8 +502,8 @@ export function MovementsView({
         {filteredMovements.length === 0 && (
           <article className="empty-panel inline-empty">
             <Plus size={22} strokeWidth={2.2} />
-            <strong>{movements.length ? "Sin resultados" : "No hay movimientos todavia"}</strong>
-            <span>{movements.length ? "Ajusta busqueda o filtros." : "Crea el primero desde Nuevo movimiento."}</span>
+            <strong>{movements.length ? t("common.noResults") : t("movement.empty.none")}</strong>
+            <span>{movements.length ? t("common.adjustFilters") : t("movement.empty.createFirst")}</span>
           </article>
         )}
       </section>

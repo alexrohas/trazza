@@ -356,6 +356,8 @@ function fromDbMovement(row: DbRow): Movement {
     kind: normalizeMovementKind(row.kind),
     category: normalizeMovementCategory(row.category),
     amount: numberOrZero(row.amount),
+    payoutGrossAmount: nullablePositiveNumber(row.payout_gross_amount),
+    payoutProfitSplit: nullablePositiveNumber(row.payout_profit_split),
     firmId: text(row.firm_id),
     accountId: text(row.account_id) || undefined,
     note: text(row.note),
@@ -417,6 +419,8 @@ function movementInputToDb(userId: string, input: MovementInput, includeUser = t
     kind: input.kind,
     category: input.category,
     amount: input.amount,
+    payout_gross_amount: input.category === "payout" ? nullableNumber(input.payoutGrossAmount) : null,
+    payout_profit_split: input.category === "payout" ? nullableNumber(input.payoutProfitSplit) : null,
     note: input.note?.trim() || null,
   };
 }
@@ -505,6 +509,8 @@ function mapImportedDataForCloud(userId: string, imported: AppData) {
         kind: normalizeMovementKind(movement.kind),
         category: normalizeMovementCategory(movement.category),
         amount: Math.abs(movement.amount),
+        payout_gross_amount: movement.category === "payout" ? nullableNumber(movement.payoutGrossAmount) : null,
+        payout_profit_split: movement.category === "payout" ? nullableNumber(movement.payoutProfitSplit) : null,
         note: movement.note?.trim() || null,
       };
     });
@@ -665,6 +671,11 @@ function normalizeHexColor(value: string) {
 function numberOrZero(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
+}
+
+function nullablePositiveNumber(value: unknown) {
+  const number = nullableNumber(value);
+  return number !== null && number > 0 ? number : undefined;
 }
 
 function stringArray(value: unknown) {

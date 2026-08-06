@@ -54,6 +54,17 @@ export function getAccountName(accounts: TradingAccount[], accountId?: string) {
   return accounts.find((account) => account.id === accountId)?.name ?? "Sin cuenta";
 }
 
+export function calculatePayoutNetAmount(grossAmount: number, profitSplit: number) {
+  const safeGross = Number.isFinite(grossAmount) ? Math.max(0, grossAmount) : 0;
+  const safeSplit = Number.isFinite(profitSplit) ? Math.min(100, Math.max(0, profitSplit)) : 100;
+  return Math.round(safeGross * (safeSplit / 100) * 100) / 100;
+}
+
+export function getPayoutGrossAmount(movement: Pick<Movement, "amount" | "category" | "payoutGrossAmount">) {
+  if (movement.category !== "payout") return 0;
+  return movement.payoutGrossAmount && movement.payoutGrossAmount > 0 ? movement.payoutGrossAmount : movement.amount;
+}
+
 export function filterMovementsByAccount(movements: Movement[], accountId: string) {
   if (accountId === "all") return movements;
   return movements.filter((movement) => movement.accountId === accountId);

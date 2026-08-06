@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent, type ReactElement } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -13,7 +13,9 @@ import {
   EyeOff,
   FileUp,
   Gauge,
+  GripVertical,
   ImagePlus,
+  LayoutGrid,
   ListChecks,
   Pencil,
   Percent,
@@ -28,12 +30,16 @@ import {
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
+import { useI18n, useT } from "../lib/i18n/context";
+import type { Language } from "../lib/i18n/context";
 import {
   formatDisciplineScore,
   formatMoney,
   formatPercent,
   getAccountName,
   getDisciplineScale,
+  getPayoutGrossAmount,
   signedTone,
 } from "../lib/metrics";
 import {
@@ -44,6 +50,7 @@ import {
   severityRank,
 } from "../lib/journalErrors";
 import { matchesSearch } from "../lib/search";
+import { parseTradovatePerformanceCsv } from "../lib/tradovateImport";
 import type {
   Currency,
   DataMode,
@@ -58,6 +65,7 @@ import type {
   JournalResult,
   JournalSessionType,
   JournalTradingSession,
+  Movement,
   TradingAccount,
 } from "../types";
 
@@ -69,6 +77,7 @@ type JournalEntriesViewProps = {
   firms: Firm[];
   initialMode?: "cockpit" | "entries";
   journalErrorTypes: JournalErrorType[];
+  movements: Movement[];
   mutationError?: string | null;
   mutating?: boolean;
   newEntryToken?: number;
@@ -97,6 +106,7 @@ type JournalAccountOverview = {
   baseLabel: string;
   firmName: string;
   netPnl: number;
+  payouts: number;
   returnRatio: number | null;
   rules: JournalAccountRule[];
 };
@@ -130,44 +140,69 @@ function createEmptyErrorTypeInput(): JournalErrorTypeInput {
   };
 }
 
-const directionOptions: Array<{ label: string; value: JournalDirection }> = [
-  { label: "Long", value: "long" },
-  { label: "Short", value: "short" },
-  { label: "Sin direccion", value: "none" },
-];
-const sessionOptions: Array<{ label: string; value: JournalTradingSession }> = [
-  { label: "Asia", value: "asia" },
-  { label: "Londres", value: "london" },
-  { label: "Nueva York", value: "newYork" },
-  { label: "Londres + NY", value: "londonNewYork" },
-  { label: "Otra", value: "other" },
-];
-const sessionTypeOptions: Array<{ label: string; value: JournalSessionType }> = [
-  { label: "Trading", value: "trading-day" },
-  { label: "Evaluacion", value: "evaluation" },
-  { label: "Fondeada", value: "funded" },
-  { label: "Payout day", value: "payout-day" },
-  { label: "News day", value: "news-day" },
-  { label: "Revision", value: "review" },
-  { label: "Otro", value: "other" },
-];
-const resultOptions: Array<{ label: string; value: JournalResult }> = [
-  { label: "Buen dia", value: "good" },
-  { label: "Neutral", value: "neutral" },
-  { label: "Mal dia", value: "bad" },
-];
-const emotionOptions: Array<{ label: string; value: JournalEmotion }> = [
-  { label: "Calmado", value: "calm" },
-  { label: "Enfocado", value: "focused" },
-  { label: "Ansioso", value: "anxious" },
-  { label: "Impaciente", value: "impatient" },
-  { label: "FOMO", value: "fomo" },
-  { label: "Revenge", value: "revenge" },
-  { label: "Cansado", value: "tired" },
-  { label: "Otro", value: "other" },
-];
+function getDirectionOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalDirection }> {
+  return [
+    { label: t("journal.option.direction.long"), value: "long" },
+    { label: t("journal.option.direction.short"), value: "short" },
+    { label: t("journal.option.direction.none"), value: "none" },
+  ];
+}
 
-const weekdayLabels = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+function getSessionOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalTradingSession }> {
+  return [
+    { label: t("journal.option.session.asia"), value: "asia" },
+    { label: t("journal.option.session.london"), value: "london" },
+    { label: t("journal.option.session.newYork"), value: "newYork" },
+    { label: t("journal.option.session.londonNewYork"), value: "londonNewYork" },
+    { label: t("journal.option.session.other"), value: "other" },
+  ];
+}
+
+function getSessionTypeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalSessionType }> {
+  return [
+    { label: t("journal.option.sessionType.tradingDay"), value: "trading-day" },
+    { label: t("journal.option.sessionType.evaluation"), value: "evaluation" },
+    { label: t("journal.option.sessionType.funded"), value: "funded" },
+    { label: t("journal.option.sessionType.payoutDay"), value: "payout-day" },
+    { label: t("journal.option.sessionType.newsDay"), value: "news-day" },
+    { label: t("journal.option.sessionType.review"), value: "review" },
+    { label: t("journal.option.sessionType.other"), value: "other" },
+  ];
+}
+
+function getResultOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalResult }> {
+  return [
+    { label: t("journal.option.result.good"), value: "good" },
+    { label: t("journal.option.result.neutral"), value: "neutral" },
+    { label: t("journal.option.result.bad"), value: "bad" },
+  ];
+}
+
+function getEmotionOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalEmotion }> {
+  return [
+    { label: t("journal.option.emotion.calm"), value: "calm" },
+    { label: t("journal.option.emotion.focused"), value: "focused" },
+    { label: t("journal.option.emotion.anxious"), value: "anxious" },
+    { label: t("journal.option.emotion.impatient"), value: "impatient" },
+    { label: t("journal.option.emotion.fomo"), value: "fomo" },
+    { label: t("journal.option.emotion.revenge"), value: "revenge" },
+    { label: t("journal.option.emotion.tired"), value: "tired" },
+    { label: t("journal.option.emotion.other"), value: "other" },
+  ];
+}
+
+function getWeekdayLabels(t: ReturnType<typeof useT>) {
+  return [
+    t("journal.weekday.mon"),
+    t("journal.weekday.tue"),
+    t("journal.weekday.wed"),
+    t("journal.weekday.thu"),
+    t("journal.weekday.fri"),
+    t("journal.weekday.sat"),
+    t("journal.weekday.sun"),
+  ];
+}
+
 const errorColorOptions = ["#dc2626", "#f59e0b", "#7c3aed", "#0e8f8d", "#2563eb", "#64748b"];
 const operationImageMaxSize = 1600;
 const operationImageQuality = 0.82;
@@ -183,43 +218,41 @@ type JournalPnlFilter = "all" | "winning" | "losing" | "breakeven";
 type JournalReviewPreset = "all" | "today" | "week" | "month" | "losers" | "errors" | "needsReview";
 type JournalSortMode = "date-desc" | "date-asc" | "pnl-desc" | "pnl-asc" | "discipline-desc" | "discipline-asc";
 
-const reviewPresetOptions: Array<{ label: string; value: JournalReviewPreset }> = [
-  { label: "Todas", value: "all" },
-  { label: "Hoy", value: "today" },
-  { label: "Semana", value: "week" },
-  { label: "Mes", value: "month" },
-  { label: "Perdedoras", value: "losers" },
-  { label: "Con errores", value: "errors" },
-  { label: "Pendientes", value: "needsReview" },
-];
+function getPnlFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalPnlFilter }> {
+  return [
+    { label: t("journal.pnlFilter.all"), value: "all" },
+    { label: t("journal.pnlFilter.winning"), value: "winning" },
+    { label: t("journal.pnlFilter.losing"), value: "losing" },
+    { label: t("journal.pnlFilter.breakeven"), value: "breakeven" },
+  ];
+}
 
-const pnlFilterOptions: Array<{ label: string; value: JournalPnlFilter }> = [
-  { label: "Todo P&L", value: "all" },
-  { label: "Ganadoras", value: "winning" },
-  { label: "Perdedoras", value: "losing" },
-  { label: "Break even", value: "breakeven" },
-];
+function getDisciplineFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalDisciplineFilter }> {
+  return [
+    { label: t("journal.disciplineFilter.all"), value: "all" },
+    { label: t("journal.disciplineFilter.high"), value: "high" },
+    { label: t("journal.disciplineFilter.low"), value: "low" },
+  ];
+}
 
-const disciplineFilterOptions: Array<{ label: string; value: JournalDisciplineFilter }> = [
-  { label: "Toda disciplina", value: "all" },
-  { label: "Alta", value: "high" },
-  { label: "Baja", value: "low" },
-];
+function getMediaFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalMediaFilter }> {
+  return [
+    { label: t("journal.mediaFilter.all"), value: "all" },
+    { label: t("journal.mediaFilter.withMedia"), value: "withMedia" },
+    { label: t("journal.mediaFilter.withoutMedia"), value: "withoutMedia" },
+  ];
+}
 
-const mediaFilterOptions: Array<{ label: string; value: JournalMediaFilter }> = [
-  { label: "Con y sin captura", value: "all" },
-  { label: "Con captura", value: "withMedia" },
-  { label: "Sin captura", value: "withoutMedia" },
-];
-
-const sortModeOptions: Array<{ label: string; value: JournalSortMode }> = [
-  { label: "Recientes primero", value: "date-desc" },
-  { label: "Antiguas primero", value: "date-asc" },
-  { label: "Mayor P&L", value: "pnl-desc" },
-  { label: "Menor P&L", value: "pnl-asc" },
-  { label: "Mayor disciplina", value: "discipline-desc" },
-  { label: "Menor disciplina", value: "discipline-asc" },
-];
+function getSortModeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalSortMode }> {
+  return [
+    { label: t("journal.sort.dateDesc"), value: "date-desc" },
+    { label: t("journal.sort.dateAsc"), value: "date-asc" },
+    { label: t("journal.sort.pnlDesc"), value: "pnl-desc" },
+    { label: t("journal.sort.pnlAsc"), value: "pnl-asc" },
+    { label: t("journal.sort.disciplineDesc"), value: "discipline-desc" },
+    { label: t("journal.sort.disciplineAsc"), value: "discipline-asc" },
+  ];
+}
 
 export function JournalEntriesView({
   accounts,
@@ -229,6 +262,7 @@ export function JournalEntriesView({
   firms,
   initialMode = "cockpit",
   journalErrorTypes,
+  movements,
   mutationError,
   mutating = false,
   newEntryToken = 0,
@@ -266,6 +300,20 @@ export function JournalEntriesView({
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [zoomImage, setZoomImage] = useState<string | undefined>();
   const canWrite = dataMode === "cloud";
+  const dashboardLayout = useJournalDashboardLayout();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const t = useT();
+  const { language } = useI18n();
+  const directionOptions = useMemo(() => getDirectionOptions(t), [t]);
+  const sessionOptions = useMemo(() => getSessionOptions(t), [t]);
+  const sessionTypeOptions = useMemo(() => getSessionTypeOptions(t), [t]);
+  const resultOptions = useMemo(() => getResultOptions(t), [t]);
+  const emotionOptions = useMemo(() => getEmotionOptions(t), [t]);
+  const weekdayLabels = useMemo(() => getWeekdayLabels(t), [t]);
+  const pnlFilterOptions = useMemo(() => getPnlFilterOptions(t), [t]);
+  const disciplineFilterOptions = useMemo(() => getDisciplineFilterOptions(t), [t]);
+  const mediaFilterOptions = useMemo(() => getMediaFilterOptions(t), [t]);
+  const sortModeOptions = useMemo(() => getSortModeOptions(t), [t]);
   const effectiveErrorTypes = useMemo(() => mergeJournalErrorTypes(journalErrorTypes), [journalErrorTypes]);
   const cloudErrorTypeIds = useMemo(() => new Set(journalErrorTypes.map((type) => type.id)), [journalErrorTypes]);
   const activeErrorTypes = useMemo(
@@ -291,8 +339,10 @@ export function JournalEntriesView({
         currency,
         entries,
         firmNameById,
+        movements,
+        t,
       }),
-    [accountById, currency, entries, firmNameById, selectedAccountId],
+    [accountById, currency, entries, firmNameById, movements, selectedAccountId, t],
   );
   const accountsForFirm = useMemo(
     () => (draft.firmId ? accounts.filter((account) => account.firmId === draft.firmId) : accounts),
@@ -329,7 +379,7 @@ export function JournalEntriesView({
           findOptionLabel(directionOptions, entry.direction),
           findOptionLabel(resultOptions, entry.result || "neutral"),
           findOptionLabel(emotionOptions, entry.emotion),
-          formatTradingSessionLabel(entry),
+          formatTradingSessionLabel(entry, sessionOptions, t),
           entryErrors.map((error) => getJournalErrorLabel(effectiveErrorTypes, error)).join(" "),
           entry.pnl,
           entry.operationUrl,
@@ -344,9 +394,11 @@ export function JournalEntriesView({
     },
     [
       accountById,
+      directionOptions,
       disciplineFilter,
       directionFilter,
       emotionFilter,
+      emotionOptions,
       entries,
       errorFilter,
       effectiveErrorTypes,
@@ -355,23 +407,32 @@ export function JournalEntriesView({
       mediaFilter,
       pnlFilter,
       resultFilter,
+      resultOptions,
       reviewPreset,
       reviewPresetRange,
       searchQuery,
       sessionFilter,
+      sessionOptions,
       sortMode,
+      t,
       toFilter,
     ],
   );
   const selectedEntry = selectedEntryId ? filteredEntries.find((entry) => entry.id === selectedEntryId) : undefined;
-  const calendarDays = useMemo(() => buildCalendarDays(visibleMonth, filteredEntries), [filteredEntries, visibleMonth]);
+  const calendarDays = useMemo(
+    () => buildCalendarDays(visibleMonth, filteredEntries, movements),
+    [filteredEntries, movements, visibleMonth],
+  );
   const selectedDayEntries = useMemo(
     () => (selectedEntry ? filteredEntries.filter((entry) => entry.date === selectedEntry.date) : []),
     [filteredEntries, selectedEntry],
   );
-  const analytics = useMemo(() => buildJournalAnalytics(filteredEntries, effectiveErrorTypes), [effectiveErrorTypes, filteredEntries]);
+  const analytics = useMemo(
+    () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, emotionOptions, weekdayLabels),
+    [effectiveErrorTypes, emotionOptions, filteredEntries, sessionOptions, weekdayLabels],
+  );
   const reviewSummary = useMemo(() => buildJournalReviewSummary(filteredEntries), [filteredEntries]);
-  const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth), [visibleMonth]);
+  const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
 
   const resetForm = () => {
     setDraft(createEmptyJournalInput());
@@ -415,43 +476,109 @@ export function JournalEntriesView({
     if (!filteredEntries.length) return;
     downloadJournalCsv({
       accountById,
+      directionOptions,
       entries: filteredEntries,
       errorTypes: effectiveErrorTypes,
+      emotionOptions,
       firmNameById,
+      resultOptions,
+      sessionOptions,
+      sessionTypeOptions,
+      t,
     });
   };
 
   const handleCsvImport = async (file: File) => {
     if (!canWrite) return;
-    setImportMessage({ type: "info", text: "Importando CSV..." });
+    setImportMessage({ type: "info", text: t("journal.import.importing") });
 
     try {
       const result = await importCsv(file, effectiveErrorTypes, onSaveEntry, setImporting);
-      const importedText = `${result.imported} de ${result.total} filas importadas`;
+      const importedText = `${result.imported} ${t("common.of")} ${result.total} ${t("journal.import.rowsImportedSuffix")}`;
       if (result.failed > 0 || result.skipped > 0) {
         setImportMessage({
           type: "error",
-          text: `${importedText}. Fallidas: ${result.failed}. Omitidas: ${result.skipped}.`,
+          text: `${importedText}. ${t("journal.import.failedSuffix")} ${result.failed}. ${t("journal.import.skippedSuffix")} ${result.skipped}.`,
         });
         return;
       }
       setImportMessage({ type: "success", text: importedText });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo importar el CSV.";
+      const message = error instanceof Error ? error.message : t("journal.import.genericError");
       setImportMessage({ type: "error", text: message });
+    }
+  };
+
+  const handleTradovateImport = async (file: File) => {
+    if (!canWrite) return;
+    const account = accounts.find((item) => item.id === draft.accountId);
+    if (!account) {
+      setImportMessage({ type: "error", text: t("journal.import.selectAccountFirst") });
+      return;
+    }
+    const firmName = firmNameById.get(account.firmId) || "";
+
+    setImporting(true);
+    setImportMessage({ type: "info", text: t("journal.import.readingTradovate") });
+
+    try {
+      const text = await file.text();
+      const result = parseTradovatePerformanceCsv(text, account, firmName, draft.tradingSession);
+
+      if (result.entries.length === 1) {
+        const preview = result.entries[0];
+        setDraft((current) => ({ ...current, ...preview.input }));
+        const commissionText =
+          preview.commissionAmount > 0
+            ? ` ${t("journal.import.netPnlPrefix")} ${formatMoney(preview.input.pnl, currency)} ${t("journal.import.afterCommissionSuffix")} ${formatMoney(preview.commissionAmount, currency)} ${t("journal.import.commissionSuffix")}`
+            : "";
+        setImportMessage({ type: "success", text: `${t("journal.import.detectedSingle")}${commissionText}` });
+        return;
+      }
+
+      let imported = 0;
+      let failed = 0;
+      let totalCommission = 0;
+      const missingSymbols = new Set<string>();
+
+      for (const preview of result.entries) {
+        const saved = await onSaveEntry(preview.input);
+        if (saved) {
+          imported += 1;
+          totalCommission += preview.commissionAmount;
+          preview.commissionMissingSymbols.forEach((symbol) => missingSymbols.add(symbol));
+        } else {
+          failed += 1;
+        }
+      }
+
+      const commissionText = totalCommission > 0 ? ` ${t("journal.import.commissionDeducted")} ${formatMoney(totalCommission, currency)}.` : "";
+      const missingText = missingSymbols.size
+        ? ` ${t("journal.import.noCommissionPresetFor")} ${[...missingSymbols].join(", ")}.`
+        : "";
+
+      setImportMessage({
+        type: failed > 0 ? "error" : "success",
+        text: `${imported} ${t("common.of")} ${result.entries.length} ${t("journal.import.entriesImportedSuffix")}${failed > 0 ? ` ${t("journal.import.failedSuffix")} ${failed}.` : ""}${commissionText}${missingText}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("journal.import.tradovateGenericError");
+      setImportMessage({ type: "error", text: message });
+    } finally {
+      setImporting(false);
     }
   };
 
   const setOperationMediaFromFile = async (file?: File) => {
     if (!canWrite || !file) return;
-    setMediaMessage({ type: "info", text: "Procesando captura..." });
+    setMediaMessage({ type: "info", text: t("journal.media.processing") });
 
     try {
-      const dataUrl = await compressOperationImage(file);
+      const dataUrl = await compressOperationImage(file, t);
       setDraft((current) => ({ ...current, operationUrl: dataUrl }));
-      setMediaMessage({ type: "success", text: "Captura cargada y comprimida." });
+      setMediaMessage({ type: "success", text: t("journal.media.loaded") });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo cargar la captura.";
+      const message = error instanceof Error ? error.message : t("journal.media.loadError");
       setMediaMessage({ type: "error", text: message });
     }
   };
@@ -468,7 +595,7 @@ export function JournalEntriesView({
     setDraggingOperationMedia(false);
     const file = getImageFileFromList(event.dataTransfer.files);
     if (!file) {
-      setMediaMessage({ type: "error", text: "Arrastra una imagen valida." });
+      setMediaMessage({ type: "error", text: t("journal.media.dragValidImage") });
       return;
     }
     void setOperationMediaFromFile(file);
@@ -492,14 +619,305 @@ export function JournalEntriesView({
     if (saved && editingErrorTypeId === type.id) resetErrorTypeForm();
   };
 
+  const journalWidgetContent: Record<JournalWidgetId, ReactElement> = {
+    calendar: (
+      <section className="journal-top-grid">
+        <section className="panel journal-calendar-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>{t("journal.calendar.title")}</h2>
+              <p>{visibleMonthLabel} - {t("journal.calendar.subtitleSuffix")}</p>
+            </div>
+            <div className="calendar-actions">
+              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
+                <ChevronLeft size={16} strokeWidth={2.2} />
+              </button>
+              <input
+                className="month-input"
+                type="month"
+                value={visibleMonth}
+                onChange={(event) => {
+                  if (event.target.value) setVisibleMonth(event.target.value);
+                }}
+              />
+              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
+                <ChevronRight size={16} strokeWidth={2.2} />
+              </button>
+              <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
+                {t("journal.calendar.today")}
+              </button>
+            </div>
+          </div>
+          <div className="journal-calendar-grid">
+            {weekdayLabels.map((day) => (
+              <span className="journal-weekday" key={day}>
+                {day}
+              </span>
+            ))}
+            {calendarDays.map((day) => (
+              <button
+                aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
+                className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
+                disabled={!day.firstEntryId}
+                key={day.date}
+                onClick={() => setSelectedEntryId(day.firstEntryId)}
+                type="button"
+              >
+                <span>{Number(day.date.slice(-2))}</span>
+                <strong>
+                  {day.count ? formatMoney(day.pnl, currency) : day.payoutCount ? `-${formatMoney(day.payoutGross, currency)}` : "-"}
+                </strong>
+                <small>
+                  {day.count ? `${day.count} ${t("journal.calendar.opsSuffix")}` : ""}
+                  {day.count && day.payoutCount ? " · " : ""}
+                  {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoney(day.payoutGross, currency)}` : ""}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel journal-detail-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>{t("journal.detail.title")}</h2>
+              <p>{selectedEntry ? `${selectedEntry.symbol} - ${selectedEntry.date}` : t("journal.detail.selectEntry")}</p>
+            </div>
+            {selectedEntry && (
+              <button className="icon-control compact-icon" onClick={() => setSelectedEntryId(undefined)} title={t("journal.detail.close")} type="button">
+                <X size={16} strokeWidth={2.2} />
+              </button>
+            )}
+          </div>
+          {selectedEntry ? (
+            <div className="journal-detail-card">
+              <div className="journal-detail-hero">
+                <div>
+                  <span>{selectedEntry.symbol}</span>
+                  <strong>{selectedEntry.date}</strong>
+                </div>
+                <strong className={signedTone(selectedEntry.pnl)}>{formatMoney(selectedEntry.pnl, currency)}</strong>
+              </div>
+              <dl className="journal-detail-grid">
+                <div>
+                  <dt>{t("journal.detail.firm")}</dt>
+                  <dd>
+                    {firmNameById.get(selectedEntry.firmId || "") ||
+                      firmNameById.get(accountById.get(selectedEntry.accountId)?.firmId || "") ||
+                      t("account.card.noFirm")}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.account")}</dt>
+                  <dd>{getAccountName(accounts, selectedEntry.accountId)}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.direction")}</dt>
+                  <dd>{findOptionLabel(directionOptions, selectedEntry.direction)}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.session")}</dt>
+                  <dd>{formatTradingSessionLabel(selectedEntry, sessionOptions, t)}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.type")}</dt>
+                  <dd>{findOptionLabel(sessionTypeOptions, selectedEntry.sessionType || "other")}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.result")}</dt>
+                  <dd>{findOptionLabel(resultOptions, selectedEntry.result || "neutral")}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.discipline")}</dt>
+                  <dd>{formatDisciplineScore(selectedEntry.discipline)}</dd>
+                </div>
+                <div>
+                  <dt>{t("journal.detail.emotion")}</dt>
+                  <dd>{findOptionLabel(emotionOptions, selectedEntry.emotion)}</dd>
+                </div>
+              </dl>
+              <div className="journal-detail-copy">
+                <span>{t("journal.detail.errors")}</span>
+              <JournalErrorChips errorTypes={effectiveErrorTypes} errors={getEntryErrors(selectedEntry, effectiveErrorTypes)} />
+              </div>
+              <div className="journal-detail-copy">
+                <span>{t("journal.detail.notes")}</span>
+                <p>{selectedEntry.notes || t("journal.detail.noNotes")}</p>
+              </div>
+              <div className="journal-detail-copy">
+                <span>{t("journal.detail.lesson")}</span>
+                <p>{selectedEntry.lesson || t("journal.detail.noLesson")}</p>
+              </div>
+              {selectedEntry.operationUrl && (
+                <div className="journal-detail-copy">
+                  <span>{t("journal.detail.mediaLabel")}</span>
+                  {isImageSource(selectedEntry.operationUrl) ? (
+                    <button
+                      className="journal-media-preview-button"
+                      onClick={() => setZoomImage(selectedEntry.operationUrl)}
+                      type="button"
+                    >
+                      <img className="journal-media-preview" src={selectedEntry.operationUrl} alt={`${t("journal.media.captureAlt")} ${selectedEntry.symbol}`} />
+                      <span>
+                        <ZoomIn size={15} strokeWidth={2.2} />
+                        {t("journal.detail.enlargeCapture")}
+                      </span>
+                    </button>
+                  ) : (
+                    <a className="journal-media-link" href={selectedEntry.operationUrl} rel="noreferrer" target="_blank">
+                      <ExternalLink size={15} strokeWidth={2.2} />
+                      {t("journal.detail.openReference")}
+                    </a>
+                  )}
+                </div>
+              )}
+              {selectedDayEntries.length > 1 && (
+                <div className="journal-same-day">
+                  <span>{t("journal.detail.otherEntriesSameDay")}</span>
+                  <div>
+                    {selectedDayEntries.map((entry) => (
+                      <button
+                        className={entry.id === selectedEntry.id ? "active" : ""}
+                        key={entry.id}
+                        onClick={() => setSelectedEntryId(entry.id)}
+                        type="button"
+                      >
+                        {entry.symbol}
+                        <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="chart-empty">{t("journal.detail.noEntrySelected")}</div>
+          )}
+        </section>
+      </section>
+    ),
+    emotion: (
+      <JournalBreakdownPanel
+        emptyText={t("journal.breakdown.emotion.empty")}
+        rows={analytics.emotionRows.map((row) => ({
+          id: row.id,
+          detail: `${row.count} ${t("journal.breakdown.entriesSuffix")} - ${formatRatioPercent(row.winRate)}`,
+          label: row.label,
+          meter: shareMeter(row.count, analytics.maxEmotionCount),
+          note: `${t("journal.breakdown.avgPrefix")} ${formatMoney(row.averagePnl, currency)}`,
+          tone: signedTone(row.pnl),
+          value: formatMoney(row.pnl, currency),
+        }))}
+        subtitle={t("journal.breakdown.emotion.subtitle")}
+        title={t("journal.breakdown.emotion.title")}
+      />
+    ),
+    errors: (
+      <JournalBreakdownPanel
+        emptyText={t("journal.breakdown.errors.empty")}
+        rows={analytics.errorRows.map((row) => ({
+          color: row.color,
+          id: row.id,
+          detail: `${row.count} ${row.count === 1 ? t("journal.breakdown.entrySuffix") : t("journal.breakdown.entriesSuffix")}`,
+          label: row.label,
+          meter: shareMeter(row.count, analytics.maxErrorCount),
+          note: `${formatPercent(row.share)} ${t("journal.breakdown.markedShareSuffix")}`,
+          tone: row.severity === "severe" ? "negative" : "neutral",
+          value: String(row.count),
+        }))}
+        subtitle={t("journal.breakdown.errors.subtitle")}
+        title={t("journal.breakdown.errors.title")}
+      />
+    ),
+    kpis: (
+      <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
+        <MetricCard
+          hint={`${analytics.stats.wins}W / ${analytics.stats.losses}L / ${analytics.stats.breakEven} BE`}
+          icon={<Percent size={16} strokeWidth={2.2} />}
+          label={t("journal.kpi.winrate")}
+          tone={analytics.stats.winRate === null ? "neutral" : analytics.stats.winRate >= 0.5 ? "positive" : "negative"}
+          value={formatRatioPercent(analytics.stats.winRate)}
+        />
+        <MetricCard
+          hint={`${t("journal.kpi.avgWPrefix")} ${formatNullableMoney(analytics.stats.avgWin, currency)} / ${t("journal.kpi.avgLPrefix")} ${formatNullableMoney(
+            analytics.stats.avgLoss,
+            currency,
+          )}`}
+          icon={<Gauge size={16} strokeWidth={2.2} />}
+          label={t("journal.kpi.profitFactor")}
+          tone={profitFactorTone(analytics.stats.profitFactor)}
+          value={formatProfitFactor(analytics.stats.profitFactor)}
+        />
+        <MetricCard
+          hint={`${analytics.stats.closed} ${t("journal.kpi.tradesClosedSuffix")}`}
+          icon={<TrendingUp size={16} strokeWidth={2.2} />}
+          label={t("journal.kpi.avgWinLoss")}
+          tone="neutral"
+          value={`${formatNullableMoney(analytics.stats.avgWin, currency)} / ${formatNullableMoney(analytics.stats.avgLoss, currency)}`}
+        />
+      </section>
+    ),
+    pnl: <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />,
+    recent: (
+      <JournalRecentTradesPanel
+        accounts={accounts}
+        accountById={accountById}
+        currency={currency}
+        entries={filteredEntries.slice(0, 5)}
+        errorTypes={effectiveErrorTypes}
+        firmNameById={firmNameById}
+        onSelectEntry={setSelectedEntryId}
+      />
+    ),
+    session: (
+      <JournalBreakdownPanel
+        emptyText={t("journal.breakdown.session.empty")}
+        rows={analytics.sessionRows.map((row) => ({
+          id: row.id,
+          detail: `${row.wins}W / ${row.losses}L / ${row.breakEven} BE`,
+          label: row.label,
+          meter: winRateMeter(row.winRate),
+          note: `${row.count} ${t("journal.breakdown.entriesSuffix")} - ${formatMoney(row.pnl, currency)}`,
+          tone: row.winRate === null ? "neutral" : row.winRate >= 0.5 ? "positive" : "negative",
+          value: formatRatioPercent(row.winRate),
+        }))}
+        subtitle={t("journal.breakdown.session.subtitle")}
+        title={t("journal.breakdown.session.title")}
+      />
+    ),
+    weekday: <JournalWeekdayPanel rows={analytics.weekdayRows} currency={currency} />,
+  };
+
+  const journalWidgetLabels: Record<JournalWidgetId, string> = {
+    calendar: t("journal.widgetLabel.calendar"),
+    emotion: t("journal.widgetLabel.emotion"),
+    errors: t("journal.widgetLabel.errors"),
+    kpis: t("journal.widgetLabel.kpis"),
+    pnl: t("journal.widgetLabel.pnl"),
+    recent: t("journal.widgetLabel.recent"),
+    session: t("journal.widgetLabel.session"),
+    weekday: t("journal.widgetLabel.weekday"),
+  };
+
+  const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "third"> = {
+    calendar: "full",
+    emotion: "third",
+    errors: "third",
+    kpis: "full",
+    pnl: "wide",
+    recent: "narrow",
+    session: "third",
+    weekday: "full",
+  };
+
   return (
     <div className="firms-workspace">
       {journalMode !== "cockpit" && (
       <section className="panel view-filter-panel">
         <div className="journal-review-toolbar">
           <div>
-            <h2>Entradas</h2>
-            <p>Galeria de operaciones, filtros y configuracion de errores.</p>
+            <h2>{t("journal.entries.title")}</h2>
+            <p>{t("journal.entries.subtitle")}</p>
           </div>
           <div className="journal-review-actions">
             <button
@@ -510,18 +928,18 @@ export function JournalEntriesView({
               type="button"
             >
               <FileDown size={16} strokeWidth={2.2} />
-              Export CSV
+              {t("journal.entries.exportCsv")}
             </button>
             <span className="result-count">
-              {filteredEntries.length} de {entries.length} entradas
+              {filteredEntries.length} {t("common.of")} {entries.length} {t("journal.entries.countSuffix")}
           </span>
           </div>
         </div>
         <div className="view-filters">
           <label>
-            <span>Resultado</span>
+            <span>{t("journal.filter.result")}</span>
             <select value={resultFilter} onChange={(event) => setResultFilter(event.target.value as "all" | JournalResult)}>
-              <option value="all">Todos</option>
+              <option value="all">{t("common.all")}</option>
               {resultOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -530,9 +948,9 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Emocion</span>
+            <span>{t("journal.filter.emotion")}</span>
             <select value={emotionFilter} onChange={(event) => setEmotionFilter(event.target.value as "all" | JournalEmotion)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {emotionOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -541,20 +959,20 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Error</span>
+            <span>{t("journal.filter.error")}</span>
             <select value={errorFilter} onChange={(event) => setErrorFilter(event.target.value)}>
-              <option value="all">Todos</option>
+              <option value="all">{t("common.all")}</option>
               {effectiveErrorTypes.map((type) => (
                 <option key={type.id} value={type.id}>
-                  {type.active ? type.label : `${type.label} (oculto)`}
+                  {type.active ? type.label : `${type.label} ${t("journal.filter.hiddenSuffix")}`}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            <span>Sesion</span>
+            <span>{t("journal.filter.session")}</span>
             <select value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value as "all" | JournalTradingSession)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {sessionOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -563,9 +981,9 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Direccion</span>
+            <span>{t("journal.filter.direction")}</span>
             <select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value as "all" | JournalDirection)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {directionOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -574,7 +992,7 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>P&L</span>
+            <span>{t("journal.filter.pnl")}</span>
             <select value={pnlFilter} onChange={(event) => setPnlFilter(event.target.value as JournalPnlFilter)}>
               {pnlFilterOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -584,7 +1002,7 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Disciplina</span>
+            <span>{t("journal.filter.discipline")}</span>
             <select value={disciplineFilter} onChange={(event) => setDisciplineFilter(event.target.value as JournalDisciplineFilter)}>
               {disciplineFilterOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -594,7 +1012,7 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Captura</span>
+            <span>{t("journal.filter.media")}</span>
             <select value={mediaFilter} onChange={(event) => setMediaFilter(event.target.value as JournalMediaFilter)}>
               {mediaFilterOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -604,7 +1022,7 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Orden</span>
+            <span>{t("journal.filter.order")}</span>
             <select data-testid="journal-sort-mode" value={sortMode} onChange={(event) => setSortMode(event.target.value as JournalSortMode)}>
               {sortModeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -614,48 +1032,48 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Desde</span>
+            <span>{t("dashboard.filter.from")}</span>
             <input type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
           </label>
           <label>
-            <span>Hasta</span>
+            <span>{t("dashboard.filter.to")}</span>
             <input type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
           </label>
           <button className="secondary-action" onClick={resetJournalFilters} type="button">
-            Reset filtros
+            {t("journal.filter.reset")}
           </button>
         </div>
-        <div className="journal-review-summary" aria-label="Resumen del subconjunto filtrado">
+        <div className="journal-review-summary" aria-label={t("journal.summary.label")}>
           <span>
-            Subconjunto
+            {t("journal.summary.subset")}
             <strong>{filteredEntries.length}</strong>
           </span>
           <span>
-            Neto
+            {t("journal.summary.net")}
             <strong className={signedTone(analytics.stats.netPnl)}>{formatMoney(analytics.stats.netPnl, currency)}</strong>
           </span>
           <span>
-            Media trade
+            {t("journal.summary.avgTrade")}
             <strong className={signedTone(reviewSummary.averagePnl)}>{formatMoney(reviewSummary.averagePnl, currency)}</strong>
           </span>
           <span>
-            Mejor trade
+            {t("journal.summary.bestTrade")}
             <strong className={signedTone(reviewSummary.bestPnl ?? 0)}>
               {reviewSummary.bestPnl === null ? "-" : formatMoney(reviewSummary.bestPnl, currency)}
             </strong>
           </span>
           <span>
-            Peor trade
+            {t("journal.summary.worstTrade")}
             <strong className={signedTone(reviewSummary.worstPnl ?? 0)}>
               {reviewSummary.worstPnl === null ? "-" : formatMoney(reviewSummary.worstPnl, currency)}
             </strong>
           </span>
           <span>
-            Capturas
+            {t("journal.summary.captures")}
             <strong>{reviewSummary.withMedia}</strong>
           </span>
           <span>
-            Pendientes
+            {t("journal.summary.pending")}
             <strong>{reviewSummary.needsReview}</strong>
           </span>
         </div>
@@ -668,104 +1086,35 @@ export function JournalEntriesView({
         )}
 
       {journalMode === "cockpit" && (
-      <section className="metric-grid journal-kpi-grid" aria-label="Metricas del journal filtrado">
-        <MetricCard
-          hint={`${analytics.stats.wins}W / ${analytics.stats.losses}L / ${analytics.stats.breakEven} BE`}
-          icon={<Percent size={16} strokeWidth={2.2} />}
-          label="Winrate"
-          tone={analytics.stats.winRate === null ? "neutral" : analytics.stats.winRate >= 0.5 ? "positive" : "negative"}
-          value={formatRatioPercent(analytics.stats.winRate)}
-        />
-        <MetricCard
-          hint={`Avg W ${formatNullableMoney(analytics.stats.avgWin, currency)} / Avg L ${formatNullableMoney(
-            analytics.stats.avgLoss,
-            currency,
-          )}`}
-          icon={<Gauge size={16} strokeWidth={2.2} />}
-          label="Profit factor"
-          tone={profitFactorTone(analytics.stats.profitFactor)}
-          value={formatProfitFactor(analytics.stats.profitFactor)}
-        />
-        <MetricCard
-          hint={`${analytics.stats.closed} trades cerrados`}
-          icon={<TrendingUp size={16} strokeWidth={2.2} />}
-          label="Avg win / loss"
-          tone="neutral"
-          value={`${formatNullableMoney(analytics.stats.avgWin, currency)} / ${formatNullableMoney(analytics.stats.avgLoss, currency)}`}
-        />
-      </section>
-      )}
-
-      {journalMode === "cockpit" && (
-        <section className="journal-cockpit-grid" aria-label="Resumen visual del journal">
-          <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />
-          <JournalRecentTradesPanel
-            accounts={accounts}
-            accountById={accountById}
-            currency={currency}
-            entries={filteredEntries.slice(0, 5)}
-            errorTypes={effectiveErrorTypes}
-            firmNameById={firmNameById}
-            onSelectEntry={setSelectedEntryId}
-          />
-        </section>
-      )}
-
-      {journalMode === "cockpit" && (
-      <section className="journal-analytics-grid" aria-label="Breakdowns del journal filtrado">
-        <JournalBreakdownPanel
-          emptyText="Sin sesiones registradas."
-          rows={analytics.sessionRows.map((row) => ({
-            id: row.id,
-            detail: `${row.wins}W / ${row.losses}L / ${row.breakEven} BE`,
-            label: row.label,
-            meter: winRateMeter(row.winRate),
-            note: `${row.count} entradas - ${formatMoney(row.pnl, currency)}`,
-            tone: row.winRate === null ? "neutral" : row.winRate >= 0.5 ? "positive" : "negative",
-            value: formatRatioPercent(row.winRate),
-          }))}
-          subtitle="Winrate y P&L por franja operativa."
-          title="Winrate por sesion"
-        />
-        <JournalBreakdownPanel
-          emptyText="Sin emociones registradas."
-          rows={analytics.emotionRows.map((row) => ({
-            id: row.id,
-            detail: `${row.count} entradas - ${formatRatioPercent(row.winRate)}`,
-            label: row.label,
-            meter: shareMeter(row.count, analytics.maxEmotionCount),
-            note: `Avg ${formatMoney(row.averagePnl, currency)}`,
-            tone: signedTone(row.pnl),
-            value: formatMoney(row.pnl, currency),
-          }))}
-          subtitle="Peso, resultado y media por estado mental."
-          title="Emocion y resultado"
-        />
-        <JournalBreakdownPanel
-          emptyText="Sin errores registrados."
-          rows={analytics.errorRows.map((row) => ({
-            color: row.color,
-            id: row.id,
-            detail: `${row.count} ${row.count === 1 ? "entrada" : "entradas"}`,
-            label: row.label,
-            meter: shareMeter(row.count, analytics.maxErrorCount),
-            note: `${formatPercent(row.share)} del total marcado`,
-            tone: row.severity === "severe" ? "negative" : "neutral",
-            value: String(row.count),
-          }))}
-          subtitle="Frecuencia de fallos marcados en las entradas."
-          title="Errores de ejecucion"
-        />
-        <JournalWeekdayPanel rows={analytics.weekdayRows} currency={currency} />
-      </section>
+        <>
+          <div className="journal-cockpit-toolbar">
+            <div>
+              <h2>{t("journal.cockpit.title")}</h2>
+              <p>{t("journal.cockpit.subtitle")}</p>
+            </div>
+            <button className="secondary-action" onClick={() => setCustomizeOpen(true)} type="button">
+              <LayoutGrid size={16} strokeWidth={2.2} />
+              {t("journal.cockpit.customize")}
+            </button>
+          </div>
+          <section className="journal-dashboard-widgets" aria-label={t("journal.cockpit.panelLabel")}>
+            {dashboardLayout.order
+              .filter((id) => !dashboardLayout.isHidden(id))
+              .map((id) => (
+                <div className="journal-dashboard-widget" data-widget-size={journalWidgetSizes[id]} key={id}>
+                  {journalWidgetContent[id]}
+                </div>
+              ))}
+          </section>
+        </>
       )}
 
       {journalMode === "entries" && (
       <section className="panel journal-error-manager-panel">
         <div className="panel-heading">
           <div>
-            <h2>Tipos de error</h2>
-            <p>Personaliza los fallos que marcas en cada entrada.</p>
+            <h2>{t("journal.errorManager.title")}</h2>
+            <p>{t("journal.errorManager.subtitle")}</p>
           </div>
         </div>
         <div className="journal-error-manager-grid">
@@ -789,22 +1138,22 @@ export function JournalEntriesView({
             }}
           >
             <label>
-              <span>Nombre</span>
+              <span>{t("journal.errorManager.name")}</span>
               <input
                 disabled={!canWrite || mutating}
                 maxLength={34}
                 onChange={(event) => setErrorTypeDraft((current) => ({ ...current, label: event.target.value }))}
-                placeholder="Ej. Overtrade"
+                placeholder={t("journal.errorManager.namePlaceholder")}
                 type="text"
                 value={errorTypeDraft.label}
               />
             </label>
             <div className="journal-error-color-field">
-              <span>Color</span>
+              <span>{t("journal.errorManager.color")}</span>
               <div className="journal-error-color-options">
                 {errorColorOptions.map((color) => (
                   <button
-                    aria-label={`Color ${color}`}
+                    aria-label={`${t("journal.errorManager.color")} ${color}`}
                     className={normalizeHexColor(errorTypeDraft.color) === color ? "active" : ""}
                     disabled={!canWrite || mutating}
                     key={color}
@@ -814,7 +1163,7 @@ export function JournalEntriesView({
                   />
                 ))}
                 <input
-                  aria-label="Color personalizado"
+                  aria-label={t("journal.errorManager.colorCustom")}
                   disabled={!canWrite || mutating}
                   onChange={(event) => setErrorTypeDraft((current) => ({ ...current, color: event.target.value }))}
                   type="color"
@@ -824,12 +1173,12 @@ export function JournalEntriesView({
             </div>
             <button className="primary-action" disabled={!canWrite || mutating || errorTypeDraft.label.trim().length < 2} type="submit">
               <Check size={17} strokeWidth={2.2} />
-              {editingErrorTypeId ? "Guardar error" : "Crear error"}
+              {editingErrorTypeId ? t("journal.errorManager.save") : t("journal.errorManager.create")}
             </button>
             {editingErrorTypeId && (
               <button className="ghost-action" disabled={mutating} onClick={resetErrorTypeForm} type="button">
                 <X size={16} strokeWidth={2.2} />
-                Cancelar
+                {t("common.cancel")}
               </button>
             )}
           </form>
@@ -842,8 +1191,8 @@ export function JournalEntriesView({
                   <div>
                     <strong>{type.label}</strong>
                     <span>
-                      {usage} {usage === 1 ? "entrada" : "entradas"}
-                      {!type.active ? " - oculto" : ""}
+                      {usage} {usage === 1 ? t("journal.errorManager.entrySuffix") : t("journal.errorManager.entriesSuffix")}
+                      {!type.active ? ` ${t("journal.errorManager.hiddenSuffix")}` : ""}
                     </span>
                   </div>
                   <div className="row-actions">
@@ -862,7 +1211,7 @@ export function JournalEntriesView({
                       type="button"
                     >
                       <Pencil size={16} strokeWidth={2.2} />
-                      Editar
+                      {t("common.edit")}
                     </button>
                     <button
                       className="secondary-action"
@@ -871,7 +1220,7 @@ export function JournalEntriesView({
                       type="button"
                     >
                       {type.active ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
-                      {type.active ? "Ocultar" : "Restaurar"}
+                      {type.active ? t("journal.errorManager.hide") : t("journal.errorManager.restore")}
                     </button>
                   </div>
                 </article>
@@ -882,182 +1231,11 @@ export function JournalEntriesView({
       </section>
       )}
 
-      {journalMode === "cockpit" && (
-      <section className="journal-top-grid">
-        <section className="panel journal-calendar-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Calendario</h2>
-              <p>{visibleMonthLabel} - P&L diario del journal.</p>
-            </div>
-            <div className="calendar-actions">
-              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title="Mes anterior" type="button">
-                <ChevronLeft size={16} strokeWidth={2.2} />
-              </button>
-              <input
-                className="month-input"
-                type="month"
-                value={visibleMonth}
-                onChange={(event) => {
-                  if (event.target.value) setVisibleMonth(event.target.value);
-                }}
-              />
-              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title="Mes siguiente" type="button">
-                <ChevronRight size={16} strokeWidth={2.2} />
-              </button>
-              <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
-                Hoy
-              </button>
-            </div>
-          </div>
-          <div className="journal-calendar-grid">
-            {weekdayLabels.map((day) => (
-              <span className="journal-weekday" key={day}>
-                {day}
-              </span>
-            ))}
-            {calendarDays.map((day) => (
-              <button
-                aria-label={`${day.date}: ${day.count} entradas`}
-                className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)}`}
-                disabled={!day.firstEntryId}
-                key={day.date}
-                onClick={() => setSelectedEntryId(day.firstEntryId)}
-                type="button"
-              >
-                <span>{Number(day.date.slice(-2))}</span>
-                <strong>{day.count ? formatMoney(day.pnl, currency) : "-"}</strong>
-                <small>{day.count ? `${day.count} ops` : ""}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel journal-detail-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Detalle</h2>
-              <p>{selectedEntry ? `${selectedEntry.symbol} - ${selectedEntry.date}` : "Selecciona una entrada."}</p>
-            </div>
-            {selectedEntry && (
-              <button className="icon-control compact-icon" onClick={() => setSelectedEntryId(undefined)} title="Cerrar detalle" type="button">
-                <X size={16} strokeWidth={2.2} />
-              </button>
-            )}
-          </div>
-          {selectedEntry ? (
-            <div className="journal-detail-card">
-              <div className="journal-detail-hero">
-                <div>
-                  <span>{selectedEntry.symbol}</span>
-                  <strong>{selectedEntry.date}</strong>
-                </div>
-                <strong className={signedTone(selectedEntry.pnl)}>{formatMoney(selectedEntry.pnl, currency)}</strong>
-              </div>
-              <dl className="journal-detail-grid">
-                <div>
-                  <dt>Empresa</dt>
-                  <dd>
-                    {firmNameById.get(selectedEntry.firmId || "") ||
-                      firmNameById.get(accountById.get(selectedEntry.accountId)?.firmId || "") ||
-                      "Sin empresa"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Cuenta</dt>
-                  <dd>{getAccountName(accounts, selectedEntry.accountId)}</dd>
-                </div>
-                <div>
-                  <dt>Direccion</dt>
-                  <dd>{findOptionLabel(directionOptions, selectedEntry.direction)}</dd>
-                </div>
-                <div>
-                  <dt>Sesion</dt>
-                  <dd>{formatTradingSessionLabel(selectedEntry)}</dd>
-                </div>
-                <div>
-                  <dt>Tipo</dt>
-                  <dd>{findOptionLabel(sessionTypeOptions, selectedEntry.sessionType || "other")}</dd>
-                </div>
-                <div>
-                  <dt>Resultado</dt>
-                  <dd>{findOptionLabel(resultOptions, selectedEntry.result || "neutral")}</dd>
-                </div>
-                <div>
-                  <dt>Disciplina</dt>
-                  <dd>{formatDisciplineScore(selectedEntry.discipline)}</dd>
-                </div>
-                <div>
-                  <dt>Emocion</dt>
-                  <dd>{findOptionLabel(emotionOptions, selectedEntry.emotion)}</dd>
-                </div>
-              </dl>
-              <div className="journal-detail-copy">
-                <span>Errores</span>
-              <JournalErrorChips errorTypes={effectiveErrorTypes} errors={getEntryErrors(selectedEntry, effectiveErrorTypes)} />
-              </div>
-              <div className="journal-detail-copy">
-                <span>Notas</span>
-                <p>{selectedEntry.notes || "Sin notas."}</p>
-              </div>
-              <div className="journal-detail-copy">
-                <span>Aprendizaje</span>
-                <p>{selectedEntry.lesson || "Sin aprendizaje registrado."}</p>
-              </div>
-              {selectedEntry.operationUrl && (
-                <div className="journal-detail-copy">
-                  <span>Captura / link</span>
-                  {isImageSource(selectedEntry.operationUrl) ? (
-                    <button
-                      className="journal-media-preview-button"
-                      onClick={() => setZoomImage(selectedEntry.operationUrl)}
-                      type="button"
-                    >
-                      <img className="journal-media-preview" src={selectedEntry.operationUrl} alt={`Captura de ${selectedEntry.symbol}`} />
-                      <span>
-                        <ZoomIn size={15} strokeWidth={2.2} />
-                        Ampliar captura
-                      </span>
-                    </button>
-                  ) : (
-                    <a className="journal-media-link" href={selectedEntry.operationUrl} rel="noreferrer" target="_blank">
-                      <ExternalLink size={15} strokeWidth={2.2} />
-                      Abrir referencia
-                    </a>
-                  )}
-                </div>
-              )}
-              {selectedDayEntries.length > 1 && (
-                <div className="journal-same-day">
-                  <span>Otras entradas del dia</span>
-                  <div>
-                    {selectedDayEntries.map((entry) => (
-                      <button
-                        className={entry.id === selectedEntry.id ? "active" : ""}
-                        key={entry.id}
-                        onClick={() => setSelectedEntryId(entry.id)}
-                        type="button"
-                      >
-                        {entry.symbol}
-                        <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="chart-empty">Sin entrada seleccionada</div>
-          )}
-        </section>
-      </section>
-      )}
-
       {journalMode === "entryForm" && (
       <Modal
         onClose={closeEntryForm}
-        title={editingId ? "Editar entrada" : "Nueva entrada"}
-        subtitle="Registra la operacion con contexto, captura, errores y notas sin salir de la galeria."
+        title={editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}
+        subtitle={t("journal.entryForm.subtitle")}
         width="wide"
       >
           <div className="modal-inline-actions">
@@ -1066,7 +1244,7 @@ export function JournalEntriesView({
               className={`ghost-action file-action ${!canWrite || mutating || importing ? "disabled" : ""}`}
             >
               <FileUp size={16} strokeWidth={2.2} />
-              {importing ? "Importando..." : "Import CSV"}
+              {importing ? t("journal.entryForm.importing") : t("journal.entryForm.importCsv")}
               <input
                 accept=".csv,text/csv"
                 disabled={!canWrite || mutating || importing}
@@ -1075,6 +1253,25 @@ export function JournalEntriesView({
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) void handleCsvImport(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <label
+              aria-disabled={!canWrite || mutating || importing}
+              className={`ghost-action file-action ${!canWrite || mutating || importing ? "disabled" : ""}`}
+              title={t("journal.entryForm.importTradovateTitle")}
+            >
+              <FileUp size={16} strokeWidth={2.2} />
+              {importing ? t("journal.entryForm.importing") : t("journal.entryForm.importTradovate")}
+              <input
+                accept=".csv,text/csv"
+                disabled={!canWrite || mutating || importing}
+                hidden
+                type="file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleTradovateImport(file);
                   event.target.value = "";
                 }}
               />
@@ -1090,7 +1287,7 @@ export function JournalEntriesView({
           }}
         >
           <label>
-            <span>Fecha</span>
+            <span>{t("journal.entryForm.date")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))}
@@ -1100,13 +1297,13 @@ export function JournalEntriesView({
             />
           </label>
           <label>
-            <span>Empresa</span>
+            <span>{t("journal.entryForm.firm")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value, accountId: "" }))}
               value={draft.firmId || ""}
             >
-              <option value="">Sin empresa</option>
+              <option value="">{t("journal.entryForm.noFirm")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -1115,7 +1312,7 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Cuenta</span>
+            <span>{t("journal.entryForm.account")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => {
@@ -1128,7 +1325,7 @@ export function JournalEntriesView({
               }}
               value={draft.accountId || ""}
             >
-              <option value="">Sin cuenta</option>
+              <option value="">{t("journal.entryForm.noAccount")}</option>
               {accountsForFirm.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
@@ -1137,12 +1334,12 @@ export function JournalEntriesView({
             </select>
           </label>
           <label>
-            <span>Activo</span>
+            <span>{t("journal.entryForm.symbol")}</span>
             <input
               disabled={!canWrite || mutating}
               maxLength={20}
               onChange={(event) => setDraft((current) => ({ ...current, symbol: event.target.value.toUpperCase() }))}
-              placeholder="NQ, ES, MNQ..."
+              placeholder={t("journal.entryForm.symbolPlaceholder")}
               required
               type="text"
               value={draft.symbol}
@@ -1150,41 +1347,41 @@ export function JournalEntriesView({
           </label>
           <SelectField
             disabled={!canWrite || mutating}
-            label="Direccion"
+            label={t("journal.filter.direction")}
             onChange={(value) => setDraft((current) => ({ ...current, direction: value as JournalDirection }))}
             options={directionOptions}
             value={draft.direction}
           />
           <SelectField
             disabled={!canWrite || mutating}
-            label="Sesion"
+            label={t("journal.filter.session")}
             onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
             options={sessionOptions}
             value={draft.tradingSession}
           />
           <SelectField
             disabled={!canWrite || mutating}
-            label="Tipo"
+            label={t("journal.detail.type")}
             onChange={(value) => setDraft((current) => ({ ...current, sessionType: value as JournalSessionType }))}
             options={sessionTypeOptions}
             value={draft.sessionType}
           />
           <SelectField
             disabled={!canWrite || mutating}
-            label="Resultado"
+            label={t("journal.filter.result")}
             onChange={(value) => setDraft((current) => ({ ...current, result: value as JournalResult }))}
             options={resultOptions}
             value={draft.result}
           />
           <SelectField
             disabled={!canWrite || mutating}
-            label="Emocion"
+            label={t("journal.filter.emotion")}
             onChange={(value) => setDraft((current) => ({ ...current, emotion: value as JournalEmotion }))}
             options={emotionOptions}
             value={draft.emotion}
           />
           <label>
-            <span>Disciplina</span>
+            <span>{t("journal.entryForm.discipline")}</span>
             <input
               disabled={!canWrite || mutating}
               max={5}
@@ -1196,7 +1393,7 @@ export function JournalEntriesView({
             />
           </label>
           <label>
-            <span>P&L</span>
+            <span>{t("journal.entryForm.pnl")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, pnl: Number(event.target.value) }))}
@@ -1206,7 +1403,7 @@ export function JournalEntriesView({
             />
           </label>
           <div className="wide-field journal-error-picker">
-            <span>Errores</span>
+            <span>{t("journal.entryForm.errors")}</span>
             <div className="journal-error-options">
               {activeErrorTypes.map((type) => {
                 const selected = draft.errors.includes(type.id);
@@ -1232,7 +1429,7 @@ export function JournalEntriesView({
           </div>
           <div className="wide-field journal-operation-media-field">
             <div className="journal-operation-media-toolbar">
-              <span>Captura de la operacion</span>
+              <span>{t("journal.entryForm.mediaTitle")}</span>
               {draft.operationUrl && (
                 <button
                   className="ghost-action compact-action"
@@ -1244,7 +1441,7 @@ export function JournalEntriesView({
                   type="button"
                 >
                   <X size={15} strokeWidth={2.2} />
-                  Quitar
+                  {t("journal.entryForm.mediaRemove")}
                 </button>
               )}
             </div>
@@ -1283,16 +1480,16 @@ export function JournalEntriesView({
             >
               {isImageSource(draft.operationUrl || "") ? (
                 <div className="journal-operation-preview">
-                  <img src={draft.operationUrl} alt="Captura de la operacion" />
+                  <img src={draft.operationUrl} alt={t("journal.media.captureAlt")} />
                   <span>
                     <ZoomIn size={15} strokeWidth={2.2} />
-                    Click para reemplazar
+                    {t("journal.entryForm.mediaReplace")}
                   </span>
                 </div>
               ) : (
                 <div className="journal-operation-empty">
                   {draft.operationUrl ? <ExternalLink size={22} strokeWidth={2.2} /> : <ImagePlus size={24} strokeWidth={2.2} />}
-                  <span>{draft.operationUrl ? "Enlace de operacion guardado." : "Pega una imagen, arrastrala aqui o haz clic para subirla."}</span>
+                  <span>{draft.operationUrl ? t("journal.entryForm.mediaSavedLink") : t("journal.entryForm.mediaDropHint")}</span>
                 </div>
               )}
             </div>
@@ -1309,21 +1506,21 @@ export function JournalEntriesView({
             {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
           </div>
           <label className="wide-field">
-            <span>Notas</span>
+            <span>{t("journal.entryForm.notes")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-              placeholder="Que paso y como gestionaste el trade"
+              placeholder={t("journal.entryForm.notesPlaceholder")}
               type="text"
               value={draft.notes || ""}
             />
           </label>
           <label className="wide-field">
-            <span>Aprendizaje</span>
+            <span>{t("journal.entryForm.lesson")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, lesson: event.target.value }))}
-              placeholder="Que repetir o evitar"
+              placeholder={t("journal.entryForm.lessonPlaceholder")}
               type="text"
               value={draft.lesson || ""}
             />
@@ -1334,11 +1531,11 @@ export function JournalEntriesView({
 
           <div className="form-action-row">
             <button className="ghost-action" onClick={closeEntryForm} type="button">
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button className="primary-action" disabled={!canWrite || mutating} type="submit">
               <Check size={17} strokeWidth={2.2} />
-              {mutating ? "Guardando..." : editingId ? "Guardar cambios" : "Crear entrada"}
+              {mutating ? t("common.saving") : editingId ? t("common.saveChanges") : t("journal.entryForm.create")}
             </button>
           </div>
         </form>
@@ -1350,8 +1547,8 @@ export function JournalEntriesView({
       <section className="panel table-panel">
         <div className="panel-heading">
           <div>
-            <h2>Entradas de journal</h2>
-            <p>Lista ordenable segun la revision activa.</p>
+            <h2>{t("journal.list.title")}</h2>
+            <p>{t("journal.list.subtitle")}</p>
           </div>
         </div>
         <div className="journal-list">
@@ -1363,15 +1560,15 @@ export function JournalEntriesView({
                   <span>{entry.direction}</span>
                 </div>
                 <small>
-                  {entry.date} - {getEntryFirmName(entry, accountById, firmNameById)} - {getAccountName(accounts, entry.accountId)}
+                  {entry.date} - {getEntryFirmName(entry, accountById, firmNameById, t)} - {getAccountName(accounts, entry.accountId)}
                 </small>
-                <p>{entry.notes || entry.lesson || "Sin notas."}</p>
+                <p>{entry.notes || entry.lesson || t("journal.list.noNotes")}</p>
                 <JournalErrorChips compact errorTypes={effectiveErrorTypes} errors={getEntryErrors(entry, effectiveErrorTypes)} />
               </div>
               <div className="journal-score">
                 <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                <span>Disc. {formatDisciplineScore(entry.discipline)}</span>
-                {entry.operationUrl && <span>Referencia</span>}
+                <span>{t("journal.list.disciplinePrefix")} {formatDisciplineScore(entry.discipline)}</span>
+                {entry.operationUrl && <span>{t("journal.list.reference")}</span>}
               </div>
               <div className="row-actions">
                 <button
@@ -1383,7 +1580,7 @@ export function JournalEntriesView({
                   type="button"
                 >
                   <Eye size={16} strokeWidth={2.2} />
-                  Detalle
+                  {t("journal.list.detail")}
                 </button>
                 <button
                   className="secondary-action"
@@ -1412,19 +1609,19 @@ export function JournalEntriesView({
                   type="button"
                 >
                   <Pencil size={16} strokeWidth={2.2} />
-                  Editar
+                  {t("common.edit")}
                 </button>
                 <button
                   className="danger-action"
                   disabled={!canWrite || mutating}
                   onClick={() => {
-                    if (!window.confirm("Eliminar entrada de journal?")) return;
+                    if (!window.confirm(t("journal.list.deleteConfirm"))) return;
                     void onDeleteEntry(entry.id);
                   }}
                   type="button"
                 >
                   <Trash2 size={16} strokeWidth={2.2} />
-                  Eliminar
+                  {t("common.delete")}
                 </button>
               </div>
             </article>
@@ -1433,8 +1630,8 @@ export function JournalEntriesView({
         {filteredEntries.length === 0 && (
           <article className="empty-panel inline-empty">
             <Plus size={22} strokeWidth={2.2} />
-            <strong>{entries.length ? "Sin resultados" : "No hay entradas todavia"}</strong>
-            <span>{entries.length ? "Ajusta busqueda o filtros." : "Crea la primera desde el formulario superior."}</span>
+            <strong>{entries.length ? t("common.noResults") : t("journal.empty.none")}</strong>
+            <span>{entries.length ? t("common.adjustFilters") : t("journal.empty.createFirst")}</span>
           </article>
         )}
       </section>
@@ -1442,15 +1639,56 @@ export function JournalEntriesView({
       )}
 
       {zoomImage && (
-        <div className="journal-image-zoom-overlay" role="dialog" aria-modal="true" aria-label="Captura ampliada">
+        <div className="journal-image-zoom-overlay" role="dialog" aria-modal="true" aria-label={t("journal.zoom.label")}>
           <button className="journal-image-zoom-backdrop" onClick={() => setZoomImage(undefined)} type="button" />
           <div className="journal-image-zoom-card">
             <button className="icon-control compact-icon journal-image-zoom-close" onClick={() => setZoomImage(undefined)} type="button">
               <X size={18} strokeWidth={2.2} />
             </button>
-            <img src={zoomImage} alt="Captura ampliada de la operacion" />
+            <img src={zoomImage} alt={t("journal.zoom.alt")} />
           </div>
         </div>
+      )}
+
+      {customizeOpen && (
+        <Modal
+          onClose={() => setCustomizeOpen(false)}
+          title={t("journal.customize.title")}
+          subtitle={t("journal.customize.subtitle")}
+        >
+          <div className="journal-widget-customize-list">
+            {dashboardLayout.order.map((id) => {
+              const isHidden = dashboardLayout.isHidden(id);
+              return (
+                <label
+                  className={`journal-widget-customize-row ${isHidden ? "is-hidden" : ""}`}
+                  draggable
+                  key={id}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDragStart={(event) => event.dataTransfer.setData("text/plain", id)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const fromId = event.dataTransfer.getData("text/plain") as JournalWidgetId;
+                    dashboardLayout.moveWidget(fromId, id);
+                  }}
+                >
+                  <GripVertical size={16} strokeWidth={2.2} />
+                  <span>{journalWidgetLabels[id]}</span>
+                  <input checked={!isHidden} onChange={() => dashboardLayout.toggleHidden(id)} type="checkbox" />
+                </label>
+              );
+            })}
+          </div>
+          <div className="form-action-row">
+            <button className="ghost-action" onClick={dashboardLayout.resetLayout} type="button">
+              {t("journal.customize.resetOrder")}
+            </button>
+            <button className="primary-action" onClick={() => setCustomizeOpen(false)} type="button">
+              <Check size={17} strokeWidth={2.2} />
+              {t("journal.customize.done")}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -1461,6 +1699,9 @@ type CalendarDay = {
   date: string;
   firstEntryId?: string;
   inMonth: boolean;
+  payoutCount: number;
+  payoutGross: number;
+  payoutNet: number;
   pnl: number;
 };
 
@@ -1528,6 +1769,7 @@ type JournalDateRange = {
 };
 
 function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entries: JournalEntry[] }) {
+  const t = useT();
   const width = 760;
   const height = 320;
   const padding = { bottom: 42, left: 48, right: 26, top: 32 };
@@ -1556,14 +1798,14 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
     <section className="panel journal-pnl-curve-panel">
       <div className="panel-heading">
         <div>
-          <h2>P&L acumulado</h2>
-          <p>{entries.length ? `${entries.length} operaciones en el subconjunto activo.` : "Sin operaciones en el filtro actual."}</p>
+          <h2>{t("journal.pnlCurve.title")}</h2>
+          <p>{entries.length ? `${entries.length} ${t("journal.pnlCurve.subtitleSuffix")}` : t("journal.pnlCurve.subtitleEmpty")}</p>
         </div>
         <strong className={`chart-delta ${signedTone(finalValue)}`}>{formatMoney(finalValue, currency)}</strong>
       </div>
       {points.length > 0 ? (
         <>
-          <div className="journal-pnl-chart-frame" role="img" aria-label="Curva de P&L acumulado del journal">
+          <div className="journal-pnl-chart-frame" role="img" aria-label={t("journal.pnlCurve.ariaLabel")}>
             <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
               <defs>
                 <linearGradient id="journal-pnl-fill" x1="0" x2="0" y1="0" y2="1">
@@ -1608,7 +1850,7 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
           </div>
         </>
       ) : (
-        <div className="chart-empty">No hay datos suficientes</div>
+        <div className="chart-empty">{t("journal.pnlCurve.noData")}</div>
       )}
     </section>
   );
@@ -1631,12 +1873,16 @@ function JournalRecentTradesPanel({
   firmNameById: Map<string, string>;
   onSelectEntry: (entryId: string) => void;
 }) {
+  const t = useT();
+  const directionOptions = useMemo(() => getDirectionOptions(t), [t]);
+  const sessionOptions = useMemo(() => getSessionOptions(t), [t]);
+
   return (
     <section className="panel journal-recent-panel">
       <div className="panel-heading">
         <div>
-          <h2>Ultimas operaciones</h2>
-          <p>Click en una fila para abrir el detalle.</p>
+          <h2>{t("journal.recent.title")}</h2>
+          <p>{t("journal.recent.subtitle")}</p>
         </div>
       </div>
       <div className="journal-recent-list">
@@ -1650,20 +1896,20 @@ function JournalRecentTradesPanel({
               </span>
               <span>
                 <strong>{findOptionLabel(directionOptions, entry.direction)}</strong>
-                <small>{formatTradingSessionLabel(entry)}</small>
+                <small>{formatTradingSessionLabel(entry, sessionOptions, t)}</small>
               </span>
               <span>
                 <strong>{getAccountName(accounts, entry.accountId)}</strong>
-                <small>{getEntryFirmName(entry, accountById, firmNameById)}</small>
+                <small>{getEntryFirmName(entry, accountById, firmNameById, t)}</small>
               </span>
               <span>
                 <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                <small>{entryErrors.length ? `${entryErrors.length} errores` : "Sin errores"}</small>
+                <small>{entryErrors.length ? `${entryErrors.length} ${t("journal.recent.errorsSuffix")}` : t("journal.recent.noErrors")}</small>
               </span>
             </button>
           );
         })}
-        {entries.length === 0 && <div className="journal-breakdown-empty">Sin operaciones en el filtro actual.</div>}
+        {entries.length === 0 && <div className="journal-breakdown-empty">{t("journal.recent.empty")}</div>}
       </div>
     </section>
   );
@@ -1725,14 +1971,15 @@ function JournalBreakdownPanel({
 }
 
 function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: JournalSummaryRow[] }) {
+  const t = useT();
   const hasData = rows.some((row) => row.count > 0);
 
   return (
     <section className="panel journal-breakdown-panel">
       <div className="panel-heading compact-heading">
         <div>
-          <h2>Dias de semana</h2>
-          <p>Distribucion de winrate y P&L por dia.</p>
+          <h2>{t("journal.weekday.title")}</h2>
+          <p>{t("journal.weekday.subtitle")}</p>
         </div>
       </div>
       {hasData ? (
@@ -1745,19 +1992,25 @@ function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: Jou
               <span>{row.label}</span>
               <strong>{row.winRate === null ? "-" : formatPercent(row.winRate)}</strong>
               <small>
-                {row.count ? `${row.count} ops - ${formatMoney(row.pnl, currency)}` : "Sin datos"}
+                {row.count ? `${row.count} ${t("journal.weekday.opsSuffix")} - ${formatMoney(row.pnl, currency)}` : t("journal.weekday.noData")}
               </small>
             </div>
           ))}
         </div>
       ) : (
-        <div className="journal-breakdown-empty">Sin dias con entradas.</div>
+        <div className="journal-breakdown-empty">{t("journal.weekday.empty")}</div>
       )}
     </section>
   );
 }
 
-function buildJournalAnalytics(entries: JournalEntry[], errorTypes: JournalErrorType[]): JournalAnalytics {
+function buildJournalAnalytics(
+  entries: JournalEntry[],
+  errorTypes: JournalErrorType[],
+  sessionOptions: Array<{ label: string; value: JournalTradingSession }>,
+  emotionOptions: Array<{ label: string; value: JournalEmotion }>,
+  weekdayLabels: string[],
+): JournalAnalytics {
   const stats = getJournalStats(entries);
   const sessionRows = sessionOptions
     .map((option) => ({
@@ -1808,8 +2061,9 @@ function JournalErrorChips({
   errors: string[];
   errorTypes: JournalErrorType[];
 }) {
+  const t = useT();
   if (!errors.length) {
-    return <p className="journal-errors-empty-inline">Sin errores marcados.</p>;
+    return <p className="journal-errors-empty-inline">{t("journal.errors.noneMarked")}</p>;
   }
 
   return (
@@ -1828,18 +2082,19 @@ function JournalErrorChips({
 }
 
 function JournalAccountOverviewPanel({ currency, overview }: { currency: Currency; overview: JournalAccountOverview }) {
+  const t = useT();
   return (
     <section className="panel journal-account-overview-panel">
       <div className="journal-account-overview-head">
         <div>
-          <span>Cuenta seleccionada</span>
+          <span>{t("journal.accountOverview.selectedAccount")}</span>
           <h2>{overview.accountName}</h2>
           <p>
-            {overview.firmName || "Sin empresa"} - {overview.baseLabel}
+            {overview.firmName || t("account.card.noFirm")} - {overview.baseLabel}
           </p>
         </div>
         <div className="journal-account-return">
-          <span>Retorno</span>
+          <span>{t("journal.accountOverview.return")}</span>
           <strong className={overview.returnRatio === null ? "neutral" : signedTone(overview.returnRatio)}>
             {overview.returnRatio === null ? "-" : formatSignedPercent(overview.returnRatio)}
           </strong>
@@ -1848,15 +2103,21 @@ function JournalAccountOverviewPanel({ currency, overview }: { currency: Currenc
 
       <div className="journal-account-overview-stats">
         <div>
-          <span>Balance</span>
+          <span>{t("journal.accountOverview.balance")}</span>
           <strong>{formatMoney(overview.balance, currency)}</strong>
         </div>
         <div>
-          <span>P&L neto</span>
+          <span>{t("journal.accountOverview.netPnl")}</span>
           <strong className={signedTone(overview.netPnl)}>{formatSignedMoney(overview.netPnl, currency)}</strong>
         </div>
         <div>
-          <span>Base</span>
+          <span>{t("journal.accountOverview.payouts")}</span>
+          <strong className={overview.payouts ? "negative" : "neutral"}>
+            {overview.payouts ? `-${formatMoney(overview.payouts, currency)}` : formatMoney(0, currency)}
+          </strong>
+        </div>
+        <div>
+          <span>{t("journal.accountOverview.base")}</span>
           <strong>{overview.base === null ? "-" : formatMoney(overview.base, currency)}</strong>
         </div>
       </div>
@@ -1882,113 +2143,32 @@ function JournalAccountOverviewPanel({ currency, overview }: { currency: Currenc
   );
 }
 
-function JournalPortfolioOverviewPanel({
-  accounts,
-  currency,
-  entries,
-}: {
-  accounts: TradingAccount[];
-  currency: Currency;
-  entries: JournalEntry[];
-}) {
-  const stats = getJournalStats(entries);
-  const accountIds = new Set(entries.map((entry) => entry.accountId).filter(Boolean));
-  const withMedia = entries.filter((entry) => Boolean(entry.operationUrl?.trim())).length;
-  const needsReview = entries.filter(needsJournalReview).length;
-  const disciplineLabel =
-    stats.avgDiscipline === null ? "-" : formatDisciplineScore(stats.avgDiscipline, stats.disciplineScale);
-
-  return (
-    <section className="panel journal-account-overview-panel journal-portfolio-overview-panel">
-      <div className="journal-account-overview-head">
-        <div>
-          <span>Trading overview</span>
-          <h2>Portfolio journal</h2>
-          <p>
-            {accountIds.size || accounts.length} {accountIds.size === 1 ? "cuenta" : "cuentas"} con actividad filtrada.
-          </p>
-        </div>
-        <div className="journal-account-return">
-          <span>Return operativo</span>
-          <strong className={signedTone(stats.netPnl)}>{formatMoney(stats.netPnl, currency)}</strong>
-        </div>
-      </div>
-      <div className="journal-account-overview-stats">
-        <div>
-          <span>Operaciones</span>
-          <strong>{stats.count}</strong>
-        </div>
-        <div>
-          <span>Winrate</span>
-          <strong>{formatRatioPercent(stats.winRate)}</strong>
-        </div>
-        <div>
-          <span>Profit factor</span>
-          <strong>{formatProfitFactor(stats.profitFactor)}</strong>
-        </div>
-      </div>
-      <div className="journal-account-rules">
-        <article className={`journal-account-rule ${stats.netPnl >= 0 ? "positive" : "negative"}`}>
-          <div className="journal-account-rule-head">
-            <span>
-              <Target size={14} strokeWidth={2.2} />
-              P&L neto
-            </span>
-            <strong>{formatMoney(stats.netPnl, currency)}</strong>
-          </div>
-          <div className="journal-account-rule-track" aria-hidden="true">
-            <i style={{ width: `${clampPercent(Math.abs(stats.winRate ?? 0) * 100 || 8)}%` }} />
-          </div>
-          <small>{stats.wins}W / {stats.losses}L / {stats.breakEven} BE</small>
-        </article>
-        <article className={`journal-account-rule ${needsReview ? "negative" : "positive"}`}>
-          <div className="journal-account-rule-head">
-            <span>
-              <ShieldAlert size={14} strokeWidth={2.2} />
-              Pendientes
-            </span>
-            <strong>{needsReview}</strong>
-          </div>
-          <div className="journal-account-rule-track" aria-hidden="true">
-            <i style={{ width: `${shareMeter(needsReview, Math.max(entries.length, 1))}%` }} />
-          </div>
-          <small>Perdidas, baja disciplina o sin aprendizaje.</small>
-        </article>
-        <article className="journal-account-rule neutral">
-          <div className="journal-account-rule-head">
-            <span>
-              <ImagePlus size={14} strokeWidth={2.2} />
-              Capturas
-            </span>
-            <strong>{withMedia}</strong>
-          </div>
-          <div className="journal-account-rule-track" aria-hidden="true">
-            <i style={{ width: `${shareMeter(withMedia, Math.max(entries.length, 1))}%` }} />
-          </div>
-          <small>Disciplina media {disciplineLabel}</small>
-        </article>
-      </div>
-    </section>
-  );
-}
-
 function buildJournalAccountOverview({
   account,
   currency,
   entries,
   firmNameById,
+  movements,
+  t,
 }: {
   account?: TradingAccount;
   currency: Currency;
   entries: JournalEntry[];
   firmNameById: Map<string, string>;
+  movements: Movement[];
+  t: ReturnType<typeof useT>;
 }): JournalAccountOverview | null {
   if (!account) return null;
 
   const accountEntries = entries.filter((entry) => entry.accountId === account.id);
   const base = account.size > 0 ? account.size : null;
   const netPnl = sumNumbers(accountEntries.map((entry) => entry.pnl));
-  const balance = (base ?? 0) + netPnl;
+  const payouts = sumNumbers(
+    movements
+      .filter((movement) => movement.category === "payout" && movement.accountId === account.id)
+      .map(getPayoutGrossAmount),
+  );
+  const balance = (base ?? 0) + netPnl - payouts;
   const returnRatio = base ? netPnl / base : null;
   const todayPnl = sumNumbers(accountEntries.filter((entry) => entry.date === todayIso()).map((entry) => entry.pnl));
 
@@ -1996,26 +2176,27 @@ function buildJournalAccountOverview({
     accountName: account.name,
     balance,
     base,
-    baseLabel: base ? `Base ${formatMoney(base, currency)}` : "Anade tamano de cuenta para calcular %",
+    baseLabel: base ? `${t("journal.accountOverview.baseWithAmountPrefix")} ${formatMoney(base, currency)}` : t("journal.accountOverview.addSizeToCalc"),
     firmName: firmNameById.get(account.firmId) || "",
     netPnl,
+    payouts,
     returnRatio,
     rules: [
-      buildTargetRule(account.phaseTarget, netPnl, currency),
-      buildEodDrawdownRule(account.maxDrawdown, base, accountEntries, netPnl, currency),
-      buildDailyDrawdownRule(account.dailyDrawdown, todayPnl, currency),
+      buildTargetRule(account.phaseTarget, netPnl, currency, t),
+      buildEodDrawdownRule(account.maxDrawdown, base, accountEntries, netPnl, currency, t),
+      buildDailyDrawdownRule(account.dailyDrawdown, todayPnl, currency, t),
     ],
   };
 }
 
-function buildTargetRule(target: number, netPnl: number, currency: Currency): JournalAccountRule {
+function buildTargetRule(target: number, netPnl: number, currency: Currency, t: ReturnType<typeof useT>): JournalAccountRule {
   if (!isPositiveAmount(target)) {
     return {
-      hint: "Anade target de fase en la cuenta.",
+      hint: t("journal.rules.targetHintEmpty"),
       icon: "target",
-      label: "Objetivo",
+      label: t("journal.rules.target"),
       meter: 0,
-      status: "Sin target",
+      status: t("journal.rules.noTarget"),
       tone: "neutral",
     };
   }
@@ -2025,9 +2206,9 @@ function buildTargetRule(target: number, netPnl: number, currency: Currency): Jo
   return {
     hint: `${formatSignedMoney(netPnl, currency)} / ${formatMoney(target, currency)}`,
     icon: "target",
-    label: "Objetivo",
+    label: t("journal.rules.target"),
     meter: clampPercent((netPnl / target) * 100),
-    status: reached ? "Target conseguido" : `Quedan ${formatMoney(Math.max(remaining, 0), currency)}`,
+    status: reached ? t("journal.rules.targetReached") : `${t("journal.rules.remainingPrefix")} ${formatMoney(Math.max(remaining, 0), currency)}`,
     tone: reached ? "positive" : "neutral",
   };
 }
@@ -2038,14 +2219,15 @@ function buildEodDrawdownRule(
   entries: JournalEntry[],
   pnl: number,
   currency: Currency,
+  t: ReturnType<typeof useT>,
 ): JournalAccountRule {
   if (!isPositiveAmount(amount)) {
     return {
-      hint: "Sin drawdown maximo configurado.",
+      hint: t("journal.rules.maxDrawdownHintEmpty"),
       icon: "drawdown",
-      label: "DD maximo",
+      label: t("journal.rules.maxDrawdown"),
       meter: 0,
-      status: "Sin DD max.",
+      status: t("journal.rules.noMaxDrawdown"),
       tone: "neutral",
     };
   }
@@ -2054,23 +2236,23 @@ function buildEodDrawdownRule(
   const percent = clampPercent((model.remaining / amount) * 100);
   const breached = model.remaining <= 0;
   return {
-    hint: `Limite actual ${formatMoney(model.limit, currency)} - EOD max. ${formatMoney(model.highWatermark, currency)}`,
+    hint: `${t("journal.rules.limitCurrentPrefix")} ${formatMoney(model.limit, currency)} - ${t("journal.rules.eodMaxPrefix")} ${formatMoney(model.highWatermark, currency)}`,
     icon: "drawdown",
-    label: "DD maximo",
+    label: t("journal.rules.maxDrawdown"),
     meter: percent,
-    status: breached ? "Limite superado" : `Quedan ${formatMoney(model.remaining, currency)}`,
+    status: breached ? t("journal.rules.limitExceeded") : `${t("journal.rules.remainingPrefix")} ${formatMoney(model.remaining, currency)}`,
     tone: breached || percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive",
   };
 }
 
-function buildDailyDrawdownRule(amount: number, todayPnl: number, currency: Currency): JournalAccountRule {
+function buildDailyDrawdownRule(amount: number, todayPnl: number, currency: Currency, t: ReturnType<typeof useT>): JournalAccountRule {
   if (!isPositiveAmount(amount)) {
     return {
-      hint: "Esta cuenta no tiene limite diario.",
+      hint: t("journal.rules.dailyDrawdownHintEmpty"),
       icon: "drawdown",
-      label: "DD diario",
+      label: t("journal.rules.dailyDrawdown"),
       meter: 0,
-      status: "Sin DD diario",
+      status: t("journal.rules.noDailyDrawdown"),
       tone: "neutral",
     };
   }
@@ -2079,11 +2261,11 @@ function buildDailyDrawdownRule(amount: number, todayPnl: number, currency: Curr
   const percent = clampPercent((remaining / amount) * 100);
   const breached = remaining <= 0;
   return {
-    hint: `Hoy ${formatSignedMoney(todayPnl, currency)} / -${formatMoney(amount, currency)}`,
+    hint: `${t("journal.rules.todayPrefix")} ${formatSignedMoney(todayPnl, currency)} / -${formatMoney(amount, currency)}`,
     icon: "drawdown",
-    label: "DD diario",
+    label: t("journal.rules.dailyDrawdown"),
     meter: percent,
-    status: breached ? "Limite superado" : `Quedan ${formatMoney(remaining, currency)}`,
+    status: breached ? t("journal.rules.limitExceeded") : `${t("journal.rules.remainingPrefix")} ${formatMoney(remaining, currency)}`,
     tone: breached || percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive",
   };
 }
@@ -2154,13 +2336,14 @@ function getEntryFirmName(
   entry: JournalEntry,
   accountById: Map<string, TradingAccount>,
   firmNameById: Map<string, string>,
+  t: ReturnType<typeof useT>,
 ) {
-  return firmNameById.get(entry.firmId || "") || firmNameById.get(accountById.get(entry.accountId)?.firmId || "") || "Sin empresa";
+  return firmNameById.get(entry.firmId || "") || firmNameById.get(accountById.get(entry.accountId)?.firmId || "") || t("account.card.noFirm");
 }
 
-function formatTradingSessionLabel(entry: JournalEntry) {
+function formatTradingSessionLabel(entry: JournalEntry, sessionOptions: Array<{ label: string; value: JournalTradingSession }>, t: ReturnType<typeof useT>) {
   const tradingSession = getEntryTradingSession(entry);
-  return tradingSession ? findOptionLabel(sessionOptions, tradingSession) : "Sin sesion";
+  return tradingSession ? findOptionLabel(sessionOptions, tradingSession) : t("journal.session.none");
 }
 
 function getEntryTradingSession(entry: JournalEntry): JournalTradingSession | "" {
@@ -2170,10 +2353,12 @@ function getEntryTradingSession(entry: JournalEntry): JournalTradingSession | ""
   );
 }
 
+const journalTradingSessionValues: JournalTradingSession[] = ["asia", "london", "newYork", "londonNewYork", "other"];
+
 function normalizeEntryTradingSession(value: unknown): JournalTradingSession | "" {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  if (sessionOptions.some((option) => option.value === raw)) return raw as JournalTradingSession;
+  if (journalTradingSessionValues.includes(raw as JournalTradingSession)) return raw as JournalTradingSession;
 
   const key = raw
     .toLowerCase()
@@ -2392,10 +2577,10 @@ function getImageFileFromList(files: FileList | null | undefined) {
   return Array.from(files || []).find((file) => file.type.startsWith("image/"));
 }
 
-async function compressOperationImage(file: File) {
-  if (!file.type.startsWith("image/")) throw new Error("El archivo debe ser una imagen.");
+async function compressOperationImage(file: File, t: ReturnType<typeof useT>) {
+  if (!file.type.startsWith("image/")) throw new Error(t("journal.media.mustBeImage"));
 
-  const source = await readOperationImage(file);
+  const source = await readOperationImage(file, t);
   const scale = Math.min(1, operationImageMaxSize / Math.max(source.width, source.height));
   const width = Math.max(1, Math.round(source.width * scale));
   const height = Math.max(1, Math.round(source.height * scale));
@@ -2406,7 +2591,7 @@ async function compressOperationImage(file: File) {
   const context = canvas.getContext("2d");
   if (!context) {
     closeOperationImage(source);
-    throw new Error("No se pudo procesar la imagen.");
+    throw new Error(t("journal.media.processError"));
   }
 
   context.imageSmoothingEnabled = true;
@@ -2417,18 +2602,18 @@ async function compressOperationImage(file: File) {
   const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob(resolve, "image/jpeg", operationImageQuality);
   });
-  if (!blob) throw new Error("No se pudo comprimir la imagen.");
-  return blobToDataUrl(blob);
+  if (!blob) throw new Error(t("journal.media.compressError"));
+  return blobToDataUrl(blob, t);
 }
 
-async function readOperationImage(file: File): Promise<ImageBitmap | HTMLImageElement> {
+async function readOperationImage(file: File, t: ReturnType<typeof useT>): Promise<ImageBitmap | HTMLImageElement> {
   if ("createImageBitmap" in window) return window.createImageBitmap(file);
 
-  const dataUrl = await blobToDataUrl(file);
+  const dataUrl = await blobToDataUrl(file, t);
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    image.onerror = () => reject(new Error(t("journal.media.readError")));
     image.src = dataUrl;
   });
 }
@@ -2437,11 +2622,11 @@ function closeOperationImage(source: ImageBitmap | HTMLImageElement) {
   if ("close" in source) source.close();
 }
 
-function blobToDataUrl(blob: Blob) {
+function blobToDataUrl(blob: Blob, t: ReturnType<typeof useT>) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.onerror = () => reject(new Error(t("journal.media.readError")));
     reader.readAsDataURL(blob);
   });
 }
@@ -2467,20 +2652,37 @@ function sumNumbers(values: number[]) {
   return values.reduce((total, value) => total + value, 0);
 }
 
-function buildCalendarDays(month: string, entries: JournalEntry[]): CalendarDay[] {
+function buildCalendarDays(month: string, entries: JournalEntry[], movements: Movement[]): CalendarDay[] {
   const safeMonth = normalizeMonth(month);
   const [year, monthNumber] = safeMonth.split("-").map(Number);
   const first = new Date(year, monthNumber - 1, 1);
   const start = new Date(first);
   start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
-  const grouped = new Map<string, { count: number; firstEntryId?: string; pnl: number }>();
+  const grouped = new Map<
+    string,
+    { count: number; firstEntryId?: string; payoutCount: number; payoutGross: number; payoutNet: number; pnl: number }
+  >();
 
   entries.forEach((entry) => {
-    const current = grouped.get(entry.date) || { count: 0, pnl: 0 };
+    const current = grouped.get(entry.date) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0 };
     grouped.set(entry.date, {
       count: current.count + 1,
       firstEntryId: current.firstEntryId || entry.id,
+      payoutCount: current.payoutCount,
+      payoutGross: current.payoutGross,
+      payoutNet: current.payoutNet,
       pnl: current.pnl + entry.pnl,
+    });
+  });
+
+  movements.forEach((movement) => {
+    if (movement.category !== "payout" || !movement.accountId) return;
+    const current = grouped.get(movement.date) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0 };
+    grouped.set(movement.date, {
+      ...current,
+      payoutCount: current.payoutCount + 1,
+      payoutGross: current.payoutGross + getPayoutGrossAmount(movement),
+      payoutNet: current.payoutNet + movement.amount,
     });
   });
 
@@ -2488,12 +2690,15 @@ function buildCalendarDays(month: string, entries: JournalEntry[]): CalendarDay[
     const date = new Date(start);
     date.setDate(start.getDate() + index);
     const key = dateToIso(date);
-    const item = grouped.get(key) || { count: 0, pnl: 0 };
+    const item = grouped.get(key) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0 };
     return {
       count: item.count,
       date: key,
       firstEntryId: item.firstEntryId,
       inMonth: key.startsWith(safeMonth),
+      payoutCount: item.payoutCount,
+      payoutGross: item.payoutGross,
+      payoutNet: item.payoutNet,
       pnl: item.pnl,
     };
   });
@@ -2505,10 +2710,10 @@ function shiftMonth(month: string, offset: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatMonthLabel(month: string) {
+function formatMonthLabel(month: string, language: Language) {
   const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
   const date = new Date(year, monthNumber - 1, 1);
-  return new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "long", year: "numeric" }).format(date);
 }
 
 function normalizeMonth(month: string) {
@@ -2521,14 +2726,26 @@ function dateToIso(date: Date) {
 
 function downloadJournalCsv({
   accountById,
+  directionOptions,
+  emotionOptions,
   entries,
   errorTypes,
   firmNameById,
+  resultOptions,
+  sessionOptions,
+  sessionTypeOptions,
+  t,
 }: {
   accountById: Map<string, TradingAccount>;
+  directionOptions: Array<{ label: string; value: JournalDirection }>;
+  emotionOptions: Array<{ label: string; value: JournalEmotion }>;
   entries: JournalEntry[];
   errorTypes: JournalErrorType[];
   firmNameById: Map<string, string>;
+  resultOptions: Array<{ label: string; value: JournalResult }>;
+  sessionOptions: Array<{ label: string; value: JournalTradingSession }>;
+  sessionTypeOptions: Array<{ label: string; value: JournalSessionType }>;
+  t: ReturnType<typeof useT>;
 }) {
   const header = [
     "date",
@@ -2550,11 +2767,11 @@ function downloadJournalCsv({
   const lines = entries.map((entry) =>
     [
       entry.date,
-      getEntryFirmName(entry, accountById, firmNameById),
+      getEntryFirmName(entry, accountById, firmNameById, t),
       getAccountName(Array.from(accountById.values()), entry.accountId),
       entry.symbol,
       findOptionLabel(directionOptions, entry.direction),
-      formatTradingSessionLabel(entry),
+      formatTradingSessionLabel(entry, sessionOptions, t),
       findOptionLabel(sessionTypeOptions, entry.sessionType || "other"),
       findOptionLabel(resultOptions, entry.result || "neutral"),
       findOptionLabel(emotionOptions, entry.emotion),

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Languages, Moon, Sun } from "lucide-react";
 import { AccountsView } from "./components/AccountsView";
 import { AppShell } from "./components/AppShell";
 import { AuthScreen } from "./components/AuthScreen";
@@ -10,6 +11,7 @@ import { SettingsView } from "./components/SettingsView";
 import { useAuth } from "./hooks/useAuth";
 import { useTheme } from "./hooks/useTheme";
 import { useTrazzaData } from "./hooks/useTrazzaData";
+import { useI18n, useT } from "./lib/i18n/context";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { filterJournalByAccount, filterMovementsByAccount } from "./lib/metrics";
 import type { NavigationView } from "./types";
@@ -17,6 +19,7 @@ import type { NavigationView } from "./types";
 export default function App() {
   const auth = useAuth();
   const themeState = useTheme();
+  const t = useT();
   const [privacyHidden, setPrivacyHidden] = useState(false);
   const [activeView, setActiveView] = useState<NavigationView>("overview");
   const [createRequest, setCreateRequest] = useState<{
@@ -43,7 +46,19 @@ export default function App() {
   );
 
   if (auth.status === "checking") {
-    return <LoadingScreen label="Comprobando sesion..." />;
+    return <LoadingScreen label={t("app.checkingSession")} />;
+  }
+
+  if (auth.recoveryMode) {
+    return (
+      <ResetPasswordScreen
+        busy={auth.busy}
+        message={auth.message}
+        theme={themeState.theme}
+        onSubmit={auth.updatePassword}
+        onThemeToggle={() => themeState.setTheme(themeState.theme === "dark" ? "light" : "dark")}
+      />
+    );
   }
 
   if (auth.status === "anonymous") {
@@ -52,6 +67,7 @@ export default function App() {
         busy={auth.busy}
         message={auth.message}
         theme={themeState.theme}
+        onForgotPassword={auth.resetPassword}
         onSignIn={auth.signIn}
         onSignUp={auth.signUp}
         onThemeToggle={() => themeState.setTheme(themeState.theme === "dark" ? "light" : "dark")}
@@ -92,18 +108,18 @@ export default function App() {
       {auth.status === "unconfigured" && (
         <StateNotice
           tone="info"
-          title="Supabase no esta configurado en React"
-          text="La app nueva esta usando datos demo. Configura web/.env.local para activar login y datos reales."
+          title={t("app.notice.unconfiguredTitle")}
+          text={t("app.notice.unconfiguredText")}
         />
       )}
       {dataState.status === "loading" && (
-        <StateNotice tone="info" title="Sincronizando" text="Cargando datos reales de Supabase." />
+        <StateNotice tone="info" title={t("app.notice.syncingTitle")} text={t("app.notice.syncingText")} />
       )}
       {dataState.status === "error" && (
         <StateNotice
           tone="error"
-          title="No se pudieron cargar los datos reales"
-          text={`${dataState.error} Mientras tanto se muestran datos demo para mantener la interfaz navegable.`}
+          title={t("app.notice.errorTitle")}
+          text={`${dataState.error} ${t("app.notice.errorTextSuffix")}`}
         />
       )}
 
@@ -173,6 +189,7 @@ export default function App() {
           firms={firms}
           initialMode={activeView === "journalEntries" ? "entries" : "cockpit"}
           journalErrorTypes={journalErrorTypes}
+          movements={visibleMovements}
           newEntryToken={createRequest?.target === "journalEntry" ? createRequest.id : 0}
           searchQuery={searchQuery}
           selectedAccountId={selectedAccountId}
@@ -201,6 +218,112 @@ export default function App() {
         />
       )}
     </AppShell>
+  );
+}
+
+function ResetPasswordScreen({
+  busy,
+  message,
+  theme,
+  onSubmit,
+  onThemeToggle,
+}: {
+  busy: boolean;
+  message?: { type: "info" | "success" | "error"; text: string } | null;
+  theme: "dark" | "light";
+  onSubmit: (password: string) => Promise<boolean>;
+  onThemeToggle: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const t = useT();
+  const { language, setLanguage } = useI18n();
+
+  return (
+    <main className="auth-screen">
+      <div className="auth-top-actions">
+        <button
+          className="auth-theme-toggle"
+          onClick={() => setLanguage(language === "es" ? "en" : "es")}
+          title={t("appShell.topbar.language")}
+          type="button"
+        >
+          <Languages size={17} strokeWidth={2.2} />
+          <span>{language.toUpperCase()}</span>
+        </button>
+        <button className="auth-theme-toggle" onClick={onThemeToggle} title={t("appShell.topbar.theme")} type="button">
+          {theme === "dark" ? <Sun size={17} strokeWidth={2.2} /> : <Moon size={17} strokeWidth={2.2} />}
+        </button>
+      </div>
+
+      <section className="auth-layout">
+        <div className="auth-copy">
+          <img className="auth-logo" src="/trazza.png" alt="Trazza" />
+          <p className="auth-kicker">{t("auth.kicker")}</p>
+          <h1>{t("auth.reset.title")}</h1>
+          <p>{t("auth.reset.subtitle")}</p>
+        </div>
+
+        <section className="auth-card" aria-label={t("auth.reset.newPassword")}>
+          <div className="auth-heading">
+            <span>{t("auth.reset.badge")}</span>
+            <h2>{t("auth.reset.heading")}</h2>
+            <p>{t("auth.reset.copy")}</p>
+          </div>
+
+          <form
+            className="auth-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (busy) return;
+              if (password !== confirmPassword) {
+                setValidationError(t("auth.reset.mismatch"));
+                return;
+              }
+              setValidationError(null);
+              void onSubmit(password);
+            }}
+          >
+            <label>
+              <span>{t("auth.reset.newPassword")}</span>
+              <div className="auth-field">
+                <input
+                  autoComplete="new-password"
+                  minLength={6}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={t("auth.field.passwordPlaceholder")}
+                  required
+                  type="password"
+                  value={password}
+                />
+              </div>
+            </label>
+            <label>
+              <span>{t("auth.reset.confirmPassword")}</span>
+              <div className="auth-field">
+                <input
+                  autoComplete="new-password"
+                  minLength={6}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder={t("auth.reset.confirmPlaceholder")}
+                  required
+                  type="password"
+                  value={confirmPassword}
+                />
+              </div>
+            </label>
+
+            {validationError && <p className="auth-message error">{validationError}</p>}
+            {message && <p className={`auth-message ${message.type}`}>{message.text}</p>}
+
+            <button className="primary-action" disabled={busy} type="submit">
+              {busy ? t("auth.reset.saving") : t("auth.reset.save")}
+            </button>
+          </form>
+        </section>
+      </section>
+    </main>
   );
 }
 

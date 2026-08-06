@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Building2, Check, Pencil, Plus, Trash2, WalletCards } from "lucide-react";
 import { Modal } from "./Modal";
+import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type { AccountStatus, DataMode, Firm, FirmInput, FirmType, TradingAccount } from "../types";
 
@@ -17,19 +18,15 @@ type FirmsViewProps = {
   onSaveFirm: (input: FirmInput, firmId?: string) => Promise<boolean>;
 };
 
-const firmTypeOptions: Array<{ label: string; value: FirmType }> = [
-  { label: "Futuros", value: "futures" },
-  { label: "Forex", value: "forex" },
-  { label: "Crypto", value: "crypto" },
-  { label: "Otro", value: "other" },
-];
+function getFirmTypeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: FirmType }> {
+  return [
+    { label: t("firm.type.futures"), value: "futures" },
+    { label: t("firm.type.forex"), value: "forex" },
+    { label: t("firm.type.crypto"), value: "crypto" },
+    { label: t("firm.type.other"), value: "other" },
+  ];
+}
 
-const firmTypeFilters: Array<{ label: string; value: "all" | FirmType }> = [
-  { label: "Todas", value: "all" },
-  ...firmTypeOptions,
-];
-
-const firmTypeLabelByValue = new Map(firmTypeOptions.map((option) => [option.value, option.label]));
 const activeAccountStatuses = new Set<AccountStatus>(["active", "evaluation", "passed", "funded"]);
 
 const emptyFirmInput: FirmInput = {
@@ -54,6 +51,10 @@ export function FirmsView({
   const [editingId, setEditingId] = useState<string | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"all" | FirmType>("all");
+  const t = useT();
+  const firmTypeOptions = useMemo(() => getFirmTypeOptions(t), [t]);
+  const firmTypeFilters = useMemo(() => [{ label: t("common.all"), value: "all" as const }, ...firmTypeOptions], [firmTypeOptions, t]);
+  const firmTypeLabelByValue = useMemo(() => new Map(firmTypeOptions.map((option) => [option.value, option.label])), [firmTypeOptions]);
   const firmTypeCounts = useMemo(() => {
     const counts: Record<FirmType, number> = {
       crypto: 0,
@@ -147,8 +148,8 @@ export function FirmsView({
       {formOpen && (
       <Modal
         onClose={closeForm}
-        title={editingFirm ? "Editar empresa" : "Nueva empresa"}
-        subtitle={canWrite ? "Guarda la empresa y mantén la lista visible detrás." : "Conecta Supabase para guardar cambios reales."}
+        title={editingFirm ? t("firm.modal.editTitle") : t("firm.modal.newTitle")}
+        subtitle={canWrite ? t("firm.modal.subtitleWrite") : t("firm.modal.subtitleReadonly")}
       >
         <form
           className="firm-form modal-form-grid"
@@ -159,12 +160,12 @@ export function FirmsView({
           }}
         >
           <label>
-            <span>Nombre</span>
+            <span>{t("firm.field.name")}</span>
             <input
               disabled={!canWrite || mutating}
               minLength={2}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Apex, Topstep, FTMO..."
+              placeholder={t("firm.field.namePlaceholder")}
               required
               type="text"
               value={draft.name}
@@ -172,7 +173,7 @@ export function FirmsView({
           </label>
 
           <label>
-            <span>Tipo</span>
+            <span>{t("firm.field.type")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value as FirmType }))}
@@ -187,11 +188,11 @@ export function FirmsView({
           </label>
 
           <label className="firm-notes-field">
-            <span>Notas</span>
+            <span>{t("firm.field.notes")}</span>
             <textarea
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-              placeholder="Reglas, payout, observaciones..."
+              placeholder={t("firm.field.notesPlaceholder")}
               rows={3}
               value={draft.notes}
             />
@@ -201,11 +202,11 @@ export function FirmsView({
 
           <div className="form-action-row">
             <button className="ghost-action" onClick={closeForm} type="button">
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button className="primary-action" disabled={!canWrite || mutating} type="submit">
               <Check size={17} strokeWidth={2.2} />
-              {mutating ? "Guardando..." : editingFirm ? "Guardar cambios" : "Crear empresa"}
+              {mutating ? t("common.saving") : editingFirm ? t("common.saveChanges") : t("firm.modal.create")}
             </button>
           </div>
         </form>
@@ -214,30 +215,30 @@ export function FirmsView({
 
       <section className="panel firm-overview-panel">
         <div className="firm-overview-copy">
-          <span className="section-kicker">Directorio de empresas</span>
-          <h2>Empresas de fondeo</h2>
-          <p>Ten ubicadas tus firmas, sus cuentas asociadas y el estado general antes de entrar al detalle.</p>
+          <span className="section-kicker">{t("firm.overview.kicker")}</span>
+          <h2>{t("firm.overview.title")}</h2>
+          <p>{t("firm.overview.subtitle")}</p>
         </div>
-        <div className="firm-overview-stats" aria-label="Resumen de empresas">
+        <div className="firm-overview-stats" aria-label={t("firm.overview.summaryLabel")}>
           <span>
             <Building2 size={18} strokeWidth={2.2} />
             <strong>{overviewStats.totalFirms}</strong>
-            <small>Empresas</small>
+            <small>{t("firm.overview.firms")}</small>
           </span>
           <span>
             <WalletCards size={18} strokeWidth={2.2} />
             <strong>{overviewStats.totalAccounts}</strong>
-            <small>Cuentas</small>
+            <small>{t("firm.overview.accounts")}</small>
           </span>
           <span>
             <BadgeCheck size={18} strokeWidth={2.2} />
             <strong>{overviewStats.fundedAccounts}</strong>
-            <small>Fondeadas</small>
+            <small>{t("firm.overview.funded")}</small>
           </span>
           <span>
             <Check size={18} strokeWidth={2.2} />
             <strong>{overviewStats.activeAccounts}</strong>
-            <small>Activas</small>
+            <small>{t("firm.overview.active")}</small>
           </span>
         </div>
       </section>
@@ -245,14 +246,14 @@ export function FirmsView({
       <section className="panel firm-filter-panel">
         <div className="firm-filter-head">
           <div>
-            <h2>Listado</h2>
-            <p>Filtra por tipo y revisa rápidamente dónde tienes cuentas activas.</p>
+            <h2>{t("firm.filter.title")}</h2>
+            <p>{t("firm.filter.subtitle")}</p>
           </div>
           <span className="result-count">
-            {filteredFirms.length} de {firms.length} empresas
+            {filteredFirms.length} {t("common.of")} {firms.length} {t("firm.filter.countSuffix")}
           </span>
         </div>
-        <div className="firm-type-tabs" role="tablist" aria-label="Filtrar empresas por tipo">
+        <div className="firm-type-tabs" role="tablist" aria-label={t("firm.filter.tabsLabel")}>
           {firmTypeFilters.map((option) => {
             const count = option.value === "all" ? firms.length : firmTypeCounts[option.value];
             const selected = typeFilter === option.value;
@@ -290,25 +291,25 @@ export function FirmsView({
                   <h2>{firm.name}</h2>
                 </div>
               </div>
-              <p className="firm-card-notes">{firm.notes || "Sin notas guardadas."}</p>
+              <p className="firm-card-notes">{firm.notes || t("firm.card.noNotes")}</p>
               <dl className="firm-card-stats">
                 <div>
-                  <dt>Cuentas</dt>
+                  <dt>{t("firm.card.accounts")}</dt>
                   <dd>{firmStats.total}</dd>
                 </div>
                 <div>
-                  <dt>Activas</dt>
+                  <dt>{t("firm.card.active")}</dt>
                   <dd>{firmStats.active}</dd>
                 </div>
                 <div>
-                  <dt>Fondeadas</dt>
+                  <dt>{t("firm.card.funded")}</dt>
                   <dd>{firmStats.funded}</dd>
                 </div>
               </dl>
               <div className="firm-card-progress-block">
                 <div className="firm-card-progress-label">
-                  <span>{firmStats.active} activas</span>
-                  <span>{firmStats.inactive} cerradas/falladas</span>
+                  <span>{firmStats.active} {t("firm.card.activeSuffix")}</span>
+                  <span>{firmStats.inactive} {t("firm.card.inactiveSuffix")}</span>
                 </div>
                 <div className="firm-card-progress" aria-hidden="true">
                   <span style={{ width: `${activeShare}%` }} />
@@ -322,20 +323,20 @@ export function FirmsView({
                   type="button"
                 >
                   <Pencil size={16} strokeWidth={2.2} />
-                  Editar
+                  {t("common.edit")}
                 </button>
                 <button
                   className="danger-action"
                   disabled={deleteDisabled}
                   onClick={() => {
-                    if (!window.confirm(`Eliminar ${firm.name}?`)) return;
+                    if (!window.confirm(`${t("common.deleteConfirmPrefix")} ${firm.name}?`)) return;
                     void onDeleteFirm(firm.id);
                   }}
-                  title={firmStats.total > 0 ? "Elimina o mueve las cuentas asociadas primero" : "Eliminar empresa"}
+                  title={firmStats.total > 0 ? t("firm.card.deleteTitleBlocked") : t("firm.card.deleteTitleAllowed")}
                   type="button"
                 >
                   <Trash2 size={16} strokeWidth={2.2} />
-                  Eliminar
+                  {t("common.delete")}
                 </button>
               </div>
             </article>
@@ -345,8 +346,8 @@ export function FirmsView({
         {filteredFirms.length === 0 && (
           <article className="empty-panel">
             <Plus size={22} strokeWidth={2.2} />
-            <strong>{firms.length ? "Sin resultados" : "No hay empresas todavía"}</strong>
-            <span>{firms.length ? "Ajusta búsqueda o filtros." : "Crea la primera para empezar a migrar el flujo real."}</span>
+            <strong>{firms.length ? t("common.noResults") : t("firm.empty.none")}</strong>
+            <span>{firms.length ? t("common.adjustFilters") : t("firm.empty.createFirst")}</span>
           </article>
         )}
       </section>

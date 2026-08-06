@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useT } from "../lib/i18n/context";
 
 type ModalProps = {
   children: ReactNode;
@@ -10,6 +11,8 @@ type ModalProps = {
 };
 
 export function Modal({ children, onClose, subtitle, title, width = "default" }: ModalProps) {
+  const t = useT();
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -21,7 +24,7 @@ export function Modal({ children, onClose, subtitle, title, width = "default" }:
 
   return (
     <div className="modal-layer" role="presentation">
-      <button className="modal-backdrop" aria-label="Cerrar modal" onClick={onClose} type="button" />
+      <button className="modal-backdrop" aria-label={t("common.closeModal")} onClick={onClose} type="button" />
       <section className={`modal-card ${width === "wide" ? "is-wide" : ""}`} aria-modal="true" role="dialog" aria-labelledby="modal-title">
         <header className="modal-header">
           <div>

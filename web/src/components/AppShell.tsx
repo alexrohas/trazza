@@ -7,6 +7,7 @@ import {
   EyeOff,
   Landmark,
   LayoutDashboard,
+  Languages,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -18,6 +19,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import { useI18n, useT } from "../lib/i18n/context";
 import type { DataMode, NavigationView, UserProfile } from "../types";
 
 type AppShellProps = {
@@ -37,27 +39,41 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-const financeItems = [
-  { id: "overview" as const, label: "Panel", icon: LayoutDashboard },
-  { id: "firms" as const, label: "Empresas", icon: Building2 },
-  { id: "accounts" as const, label: "Cuentas", icon: WalletCards },
-  { id: "movements" as const, label: "Movimientos", icon: CircleDollarSign },
-];
+function getFinanceItems(t: ReturnType<typeof useT>) {
+  return [
+    { id: "overview" as const, label: t("appShell.nav.panel"), icon: LayoutDashboard },
+    { id: "firms" as const, label: t("appShell.nav.firms"), icon: Building2 },
+    { id: "accounts" as const, label: t("appShell.nav.accounts"), icon: WalletCards },
+    { id: "movements" as const, label: t("appShell.nav.movements"), icon: CircleDollarSign },
+  ];
+}
 
-const journalItems = [
-  { id: "journalDashboard" as const, label: "Dashboard", icon: BarChart3 },
-  { id: "journalEntries" as const, label: "Entradas", icon: BookOpenText },
-];
+function getJournalItems(t: ReturnType<typeof useT>) {
+  return [
+    { id: "journalDashboard" as const, label: t("appShell.nav.journalDashboard"), icon: BarChart3 },
+    { id: "journalEntries" as const, label: t("appShell.nav.journalEntries"), icon: BookOpenText },
+  ];
+}
 
-const viewTitles: Record<NavigationView, { eyebrow: string; primary: string; title: string }> = {
-  overview: { eyebrow: "Finanzas", primary: "Nuevo movimiento", title: "Panel" },
-  firms: { eyebrow: "Finanzas", primary: "Nueva empresa", title: "Empresas" },
-  accounts: { eyebrow: "Finanzas", primary: "Nueva cuenta", title: "Cuentas" },
-  movements: { eyebrow: "Finanzas", primary: "Nuevo movimiento", title: "Movimientos" },
-  journalDashboard: { eyebrow: "Journal", primary: "Nueva entrada", title: "Journal - Dashboard" },
-  journalEntries: { eyebrow: "Journal", primary: "Nueva entrada", title: "Journal - Entradas" },
-  settings: { eyebrow: "Trazza", primary: "Guardar", title: "Ajustes" },
-};
+function getViewTitles(t: ReturnType<typeof useT>): Record<NavigationView, { eyebrow: string; primary: string; title: string }> {
+  return {
+    overview: { eyebrow: t("appShell.view.overview.eyebrow"), primary: t("appShell.view.overview.primary"), title: t("appShell.view.overview.title") },
+    firms: { eyebrow: t("appShell.view.firms.eyebrow"), primary: t("appShell.view.firms.primary"), title: t("appShell.view.firms.title") },
+    accounts: { eyebrow: t("appShell.view.accounts.eyebrow"), primary: t("appShell.view.accounts.primary"), title: t("appShell.view.accounts.title") },
+    movements: { eyebrow: t("appShell.view.movements.eyebrow"), primary: t("appShell.view.movements.primary"), title: t("appShell.view.movements.title") },
+    journalDashboard: {
+      eyebrow: t("appShell.view.journalDashboard.eyebrow"),
+      primary: t("appShell.view.journalDashboard.primary"),
+      title: t("appShell.view.journalDashboard.title"),
+    },
+    journalEntries: {
+      eyebrow: t("appShell.view.journalEntries.eyebrow"),
+      primary: t("appShell.view.journalEntries.primary"),
+      title: t("appShell.view.journalEntries.title"),
+    },
+    settings: { eyebrow: t("appShell.view.settings.eyebrow"), primary: t("appShell.view.settings.primary"), title: t("appShell.view.settings.title") },
+  };
+}
 
 const financeViews = new Set<NavigationView>(["overview", "firms", "accounts", "movements"]);
 const journalViews = new Set<NavigationView>(["journalDashboard", "journalEntries"]);
@@ -79,25 +95,30 @@ export function AppShell({
   theme,
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const t = useT();
+  const { language, setLanguage } = useI18n();
+  const financeItems = useMemo(() => getFinanceItems(t), [t]);
+  const journalItems = useMemo(() => getJournalItems(t), [t]);
+  const viewTitles = useMemo(() => getViewTitles(t), [t]);
   const activeCopy = viewTitles[activeView] || viewTitles.overview;
   const activePillar = journalViews.has(activeView) ? "journal" : "finance";
   const currentDate = useMemo(
     () =>
-      new Intl.DateTimeFormat("es-ES", {
+      new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", {
         day: "2-digit",
         month: "long",
         weekday: "long",
         year: "numeric",
       }).format(new Date()),
-    [],
+    [language],
   );
   const statusLabel = syncError
-    ? "No se pudo sincronizar"
+    ? t("appShell.status.syncError")
     : isSyncing
-      ? "Sincronizando datos..."
+      ? t("appShell.status.syncing")
       : dataMode === "cloud"
-        ? "Datos reales activos"
-        : "Modo demo";
+        ? t("appShell.status.cloud")
+        : t("appShell.status.demo");
 
   return (
     <div className="app-shell" data-privacy={privacyHidden ? "hidden" : "visible"} data-sidebar={collapsed ? "collapsed" : "expanded"} data-view={activeView}>
@@ -109,27 +130,27 @@ export function AppShell({
           <button
             className="sidebar-toggle"
             onClick={() => setCollapsed((value) => !value)}
-            title={collapsed ? "Expandir menu" : "Contraer menu"}
+            title={collapsed ? t("appShell.sidebar.expand") : t("appShell.sidebar.collapse")}
             type="button"
           >
             {collapsed ? <PanelLeftOpen size={17} strokeWidth={2.2} /> : <PanelLeftClose size={17} strokeWidth={2.2} />}
           </button>
         </div>
 
-        <div className="pillar-switch" aria-label="Areas principales">
+        <div className="pillar-switch" aria-label={t("appShell.sidebar.areasLabel")}>
           <button className={activePillar === "finance" ? "active" : ""} onClick={() => onViewChange("overview")} type="button">
             <Landmark size={18} strokeWidth={2.2} />
-            <span>Finanzas</span>
+            <span>{t("appShell.nav.finance")}</span>
           </button>
           <button className={activePillar === "journal" ? "active" : ""} onClick={() => onViewChange("journalDashboard")} type="button">
             <BookOpenText size={18} strokeWidth={2.2} />
-            <span>Journal</span>
+            <span>{t("appShell.nav.journal")}</span>
           </button>
         </div>
 
-        <nav className="nav-list" aria-label="Menu del area activa">
+        <nav className="nav-list" aria-label={t("appShell.sidebar.menuLabel")}>
           <div className={`nav-group ${financeViews.has(activeView) ? "active" : ""}`}>
-            <p>Finanzas</p>
+            <p>{t("appShell.nav.finance")}</p>
             {financeItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -142,7 +163,7 @@ export function AppShell({
           </div>
 
           <div className={`nav-group ${journalViews.has(activeView) ? "active" : ""}`}>
-            <p>Journal</p>
+            <p>{t("appShell.nav.journal")}</p>
             {journalItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -158,7 +179,7 @@ export function AppShell({
         <button className="user-card" onClick={() => onViewChange("settings")} type="button">
           <span>{(profile?.displayName || "T").charAt(0).toUpperCase()}</span>
           <span>
-            <strong>{profile?.displayName || "Usuario Trazza"}</strong>
+            <strong>{profile?.displayName || t("appShell.sidebar.defaultUser")}</strong>
             <small>{profile?.email || statusLabel}</small>
           </span>
           <Settings size={17} strokeWidth={2.2} />
@@ -185,21 +206,30 @@ export function AppShell({
                 <span>{activeCopy.primary}</span>
               </button>
             )}
-            <button className="theme-toggle" onClick={onPrivacyToggle} title={privacyHidden ? "Mostrar datos" : "Ocultar datos"} type="button">
+            <button className="theme-toggle" onClick={onPrivacyToggle} title={privacyHidden ? t("appShell.topbar.showData") : t("appShell.topbar.hideData")} type="button">
               {privacyHidden ? <EyeOff size={17} strokeWidth={2.2} /> : <Eye size={17} strokeWidth={2.2} />}
             </button>
-            <button className="theme-toggle" onClick={onThemeToggle} title="Cambiar tema" type="button">
+            <button className="theme-toggle" onClick={onThemeToggle} title={t("appShell.topbar.theme")} type="button">
               {theme === "dark" ? <Sun size={17} strokeWidth={2.2} /> : <Moon size={17} strokeWidth={2.2} />}
             </button>
+            <button
+              className="theme-toggle language-toggle"
+              onClick={() => setLanguage(language === "es" ? "en" : "es")}
+              title={t("appShell.topbar.language")}
+              type="button"
+            >
+              <Languages size={17} strokeWidth={2.2} />
+              <span>{language.toUpperCase()}</span>
+            </button>
             {onRefresh && (
-              <button className="theme-toggle" disabled={isSyncing} onClick={onRefresh} title="Sincronizar" type="button">
+              <button className="theme-toggle" disabled={isSyncing} onClick={onRefresh} title={t("appShell.topbar.sync")} type="button">
                 <RefreshCw size={17} strokeWidth={2.2} />
               </button>
             )}
             {onSignOut && (
               <button className="secondary-action topbar-exit" onClick={onSignOut} type="button">
                 <LogOut size={16} strokeWidth={2.2} />
-                <span>Salir</span>
+                <span>{t("appShell.topbar.signOut")}</span>
               </button>
             )}
           </div>

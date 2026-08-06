@@ -1,6 +1,8 @@
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import type { Currency, Movement, TradingAccount } from "../types";
 import { formatMoney, getAccountName } from "../lib/metrics";
+import { useT } from "../lib/i18n/context";
+import { getMovementCategoryLabels } from "./MovementsView";
 
 type MovementsTableProps = {
   movements: Movement[];
@@ -8,37 +10,27 @@ type MovementsTableProps = {
   currency: Currency;
 };
 
-const categoryLabels: Record<Movement["category"], string> = {
-  challenge: "Challenge",
-  reset: "Reset",
-  activation: "Activacion",
-  subscription: "Suscripcion",
-  platform: "Plataforma",
-  commission: "Comision",
-  payout: "Payout",
-  refund: "Refund",
-  other: "Otro",
-};
-
 export function MovementsTable({ movements, accounts, currency }: MovementsTableProps) {
+  const t = useT();
+  const categoryLabels = getMovementCategoryLabels(t);
   const recentMovements = [...movements].sort((left, right) => right.date.localeCompare(left.date)).slice(0, 6);
 
   return (
     <section className="panel table-panel recent-movements-panel">
       <div className="panel-heading">
         <div>
-          <h2>Movimientos recientes</h2>
-          <p>Ingresos y costes operativos.</p>
+          <h2>{t("movement.recent.title")}</h2>
+          <p>{t("movement.recent.subtitle")}</p>
         </div>
       </div>
       <div className="table-scroll">
         <table>
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Cuenta</th>
-              <th>Categoria</th>
-              <th className="align-right">Importe</th>
+              <th>{t("movement.table.date")}</th>
+              <th>{t("movement.table.account")}</th>
+              <th>{t("movement.table.category")}</th>
+              <th className="align-right">{t("movement.table.amount")}</th>
             </tr>
           </thead>
           <tbody>
@@ -47,15 +39,15 @@ export function MovementsTable({ movements, accounts, currency }: MovementsTable
 
               return (
                 <tr key={movement.id}>
-                  <td>{movement.date}</td>
-                  <td>{getAccountName(accounts, movement.accountId)}</td>
-                  <td>
+                  <td data-label={t("movement.table.date")}>{movement.date}</td>
+                  <td data-label={t("movement.table.account")}>{getAccountName(accounts, movement.accountId)}</td>
+                  <td data-label={t("movement.table.category")}>
                     <span className={`movement-badge ${movement.kind}`}>
                       <Icon size={14} strokeWidth={2.4} />
                       {categoryLabels[movement.category]}
                     </span>
                   </td>
-                  <td className={`align-right amount ${movement.kind}`}>
+                  <td className={`align-right amount ${movement.kind}`} data-label={t("movement.table.amount")}>
                     {movement.kind === "income" ? "+" : "-"}
                     {formatMoney(movement.amount, currency)}
                   </td>

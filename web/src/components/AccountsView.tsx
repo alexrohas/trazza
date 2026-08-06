@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, WalletCards } from "lucide-react";
 import { Modal } from "./Modal";
 import { formatAccountSize, formatMoney } from "../lib/metrics";
+import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
   AccountInput,
@@ -30,21 +31,17 @@ type AccountsViewProps = {
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<boolean>;
 };
 
-const accountStatusOptions: Array<{ label: string; value: AccountStatus }> = [
-  { label: "Activa", value: "active" },
-  { label: "Evaluación", value: "evaluation" },
-  { label: "Pasada", value: "passed" },
-  { label: "Fondeada", value: "funded" },
-  { label: "Fallada", value: "failed" },
-  { label: "Cerrada", value: "closed" },
-];
+function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountStatus }> {
+  return [
+    { label: t("account.status.active"), value: "active" },
+    { label: t("account.status.evaluation"), value: "evaluation" },
+    { label: t("account.status.passed"), value: "passed" },
+    { label: t("account.status.funded"), value: "funded" },
+    { label: t("account.status.failed"), value: "failed" },
+    { label: t("account.status.closed"), value: "closed" },
+  ];
+}
 
-const accountStatusFilters: Array<{ label: string; value: "all" | AccountStatus }> = [
-  { label: "Todas", value: "all" },
-  ...accountStatusOptions,
-];
-
-const accountStatusLabelByValue = new Map(accountStatusOptions.map((option) => [option.value, option.label]));
 const activeAccountStatuses = new Set<AccountStatus>(["active", "evaluation", "passed", "funded"]);
 const blockedAccountStatuses = new Set<AccountStatus>(["failed", "closed"]);
 
@@ -79,6 +76,10 @@ export function AccountsView({
   const [firmFilter, setFirmFilter] = useState("all");
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [statusFilter, setStatusFilter] = useState<"all" | AccountStatus>("all");
+  const t = useT();
+  const accountStatusOptions = useMemo(() => getAccountStatusOptions(t), [t]);
+  const accountStatusFilters = useMemo(() => [{ label: t("common.all"), value: "all" as const }, ...accountStatusOptions], [accountStatusOptions, t]);
+  const accountStatusLabelByValue = useMemo(() => new Map(accountStatusOptions.map((option) => [option.value, option.label])), [accountStatusOptions]);
   const canWrite = dataMode === "cloud" && firms.length > 0;
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const statusCounts = useMemo(() => {
@@ -165,8 +166,8 @@ export function AccountsView({
       {screen === "form" && (
       <Modal
         onClose={closeForm}
-        title={editingId ? "Editar cuenta" : "Nueva cuenta"}
-        subtitle={canWrite ? "Configura cuenta, estado, tamaño y reglas de riesgo sin salir del listado." : "Configura Supabase y crea una empresa para guardar."}
+        title={editingId ? t("account.modal.editTitle") : t("account.modal.newTitle")}
+        subtitle={canWrite ? t("account.modal.subtitleWrite") : t("account.modal.subtitleReadonly")}
         width="wide"
       >
         <form
@@ -178,14 +179,14 @@ export function AccountsView({
           }}
         >
           <label>
-            <span>Empresa</span>
+            <span>{t("account.field.firm")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value }))}
               required
               value={draft.firmId}
             >
-              <option value="">Selecciona empresa</option>
+              <option value="">{t("account.field.selectFirm")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -195,12 +196,12 @@ export function AccountsView({
           </label>
 
           <label>
-            <span>Nombre</span>
+            <span>{t("account.field.name")}</span>
             <input
               disabled={!canWrite || mutating}
               minLength={2}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              placeholder="50K PA, Combine 150K..."
+              placeholder={t("account.field.namePlaceholder")}
               required
               type="text"
               value={draft.name}
@@ -208,7 +209,7 @@ export function AccountsView({
           </label>
 
           <label>
-            <span>Estado</span>
+            <span>{t("account.field.status")}</span>
             <select
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as AccountStatus }))}
@@ -223,11 +224,11 @@ export function AccountsView({
           </label>
 
           <label>
-            <span>Tamaño</span>
+            <span>{t("account.field.size")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, size: event.target.value }))}
-              placeholder="50K, 100K..."
+              placeholder={t("account.field.sizePlaceholder")}
               required
               type="text"
               value={draft.size}
@@ -235,7 +236,7 @@ export function AccountsView({
           </label>
 
           <label>
-            <span>Compra</span>
+            <span>{t("account.field.purchase")}</span>
             <input
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, purchasedAt: event.target.value }))}
@@ -246,19 +247,19 @@ export function AccountsView({
 
           <NumberField
             disabled={!canWrite || mutating}
-            label="Objetivo"
+            label={t("account.field.target")}
             onChange={(value) => setDraft((current) => ({ ...current, phaseTarget: value }))}
             value={draft.phaseTarget}
           />
           <NumberField
             disabled={!canWrite || mutating}
-            label="Drawdown max."
+            label={t("account.field.maxDrawdown")}
             onChange={(value) => setDraft((current) => ({ ...current, maxDrawdown: value }))}
             value={draft.maxDrawdown}
           />
           <NumberField
             disabled={!canWrite || mutating}
-            label="Drawdown diario"
+            label={t("account.field.dailyDrawdown")}
             onChange={(value) => setDraft((current) => ({ ...current, dailyDrawdown: value }))}
             value={draft.dailyDrawdown}
           />
@@ -267,11 +268,11 @@ export function AccountsView({
 
           <div className="form-action-row">
             <button className="ghost-action" onClick={closeForm} type="button">
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button className="primary-action" disabled={!canWrite || mutating} type="submit">
               <Check size={17} strokeWidth={2.2} />
-              {mutating ? "Guardando..." : editingId ? "Guardar cambios" : "Crear cuenta"}
+              {mutating ? t("common.saving") : editingId ? t("common.saveChanges") : t("account.modal.create")}
             </button>
           </div>
         </form>
@@ -281,30 +282,30 @@ export function AccountsView({
       <>
       <section className="panel accounts-overview-panel">
         <div className="accounts-overview-copy">
-          <span className="section-kicker">Portfolio de cuentas</span>
-          <h2>Cuentas de fondeo</h2>
-          <p>Vista rápida de estados, tamaños, objetivos y drawdown para controlar cada cuenta sin entrar al detalle.</p>
+          <span className="section-kicker">{t("account.overview.kicker")}</span>
+          <h2>{t("account.overview.title")}</h2>
+          <p>{t("account.overview.subtitle")}</p>
         </div>
-        <div className="accounts-overview-stats" aria-label="Resumen de cuentas">
+        <div className="accounts-overview-stats" aria-label={t("account.overview.summaryLabel")}>
           <span>
             <WalletCards size={18} strokeWidth={2.2} />
             <strong>{accountOverview.accounts}</strong>
-            <small>Cuentas</small>
+            <small>{t("account.overview.accounts")}</small>
           </span>
           <span>
             <BadgeCheck size={18} strokeWidth={2.2} />
             <strong>{accountOverview.funded}</strong>
-            <small>Fondeadas</small>
+            <small>{t("account.overview.funded")}</small>
           </span>
           <span>
             <Shield size={18} strokeWidth={2.2} />
             <strong>{accountOverview.active}</strong>
-            <small>Activas</small>
+            <small>{t("account.overview.active")}</small>
           </span>
           <span>
             <CircleAlert size={18} strokeWidth={2.2} />
             <strong>{accountOverview.inactive}</strong>
-            <small>Inactivas</small>
+            <small>{t("account.overview.inactive")}</small>
           </span>
         </div>
       </section>
@@ -312,18 +313,18 @@ export function AccountsView({
       <section className="panel account-filter-panel">
         <div className="account-filter-head">
           <div>
-            <h2>Listado</h2>
-            <p>Filtra por empresa o estado para revisar solo las cuentas que necesitas.</p>
+            <h2>{t("account.filter.title")}</h2>
+            <p>{t("account.filter.subtitle")}</p>
           </div>
           <span className="result-count">
-            {filteredAccounts.length} de {accounts.length} cuentas
+            {filteredAccounts.length} {t("common.of")} {accounts.length} {t("account.filter.countSuffix")}
           </span>
         </div>
         <div className="account-filter-row">
           <label>
-            <span>Empresa</span>
+            <span>{t("account.field.firm")}</span>
             <select value={firmFilter} onChange={(event) => setFirmFilter(event.target.value)}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -339,10 +340,10 @@ export function AccountsView({
             }}
             type="button"
           >
-            Reset filtros
+            {t("account.filter.resetFilters")}
           </button>
         </div>
-        <div className="account-status-tabs" role="tablist" aria-label="Filtrar cuentas por estado">
+        <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
           {accountStatusFilters.map((option) => {
             const count = option.value === "all" ? accounts.length : statusCounts[option.value];
             const selected = statusFilter === option.value;
@@ -363,7 +364,7 @@ export function AccountsView({
         </div>
       </section>
 
-      <section className="account-card-grid" aria-label="Cuentas registradas">
+      <section className="account-card-grid" aria-label={t("account.card.gridLabel")}>
         {filteredAccounts.map((account) => {
           const relatedMovements = movements.some((movement) => movement.accountId === account.id);
           const relatedJournal = journalEntries.some((entry) => entry.accountId === account.id);
@@ -378,7 +379,7 @@ export function AccountsView({
                   <h2>{account.name}</h2>
                   <p>
                     <Building2 size={14} strokeWidth={2.2} />
-                    {firmNameById.get(account.firmId) || "Sin empresa"}
+                    {firmNameById.get(account.firmId) || t("account.card.noFirm")}
                   </p>
                 </div>
                 <strong>{formatAccountSize(account, currency)}</strong>
@@ -387,27 +388,27 @@ export function AccountsView({
               <div className="account-card-rules">
                 <span>
                   <Flag size={15} strokeWidth={2.2} />
-                  <small>Objetivo</small>
+                  <small>{t("account.card.target")}</small>
                   <strong>{formatMoney(account.phaseTarget, currency)}</strong>
                 </span>
                 <span>
                   <Shield size={15} strokeWidth={2.2} />
-                  <small>DD max.</small>
+                  <small>{t("account.card.maxDrawdown")}</small>
                   <strong>{formatMoney(account.maxDrawdown, currency)}</strong>
                 </span>
                 <span>
                   <CalendarDays size={15} strokeWidth={2.2} />
-                  <small>DD diario</small>
-                  <strong>{hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : "Sin límite"}</strong>
+                  <small>{t("account.card.dailyDrawdown")}</small>
+                  <strong>{hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}</strong>
                 </span>
               </div>
 
               <div className="account-card-meta">
-                <span>Compra: {account.purchasedAt || "Sin fecha"}</span>
+                <span>{t("account.card.purchasePrefix")} {account.purchasedAt || t("account.card.noDate")}</span>
                 <span>
                   {relatedMovements || relatedJournal
-                    ? `${relatedMovements ? "Movimientos" : ""}${relatedMovements && relatedJournal ? " + " : ""}${relatedJournal ? "Journal" : ""}`
-                    : "Sin actividad asociada"}
+                    ? `${relatedMovements ? t("account.card.movements") : ""}${relatedMovements && relatedJournal ? " + " : ""}${relatedJournal ? t("account.card.journal") : ""}`
+                    : t("account.card.noActivity")}
                 </span>
               </div>
 
@@ -419,20 +420,20 @@ export function AccountsView({
                   type="button"
                 >
                   <Pencil size={16} strokeWidth={2.2} />
-                  Editar
+                  {t("common.edit")}
                 </button>
                 <button
                   className="danger-action"
                   disabled={deleteDisabled}
                   onClick={() => {
-                    if (!window.confirm(`Eliminar ${account.name}?`)) return;
+                    if (!window.confirm(`${t("common.deleteConfirmPrefix")} ${account.name}?`)) return;
                     void onDeleteAccount(account.id);
                   }}
-                  title={deleteDisabled ? "La cuenta tiene movimientos o journal asociados" : "Eliminar cuenta"}
+                  title={deleteDisabled ? t("account.card.deleteTitleBlocked") : t("account.card.deleteTitleAllowed")}
                   type="button"
                 >
                   <Trash2 size={16} strokeWidth={2.2} />
-                  Eliminar
+                  {t("common.delete")}
                 </button>
               </div>
             </article>
@@ -441,87 +442,8 @@ export function AccountsView({
         {filteredAccounts.length === 0 && (
           <article className="empty-panel inline-empty">
             <Plus size={22} strokeWidth={2.2} />
-            <strong>{accounts.length ? "Sin resultados" : "No hay cuentas todavía"}</strong>
-            <span>{accounts.length ? "Ajusta búsqueda o filtros." : "Crea la primera cuenta desde Nueva cuenta."}</span>
-          </article>
-        )}
-      </section>
-
-      <section className="panel table-panel accounts-legacy-table">
-        <div className="panel-heading">
-          <div>
-            <h2>Cuentas registradas</h2>
-            <p>Listado limpio. Usa Nueva cuenta o Editar para abrir el formulario.</p>
-          </div>
-        </div>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Cuenta</th>
-                <th>Empresa</th>
-                <th>Estado</th>
-                <th>Compra</th>
-                <th className="align-right">Tamaño</th>
-                <th className="align-right">Objetivo</th>
-                <th className="align-right">Drawdown</th>
-                <th className="align-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAccounts.map((account) => {
-                const relatedMovements = movements.some((movement) => movement.accountId === account.id);
-                const relatedJournal = journalEntries.some((entry) => entry.accountId === account.id);
-                const deleteDisabled = !canWrite || mutating || relatedMovements || relatedJournal;
-
-                return (
-                  <tr key={account.id}>
-                    <td>{account.name}</td>
-                    <td>{firmNameById.get(account.firmId) || "Sin empresa"}</td>
-                    <td>
-                      <span className={`account-status-pill ${account.status}`}>{account.status}</span>
-                    </td>
-                    <td>{account.purchasedAt || "-"}</td>
-                    <td className="align-right">{formatAccountSize(account, currency)}</td>
-                    <td className="align-right">{formatMoney(account.phaseTarget, currency)}</td>
-                    <td className="align-right">{formatMoney(account.maxDrawdown, currency)}</td>
-                    <td className="align-right">
-                      <div className="row-actions">
-                        <button
-                          className="secondary-action"
-                          disabled={!canWrite || mutating}
-                          onClick={() => openEditAccount(account)}
-                          type="button"
-                        >
-                          <Pencil size={16} strokeWidth={2.2} />
-                          Editar
-                        </button>
-                        <button
-                          className="danger-action"
-                          disabled={deleteDisabled}
-                          onClick={() => {
-                            if (!window.confirm(`Eliminar ${account.name}?`)) return;
-                            void onDeleteAccount(account.id);
-                          }}
-                          title={deleteDisabled ? "La cuenta tiene movimientos o journal asociados" : "Eliminar cuenta"}
-                          type="button"
-                        >
-                          <Trash2 size={16} strokeWidth={2.2} />
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filteredAccounts.length === 0 && (
-          <article className="empty-panel inline-empty">
-            <Plus size={22} strokeWidth={2.2} />
-            <strong>{accounts.length ? "Sin resultados" : "No hay cuentas todavía"}</strong>
-            <span>{accounts.length ? "Ajusta búsqueda o filtros." : "Crea la primera cuenta desde Nueva cuenta."}</span>
+            <strong>{accounts.length ? t("common.noResults") : t("account.empty.none")}</strong>
+            <span>{accounts.length ? t("common.adjustFilters") : t("account.empty.createFirst")}</span>
           </article>
         )}
       </section>

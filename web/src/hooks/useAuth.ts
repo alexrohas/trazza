@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabaseClient } from "../lib/supabase";
+import { useT } from "../lib/i18n/context";
 import type { Currency, UserProfile, UserProfileInput } from "../types";
 
 type AuthStatus = "checking" | "authenticated" | "anonymous" | "unconfigured";
@@ -19,11 +20,13 @@ type Credentials = {
 const supportedCurrencies = new Set<Currency>(["EUR", "USD"]);
 
 export function useAuth() {
+  const t = useT();
   const [status, setStatus] = useState<AuthStatus>(isSupabaseConfigured ? "checking" : "unconfigured");
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<AuthMessage | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   const resolveSession = useCallback(async (nextSession: Session | null) => {
     if (!supabaseClient) {
@@ -82,8 +85,13 @@ export function useAuth() {
       void resolveSession(data.session);
     });
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        setSession(nextSession);
+        return;
+      }
       void resolveSession(nextSession);
     });
 
@@ -93,7 +101,7 @@ export function useAuth() {
     };
   }, [resolveSession]);
 
-  const profile = useMemo(() => (user ? toUserProfile(user) : null), [user]);
+  const profile = useMemo(() => (user ? toUserProfile(user, t) : null), [t, user]);
 
   const signIn = useCallback(
     async ({ email, password }: Credentials) => {
@@ -165,6 +173,44 @@ export function useAuth() {
     setUser(null);
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    if (!supabaseClient) return false;
+    setBusy(true);
+    setMessage({ type: "info", text: "Enviando email..." });
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname}`,
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage({ type: "error", text: getAuthErrorMessage(error) });
+      return false;
+    }
+
+    setMessage({ type: "success", text: "Si el email existe, te hemos enviado un enlace para restablecer la contrasena." });
+    return true;
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabaseClient) return false;
+    setBusy(true);
+    setMessage({ type: "info", text: "Guardando contrasena..." });
+
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    setBusy(false);
+
+    if (error) {
+      setMessage({ type: "error", text: getAuthErrorMessage(error) });
+      return false;
+    }
+
+    await resolveSession(session);
+    setRecoveryMode(false);
+    setMessage({ type: "success", text: "Contrasena actualizada. Ya puedes seguir usando Trazza." });
+    return true;
+  }, [resolveSession, session]);
+
   const updateProfile = useCallback(async (input: UserProfileInput) => {
     if (!supabaseClient || !user) return false;
 
@@ -205,11 +251,14 @@ export function useAuth() {
     busy,
     message,
     profile,
+    recoveryMode,
+    resetPassword,
     session,
     signIn,
     signOut,
     signUp,
     status,
+    updatePassword,
     updateProfile,
     user,
   };
@@ -220,14 +269,14 @@ function isAuthEmailConfirmed(user: User) {
   return Boolean(user.email_confirmed_at || user.confirmed_at || legacyUser.email_verified || user.user_metadata?.email_verified);
 }
 
-function toUserProfile(user: User): UserProfile {
+function toUserProfile(user: User, t: ReturnType<typeof useT>): UserProfile {
   const metadata = user.user_metadata || {};
-  const displayName = String(metadata.full_name || metadata.name || user.email || "Usuario Trazza").trim();
+  const displayName = String(metadata.full_name || metadata.name || user.email || t("appShell.sidebar.defaultUser")).trim();
   const currency = normalizeCurrency(metadata.currency || metadata.preferred_currency);
 
   return {
     id: user.id,
-    email: user.email || "Sin email",
+    email: user.email || t("auth.noEmail"),
     displayName,
     currency,
   };

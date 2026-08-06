@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, Moon, Save, Sun } from "lucide-react";
+import { Download, FileUp, Languages, Moon, Save, Sun } from "lucide-react";
 import {
   findLocalMigrationSource,
   hasImportData,
@@ -8,6 +8,7 @@ import {
   summarizeImportData,
   type LocalMigrationSource,
 } from "../lib/legacyImport";
+import { useI18n, useT } from "../lib/i18n/context";
 import type { AppData, Currency, DataMode, UserProfile, UserProfileInput } from "../types";
 
 type SettingsViewProps = {
@@ -45,6 +46,8 @@ export function SettingsView({
   });
   const [migrationMessage, setMigrationMessage] = useState<{ text: string; type: "error" | "info" | "success" } | null>(null);
   const [localMigrationSource, setLocalMigrationSource] = useState<LocalMigrationSource | null>(null);
+  const t = useT();
+  const { language, setLanguage } = useI18n();
 
   useEffect(() => {
     setDraft({
@@ -94,8 +97,8 @@ export function SettingsView({
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <h2>Perfil</h2>
-            <p>Nombre visible, email y moneda preferida.</p>
+            <h2>{t("settings.profile.title")}</h2>
+            <p>{t("settings.profile.subtitle")}</p>
           </div>
         </div>
         <form
@@ -106,7 +109,7 @@ export function SettingsView({
           }}
         >
           <label>
-            <span>Nombre</span>
+            <span>{t("settings.profile.name")}</span>
             <input
               disabled={busy || !profile}
               minLength={2}
@@ -116,7 +119,7 @@ export function SettingsView({
             />
           </label>
           <label>
-            <span>Email</span>
+            <span>{t("settings.profile.email")}</span>
             <input
               disabled={busy || !profile}
               onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
@@ -125,7 +128,7 @@ export function SettingsView({
             />
           </label>
           <label>
-            <span>Moneda</span>
+            <span>{t("settings.profile.currency")}</span>
             <select
               disabled={busy || !profile}
               onChange={(event) => setDraft((current) => ({ ...current, currency: event.target.value as Currency }))}
@@ -138,7 +141,7 @@ export function SettingsView({
           {message && <p className={`mutation-message ${message.type}`}>{message.text}</p>}
           <button className="primary-action" disabled={busy || !profile} type="submit">
             <Save size={17} strokeWidth={2.2} />
-            Guardar perfil
+            {t("settings.profile.save")}
           </button>
         </form>
       </section>
@@ -146,18 +149,18 @@ export function SettingsView({
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <h2>Apariencia</h2>
-            <p>Tema local de la nueva app React.</p>
+            <h2>{t("settings.appearance.title")}</h2>
+            <p>{t("settings.appearance.subtitle")}</p>
           </div>
         </div>
         <div className="segmented-control">
           <button className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")} type="button">
             <Sun size={16} strokeWidth={2.2} />
-            Claro
+            {t("settings.appearance.light")}
           </button>
           <button className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")} type="button">
             <Moon size={16} strokeWidth={2.2} />
-            Oscuro
+            {t("settings.appearance.dark")}
           </button>
         </div>
       </section>
@@ -165,34 +168,53 @@ export function SettingsView({
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <h2>Exportacion</h2>
-            <p>Descarga una copia JSON del estado cargado.</p>
+            <h2>{t("settings.language.title")}</h2>
+            <p>{t("settings.language.subtitle")}</p>
+          </div>
+        </div>
+        <div className="segmented-control">
+          <button className={language === "es" ? "active" : ""} onClick={() => setLanguage("es")} type="button">
+            <Languages size={16} strokeWidth={2.2} />
+            {t("settings.language.es")}
+          </button>
+          <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} type="button">
+            <Languages size={16} strokeWidth={2.2} />
+            {t("settings.language.en")}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel settings-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>{t("settings.export.title")}</h2>
+            <p>{t("settings.export.subtitle")}</p>
           </div>
         </div>
         <div className="export-summary">
-          <span>{data.firms.length} empresas</span>
-          <span>{data.accounts.length} cuentas</span>
-          <span>{data.movements.length} movimientos</span>
-          <span>{data.journalEntries.length} entradas</span>
-          <span>{data.journalErrorTypes.length} tipos error</span>
+          <span>{data.firms.length} {t("settings.export.firms")}</span>
+          <span>{data.accounts.length} {t("settings.export.accounts")}</span>
+          <span>{data.movements.length} {t("settings.export.movements")}</span>
+          <span>{data.journalEntries.length} {t("settings.export.entries")}</span>
+          <span>{data.journalErrorTypes.length} {t("settings.export.errorTypes")}</span>
         </div>
         <button className="primary-action" onClick={() => exportJson(data, dataMode)} type="button">
           <Download size={17} strokeWidth={2.2} />
-          Exportar JSON
+          {t("settings.export.button")}
         </button>
       </section>
 
       <section className="panel settings-panel migration-panel">
         <div className="panel-heading">
           <div>
-            <h2>Migracion</h2>
-            <p>Sube datos antiguos o una copia JSON a Supabase.</p>
+            <h2>{t("settings.migration.title")}</h2>
+            <p>{t("settings.migration.subtitle")}</p>
           </div>
         </div>
         <div className="migration-actions">
           <button className="primary-action" disabled={!canImport} onClick={() => importInputRef.current?.click()} type="button">
             <FileUp size={17} strokeWidth={2.2} />
-            Importar JSON
+            {t("settings.migration.importJson")}
           </button>
           <input
             accept=".json,application/json"
@@ -222,17 +244,17 @@ export function SettingsView({
             }}
             type="button"
           >
-            Subir localStorage
+            {t("settings.migration.uploadLocal")}
           </button>
         </div>
         <div className="migration-status">
-          <span>{dataMode === "cloud" ? "Supabase conectado" : "Activa sesion cloud para importar."}</span>
+          <span>{dataMode === "cloud" ? t("settings.migration.cloudConnected") : t("settings.migration.cloudDisconnected")}</span>
           <span>
             {localMigrationSource
               ? `Datos locales detectados en ${localMigrationSource.key}: ${localMigrationSource.summary}.`
-              : "No hay datos locales pendientes en este navegador."}
+              : t("settings.migration.noLocalData")}
           </span>
-          <span>La migracion sustituye empresas, cuentas, movimientos y journal de la cuenta actual.</span>
+          <span>{t("settings.migration.replaceNotice")}</span>
         </div>
         {migrationMessage && <p className={`mutation-message ${migrationMessage.type}`}>{migrationMessage.text}</p>}
         {mutationError && <p className="mutation-message error">{mutationError}</p>}

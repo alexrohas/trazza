@@ -2,6 +2,8 @@ import { useMemo, useState, type PointerEvent } from "react";
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import type { CapitalPoint, Currency, Movement } from "../types";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { useI18n, useT } from "../lib/i18n/context";
+import type { Language } from "../lib/i18n/context";
 import { formatMoney, signedTone } from "../lib/metrics";
 
 type CapitalCurveProps = {
@@ -13,6 +15,8 @@ type CapitalCurveProps = {
 const MAX_ZOOM_LEVEL = 3;
 
 export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveProps) {
+  const t = useT();
+  const { language } = useI18n();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [zoomLevel, setZoomLevel] = useState(0);
   const width = 760;
@@ -65,7 +69,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   const nextVisibleCount = getVisibleCount(points.length, zoomLevel + 1);
   const canZoomIn = points.length > 3 && zoomLevel < MAX_ZOOM_LEVEL && nextVisibleCount < visibleCount;
   const canZoomOut = zoomLevel > 0;
-  const zoomLabel = zoomLevel === 0 ? "Todo" : `${visiblePoints.length}/${points.length}`;
+  const zoomLabel = zoomLevel === 0 ? t("capitalCurve.zoomAll") : `${visiblePoints.length}/${points.length}`;
   const activeTooltipPosition = activeScaledPoint
     ? {
         left: `${(clamp(activeScaledPoint.x, padding.left + 74, width - padding.right - 74) / width) * 100}%`,
@@ -95,11 +99,11 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
       <section className="panel chart-panel">
         <div className="panel-heading">
           <div>
-            <h2>Evolucion de capital</h2>
-            <p>Sin movimientos todavia.</p>
+            <h2>{t("capitalCurve.title")}</h2>
+            <p>{t("capitalCurve.emptySubtitle")}</p>
           </div>
         </div>
-        <div className="chart-empty">No hay datos suficientes</div>
+        <div className="chart-empty">{t("capitalCurve.noData")}</div>
       </section>
     );
   }
@@ -108,24 +112,24 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
     <section className="panel chart-panel">
       <div className="panel-heading">
         <div>
-          <h2>Evolucion de capital</h2>
+          <h2>{t("capitalCurve.title")}</h2>
           <p>
             {zoomLevel > 0
-              ? `${visiblePoints.length} de ${points.length} eventos visibles.`
-              : `${points.length} eventos financieros en el filtro actual.`}
+              ? `${visiblePoints.length} ${t("common.of")} ${points.length} ${t("capitalCurve.visibleEventsSuffix")}`
+              : `${points.length} ${t("capitalCurve.allEventsSuffix")}`}
           </p>
         </div>
         <div className="chart-heading-actions">
           <strong className={`chart-delta ${signedTone(delta)}`}>{formatMoney(delta, currency)}</strong>
-          <div className="chart-zoom-controls" aria-label="Zoom del grafico">
-            <button className="icon-control compact-icon" disabled={!canZoomOut} onClick={() => updateZoom(zoomLevel - 1)} title="Alejar" type="button">
+          <div className="chart-zoom-controls" aria-label={t("capitalCurve.zoomLabel")}>
+            <button className="icon-control compact-icon" disabled={!canZoomOut} onClick={() => updateZoom(zoomLevel - 1)} title={t("capitalCurve.zoomOut")} type="button">
               <ZoomOut size={15} strokeWidth={2.25} />
             </button>
             <span>{zoomLabel}</span>
-            <button className="icon-control compact-icon" disabled={!canZoomIn} onClick={() => updateZoom(zoomLevel + 1)} title="Acercar" type="button">
+            <button className="icon-control compact-icon" disabled={!canZoomIn} onClick={() => updateZoom(zoomLevel + 1)} title={t("capitalCurve.zoomIn")} type="button">
               <ZoomIn size={15} strokeWidth={2.25} />
             </button>
-            <button className="icon-control compact-icon" disabled={zoomLevel === 0} onClick={() => updateZoom(0)} title="Ver todo" type="button">
+            <button className="icon-control compact-icon" disabled={zoomLevel === 0} onClick={() => updateZoom(0)} title={t("capitalCurve.viewAll")} type="button">
               <RotateCcw size={15} strokeWidth={2.25} />
             </button>
           </div>
@@ -134,7 +138,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
       <div
         className="chart-frame is-interactive"
         role="img"
-        aria-label="Grafico de evolucion de capital"
+        aria-label={t("capitalCurve.chartAriaLabel")}
         onPointerLeave={() => setActiveIndex(null)}
         onPointerMove={handlePointerMove}
       >
@@ -185,7 +189,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
         <div className="chart-date-axis" aria-hidden="true">
           {dateTicks.map((tick) => (
             <span key={`${tick.date}-${tick.x}`} style={{ left: `${(tick.x / width) * 100}%` }}>
-              {formatShortDate(tick.date)}
+              {formatShortDate(tick.date, language)}
             </span>
           ))}
         </div>
@@ -199,11 +203,11 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
         )}
         {activeScaledPoint && activePoint && activeTooltipPosition && (
           <div className="chart-hover-card" style={activeTooltipPosition}>
-            <span>{formatFullDate(activePoint.date)}</span>
+            <span>{formatFullDate(activePoint.date, language)}</span>
             <strong className={signedTone(activePoint.value)}>{formatMoney(activePoint.value, currency)}</strong>
             {activeMovement && (
               <small className={activeMovement.kind === "income" ? "positive" : "negative"}>
-                {activeMovement.kind === "income" ? "Retiro / ingreso" : "Gasto"} {formatMoney(activeMovement.amount, currency)}
+                {activeMovement.kind === "income" ? t("capitalCurve.withdrawalIncome") : t("capitalCurve.expense")} {formatMoney(activeMovement.amount, currency)}
               </small>
             )}
           </div>
@@ -238,14 +242,14 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function formatShortDate(date: string) {
-  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short" })
+function formatShortDate(date: string, language: Language) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { day: "2-digit", month: "short" })
     .format(toLocalDate(date))
     .replace(".", "");
 }
 
-function formatFullDate(date: string) {
-  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "long", year: "numeric" }).format(toLocalDate(date));
+function formatFullDate(date: string, language: Language) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { day: "2-digit", month: "long", year: "numeric" }).format(toLocalDate(date));
 }
 
 function toLocalDate(date: string) {

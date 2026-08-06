@@ -60,6 +60,8 @@ export type Movement = {
   kind: MovementKind;
   category: MovementCategory;
   amount: number;
+  payoutGrossAmount?: number;
+  payoutProfitSplit?: number;
   firmId: string;
   accountId?: string;
   note?: string;
@@ -70,6 +72,8 @@ export type MovementInput = {
   kind: MovementKind;
   category: MovementCategory;
   amount: number;
+  payoutGrossAmount?: number;
+  payoutProfitSplit?: number;
   firmId: string;
   accountId?: string;
   note?: string;

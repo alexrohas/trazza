@@ -9,6 +9,8 @@ import {
   formatPercent,
   signedTone,
 } from "../lib/metrics";
+import { useI18n, useT } from "../lib/i18n/context";
+import type { Language } from "../lib/i18n/context";
 import type { Currency, Firm, JournalEntry, Movement, TradingAccount } from "../types";
 
 type DashboardViewProps = {
@@ -41,6 +43,8 @@ const initialFilters: DashboardFilters = {
 export function DashboardView({ accounts, currency, firms, journalEntries, movements }: DashboardViewProps) {
   const [filters, setFilters] = useState<DashboardFilters>(initialFilters);
   const [summaryRange, setSummaryRange] = useState<SummaryRange>("6m");
+  const t = useT();
+  const { language } = useI18n();
   const periodRange = useMemo(() => getPeriodRange(filters), [filters]);
   const filteredAccounts = useMemo(() => {
     return accounts.filter((account) => {
@@ -75,12 +79,12 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
     [filteredAccounts, scopedJournal, scopedMovements],
   );
   const breakEven = Math.max(0, dashboardModel.expenses - dashboardModel.income);
-  const scopeLabel = buildScopeLabel(filters, firms, accounts);
-  const expenseRows = useMemo(() => buildExpenseRows(dashboardModel.scopedMovements), [dashboardModel.scopedMovements]);
+  const scopeLabel = buildScopeLabel(filters, firms, accounts, t);
+  const expenseRows = useMemo(() => buildExpenseRows(dashboardModel.scopedMovements, t), [dashboardModel.scopedMovements, t]);
   const monthlyRows = useMemo(() => buildMonthlyMovementRows(dashboardModel.scopedMovements, summaryRange), [dashboardModel.scopedMovements, summaryRange]);
   const accountRows = useMemo(
-    () => buildAccountRows(filteredAccounts, dashboardModel.scopedMovements, firms),
-    [dashboardModel.scopedMovements, filteredAccounts, firms],
+    () => buildAccountRows(filteredAccounts, dashboardModel.scopedMovements, firms, t),
+    [dashboardModel.scopedMovements, filteredAccounts, firms, t],
   );
 
   return (
@@ -88,12 +92,12 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
       <section className="panel dashboard-filter-panel">
         <div className="dashboard-filters">
           <label>
-            <span>Empresa</span>
+            <span>{t("dashboard.filter.firm")}</span>
             <select
               value={filters.firmId}
               onChange={(event) => setFilters((current) => ({ ...current, firmId: event.target.value, accountId: "all" }))}
             >
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {firms.map((firm) => (
                 <option key={firm.id} value={firm.id}>
                   {firm.name}
@@ -102,9 +106,9 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
             </select>
           </label>
           <label>
-            <span>Cuenta</span>
+            <span>{t("dashboard.filter.account")}</span>
             <select value={filters.accountId} onChange={(event) => setFilters((current) => ({ ...current, accountId: event.target.value }))}>
-              <option value="all">Todas</option>
+              <option value="all">{t("common.all")}</option>
               {accounts
                 .filter((account) => filters.firmId === "all" || account.firmId === filters.firmId)
                 .map((account) => (
@@ -115,7 +119,7 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
             </select>
           </label>
           <label>
-            <span>Periodo</span>
+            <span>{t("dashboard.filter.period")}</span>
             <select
               value={filters.period}
               onChange={(event) => {
@@ -127,15 +131,15 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
                 }));
               }}
             >
-              <option value="all">Todo</option>
-              <option value="30d">30 dias</option>
-              <option value="90d">90 dias</option>
-              <option value="month">Mes actual</option>
-              <option value="custom">Personalizado</option>
+              <option value="all">{t("dashboard.filter.periodAll")}</option>
+              <option value="30d">{t("dashboard.filter.period30d")}</option>
+              <option value="90d">{t("dashboard.filter.period90d")}</option>
+              <option value="month">{t("dashboard.filter.periodMonth")}</option>
+              <option value="custom">{t("dashboard.filter.periodCustom")}</option>
             </select>
           </label>
           <label>
-            <span>Desde</span>
+            <span>{t("dashboard.filter.from")}</span>
             <input
               type="date"
               value={filters.from}
@@ -145,7 +149,7 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
             />
           </label>
           <label>
-            <span>Hasta</span>
+            <span>{t("dashboard.filter.to")}</span>
             <input
               type="date"
               value={filters.to}
@@ -155,52 +159,52 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
             />
           </label>
           <button className="secondary-action" type="button" onClick={() => setFilters(initialFilters)}>
-            Reset
+            {t("dashboard.filter.reset")}
           </button>
         </div>
       </section>
 
-      <section className="metric-grid" aria-label="Metricas principales">
+      <section className="metric-grid" aria-label={t("dashboard.metrics.label")}>
         <MetricCard
           hint={scopeLabel}
           icon={<TrendingUp size={16} strokeWidth={2.2} />}
-          label="Neto total"
+          label={t("dashboard.metric.netTotal")}
           featured
           tone={signedTone(dashboardModel.net)}
           value={formatMoney(dashboardModel.net, currency)}
         />
         <MetricCard
-          hint="Costes registrados"
+          hint={t("dashboard.metric.expensesRecorded")}
           icon={<Target size={16} strokeWidth={2.2} />}
-          label="Gasto total"
+          label={t("dashboard.metric.totalExpense")}
           tone={dashboardModel.expenses > 0 ? "negative" : "neutral"}
           value={formatMoney(dashboardModel.expenses, currency)}
         />
         <MetricCard
-          hint="Retiros y refunds"
+          hint={t("dashboard.metric.withdrawalsRefunds")}
           icon={<CircleDollarSign size={16} strokeWidth={2.2} />}
-          label="Retiros"
+          label={t("dashboard.metric.withdrawals")}
           tone="positive"
           value={formatMoney(dashboardModel.income, currency)}
         />
         <MetricCard
-          hint={`${dashboardModel.activeAccounts} activas`}
+          hint={`${dashboardModel.activeAccounts} ${t("dashboard.metric.activeSuffix")}`}
           icon={<Percent size={16} strokeWidth={2.2} />}
-          label="ROI"
+          label={t("dashboard.metric.roi")}
           tone={signedTone(dashboardModel.roi)}
           value={formatPercent(dashboardModel.roi)}
         />
         <MetricCard
-          hint="Para cubrir costes"
+          hint={t("dashboard.metric.toCoverCosts")}
           icon={<WalletCards size={16} strokeWidth={2.2} />}
-          label="Break-even"
+          label={t("dashboard.metric.breakEven")}
           tone={breakEven > 0 ? "negative" : "positive"}
           value={formatMoney(breakEven, currency)}
         />
         <MetricCard
-          hint={`${filteredAccounts.length} cuentas en el filtro`}
+          hint={`${filteredAccounts.length} ${t("dashboard.metric.accountsInFilter")}`}
           icon={<Activity size={16} strokeWidth={2.2} />}
-          label="Activas"
+          label={t("dashboard.metric.active")}
           tone="neutral"
           value={String(dashboardModel.activeAccounts)}
         />
@@ -211,41 +215,41 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
         <section className="panel period-summary-panel">
           <div className="panel-heading">
             <div>
-              <h2>Resumen del periodo</h2>
+              <h2>{t("dashboard.period.title")}</h2>
               <p>{scopeLabel}</p>
             </div>
           </div>
           <div className="period-summary-list">
             <div>
-              <span>Gasto</span>
+              <span>{t("dashboard.period.expense")}</span>
               <strong className="negative">{formatMoney(dashboardModel.expenses, currency)}</strong>
             </div>
             <div>
-              <span>Retiros</span>
+              <span>{t("dashboard.period.withdrawals")}</span>
               <strong className="positive">{formatMoney(dashboardModel.income, currency)}</strong>
             </div>
             <div>
-              <span>Neto</span>
+              <span>{t("dashboard.period.net")}</span>
               <strong className={signedTone(dashboardModel.net)}>{formatMoney(dashboardModel.net, currency)}</strong>
             </div>
           </div>
-          <MonthlyMovementBars currency={currency} range={summaryRange} rows={monthlyRows} onRangeChange={setSummaryRange} />
+          <MonthlyMovementBars currency={currency} language={language} range={summaryRange} rows={monthlyRows} t={t} onRangeChange={setSummaryRange} />
         </section>
       </div>
 
       <section className="dashboard-insights">
         <InsightPanel
           currency={currency}
-          emptyText="Sin gastos en el filtro"
+          emptyText={t("dashboard.insights.noExpenses")}
           rows={expenseRows.map((row) => ({ label: row.label, value: row.amount }))}
-          title="Gastos por categoría"
+          title={t("dashboard.insights.expensesByCategory")}
           tone="negative"
         />
         <InsightPanel
           currency={currency}
-          emptyText="Sin movimientos por cuenta"
+          emptyText={t("dashboard.insights.noMovementsByAccount")}
           rows={accountRows.map((row) => ({ detail: row.firmName, label: row.accountName, value: row.net }))}
-          title="Resultado por cuenta"
+          title={t("dashboard.insights.resultByAccount")}
         />
         <MovementsTable accounts={filteredAccounts} currency={currency} movements={dashboardModel.scopedMovements} />
       </section>
@@ -280,23 +284,23 @@ function dateToIso(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function buildScopeLabel(filters: DashboardFilters, firms: Firm[], accounts: TradingAccount[]) {
-  const firmName = filters.firmId === "all" ? "Todas las empresas" : firms.find((firm) => firm.id === filters.firmId)?.name;
+function buildScopeLabel(filters: DashboardFilters, firms: Firm[], accounts: TradingAccount[], t: ReturnType<typeof useT>) {
+  const firmName = filters.firmId === "all" ? t("dashboard.scope.allFirms") : firms.find((firm) => firm.id === filters.firmId)?.name;
   const accountName = filters.accountId === "all" ? "" : accounts.find((account) => account.id === filters.accountId)?.name;
-  return accountName || firmName || "Todas las cuentas";
+  return accountName || firmName || t("dashboard.scope.allAccounts");
 }
 
-function buildExpenseRows(movements: Movement[]) {
+function buildExpenseRows(movements: Movement[], t: ReturnType<typeof useT>) {
   const labels: Record<Movement["category"], string> = {
-    activation: "Activacion",
-    challenge: "Compra challenge",
-    commission: "Comision",
-    other: "Otro",
-    payout: "Payout",
-    platform: "Plataforma",
-    refund: "Refund",
-    reset: "Reset",
-    subscription: "Mensualidad",
+    activation: t("dashboard.expenseCategory.activation"),
+    challenge: t("dashboard.expenseCategory.challenge"),
+    commission: t("dashboard.expenseCategory.commission"),
+    other: t("dashboard.expenseCategory.other"),
+    payout: t("dashboard.expenseCategory.payout"),
+    platform: t("dashboard.expenseCategory.platform"),
+    refund: t("dashboard.expenseCategory.refund"),
+    reset: t("dashboard.expenseCategory.reset"),
+    subscription: t("dashboard.expenseCategory.subscription"),
   };
   const grouped = new Map<string, number>();
   movements
@@ -307,7 +311,7 @@ function buildExpenseRows(movements: Movement[]) {
     .sort((left, right) => right.amount - left.amount);
 }
 
-function buildAccountRows(accounts: TradingAccount[], movements: Movement[], firms: Firm[]) {
+function buildAccountRows(accounts: TradingAccount[], movements: Movement[], firms: Firm[], t: ReturnType<typeof useT>) {
   const firmNameById = new Map(firms.map((firm) => [firm.id, firm.name]));
   return accounts
     .map((account) => {
@@ -316,7 +320,7 @@ function buildAccountRows(accounts: TradingAccount[], movements: Movement[], fir
       const expenses = accountMovements.filter((movement) => movement.kind === "expense").reduce((total, movement) => total + movement.amount, 0);
       return {
         accountName: account.name,
-        firmName: firmNameById.get(account.firmId) || "Sin empresa",
+        firmName: firmNameById.get(account.firmId) || t("account.card.noFirm"),
         net: income - expenses,
       };
     })
@@ -346,41 +350,55 @@ function buildMonthlyMovementRows(movements: Movement[], range: SummaryRange) {
   return sorted.slice(-limitByRange[range]);
 }
 
-function formatMonthLabel(month: string) {
+function formatMonthLabel(month: string, language: Language) {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(year, (monthNumber || 1) - 1, 1);
-  return new Intl.DateTimeFormat("es-ES", { month: "short" }).format(date).replace(".", "");
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "short" }).format(date).replace(".", "");
 }
 
-function formatLongMonthLabel(month: string) {
+function formatLongMonthLabel(month: string, language: Language) {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(year, (monthNumber || 1) - 1, 1);
-  return new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "long", year: "numeric" }).format(date);
+}
+
+function getSummaryRangeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: SummaryRange }> {
+  return [
+    { label: t("dashboard.monthly.range3m"), value: "3m" },
+    { label: t("dashboard.monthly.range6m"), value: "6m" },
+    { label: t("dashboard.monthly.range12m"), value: "12m" },
+    { label: t("dashboard.monthly.rangeAll"), value: "all" },
+  ];
 }
 
 function MonthlyMovementBars({
   currency,
+  language,
   onRangeChange,
   range,
   rows,
+  t,
 }: {
   currency: Currency;
+  language: Language;
   onRangeChange: (range: SummaryRange) => void;
   range: SummaryRange;
   rows: Array<{ expenses: number; income: number; month: string }>;
+  t: ReturnType<typeof useT>;
 }) {
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
   const maxValue = Math.max(1, ...rows.flatMap((row) => [row.expenses, row.income]));
   const activeRow = activeMonth ? rows.find((row) => row.month === activeMonth) : undefined;
+  const summaryRangeOptions = getSummaryRangeOptions(t);
 
   return (
-    <div className="period-month-chart" aria-label="Gastos y retiros por mes">
+    <div className="period-month-chart" aria-label={t("dashboard.monthly.label")}>
       <div className="period-month-chart-head">
         <div>
-          <span>Mensual</span>
-          <small>Gastos vs retiros</small>
+          <span>{t("dashboard.monthly.title")}</span>
+          <small>{t("dashboard.monthly.subtitle")}</small>
         </div>
-        <div className="period-range-tabs" aria-label="Rango del resumen mensual">
+        <div className="period-range-tabs" aria-label={t("dashboard.monthly.rangeLabel")}>
           {summaryRangeOptions.map((option) => (
             <button
               className={range === option.value ? "active" : ""}
@@ -414,44 +432,37 @@ function MonthlyMovementBars({
                   <i
                     className="income"
                     style={{ height: `${incomeHeight}%` }}
-                    title={`Retiros ${formatMoney(row.income, currency)}`}
+                    title={`${t("dashboard.period.withdrawals")} ${formatMoney(row.income, currency)}`}
                   />
                   <i
                     className="expense"
                     style={{ height: `${expenseHeight}%` }}
-                    title={`Gastos ${formatMoney(row.expenses, currency)}`}
+                    title={`${t("dashboard.period.expense")} ${formatMoney(row.expenses, currency)}`}
                   />
                 </div>
-                <span>{formatMonthLabel(row.month)}</span>
+                <span>{formatMonthLabel(row.month, language)}</span>
               </div>
             );
           })}
           {activeRow && (
             <div className="period-month-tooltip">
-              <span>{formatLongMonthLabel(activeRow.month)}</span>
+              <span>{formatLongMonthLabel(activeRow.month, language)}</span>
               <strong className={signedTone(activeRow.income - activeRow.expenses)}>{formatMoney(activeRow.income - activeRow.expenses, currency)}</strong>
               <small>
-                Retiros <b className="positive">{formatMoney(activeRow.income, currency)}</b>
+                {t("dashboard.period.withdrawals")} <b className="positive">{formatMoney(activeRow.income, currency)}</b>
               </small>
               <small>
-                Gastos <b className="negative">{formatMoney(activeRow.expenses, currency)}</b>
+                {t("dashboard.period.expense")} <b className="negative">{formatMoney(activeRow.expenses, currency)}</b>
               </small>
             </div>
           )}
         </div>
       ) : (
-        <p className="inline-muted">Sin movimientos mensuales en el filtro.</p>
+        <p className="inline-muted">{t("dashboard.monthly.empty")}</p>
       )}
     </div>
   );
 }
-
-const summaryRangeOptions: Array<{ label: string; value: SummaryRange }> = [
-  { label: "3M", value: "3m" },
-  { label: "6M", value: "6m" },
-  { label: "12M", value: "12m" },
-  { label: "Todo", value: "all" },
-];
 
 function InsightPanel({
   currency,

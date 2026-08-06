@@ -122,6 +122,8 @@ export function parseTrazzaImport(raw: string): AppData {
       kind: normalizeMovementKind(movement.kind),
       category: normalizeMovementCategory(movement.category),
       amount: Math.abs(parseFlexibleNumber(movement.amount)),
+      payoutGrossAmount: parseOptionalPositiveNumber(movement.payoutGrossAmount ?? movement.payout_gross_amount),
+      payoutProfitSplit: parseOptionalPositiveNumber(movement.payoutProfitSplit ?? movement.payout_profit_split),
       firmId: text(movement.firmId) || text(movement.firm_id),
       accountId: text(movement.accountId) || text(movement.account_id) || undefined,
       note: text(movement.note) || text(movement.notes),
@@ -297,6 +299,11 @@ function parseFlexibleNumber(value: unknown) {
   }
 
   return Number(source);
+}
+
+function parseOptionalPositiveNumber(value: unknown) {
+  const number = parseFlexibleNumber(value);
+  return Number.isFinite(number) && number > 0 ? number : undefined;
 }
 
 function text(value: unknown) {
