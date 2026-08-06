@@ -132,6 +132,7 @@ let state = loadState();
 let confirmHandler = null;
 let currentSession = null;
 let currentUser = null;
+let currentSubscription = undefined;
 let authMode = getInitialAuthMode();
 let cloudLoading = false;
 let activePillar = getInitialPillar();
@@ -279,6 +280,8 @@ function bindElements() {
     "authLoginButton",
     "authSwitchText",
     "authSignupButton",
+    "authTermsField",
+    "authTermsCheckbox",
     "authMessage",
     "authThemeToggleButton",
     "globalAddButton",
@@ -498,6 +501,14 @@ function bindElements() {
     "profileInitial",
     "profileDisplayName",
     "profileDisplayEmail",
+    "profileSubscription",
+    "profileSubscriptionBadge",
+    "profileSubscriptionDetail",
+    "profileSubscriptionActions",
+    "subscribeMonthlyButton",
+    "subscribeAnnualButton",
+    "manageSubscriptionButton",
+    "subscriptionMessage",
     "profileFirmCount",
     "profileAccountCount",
     "profileTransactionCount",
@@ -524,6 +535,9 @@ function bindEvents() {
   els.sidebarUserCard?.addEventListener("click", openProfileDialog);
   els.profileForm?.addEventListener("submit", saveProfileFromForm);
   els.profileLogoutButton?.addEventListener("click", signOut);
+  els.subscribeMonthlyButton?.addEventListener("click", () => startCheckout("monthly"));
+  els.subscribeAnnualButton?.addEventListener("click", () => startCheckout("annual"));
+  els.manageSubscriptionButton?.addEventListener("click", openBillingPortal);
 
   document.querySelectorAll(".pillar-button").forEach((button) => {
     button.addEventListener("click", () => setActivePillar(button.dataset.pillar));
@@ -1277,6 +1291,7 @@ async function handleSession(session) {
   }
 
   await loadCloudState();
+  notifyCheckoutReturn();
 }
 
 function isAuthEmailConfirmed(user) {
@@ -1372,6 +1387,9 @@ function validateAuthCredentials({ requireName = false } = {}) {
   if (!credentials.password || credentials.password.length < 6) {
     return markInvalid(els.authPassword, "La contraseña debe tener al menos 6 caracteres.");
   }
+  if (requireName && !els.authTermsCheckbox.checked) {
+    return markInvalid(els.authTermsCheckbox, "Debes aceptar los terminos y la politica de privacidad.");
+  }
 
   return credentials;
 }
@@ -1464,6 +1482,8 @@ function fillProfileDialog() {
   els.profileMessage.textContent = "";
   clearFormValidity(els.profileForm);
   updateProfileStats();
+  setSubscriptionMessage("");
+  renderSubscriptionSection();
 }
 
 function openProfileDialog() {
@@ -1547,6 +1567,9 @@ function setAuthMode(mode = authMode) {
   els.authSwitchText.textContent = uiText(isSignup ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?");
   els.authSignupButton.textContent = uiText(isSignup ? "Iniciar sesi\u00f3n" : "Crear cuenta");
   els.authPassword.autocomplete = isSignup ? "new-password" : "current-password";
+  els.authTermsField.hidden = !isSignup;
+  els.authTermsCheckbox.disabled = !isSignup;
+  els.authTermsCheckbox.checked = false;
   setAuthMessage();
 }
 
@@ -1591,6 +1614,8 @@ async function signUp() {
       data: {
         full_name: credentials.fullName,
         name: credentials.fullName,
+        terms_accepted_at: nowIso(),
+        terms_version: "2026-08-06",
       },
       emailRedirectTo: getAuthRedirectUrl(),
     },
@@ -1631,13 +1656,15 @@ async function loadCloudState() {
   setSyncStatus("loading", "Sincronizando datos...");
 
   try {
-    const [firmsResult, accountsResult, transactionsResult, journalResult, journalErrorTypes] = await Promise.all([
-      supabaseClient.from("firms").select("*").order("name", { ascending: true }),
-      supabaseClient.from("accounts").select("*").order("created_at", { ascending: true }),
-      supabaseClient.from("transactions").select("*").order("date", { ascending: true }),
-      fetchJournalEntries(),
-      fetchJournalErrorTypes(),
-    ]);
+    const [firmsResult, accountsResult, transactionsResult, journalResult, journalErrorTypes, subscription] =
+      await Promise.all([
+        supabaseClient.from("firms").select("*").order("name", { ascending: true }),
+        supabaseClient.from("accounts").select("*").order("created_at", { ascending: true }),
+        supabaseClient.from("transactions").select("*").order("date", { ascending: true }),
+        fetchJournalEntries(),
+        fetchJournalErrorTypes(),
+        fetchCurrentSubscription(),
+      ]);
 
     [firmsResult, accountsResult, transactionsResult].forEach(throwIfSupabaseError);
 
@@ -1648,6 +1675,7 @@ async function loadCloudState() {
       journalEntries: journalResult,
       journalErrorTypes,
     };
+    currentSubscription = subscription;
     refreshAll();
     updateMigrationButton();
   } catch (error) {
@@ -1660,6 +1688,162 @@ async function loadCloudState() {
       setSyncStatus("idle");
     }
   }
+}
+
+async function fetchCurrentSubscription() {
+  if (!currentUser || !supabaseClient) return null;
+  const result = await supabaseClient
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (result.error) {
+    console.warn("No se pudo cargar el estado de suscripcion.", result.error);
+    return null;
+  }
+  return result.data || null;
+}
+
+function isSubscriptionAccessActive(subscription) {
+  if (!subscription) return false;
+  if (subscription.status === "active" || subscription.status === "lifetime") return true;
+  if (subscription.status === "trialing") {
+    if (!subscription.trial_ends_at) return true;
+    return new Date(subscription.trial_ends_at).getTime() > Date.now();
+  }
+  return false;
+}
+
+// Fail-open by design: if the subscription row hasn't loaded yet or the fetch
+// failed (network hiccup, RLS misconfig, etc.), we don't want a backend blip to
+// silently lock every user out of editing their data. Only an explicitly
+// resolved, inactive subscription blocks writes.
+function canMutateData() {
+  if (currentSubscription === undefined || currentSubscription === null) return true;
+  return isSubscriptionAccessActive(currentSubscription);
+}
+
+function openSubscriptionRequiredNotice() {
+  toast("Tu periodo de prueba ha terminado. Suscribete para seguir editando.");
+  openProfileDialog();
+}
+
+function getSubscriptionTrialDaysLeft(subscription) {
+  if (!subscription?.trial_ends_at) return 0;
+  const msLeft = new Date(subscription.trial_ends_at).getTime() - Date.now();
+  return Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+}
+
+function renderSubscriptionSection() {
+  if (!els.profileSubscriptionBadge || !currentUser) return;
+
+  if (currentSubscription === undefined) {
+    els.profileSubscriptionBadge.textContent = "Cargando...";
+    els.profileSubscriptionBadge.className = "badge";
+    els.profileSubscriptionDetail.textContent = "";
+    els.subscribeMonthlyButton.hidden = true;
+    els.subscribeAnnualButton.hidden = true;
+    els.manageSubscriptionButton.hidden = true;
+    return;
+  }
+
+  const status = currentSubscription?.status;
+  const active = isSubscriptionAccessActive(currentSubscription);
+
+  if (status === "lifetime") {
+    els.profileSubscriptionBadge.textContent = "Licencia de por vida";
+    els.profileSubscriptionBadge.className = "badge active";
+    els.profileSubscriptionDetail.textContent = "Gracias por ser de los primeros en confiar en Trazza.";
+  } else if (status === "active") {
+    els.profileSubscriptionBadge.textContent = "Suscripcion activa";
+    els.profileSubscriptionBadge.className = "badge active";
+    const periodEnd = currentSubscription?.current_period_end
+      ? formatUserDate(currentSubscription.current_period_end)
+      : "-";
+    els.profileSubscriptionDetail.textContent = `Se renueva el ${periodEnd}.`;
+  } else if (status === "past_due") {
+    els.profileSubscriptionBadge.textContent = "Pago pendiente";
+    els.profileSubscriptionBadge.className = "badge failed";
+    els.profileSubscriptionDetail.textContent = "Hubo un problema con tu ultimo cobro. Revisa tu metodo de pago.";
+  } else if (status === "trialing" && active) {
+    const daysLeft = getSubscriptionTrialDaysLeft(currentSubscription);
+    els.profileSubscriptionBadge.textContent = `Prueba: ${daysLeft} ${daysLeft === 1 ? "dia" : "dias"}`;
+    els.profileSubscriptionBadge.className = "badge";
+    els.profileSubscriptionDetail.textContent = "Disfruta de acceso completo mientras dure tu prueba gratuita.";
+  } else {
+    els.profileSubscriptionBadge.textContent = "Sin suscripcion activa";
+    els.profileSubscriptionBadge.className = "badge failed";
+    els.profileSubscriptionDetail.textContent =
+      status === "trialing"
+        ? "Tu periodo de prueba ha terminado. Suscribete para seguir editando tus datos."
+        : "Suscribete para seguir editando tus datos.";
+  }
+
+  const canManageInPortal = Boolean(currentSubscription?.stripe_customer_id);
+  els.subscribeMonthlyButton.hidden = status === "lifetime" || status === "active";
+  els.subscribeAnnualButton.hidden = status === "lifetime" || status === "active";
+  els.manageSubscriptionButton.hidden = !canManageInPortal;
+}
+
+function setSubscriptionMessage(message = "", type = "") {
+  if (!els.subscriptionMessage) return;
+  els.subscriptionMessage.hidden = !message;
+  els.subscriptionMessage.textContent = message;
+  els.subscriptionMessage.className = `profile-message${type ? ` ${type}` : ""}`;
+}
+
+async function startCheckout(interval) {
+  if (!supabaseClient || !currentUser) return;
+  setSubscriptionMessage("Redirigiendo a Stripe...", "info");
+  els.subscribeMonthlyButton.disabled = true;
+  els.subscribeAnnualButton.disabled = true;
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("create-checkout-session", {
+      body: { interval },
+    });
+    if (error) throw error;
+    if (!data?.url) throw new Error(data?.error || "No se pudo iniciar el pago.");
+    window.location.href = data.url;
+  } catch (error) {
+    setSubscriptionMessage(error.message || "No se pudo iniciar el pago.", "error");
+    els.subscribeMonthlyButton.disabled = false;
+    els.subscribeAnnualButton.disabled = false;
+  }
+}
+
+async function openBillingPortal() {
+  if (!supabaseClient || !currentUser) return;
+  setSubscriptionMessage("Abriendo portal de facturacion...", "info");
+  els.manageSubscriptionButton.disabled = true;
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("create-portal-session");
+    if (error) throw error;
+    if (!data?.url) throw new Error(data?.error || "No se pudo abrir el portal.");
+    window.location.href = data.url;
+  } catch (error) {
+    setSubscriptionMessage(error.message || "No se pudo abrir el portal.", "error");
+    els.manageSubscriptionButton.disabled = false;
+  }
+}
+
+function notifyCheckoutReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const checkoutState = params.get("checkout");
+  if (!checkoutState) return;
+
+  if (checkoutState === "success") {
+    toast("Pago recibido. Activando tu suscripcion...");
+  } else if (checkoutState === "cancelled") {
+    toast("Pago cancelado. Puedes intentarlo de nuevo cuando quieras.");
+  }
+
+  params.delete("checkout");
+  const nextSearch = params.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", nextUrl);
 }
 
 async function fetchJournalEntries() {
@@ -6055,6 +6239,7 @@ async function saveJournalImportedEntries() {
 async function saveFirmFromForm(event) {
   event.preventDefault();
   if (!currentUser) return toast("Inicia sesion para guardar.");
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   if (isFormBusy(els.firmForm)) return;
   clearFormValidity(els.firmForm);
 
@@ -6097,6 +6282,7 @@ async function saveFirmFromForm(event) {
 async function saveAccountFromForm(event) {
   event.preventDefault();
   if (!currentUser) return toast("Inicia sesion para guardar.");
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   if (isFormBusy(els.accountForm)) return;
   clearFormValidity(els.accountForm);
 
@@ -6173,6 +6359,7 @@ async function saveAccountFromForm(event) {
 async function saveTransactionFromForm(event) {
   event.preventDefault();
   if (!currentUser) return toast("Inicia sesion para guardar.");
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   if (isFormBusy(els.transactionForm)) return;
   clearFormValidity(els.transactionForm);
 
@@ -6224,6 +6411,7 @@ async function saveTransactionFromForm(event) {
 async function saveJournalFromForm(event) {
   event.preventDefault();
   if (!currentUser) return toast("Inicia sesion para guardar.");
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   if (isFormBusy(els.journalForm)) return;
   clearFormValidity(els.journalForm);
 
@@ -6286,6 +6474,7 @@ async function saveJournalFromForm(event) {
 async function saveJournalErrorTypeFromForm(event) {
   event.preventDefault();
   if (!currentUser) return toast("Inicia sesion para guardar.");
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   if (isFormBusy(els.journalErrorForm)) return;
   clearFormValidity(els.journalErrorForm);
 
@@ -6400,6 +6589,7 @@ function clearJournalCardFocus() {
 }
 
 function requestToggleJournalErrorType(id, active) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   const type = getJournalErrorType(id);
   if (!type) return;
   const actionLabel = active ? "activar" : "ocultar";
@@ -6429,6 +6619,7 @@ function requestToggleJournalErrorType(id, active) {
 }
 
 function requestDeleteFirm(id) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   const firm = getFirm(id);
   const hasAccounts = state.accounts.some((account) => account.firmId === id);
   const hasTransactions = state.transactions.some((tx) => resolveFirmId(tx) === id);
@@ -6454,6 +6645,7 @@ function requestDeleteFirm(id) {
 }
 
 function requestDeleteAccount(id) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   const account = getAccount(id);
   const hasTransactions = state.transactions.some((tx) => tx.accountId === id);
   const hasJournalEntries = state.journalEntries.some((entry) => entry.accountId === id);
@@ -6478,6 +6670,7 @@ function requestDeleteAccount(id) {
 }
 
 function requestDeleteTransaction(id) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   openConfirm("Eliminar movimiento", "Eliminar este movimiento?", async () => {
     try {
       const result = await supabaseClient.from("transactions").delete().eq("id", id);
@@ -6493,6 +6686,7 @@ function requestDeleteTransaction(id) {
 }
 
 function requestDeleteJournalEntry(id) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
   openConfirm("Eliminar entrada", "Eliminar esta entrada de journal?", async () => {
     try {
       const result = await supabaseClient.from("journal_entries").delete().eq("id", id);

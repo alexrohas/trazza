@@ -382,6 +382,25 @@ body {
   line-height: 1.45;
 }
 
+.auth-terms-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -4px 0 2px;
+  color: var(--muted);
+  font-size: 11.8px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.auth-terms-field input {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--accent-strong);
+}
+
 .auth-toolbar .theme-toggle {
   width: 34px;
   height: 34px;
@@ -391,14 +410,16 @@ body {
   min-width: 38px;
 }
 
-.auth-legal a {
+.auth-legal a,
+.auth-terms-field a {
   color: var(--muted-strong);
   font-weight: 750;
   text-decoration: none;
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
-.auth-legal a:hover {
+.auth-legal a:hover,
+.auth-terms-field a:hover {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
@@ -4823,8 +4844,57 @@ tbody tr:hover {
   line-height: 1.45;
 }
 
+.profile-message.info {
+  color: var(--text-soft);
+}
+
+.profile-message.error {
+  color: var(--red-strong);
+}
+
+:root[data-theme="dark"] .profile-message.error {
+  color: var(--red);
+}
+
 .profile-logout-button {
   margin-right: auto;
+}
+
+.profile-subscription {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-subscription-status {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-subscription-status p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.profile-subscription-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-subscription-actions button {
+  min-width: 0;
+  justify-content: center;
+}
+
+.profile-subscription-actions button:only-child,
+.profile-subscription-actions #manageSubscriptionButton:not([hidden]) {
+  grid-column: 1 / -1;
 }
 
 .modal-header {
