@@ -1801,7 +1801,7 @@ function renderSubscriptionSection() {
         : "Suscribete para seguir editando tus datos.";
   }
 
-  const canManageInPortal = Boolean(currentSubscription?.stripe_customer_id);
+  const canManageInPortal = status !== "lifetime" && Boolean(currentSubscription?.stripe_customer_id);
   els.viewPlansButton.hidden = status === "lifetime" || status === "active";
   els.manageSubscriptionButton.hidden = !canManageInPortal;
 }
