@@ -531,6 +531,7 @@
     .pillar-card,
     .metric-tile,
     .finance-panel,
+    .pricing-card,
     .cta-band {
       border: 1px solid var(--line);
       border-radius: 18px;
@@ -674,6 +675,71 @@
       border-radius: 999px;
       background: var(--accent);
       box-shadow: 0 0 0 4px rgba(157, 130, 253, 0.12);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .pricing-card {
+      position: relative;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      padding: 26px;
+    }
+
+    .pricing-card.featured {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+      background:
+        linear-gradient(150deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%),
+        linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--surface-strong) 92%, transparent));
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      right: 22px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .pricing-name {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pricing-price {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .pricing-price strong {
+      font-family: var(--font-head);
+      font-size: clamp(36px, 4vw, 46px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    .pricing-price span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pricing-cta {
+      width: 100%;
     }
 
     .cta-band {
@@ -845,7 +911,8 @@
 
       .hero-proof,
       .pillars,
-      .metrics-band {
+      .metrics-band,
+      .pricing-grid {
         grid-template-columns: 1fr;
       }
 
@@ -888,6 +955,7 @@
           <a href="#producto">Producto</a>
           <a href="#journal">Journal</a>
           <a href="#finanzas">Finanzas</a>
+          <a href="#precios">Precios</a>
         </nav>
         <div class="nav-actions">
           <button class="landing-theme-toggle" id="landingThemeToggle" type="button" data-theme-toggle aria-label="Cambiar a modo claro" title="Cambiar tema"></button>
@@ -909,7 +977,7 @@
             Registra operaciones, controla cuentas, gastos, payouts y disciplina con un dashboard pensado para traders que quieren ver su resultado real.
           </p>
           <div class="hero-actions">
-            <a class="primary-link" href="./app.html?mode=signup">Crear cuenta gratis <span class="arrow">→</span></a>
+            <a class="primary-link" href="./app.html?mode=signup">Prueba gratis 14 días <span class="arrow">→</span></a>
             <a class="secondary-link" href="#journal">Ver cómo funciona</a>
           </div>
           <div class="hero-proof" aria-label="Resumen del producto">
@@ -1069,13 +1137,52 @@
         </div>
       </section>
 
+      <section class="section" id="precios">
+        <div class="section-head">
+          <h2>Un plan simple, sin sorpresas.</h2>
+          <p>
+            14 días de prueba gratis, sin tarjeta. Después, un único plan con acceso completo a Trazza.
+          </p>
+        </div>
+
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <span class="pricing-name">Mensual</span>
+            <div class="pricing-price">
+              <strong>6,99&euro;</strong>
+              <span>/mes</span>
+            </div>
+            <ul class="finance-list">
+              <li>Cuentas y movimientos sin límite</li>
+              <li>Journal completo con métricas</li>
+              <li>Cancelas cuando quieras</li>
+            </ul>
+            <a class="secondary-link pricing-cta" href="./app.html?mode=signup">Empezar prueba gratis</a>
+          </article>
+          <article class="pricing-card featured">
+            <span class="pricing-badge">Ahorra 30%</span>
+            <span class="pricing-name">Anual</span>
+            <div class="pricing-price">
+              <strong>59&euro;</strong>
+              <span>/año</span>
+            </div>
+            <ul class="finance-list">
+              <li>Cuentas y movimientos sin límite</li>
+              <li>Journal completo con métricas</li>
+              <li>Cancelas cuando quieras</li>
+            </ul>
+            <a class="primary-link pricing-cta" href="./app.html?mode=signup">Empezar prueba gratis</a>
+          </article>
+        </div>
+      </section>
+
       <section class="section">
         <div class="cta-band">
           <div>
             <h2>Empieza a registrar tu trading con más claridad.</h2>
-            <p>Crea tu cuenta gratis y usa Trazza como centro de control para tus operaciones, finanzas y revisión diaria.</p>
+            <p>Prueba Trazza gratis 14 días y úsalo como centro de control para tus operaciones, finanzas y revisión diaria.</p>
           </div>
-          <a class="primary-link" href="./app.html?mode=signup">Crear cuenta gratis <span class="arrow">→</span></a>
+          <a class="primary-link" href="./app.html?mode=signup">Prueba gratis 14 días <span class="arrow">→</span></a>
         </div>
       </section>
     </main>

@@ -8,6 +8,7 @@ const PILLAR_STORAGE_KEY = "trazza:pillar";
 const JOURNAL_VIEW_STORAGE_KEY = "trazza:journal-view";
 const LOCAL_MIGRATION_BACKUP_KEY = "trazza:local-backup-before-cloud";
 const LOCAL_MIGRATED_KEY = "trazza:local-migrated-to-cloud";
+const ANNOUNCEMENT_STORAGE_KEY = "trazza:announcement-pricing-seen";
 const SUPABASE_URL = "https://sfdxbchjvhcdnjlpuffg.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZHhiY2hqdmhjZG5qbHB1ZmZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NzUyMDYsImV4cCI6MjA5MzU1MTIwNn0.hYqL43T7yGc2WYCaNCpI78VaKYh9mgYO3mnrkclVp5g";
@@ -283,6 +284,13 @@ function bindElements() {
     "authTermsField",
     "authTermsCheckbox",
     "authMessage",
+    "plansDialog",
+    "planMonthlyButton",
+    "planAnnualButton",
+    "plansMessage",
+    "announcementBanner",
+    "announcementViewPlansButton",
+    "announcementDismissButton",
     "authThemeToggleButton",
     "globalAddButton",
     "globalAddButtonText",
@@ -505,8 +513,7 @@ function bindElements() {
     "profileSubscriptionBadge",
     "profileSubscriptionDetail",
     "profileSubscriptionActions",
-    "subscribeMonthlyButton",
-    "subscribeAnnualButton",
+    "viewPlansButton",
     "manageSubscriptionButton",
     "subscriptionMessage",
     "profileFirmCount",
@@ -535,9 +542,15 @@ function bindEvents() {
   els.sidebarUserCard?.addEventListener("click", openProfileDialog);
   els.profileForm?.addEventListener("submit", saveProfileFromForm);
   els.profileLogoutButton?.addEventListener("click", signOut);
-  els.subscribeMonthlyButton?.addEventListener("click", () => startCheckout("monthly"));
-  els.subscribeAnnualButton?.addEventListener("click", () => startCheckout("annual"));
+  els.viewPlansButton?.addEventListener("click", openPlansDialog);
   els.manageSubscriptionButton?.addEventListener("click", openBillingPortal);
+  els.planMonthlyButton?.addEventListener("click", () => startCheckout("monthly"));
+  els.planAnnualButton?.addEventListener("click", () => startCheckout("annual"));
+  els.announcementViewPlansButton?.addEventListener("click", () => {
+    dismissAnnouncementBanner();
+    openPlansDialog();
+  });
+  els.announcementDismissButton?.addEventListener("click", dismissAnnouncementBanner);
 
   document.querySelectorAll(".pillar-button").forEach((button) => {
     button.addEventListener("click", () => setActivePillar(button.dataset.pillar));
@@ -1292,6 +1305,7 @@ async function handleSession(session) {
 
   await loadCloudState();
   notifyCheckoutReturn();
+  maybeShowAnnouncementBanner();
 }
 
 function isAuthEmailConfirmed(user) {
@@ -1726,7 +1740,15 @@ function canMutateData() {
 
 function openSubscriptionRequiredNotice() {
   toast("Tu periodo de prueba ha terminado. Suscribete para seguir editando.");
-  openProfileDialog();
+  openPlansDialog();
+}
+
+function openPlansDialog() {
+  closeDialog("profileDialog");
+  setPlansMessage("");
+  els.planMonthlyButton.disabled = false;
+  els.planAnnualButton.disabled = false;
+  showDialog(els.plansDialog);
 }
 
 function getSubscriptionTrialDaysLeft(subscription) {
@@ -1742,8 +1764,7 @@ function renderSubscriptionSection() {
     els.profileSubscriptionBadge.textContent = "Cargando...";
     els.profileSubscriptionBadge.className = "badge";
     els.profileSubscriptionDetail.textContent = "";
-    els.subscribeMonthlyButton.hidden = true;
-    els.subscribeAnnualButton.hidden = true;
+    els.viewPlansButton.hidden = true;
     els.manageSubscriptionButton.hidden = true;
     return;
   }
@@ -1781,8 +1802,7 @@ function renderSubscriptionSection() {
   }
 
   const canManageInPortal = Boolean(currentSubscription?.stripe_customer_id);
-  els.subscribeMonthlyButton.hidden = status === "lifetime" || status === "active";
-  els.subscribeAnnualButton.hidden = status === "lifetime" || status === "active";
+  els.viewPlansButton.hidden = status === "lifetime" || status === "active";
   els.manageSubscriptionButton.hidden = !canManageInPortal;
 }
 
@@ -1793,11 +1813,18 @@ function setSubscriptionMessage(message = "", type = "") {
   els.subscriptionMessage.className = `profile-message${type ? ` ${type}` : ""}`;
 }
 
+function setPlansMessage(message = "", type = "") {
+  if (!els.plansMessage) return;
+  els.plansMessage.hidden = !message;
+  els.plansMessage.textContent = message;
+  els.plansMessage.className = `profile-message${type ? ` ${type}` : ""}`;
+}
+
 async function startCheckout(interval) {
   if (!supabaseClient || !currentUser) return;
-  setSubscriptionMessage("Redirigiendo a Stripe...", "info");
-  els.subscribeMonthlyButton.disabled = true;
-  els.subscribeAnnualButton.disabled = true;
+  setPlansMessage("Redirigiendo a Stripe...", "info");
+  els.planMonthlyButton.disabled = true;
+  els.planAnnualButton.disabled = true;
 
   try {
     const { data, error } = await supabaseClient.functions.invoke("create-checkout-session", {
@@ -1807,9 +1834,9 @@ async function startCheckout(interval) {
     if (!data?.url) throw new Error(data?.error || "No se pudo iniciar el pago.");
     window.location.href = data.url;
   } catch (error) {
-    setSubscriptionMessage(error.message || "No se pudo iniciar el pago.", "error");
-    els.subscribeMonthlyButton.disabled = false;
-    els.subscribeAnnualButton.disabled = false;
+    setPlansMessage(error.message || "No se pudo iniciar el pago.", "error");
+    els.planMonthlyButton.disabled = false;
+    els.planAnnualButton.disabled = false;
   }
 }
 
@@ -1844,6 +1871,20 @@ function notifyCheckoutReturn() {
   const nextSearch = params.toString();
   const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", nextUrl);
+}
+
+function maybeShowAnnouncementBanner() {
+  if (!els.announcementBanner) return;
+  if (sessionStorage.getItem(ANNOUNCEMENT_STORAGE_KEY) === "seen") return;
+  if (currentSubscription?.status !== "trialing") return;
+  els.announcementBanner.hidden = false;
+  refreshIcons();
+}
+
+function dismissAnnouncementBanner() {
+  if (!els.announcementBanner) return;
+  sessionStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, "seen");
+  els.announcementBanner.hidden = true;
 }
 
 async function fetchJournalEntries() {

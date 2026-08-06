@@ -4883,18 +4883,115 @@ tbody tr:hover {
 
 .profile-subscription-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 .profile-subscription-actions button {
   min-width: 0;
+  width: 100%;
   justify-content: center;
 }
 
-.profile-subscription-actions button:only-child,
-.profile-subscription-actions #manageSubscriptionButton:not([hidden]) {
-  grid-column: 1 / -1;
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.plan-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.plan-card.featured {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  background:
+    linear-gradient(135deg, var(--accent-soft), transparent 76%),
+    var(--surface-2);
+}
+
+.plan-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: center;
+}
+
+.plan-name {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.plan-price strong {
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.plan-price span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.plan-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.plan-features li svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.plan-cta {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 560px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .modal-header {
@@ -4933,6 +5030,10 @@ tbody tr:hover {
 #journalEntryModeDialog,
 #journalImportDialog {
   width: min(520px, calc(100vw - 24px));
+}
+
+#plansDialog {
+  width: min(640px, calc(100vw - 24px));
 }
 
 #journalImportPreviewDialog {
@@ -5675,6 +5776,85 @@ tbody tr:hover {
 .toast.visible {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+.announcement-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(640px, calc(100vw - 24px));
+  padding: 10px 12px 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, var(--accent-soft), transparent 76%),
+    var(--toast-bg);
+  color: var(--toast-text);
+  box-shadow: var(--shadow-xl);
+  transform: translate(-50%, 0);
+  animation: banner-enter 260ms var(--ease) both;
+}
+
+.announcement-banner[hidden] {
+  display: none;
+}
+
+@keyframes banner-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.announcement-banner > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--accent-strong);
+}
+
+:root[data-theme="dark"] .announcement-banner > svg {
+  color: var(--accent);
+}
+
+.announcement-banner p {
+  margin: 0;
+  min-width: 0;
+  color: var(--toast-text);
+  font-size: 12.8px;
+  line-height: 1.4;
+}
+
+.announcement-banner .secondary-button {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+.announcement-banner .icon-button {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .announcement-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .announcement-banner .secondary-button {
+    margin-left: 28px;
+  }
 }
 
 /* ============= SCROLLBARS ============= */
