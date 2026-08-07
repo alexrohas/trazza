@@ -4837,6 +4837,13 @@ tbody tr:hover {
   justify-content: center;
 }
 
+.field-hint {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .profile-danger-zone {
   display: flex;
   align-items: center;
