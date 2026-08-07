@@ -720,11 +720,19 @@ function bindEvents() {
   document.addEventListener("click", handleEmptyStateAction);
 
   els.confirmAcceptButton.addEventListener("click", async () => {
-    if (confirmHandler) {
-      await confirmHandler();
-      confirmHandler = null;
+    // Se consume el handler antes de ejecutarlo (evita que un doble clic lo dispare dos
+    // veces) y se cierra siempre en finally: si el handler lanza, el dialogo no puede
+    // quedarse atascado con la accion ya ejecutada por detras.
+    const handler = confirmHandler;
+    confirmHandler = null;
+    try {
+      if (handler) await handler();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || "No se pudo completar la accion.");
+    } finally {
+      closeDialog("confirmDialog");
     }
-    closeDialog("confirmDialog");
   });
 
   bindNetChartEvents();
@@ -6406,19 +6414,15 @@ async function saveAccountFromForm(event) {
     const savedAccount = fromDbAccount(result.data);
 
     if (existing) {
-      state.accounts = state.accounts.map((item) => (item.id === id ? savedAccount : item));
-      state.transactions = state.transactions.map((tx) =>
-        tx.accountId === id ? { ...tx, firmId: savedAccount.firmId, updatedAt: nowIso() } : tx
-      );
+      const hasJournalEntries = state.journalEntries.some((entry) => entry.accountId === id);
+
       const txUpdate = await supabaseClient
         .from("transactions")
         .update({ firm_id: savedAccount.firmId })
         .eq("account_id", id);
       throwIfSupabaseError(txUpdate);
-      if (state.journalEntries.some((entry) => entry.accountId === id)) {
-        state.journalEntries = state.journalEntries.map((entry) =>
-          entry.accountId === id ? { ...entry, firmId: savedAccount.firmId, updatedAt: nowIso() } : entry
-        );
+
+      if (hasJournalEntries) {
         const journalUpdate = await supabaseClient
           .from("journal_entries")
           .update({ firm_id: savedAccount.firmId })
@@ -6427,6 +6431,19 @@ async function saveAccountFromForm(event) {
           throw new Error("Crea la tabla journal_entries en Supabase para sincronizar el journal.");
         }
         throwIfSupabaseError(journalUpdate);
+      }
+
+      // Solo tocamos el estado local cuando la nube ya confirmo todos los cambios en
+      // cascada. Si se muta antes y una de esas llamadas falla, la interfaz muestra
+      // movimientos y entradas reasignados a una empresa que nunca llego a guardarse.
+      state.accounts = state.accounts.map((item) => (item.id === id ? savedAccount : item));
+      state.transactions = state.transactions.map((tx) =>
+        tx.accountId === id ? { ...tx, firmId: savedAccount.firmId, updatedAt: nowIso() } : tx
+      );
+      if (hasJournalEntries) {
+        state.journalEntries = state.journalEntries.map((entry) =>
+          entry.accountId === id ? { ...entry, firmId: savedAccount.firmId, updatedAt: nowIso() } : entry
+        );
       }
     } else {
       state.accounts.push(savedAccount);
@@ -6829,6 +6846,22 @@ function exportJson() {
   toast("JSON exportado.");
 }
 
+// Copia de seguridad automatica antes de una operacion destructiva (importar/migrar).
+// No avisa por toast: el mensaje lo da el flujo que la llama.
+function downloadStateBackup() {
+  const payload = {
+    exportedAt: nowIso(),
+    app: "trazza",
+    version: 1,
+    data: state,
+  };
+  downloadFile(
+    `trazza-copia-antes-de-importar-${today()}.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json"
+  );
+}
+
 function exportCsv() {
   const rows = [
     ["fecha", "tipo", "categoria", "firm", "cuenta", "nota", "importe", "moneda"],
@@ -6892,7 +6925,7 @@ function importJson(event) {
       if (currentUser && hasStateData(state)) {
         openConfirm(
           "Importar copia",
-          "La importación JSON sustituirá los datos actuales de esta cuenta. Descarga una copia antes si quieres conservarlos.",
+          "La importación JSON sustituirá los datos actuales de esta cuenta. Se descargará automáticamente una copia de seguridad antes de empezar.",
           applyImport
         );
       } else {
@@ -6929,6 +6962,15 @@ async function replaceCloudState(imported) {
   if (!currentUser) throw new Error("Inicia sesion para importar datos.");
 
   const mapped = remapStateForCloud(imported);
+
+  // Supabase no ejecuta esto como una transaccion: primero se borra todo y despues se
+  // reinserta. Si un insert falla a mitad, los datos anteriores ya no existen, asi que
+  // se descarga una copia automatica antes de tocar nada.
+  const hadPreviousData = hasStateData(state);
+  if (hadPreviousData) {
+    downloadStateBackup();
+  }
+
   const deleteJournalErrorTypes = await supabaseClient.from("journal_error_types").delete().eq("user_id", currentUser.id);
   const hasJournalErrorTypesTable = !deleteJournalErrorTypes.error;
   if (deleteJournalErrorTypes.error && !isMissingJournalErrorTypesTableError(deleteJournalErrorTypes.error)) {
@@ -6943,25 +6985,37 @@ async function replaceCloudState(imported) {
   const deleteFirms = await supabaseClient.from("firms").delete().eq("user_id", currentUser.id);
   throwIfSupabaseError(deleteFirms);
 
-  if (mapped.firms.length) {
-    const result = await supabaseClient.from("firms").insert(mapped.firms.map(firmToDb));
-    throwIfSupabaseError(result);
-  }
-  if (mapped.accounts.length) {
-    const result = await supabaseClient.from("accounts").insert(mapped.accounts.map(accountToDb));
-    throwIfSupabaseError(result);
-  }
-  if (mapped.transactions.length) {
-    const result = await supabaseClient.from("transactions").insert(mapped.transactions.map(transactionToDb));
-    throwIfSupabaseError(result);
-  }
-  if (mapped.journalErrorTypes.length && hasJournalErrorTypesTable) {
-    const result = await supabaseClient.from("journal_error_types").insert(mapped.journalErrorTypes.map(journalErrorTypeToDb));
-    throwIfSupabaseError(result);
-  }
-  if (mapped.journalEntries.length && hasJournalTable) {
-    const result = await supabaseClient.from("journal_entries").insert(mapped.journalEntries.map(journalEntryToDb));
-    handleJournalTableResult(result, true);
+  try {
+    if (mapped.firms.length) {
+      const result = await supabaseClient.from("firms").insert(mapped.firms.map(firmToDb));
+      throwIfSupabaseError(result);
+    }
+    if (mapped.accounts.length) {
+      const result = await supabaseClient.from("accounts").insert(mapped.accounts.map(accountToDb));
+      throwIfSupabaseError(result);
+    }
+    if (mapped.transactions.length) {
+      const result = await supabaseClient.from("transactions").insert(mapped.transactions.map(transactionToDb));
+      throwIfSupabaseError(result);
+    }
+    if (mapped.journalErrorTypes.length && hasJournalErrorTypesTable) {
+      const result = await supabaseClient.from("journal_error_types").insert(mapped.journalErrorTypes.map(journalErrorTypeToDb));
+      throwIfSupabaseError(result);
+    }
+    if (mapped.journalEntries.length && hasJournalTable) {
+      const result = await supabaseClient.from("journal_entries").insert(mapped.journalEntries.map(journalEntryToDb));
+      handleJournalTableResult(result, true);
+    }
+  } catch (error) {
+    // Los borrados de arriba ya se aplicaron, asi que aqui los datos anteriores ya no
+    // existen. Hay que decirlo claramente en vez de un "no se pudieron importar" que
+    // sugiere que no ha pasado nada.
+    if (hadPreviousData) {
+      throw new Error(
+        `La importacion fallo despues de borrar los datos anteriores. Vuelve a importar el archivo de copia que se descargo automaticamente al empezar. Detalle: ${error.message}`
+      );
+    }
+    throw error;
   }
 
   await loadCloudState();
