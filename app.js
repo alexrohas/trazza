@@ -2055,7 +2055,7 @@ function getInitialTheme() {
     localStorage.getItem(THEME_STORAGE_KEY) ||
     LEGACY_THEME_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
   if (!localStorage.getItem(THEME_STORAGE_KEY) && stored) {
-    localStorage.setItem(THEME_STORAGE_KEY, stored);
+    safeLocalSet(THEME_STORAGE_KEY, stored);
   }
   if (stored === "light" || stored === "dark") return stored;
   return "light";
@@ -2095,7 +2095,7 @@ function applySidebarState() {
 
 function toggleTheme() {
   const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  safeLocalSet(THEME_STORAGE_KEY, nextTheme);
   applyTheme(nextTheme);
   updateThemeToggle();
   drawCharts(getDashboardSummary());
@@ -2104,7 +2104,7 @@ function toggleTheme() {
 
 function toggleDashboardPrivacy() {
   dashboardPrivacyHidden = !dashboardPrivacyHidden;
-  localStorage.setItem(DASHBOARD_PRIVACY_STORAGE_KEY, dashboardPrivacyHidden ? "hidden" : "visible");
+  safeLocalSet(DASHBOARD_PRIVACY_STORAGE_KEY, dashboardPrivacyHidden ? "hidden" : "visible");
   applyDashboardPrivacyState();
   updateDashboardPrivacyToggle();
   renderDashboard();
@@ -2113,7 +2113,7 @@ function toggleDashboardPrivacy() {
 
 function toggleSidebarCollapsed() {
   sidebarCollapsed = !sidebarCollapsed;
-  localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarCollapsed ? "collapsed" : "expanded");
+  safeLocalSet(SIDEBAR_STORAGE_KEY, sidebarCollapsed ? "collapsed" : "expanded");
   applySidebarState();
   refreshChartsAfterSidebarChange();
   refreshIcons();
@@ -2227,7 +2227,7 @@ function loadState() {
       LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
     if (!raw) return structuredClone(defaultState);
     if (!localStorage.getItem(STORAGE_KEY)) {
-      localStorage.setItem(STORAGE_KEY, raw);
+      safeLocalSet(STORAGE_KEY, raw);
     }
     const parsed = JSON.parse(raw);
     return {
@@ -2243,7 +2243,24 @@ function loadState() {
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Con sesion iniciada Supabase es la fuente de verdad: loadCloudState() reescribe `state`
+  // en cada arranque, asi que esta copia local nunca se vuelve a leer. Guardarla solo duplica
+  // los datos (incluidas las capturas del journal en base64), revienta la cuota de
+  // localStorage y aborta el guardado a medias, dejando el modal abierto.
+  if (currentUser) return;
+  safeLocalSet(STORAGE_KEY, JSON.stringify(state));
+}
+
+// localStorage puede fallar por cuota llena o por modo privado. Nunca debe tumbar el flujo
+// que la llama: son preferencias y copias locales, no la fuente de verdad.
+function safeLocalSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`No se pudo guardar "${key}" en localStorage.`, error);
+    return false;
+  }
 }
 
 function throwIfSupabaseError(result) {
@@ -2465,7 +2482,7 @@ function setActivePillar(pillar) {
   if (!pillarDefaultSections[pillar]) return;
   if (pillar === "journal") {
     journalView = "dashboard";
-    localStorage.setItem(JOURNAL_VIEW_STORAGE_KEY, journalView);
+    safeLocalSet(JOURNAL_VIEW_STORAGE_KEY, journalView);
   }
   setActiveSection(pillarDefaultSections[pillar]);
 }
@@ -2473,7 +2490,7 @@ function setActivePillar(pillar) {
 function setJournalView(view) {
   if (!["dashboard", "entries"].includes(view)) return;
   journalView = view;
-  localStorage.setItem(JOURNAL_VIEW_STORAGE_KEY, journalView);
+  safeLocalSet(JOURNAL_VIEW_STORAGE_KEY, journalView);
   if (els.journalSection) {
     els.journalSection.dataset.journalView = journalView;
   }
@@ -2496,7 +2513,7 @@ function setActiveSection(section) {
 
   activeSection = section;
   activePillar = sectionPillars[section];
-  localStorage.setItem(PILLAR_STORAGE_KEY, activePillar);
+  safeLocalSet(PILLAR_STORAGE_KEY, activePillar);
 
   document.querySelectorAll(".section-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `${section}Section`);
@@ -6900,7 +6917,7 @@ async function migrateLocalData() {
 
   try {
     await replaceCloudState(localState);
-    localStorage.setItem(LOCAL_MIGRATED_KEY, nowIso());
+    safeLocalSet(LOCAL_MIGRATED_KEY, nowIso());
     updateMigrationButton();
     toast("Datos locales subidos a Supabase.");
   } catch (error) {
@@ -7049,7 +7066,7 @@ function maybeCreateLocalMigrationBackup() {
   if (localStorage.getItem(LOCAL_MIGRATION_BACKUP_KEY)) return;
   const raw = findLocalStateRaw([STORAGE_KEY, ...LEGACY_STORAGE_KEYS]);
   if (raw) {
-    localStorage.setItem(LOCAL_MIGRATION_BACKUP_KEY, raw);
+    safeLocalSet(LOCAL_MIGRATION_BACKUP_KEY, raw);
   }
 }
 
