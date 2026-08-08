@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { es, type TranslationKey } from "./es";
 import { en } from "./en";
+import { safeLocalGet, safeLocalSet } from "../storage";
 
 export type Language = "es" | "en";
 
@@ -17,8 +18,7 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 function readStoredLanguage(): Language {
-  if (typeof window === "undefined") return "es";
-  return window.localStorage.getItem(storageKey) === "en" ? "en" : "es";
+  return safeLocalGet(storageKey) === "en" ? "en" : "es";
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -26,9 +26,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(storageKey, next);
-    }
+    safeLocalSet(storageKey, next);
   }, []);
 
   const t = useCallback((key: TranslationKey) => dictionaries[language][key] ?? es[key], [language]);

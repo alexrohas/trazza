@@ -18,6 +18,7 @@ type AuthScreenProps = {
 export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp, onThemeToggle, theme }: AuthScreenProps) {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [fullName, setFullName] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const isSignup = mode === "signup";
@@ -138,6 +139,28 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
               </button>
             )}
 
+            {isSignup && (
+              <label className="auth-terms">
+                <input
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  required
+                  type="checkbox"
+                />
+                <span>
+                  {t("auth.terms.prefix")}{" "}
+                  <a href="/legal.html#terminos" rel="noopener" target="_blank">
+                    {t("auth.terms.terms")}
+                  </a>{" "}
+                  {t("auth.terms.and")}{" "}
+                  <a href="/legal.html#privacidad" rel="noopener" target="_blank">
+                    {t("auth.terms.privacy")}
+                  </a>
+                  .
+                </span>
+              </label>
+            )}
+
             {message && <p className={`auth-message ${message.type}`}>{message.text}</p>}
 
             <button className="primary-action" disabled={busy} type="submit">
@@ -148,7 +171,10 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
           <button
             className="auth-switch"
             disabled={busy}
-            onClick={() => setMode(isForgot ? "signin" : isSignup ? "signin" : "signup")}
+            onClick={() => {
+              setTermsAccepted(false);
+              setMode(isForgot ? "signin" : isSignup ? "signin" : "signup");
+            }}
             type="button"
           >
             {isForgot ? t("auth.switch.backToSignin") : isSignup ? t("auth.switch.haveAccount") : t("auth.switch.createAccount")}

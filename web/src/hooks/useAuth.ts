@@ -135,6 +135,10 @@ export function useAuth() {
           data: {
             full_name: fullName || "",
             name: fullName || "",
+            // Registro de aceptacion de terminos: el checkbox es obligatorio en el
+            // formulario, aqui se deja constancia de cuando y de que version.
+            terms_accepted_at: new Date().toISOString(),
+            terms_version: "2026-08-06",
           },
           emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
         },
@@ -172,6 +176,34 @@ export function useAuth() {
     setSession(null);
     setUser(null);
   }, []);
+
+  const deleteAccount = useCallback(async () => {
+    if (!supabaseClient || !user) return false;
+    setBusy(true);
+    setMessage({ type: "info", text: "Eliminando cuenta..." });
+
+    try {
+      const { error } = await supabaseClient.functions.invoke("delete-account");
+      if (error) throw error;
+    } catch (caught) {
+      setBusy(false);
+      setMessage({
+        type: "error",
+        text: caught instanceof Error ? caught.message : "No se pudo eliminar la cuenta.",
+      });
+      return false;
+    }
+
+    // La cuenta ya no existe en el servidor, asi que el signOut fallara con
+    // "user_not_found". Es esperado: se ignora y se limpia el estado local a mano.
+    await supabaseClient.auth.signOut().catch(() => undefined);
+    setBusy(false);
+    setStatus("anonymous");
+    setSession(null);
+    setUser(null);
+    setMessage({ type: "success", text: "Tu cuenta ha sido eliminada." });
+    return true;
+  }, [user]);
 
   const resetPassword = useCallback(async (email: string) => {
     if (!supabaseClient) return false;
@@ -249,6 +281,7 @@ export function useAuth() {
 
   return {
     busy,
+    deleteAccount,
     message,
     profile,
     recoveryMode,

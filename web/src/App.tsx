@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Languages, Moon, Sun } from "lucide-react";
 import { AccountsView } from "./components/AccountsView";
 import { AppShell } from "./components/AppShell";
@@ -7,8 +7,10 @@ import { DashboardView } from "./components/DashboardView";
 import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
+import { PlansModal } from "./components/PlansModal";
 import { SettingsView } from "./components/SettingsView";
 import { useAuth } from "./hooks/useAuth";
+import { useSubscription } from "./hooks/useSubscription";
 import { useTheme } from "./hooks/useTheme";
 import { useTrazzaData } from "./hooks/useTrazzaData";
 import { useI18n, useT } from "./lib/i18n/context";
@@ -29,8 +31,46 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
+  const subscription = useSubscription(auth.user);
+  const [plansOpen, setPlansOpen] = useState(false);
   const { accounts, firms, journalEntries, journalErrorTypes, movements } = dataState.data;
   const currency = auth.profile?.currency ?? "EUR";
+
+  const { canMutateData } = subscription;
+
+  /**
+   * Paywall en un unico punto: en vez de repetir la comprobacion en cada vista, se
+   * envuelven aqui las mutaciones. Si el acceso no esta activo se abre el selector de
+   * planes en lugar de fallar en silencio. Todas devuelven Promise<boolean>, asi que la
+   * firma se mantiene intacta para las vistas.
+   */
+  const guard = useCallback(
+    <TArgs extends unknown[]>(action: (...args: TArgs) => Promise<boolean>) =>
+      async (...args: TArgs): Promise<boolean> => {
+        if (!canMutateData) {
+          setPlansOpen(true);
+          return false;
+        }
+        return action(...args);
+      },
+    [canMutateData],
+  );
+
+  const guarded = useMemo(
+    () => ({
+      deleteAccount: guard(dataState.deleteAccount),
+      deleteFirm: guard(dataState.deleteFirm),
+      deleteJournalEntry: guard(dataState.deleteJournalEntry),
+      deleteMovement: guard(dataState.deleteMovement),
+      saveAccount: guard(dataState.saveAccount),
+      saveFirm: guard(dataState.saveFirm),
+      saveJournalEntry: guard(dataState.saveJournalEntry),
+      saveJournalErrorType: guard(dataState.saveJournalErrorType),
+      saveMovement: guard(dataState.saveMovement),
+      setJournalErrorTypeActive: guard(dataState.setJournalErrorTypeActive),
+    }),
+    [dataState, guard],
+  );
 
   const visibleAccounts = useMemo(
     () => (selectedAccountId === "all" ? accounts : accounts.filter((account) => account.id === selectedAccountId)),
@@ -141,9 +181,9 @@ export default function App() {
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
-          onDeleteFirm={dataState.deleteFirm}
+          onDeleteFirm={guarded.deleteFirm}
           onNewFirmRequestHandled={() => setCreateRequest(null)}
-          onSaveFirm={dataState.saveFirm}
+          onSaveFirm={guarded.saveFirm}
         />
       )}
       {activeView === "accounts" && (
@@ -158,9 +198,9 @@ export default function App() {
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
-          onDeleteAccount={dataState.deleteAccount}
+          onDeleteAccount={guarded.deleteAccount}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
-          onSaveAccount={dataState.saveAccount}
+          onSaveAccount={guarded.saveAccount}
         />
       )}
       {activeView === "movements" && (
@@ -174,9 +214,9 @@ export default function App() {
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
-          onDeleteMovement={dataState.deleteMovement}
+          onDeleteMovement={guarded.deleteMovement}
           onNewMovementRequestHandled={() => setCreateRequest(null)}
-          onSaveMovement={dataState.saveMovement}
+          onSaveMovement={guarded.saveMovement}
         />
       )}
       {(activeView === "journalDashboard" || activeView === "journalEntries") && (
@@ -195,11 +235,11 @@ export default function App() {
           selectedAccountId={selectedAccountId}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
-          onDeleteEntry={dataState.deleteJournalEntry}
+          onDeleteEntry={guarded.deleteJournalEntry}
           onNewEntryRequestHandled={() => setCreateRequest(null)}
-          onSaveErrorType={dataState.saveJournalErrorType}
-          onSaveEntry={dataState.saveJournalEntry}
-          onSetErrorTypeActive={dataState.setJournalErrorTypeActive}
+          onSaveErrorType={guarded.saveJournalErrorType}
+          onSaveEntry={guarded.saveJournalEntry}
+          onSetErrorTypeActive={guarded.setJournalErrorTypeActive}
         />
       )}
       {activeView === "settings" && (
@@ -212,9 +252,24 @@ export default function App() {
           mutating={dataState.mutating}
           profile={auth.profile}
           theme={themeState.theme}
+          onDeleteAccount={auth.deleteAccount}
           onImportData={dataState.importData}
           onThemeChange={themeState.setTheme}
           onUpdateProfile={auth.updateProfile}
+          subscription={subscription}
+          onViewPlans={() => setPlansOpen(true)}
+        />
+      )}
+
+      {plansOpen && (
+        <PlansModal
+          busy={subscription.busy}
+          error={subscription.error}
+          onClose={() => {
+            setPlansOpen(false);
+            subscription.clearError();
+          }}
+          onSelect={(interval) => void subscription.startCheckout(interval)}
         />
       )}
     </AppShell>

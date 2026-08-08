@@ -11,6 +11,7 @@ import type {
   MovementKind,
 } from "../types";
 import { normalizeJournalErrorTypes } from "./journalErrors";
+import { safeLocalGet, safeLocalSet } from "./storage";
 
 const storageKeys = ["trazza:v1", "finix:v1", "prop-firm-tracker:v1"];
 const backupStorageKey = "trazza:local-backup-before-react-cloud";
@@ -75,10 +76,13 @@ export function findLocalMigrationSource(): LocalMigrationSource | null {
 
 export function markLocalMigrationComplete(source?: LocalMigrationSource | null) {
   if (typeof window === "undefined") return;
-  if (source?.raw && !window.localStorage.getItem(backupStorageKey)) {
-    window.localStorage.setItem(backupStorageKey, source.raw);
+  // Se llama despues de una importacion que ya ha ido bien. `source.raw` puede ser el
+  // dataset legado entero, asi que es justo el tipo de escritura que revienta la cuota:
+  // si fallara sin proteger, tumbaria el flujo y pareceria que la importacion fallo.
+  if (source?.raw && !safeLocalGet(backupStorageKey)) {
+    safeLocalSet(backupStorageKey, source.raw);
   }
-  window.localStorage.setItem(migratedStorageKey, new Date().toISOString());
+  safeLocalSet(migratedStorageKey, new Date().toISOString());
 }
 
 export function parseTrazzaImport(raw: string): AppData {

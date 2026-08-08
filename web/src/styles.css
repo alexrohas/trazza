@@ -2176,6 +2176,182 @@ button {
   width: min(100%, 980px);
 }
 
+/* El modal de planes es mas estrecho que el resto de modales anchos: dos tarjetas
+   comodas, no una tabla de datos. */
+.modal-card.is-wide:has(.plans-grid) {
+  width: min(100%, 640px);
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.plan-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.plan-card.is-featured {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  background:
+    linear-gradient(140deg, var(--accent-soft), transparent 72%),
+    var(--surface-muted);
+}
+
+.plan-badge {
+  position: absolute;
+  top: -11px;
+  right: 18px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.plan-name {
+  color: var(--strong-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+}
+
+.plan-price strong {
+  color: var(--text);
+  font-size: 31px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.plan-price span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.plan-features {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.plan-features svg {
+  flex-shrink: 0;
+  color: var(--positive);
+}
+
+.plan-cta {
+  width: 100%;
+  justify-content: center;
+}
+
+.danger-panel {
+  border-color: color-mix(in srgb, var(--negative) 26%, var(--line));
+}
+
+.danger-panel .danger-action {
+  align-self: flex-start;
+  margin-top: 12px;
+}
+
+.auth-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.auth-terms input {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.auth-terms a {
+  color: var(--strong-muted);
+  font-weight: 600;
+}
+
+.subscription-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.subscription-badge.is-positive {
+  border-color: color-mix(in srgb, var(--positive) 34%, var(--line));
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.subscription-badge.is-negative {
+  border-color: color-mix(in srgb, var(--negative) 34%, var(--line));
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.subscription-badge.is-neutral {
+  color: var(--strong-muted);
+}
+
+.subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.plans-error {
+  margin: 12px 0 0;
+  color: var(--negative);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;

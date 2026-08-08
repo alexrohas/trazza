@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { safeLocalSet } from "../lib/storage";
 
 export type JournalWidgetId = "kpis" | "pnl" | "recent" | "session" | "emotion" | "errors" | "weekday" | "calendar";
 
@@ -48,9 +49,7 @@ export function useJournalDashboardLayout() {
 
   const persist = useCallback((next: JournalDashboardLayoutState) => {
     setLayout(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(storageKey, JSON.stringify(next));
-    }
+    safeLocalSet(storageKey, JSON.stringify(next));
   }, []);
 
   const moveWidget = useCallback(

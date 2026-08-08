@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, Languages, Moon, Save, Sun } from "lucide-react";
+import { Download, FileUp, Languages, Moon, Save, Sun, Trash2 } from "lucide-react";
 import {
   findLocalMigrationSource,
   hasImportData,
@@ -9,6 +9,8 @@ import {
   type LocalMigrationSource,
 } from "../lib/legacyImport";
 import { useI18n, useT } from "../lib/i18n/context";
+import { SubscriptionPanel } from "./SubscriptionPanel";
+import type { useSubscription } from "../hooks/useSubscription";
 import type { AppData, Currency, DataMode, UserProfile, UserProfileInput } from "../types";
 
 type SettingsViewProps = {
@@ -20,9 +22,12 @@ type SettingsViewProps = {
   mutating: boolean;
   profile: UserProfile | null;
   theme: "light" | "dark";
+  onDeleteAccount: () => Promise<boolean>;
   onImportData: (data: AppData) => Promise<boolean>;
   onThemeChange: (theme: "light" | "dark") => void;
   onUpdateProfile: (input: UserProfileInput) => Promise<boolean>;
+  onViewPlans: () => void;
+  subscription: ReturnType<typeof useSubscription>;
 };
 
 export function SettingsView({
@@ -32,10 +37,13 @@ export function SettingsView({
   message,
   mutationError,
   mutating,
+  onDeleteAccount,
   onImportData,
   onThemeChange,
   onUpdateProfile,
+  onViewPlans,
   profile,
+  subscription,
   theme,
 }: SettingsViewProps) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,6 +102,8 @@ export function SettingsView({
 
   return (
     <div className="settings-grid">
+      <SubscriptionPanel onViewPlans={onViewPlans} subscription={subscription} />
+
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
@@ -258,6 +268,27 @@ export function SettingsView({
         </div>
         {migrationMessage && <p className={`mutation-message ${migrationMessage.type}`}>{migrationMessage.text}</p>}
         {mutationError && <p className="mutation-message error">{mutationError}</p>}
+      </section>
+
+      <section className="panel settings-panel danger-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>{t("settings.danger.title")}</h2>
+            <p>{t("settings.danger.description")}</p>
+          </div>
+        </div>
+        <button
+          className="danger-action"
+          disabled={busy}
+          onClick={() => {
+            if (!window.confirm(t("settings.danger.confirm"))) return;
+            void onDeleteAccount();
+          }}
+          type="button"
+        >
+          <Trash2 size={15} strokeWidth={2.2} />
+          {t("settings.danger.button")}
+        </button>
       </section>
     </div>
   );

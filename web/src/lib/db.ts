@@ -273,11 +273,21 @@ export async function replaceCloudData(client: SupabaseClient, userId: string, i
   await deleteRequiredUserRows(client, "accounts", userId, "No se pudieron eliminar las cuentas actuales.");
   await deleteRequiredUserRows(client, "firms", userId, "No se pudieron eliminar las empresas actuales.");
 
-  await insertRows(client, "firms", mapped.firms, "No se pudieron importar las empresas.");
-  await insertRows(client, "accounts", mapped.accounts, "No se pudieron importar las cuentas.");
-  await insertRows(client, "transactions", mapped.movements, "No se pudieron importar los movimientos.");
-  await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar las entradas de journal.");
-  await insertRows(client, "journal_error_types", mapped.journalErrorTypes, "No se pudieron importar los tipos de error.");
+  // A partir de aqui los datos anteriores ya no existen y Supabase no ejecuta esto como
+  // una transaccion. Si un insert falla, la cuenta queda a medias: el mensaje tiene que
+  // decirlo y remitir a la copia, no sugerir que no ha pasado nada.
+  try {
+    await insertRows(client, "firms", mapped.firms, "No se pudieron importar las empresas.");
+    await insertRows(client, "accounts", mapped.accounts, "No se pudieron importar las cuentas.");
+    await insertRows(client, "transactions", mapped.movements, "No se pudieron importar los movimientos.");
+    await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar las entradas de journal.");
+    await insertRows(client, "journal_error_types", mapped.journalErrorTypes, "No se pudieron importar los tipos de error.");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `La importacion fallo despues de borrar los datos anteriores. Vuelve a importar el archivo de copia que se descargo automaticamente al empezar. Detalle: ${detail}`,
+    );
+  }
 }
 
 function unwrapRows(result: QueryResult) {
