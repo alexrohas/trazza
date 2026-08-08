@@ -28,6 +28,8 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
 
   return (
     <main className="auth-screen">
+      <img className="auth-logo" src="/trazza.png" alt="Trazza" />
+
       <div className="auth-top-actions">
         <button
           className="auth-theme-toggle"
@@ -44,18 +46,9 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
       </div>
 
       <section className="auth-layout">
-        <div className="auth-copy">
-          <img className="auth-logo" src="/trazza.png" alt="Trazza" />
-          <p className="auth-kicker">{t("auth.kicker")}</p>
-          <h1>{isForgot ? t("auth.title.forgot") : isSignup ? t("auth.title.signup") : t("auth.title.signin")}</h1>
-          <p>{t("auth.subtitle")}</p>
-        </div>
-
-        <section className="auth-card" aria-label={isForgot ? t("auth.badge.forgot") : isSignup ? t("auth.badge.signup") : t("auth.badge.signin")}>
+        <section className="auth-card" aria-label={isForgot ? t("auth.heading.forgot") : isSignup ? t("auth.heading.signup") : t("auth.heading.signin")}>
           <div className="auth-heading">
-            <span>{isForgot ? t("auth.badge.forgot") : isSignup ? t("auth.badge.signup") : t("auth.badge.signin")}</span>
             <h2>{isForgot ? t("auth.heading.forgot") : isSignup ? t("auth.heading.signup") : t("auth.heading.signin")}</h2>
-            <p>{isForgot ? t("auth.copy.forgot") : isSignup ? t("auth.copy.signup") : t("auth.copy.signin")}</p>
           </div>
 
           <form
@@ -180,11 +173,6 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
             {isForgot ? t("auth.switch.backToSignin") : isSignup ? t("auth.switch.haveAccount") : t("auth.switch.createAccount")}
           </button>
         </section>
-      </section>
-
-      <section className="auth-preview" aria-hidden="true">
-        <img className="auth-preview-image auth-preview-dark" src="/login-dashboard.png" alt="" />
-        <img className="auth-preview-image auth-preview-light" src="/login-dashboard-light.png" alt="" />
       </section>
     </main>
   );

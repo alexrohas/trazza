@@ -297,6 +297,8 @@ function ResetPasswordScreen({
 
   return (
     <main className="auth-screen">
+      <img className="auth-logo" src="/trazza.png" alt="Trazza" />
+
       <div className="auth-top-actions">
         <button
           className="auth-theme-toggle"
@@ -313,18 +315,9 @@ function ResetPasswordScreen({
       </div>
 
       <section className="auth-layout">
-        <div className="auth-copy">
-          <img className="auth-logo" src="/trazza.png" alt="Trazza" />
-          <p className="auth-kicker">{t("auth.kicker")}</p>
-          <h1>{t("auth.reset.title")}</h1>
-          <p>{t("auth.reset.subtitle")}</p>
-        </div>
-
         <section className="auth-card" aria-label={t("auth.reset.newPassword")}>
           <div className="auth-heading">
-            <span>{t("auth.reset.badge")}</span>
             <h2>{t("auth.reset.heading")}</h2>
-            <p>{t("auth.reset.copy")}</p>
           </div>
 
           <form
