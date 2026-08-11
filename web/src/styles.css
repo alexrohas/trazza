@@ -254,9 +254,11 @@
 :root[data-theme="dark"] .firm-form input,
 :root[data-theme="dark"] .firm-form select,
 :root[data-theme="dark"] .firm-form textarea,
+:root[data-theme="dark"] .firm-form .custom-select-trigger,
 :root[data-theme="dark"] .entity-form input,
 :root[data-theme="dark"] .entity-form select,
 :root[data-theme="dark"] .entity-form textarea,
+:root[data-theme="dark"] .entity-form .custom-select-trigger,
 :root[data-theme="dark"] .journal-breakdown-empty,
 :root[data-theme="dark"] .journal-breakdown-row,
 :root[data-theme="dark"] .journal-account-overview-stats div,
@@ -1623,13 +1625,13 @@ button {
 
 .view-stack {
   display: grid;
-  gap: 14px;
+  gap: 20px;
 }
 
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .journal-kpi-grid .metric-card {
@@ -1705,11 +1707,6 @@ button {
   color: var(--negative);
 }
 
-.metric-card small {
-  color: var(--muted);
-  font-weight: 600;
-}
-
 .metric-card.positive .metric-icon,
 .positive {
   color: var(--positive);
@@ -1727,7 +1724,7 @@ button {
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.75fr);
-  gap: 14px;
+  gap: 20px;
 }
 
 .period-summary-panel {
@@ -1776,21 +1773,10 @@ button {
   gap: 10px;
 }
 
-.period-month-chart-head > div:first-child {
-  display: grid;
-  gap: 3px;
-}
-
 .period-month-chart-head span {
   color: var(--text);
   font-size: 0.86rem;
   font-weight: 900;
-}
-
-.period-month-chart-head small {
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 750;
 }
 
 .period-range-tabs {
@@ -1933,7 +1919,7 @@ button {
 .dashboard-insights {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 20px;
 }
 
 .dashboard-insights .table-panel {
@@ -2006,8 +1992,22 @@ button {
   background: linear-gradient(90deg, var(--negative), color-mix(in srgb, var(--negative) 42%, transparent));
 }
 
+/* El toggle vive fuera de cualquier tarjeta: en el Panel, la tarjeta de filtros solo
+   existia para alojarlos, asi que cerrada dejaba una barra blanca vacia. El margen
+   negativo recorta el hueco del .view-stack para que el icono quede pegado al
+   contenido que filtra, no flotando en medio. */
+.dashboard-filter-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -12px;
+}
+
 .dashboard-filter-panel {
+  display: grid;
+  gap: 14px;
   padding: 14px;
+  transform-origin: top right;
+  animation: expand-from-toggle var(--dur-slow) var(--ease-overshoot) backwards;
 }
 
 .view-filter-panel {
@@ -2026,6 +2026,8 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 9px;
   align-items: end;
+  transform-origin: top right;
+  animation: expand-from-toggle var(--dur-slow) var(--ease-overshoot) backwards;
 }
 
 .dashboard-filters label,
@@ -2040,10 +2042,13 @@ button {
 
 .dashboard-filters input,
 .dashboard-filters select,
+.dashboard-filters .custom-select-trigger,
 .view-filters input,
 .view-filters select,
+.view-filters .custom-select-trigger,
 .settings-form input,
 .settings-form select,
+.settings-form .custom-select-trigger,
 .month-input {
   width: 100%;
   min-height: 38px;
@@ -2063,16 +2068,307 @@ button {
 .view-filters select:focus,
 .settings-form input:focus,
 .settings-form select:focus,
-.month-input:focus {
+.month-input:focus,
+.dashboard-filters .custom-select-trigger:focus-visible,
+.view-filters .custom-select-trigger:focus-visible,
+.settings-form .custom-select-trigger:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
 }
 
 .dashboard-filters input:disabled,
-.view-filters input:disabled {
+.view-filters input:disabled,
+.dashboard-filters .custom-select-trigger:disabled,
+.view-filters .custom-select-trigger:disabled,
+.settings-form .custom-select-trigger:disabled {
   background: var(--surface-muted);
   color: var(--muted);
   opacity: 0.72;
+}
+
+.filter-toggle-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.filter-toggle-button:hover,
+.filter-toggle-button:focus-visible {
+  background: var(--surface-muted);
+  color: var(--strong-muted);
+}
+
+.filter-toggle-button.has-active-filters {
+  color: var(--accent);
+}
+
+/* Mientras el panel esta desplegado el boton se queda encendido: refuerza que lo que
+   hay debajo salio de aqui, en vez de parecer dos elementos sueltos. */
+.filter-toggle-button[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.filter-toggle-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* Sustituye al <select> nativo (ver Select.tsx). El disparador hereda su aspecto del
+   contexto en el que vive (arriba, junto a cada input/select que sustituye); aqui solo
+   va la estructura compartida: layout, texto truncado, y el panel del desplegable. */
+.custom-select {
+  position: relative;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.custom-select-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-trigger span.is-placeholder {
+  color: var(--muted);
+}
+
+.custom-select-trigger:disabled {
+  cursor: not-allowed;
+}
+
+.custom-select-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.custom-select-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  transform-origin: top center;
+  animation: drop-in var(--dur-fast) var(--ease-overshoot) backwards;
+  max-height: 260px;
+  margin: 0;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+
+.custom-select-panel.is-upward {
+  top: auto;
+  bottom: calc(100% + 4px);
+  transform-origin: bottom center;
+  animation-name: lift-in;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.custom-select-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-option:hover,
+.custom-select-option.is-highlighted {
+  background: var(--surface-muted);
+}
+
+.custom-select-option.is-selected {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.custom-select-option svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Sustituye al calendario de <input type="date">, que lo pinta el navegador fuera del
+   arbol del documento y no admite ni un estilo. Reutiliza el lenguaje del panel del
+   Select (mismo borde, sombra y radio) para que ambos se lean como la misma familia. */
+.date-picker {
+  position: relative;
+}
+
+.date-picker-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  gap: 10px;
+  width: 268px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform-origin: top center;
+  animation: drop-in var(--dur-fast) var(--ease-overshoot) backwards;
+}
+
+.date-picker-panel.is-upward {
+  top: auto;
+  bottom: calc(100% + 4px);
+  transform-origin: bottom center;
+  animation-name: lift-in;
+}
+
+.date-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.date-picker-head strong {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 800;
+  /* El mes viene del locale en minuscula ("agosto de 2026"): se capitaliza aqui en vez
+     de tocar la cadena, que romperia en idiomas donde no aplica. */
+  text-transform: capitalize;
+}
+
+.date-picker-nav {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.date-picker-nav:hover {
+  background: var(--surface-muted);
+  color: var(--strong-muted);
+}
+
+.date-picker-weekdays,
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker-weekdays span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.date-picker-day {
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.date-picker-day:hover {
+  background: var(--surface-muted);
+}
+
+.date-picker-day.is-outside {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+/* Solo un aro, sin relleno: marca el dia de hoy sin competir con el seleccionado. */
+.date-picker-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.date-picker-day.is-selected {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.date-picker-day.is-selected:hover {
+  background: var(--accent-strong);
+}
+
+.date-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+/* Sin "Limpiar" queda un solo boton: se alinea a la derecha en vez de quedarse
+   descolgado a la izquierda por el space-between. */
+.date-picker-actions.is-single {
+  justify-content: flex-end;
+}
+
+.date-picker-action {
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.date-picker-action:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
 }
 
 .result-count {
@@ -2254,6 +2550,7 @@ button {
   position: absolute;
   inset: 0;
   border: 0;
+  animation: fade-in var(--dur) var(--ease) backwards;
   background:
     radial-gradient(circle at 50% 15%, rgba(139, 92, 246, 0.16), transparent 32%),
     rgba(8, 9, 11, 0.62);
@@ -2263,6 +2560,7 @@ button {
 .modal-card {
   position: relative;
   z-index: 1;
+  animation: enter-pop var(--dur) var(--ease-overshoot) backwards;
   width: min(100%, 760px);
   max-height: min(88vh, 840px);
   display: grid;
@@ -2519,6 +2817,91 @@ button {
   line-height: 1.5;
 }
 
+/* Titulo + boton de info en una sola fila, en vez del titulo con un subtitulo fijo
+   debajo. El texto explicativo pasa a ser un tooltip bajo demanda (title nativo, mismo
+   patron que ya usan los botones de zoom del grafico) en vez de ocupar espacio siempre. */
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-hint-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Sin caja ni relleno permanentes: solo el glifo, discreto, hasta que se interactua
+   con el (mismo criterio que los controles de zoom y los campos del login). */
+.info-hint {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  /* El reset global de button (linea ~158) no quita el padding por defecto del
+     navegador. En botones grandes (30-40px) no se nota, pero en esta caja de 18px
+     con un icono de 13px casi no sobraba margen: el padding nativo (~1px 6px en
+     Chromium) lo comprimia y deformaba. */
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: help;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.info-hint:hover,
+.info-hint:focus-visible {
+  background: var(--surface-muted);
+  color: var(--strong-muted);
+}
+
+/* Tooltip propio, no el `title` nativo del navegador: ese no admite estilos. Mismo
+   patron que .journal-entry-mode-help del legado: borde simple, sombra del token
+   compartido (no una sombra inventada), sin blur de fondo. */
+.info-hint-tooltip {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 8px);
+  /* Anclado por la izquierda, no centrado: el icono suele quedar cerca del borde
+     izquierdo de tarjetas estrechas (.metric-card-topline lo deja ahi con
+     justify-content:space-between, el icono grande de estado se va al otro extremo).
+     Centrar el tooltip lo obligaba a invadir ese borde izquierdo, donde no hay sitio,
+     en vez de crecer hacia la derecha, que es donde sobra espacio. */
+  left: -6px;
+  width: max-content;
+  max-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 8px 11px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.info-hint-wrap:hover .info-hint-tooltip,
+.info-hint-wrap:focus-within .info-hint-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.metric-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
 .chart-panel {
   min-height: 374px;
 }
@@ -2539,18 +2922,18 @@ button {
 .chart-zoom-controls {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 4px;
-  background: var(--surface-muted);
+  gap: 2px;
 }
 
 .chart-zoom-controls .compact-icon {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 7px;
-  background: var(--surface);
+  background: transparent;
+}
+
+.chart-zoom-controls .compact-icon:hover:not(:disabled) {
+  background: var(--surface-muted);
 }
 
 .chart-zoom-controls .compact-icon:disabled {
@@ -2639,9 +3022,8 @@ button {
 }
 
 .chart-hover-line {
-  stroke: color-mix(in srgb, var(--accent) 64%, transparent);
-  stroke-dasharray: 5 5;
-  stroke-width: 1.3;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
@@ -2650,10 +3032,6 @@ button {
   stroke: var(--accent-strong);
   stroke-width: 2.6;
   vector-effect: non-scaling-stroke;
-}
-
-.chart-point.is-muted {
-  opacity: 0.42;
 }
 
 .chart-point.is-last {
@@ -4024,11 +4402,19 @@ button {
   gap: 14px;
 }
 
+.account-filter-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .account-filter-row {
   display: grid;
   grid-template-columns: minmax(220px, 0.42fr) auto;
   gap: 10px;
   align-items: end;
+  transform-origin: top right;
+  animation: expand-from-toggle var(--dur-slow) var(--ease-overshoot) backwards;
 }
 
 .account-filter-row label {
@@ -4039,7 +4425,8 @@ button {
   font-weight: 800;
 }
 
-.account-filter-row select {
+.account-filter-row select,
+.account-filter-row .custom-select-trigger {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -4050,6 +4437,11 @@ button {
   outline: 0;
   font-size: 0.86rem;
   font-weight: 650;
+}
+
+.account-filter-row .custom-select-trigger:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
 }
 
 .account-status-tabs {
@@ -4479,9 +4871,11 @@ tbody tr:last-child td {
 .firm-form input,
 .firm-form select,
 .firm-form textarea,
+.firm-form .custom-select-trigger,
 .entity-form input,
 .entity-form select,
-.entity-form textarea {
+.entity-form textarea,
+.entity-form .custom-select-trigger {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -4493,8 +4887,10 @@ tbody tr:last-child td {
 
 .firm-form input,
 .firm-form select,
+.firm-form .custom-select-trigger,
 .entity-form input,
-.entity-form select {
+.entity-form select,
+.entity-form .custom-select-trigger {
   min-height: 44px;
   padding: 0 12px;
 }
@@ -4511,7 +4907,9 @@ tbody tr:last-child td {
 .firm-form textarea:focus,
 .entity-form input:focus,
 .entity-form select:focus,
-.entity-form textarea:focus {
+.entity-form textarea:focus,
+.firm-form .custom-select-trigger:focus-visible,
+.entity-form .custom-select-trigger:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
 }
@@ -5015,15 +5413,18 @@ tbody tr:last-child td {
   grid-column: 1 / -1;
 }
 
+/* Columna unica, ancho contenido: una ventana de ajustes real no estira los
+   formularios a todo el ancho disponible, y evita la auto-colocacion de un grid de
+   2 columnas, que emparejaba tarjetas sin relacion entre si (idioma junto a
+   suscripcion, apariencia junto a perfil) segun fuera cayendo el hueco libre. */
 .settings-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.2fr) minmax(280px, 0.8fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.settings-grid .settings-panel:first-child {
-  grid-row: span 2;
+  gap: 14px;
+  max-width: 760px;
+  /* .workspace es el mismo contenedor a ancho completo que usan las vistas de tablas
+     (Finanzas, Journal...), asi que centrar aqui, en .settings-grid, no las afecta a
+     ellas: solo reparte por igual el hueco libre a ambos lados de esta columna. */
+  margin-inline: auto;
 }
 
 .settings-form {
@@ -5083,8 +5484,23 @@ tbody tr:last-child td {
   font-weight: 900;
 }
 
-.migration-panel {
-  grid-column: 1 / -1;
+.preference-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.preference-row + .preference-row {
+  border-top: 1px solid var(--line);
+}
+
+.preference-label {
+  color: var(--strong-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .migration-actions {

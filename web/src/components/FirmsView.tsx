@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Building2, Check, Pencil, Plus, Trash2, WalletCards } from "lucide-react";
 import { Modal } from "./Modal";
+import { Select } from "./Select";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type { AccountStatus, DataMode, Firm, FirmInput, FirmType, TradingAccount } from "../types";
@@ -174,17 +175,12 @@ export function FirmsView({
 
           <label>
             <span>{t("firm.field.type")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value as FirmType }))}
+              onChange={(next) => setDraft((current) => ({ ...current, type: next as FirmType }))}
+              options={firmTypeOptions}
               value={draft.type}
-            >
-              {firmTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
 
           <label className="firm-notes-field">

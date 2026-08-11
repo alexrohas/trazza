@@ -9,9 +9,15 @@ import {
   type LocalMigrationSource,
 } from "../lib/legacyImport";
 import { useI18n, useT } from "../lib/i18n/context";
+import { Select } from "./Select";
 import { SubscriptionPanel } from "./SubscriptionPanel";
 import type { useSubscription } from "../hooks/useSubscription";
 import type { AppData, Currency, DataMode, UserProfile, UserProfileInput } from "../types";
+
+const currencyOptions = [
+  { label: "EUR", value: "EUR" },
+  { label: "USD", value: "USD" },
+];
 
 type SettingsViewProps = {
   data: AppData;
@@ -139,14 +145,12 @@ export function SettingsView({
           </label>
           <label>
             <span>{t("settings.profile.currency")}</span>
-            <select
+            <Select
               disabled={busy || !profile}
-              onChange={(event) => setDraft((current) => ({ ...current, currency: event.target.value as Currency }))}
+              onChange={(next) => setDraft((current) => ({ ...current, currency: next as Currency }))}
+              options={currencyOptions}
               value={draft.currency}
-            >
-              <option value="EUR">EUR</option>
-              <option value="USD">USD</option>
-            </select>
+            />
           </label>
           {message && <p className={`mutation-message ${message.type}`}>{message.text}</p>}
           <button className="primary-action" disabled={busy || !profile} type="submit">
@@ -159,46 +163,43 @@ export function SettingsView({
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <h2>{t("settings.appearance.title")}</h2>
-            <p>{t("settings.appearance.subtitle")}</p>
+            <h2>{t("settings.preferences.title")}</h2>
+            <p>{t("settings.preferences.subtitle")}</p>
           </div>
         </div>
-        <div className="segmented-control">
-          <button className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")} type="button">
-            <Sun size={16} strokeWidth={2.2} />
-            {t("settings.appearance.light")}
-          </button>
-          <button className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")} type="button">
-            <Moon size={16} strokeWidth={2.2} />
-            {t("settings.appearance.dark")}
-          </button>
+        <div className="preference-row">
+          <span className="preference-label">{t("settings.appearance.title")}</span>
+          <div className="segmented-control">
+            <button className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")} type="button">
+              <Sun size={16} strokeWidth={2.2} />
+              {t("settings.appearance.light")}
+            </button>
+            <button className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")} type="button">
+              <Moon size={16} strokeWidth={2.2} />
+              {t("settings.appearance.dark")}
+            </button>
+          </div>
+        </div>
+        <div className="preference-row">
+          <span className="preference-label">{t("settings.language.title")}</span>
+          <div className="segmented-control">
+            <button className={language === "es" ? "active" : ""} onClick={() => setLanguage("es")} type="button">
+              <Languages size={16} strokeWidth={2.2} />
+              {t("settings.language.es")}
+            </button>
+            <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} type="button">
+              <Languages size={16} strokeWidth={2.2} />
+              {t("settings.language.en")}
+            </button>
+          </div>
         </div>
       </section>
 
       <section className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <h2>{t("settings.language.title")}</h2>
-            <p>{t("settings.language.subtitle")}</p>
-          </div>
-        </div>
-        <div className="segmented-control">
-          <button className={language === "es" ? "active" : ""} onClick={() => setLanguage("es")} type="button">
-            <Languages size={16} strokeWidth={2.2} />
-            {t("settings.language.es")}
-          </button>
-          <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} type="button">
-            <Languages size={16} strokeWidth={2.2} />
-            {t("settings.language.en")}
-          </button>
-        </div>
-      </section>
-
-      <section className="panel settings-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{t("settings.export.title")}</h2>
-            <p>{t("settings.export.subtitle")}</p>
+            <h2>{t("settings.data.title")}</h2>
+            <p>{t("settings.data.subtitle")}</p>
           </div>
         </div>
         <div className="export-summary">
@@ -208,21 +209,12 @@ export function SettingsView({
           <span>{data.journalEntries.length} {t("settings.export.entries")}</span>
           <span>{data.journalErrorTypes.length} {t("settings.export.errorTypes")}</span>
         </div>
-        <button className="primary-action" onClick={() => exportJson(data, dataMode)} type="button">
-          <Download size={17} strokeWidth={2.2} />
-          {t("settings.export.button")}
-        </button>
-      </section>
-
-      <section className="panel settings-panel migration-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{t("settings.migration.title")}</h2>
-            <p>{t("settings.migration.subtitle")}</p>
-          </div>
-        </div>
         <div className="migration-actions">
-          <button className="primary-action" disabled={!canImport} onClick={() => importInputRef.current?.click()} type="button">
+          <button className="secondary-action" onClick={() => exportJson(data, dataMode)} type="button">
+            <Download size={17} strokeWidth={2.2} />
+            {t("settings.export.button")}
+          </button>
+          <button className="secondary-action" disabled={!canImport} onClick={() => importInputRef.current?.click()} type="button">
             <FileUp size={17} strokeWidth={2.2} />
             {t("settings.migration.importJson")}
           </button>
@@ -245,25 +237,25 @@ export function SettingsView({
               }
             }}
           />
-          <button
-            className="secondary-action"
-            disabled={!canImport || !localMigrationSource}
-            onClick={async () => {
-              if (!localMigrationSource) return;
-              await importParsedData(parseTrazzaImport(localMigrationSource.raw), localMigrationSource);
-            }}
-            type="button"
-          >
-            {t("settings.migration.uploadLocal")}
-          </button>
+          {localMigrationSource && (
+            <button
+              className="secondary-action"
+              disabled={!canImport}
+              onClick={async () => {
+                if (!localMigrationSource) return;
+                await importParsedData(parseTrazzaImport(localMigrationSource.raw), localMigrationSource);
+              }}
+              type="button"
+            >
+              {t("settings.migration.uploadLocal")}
+            </button>
+          )}
         </div>
         <div className="migration-status">
-          <span>{dataMode === "cloud" ? t("settings.migration.cloudConnected") : t("settings.migration.cloudDisconnected")}</span>
-          <span>
-            {localMigrationSource
-              ? `Datos locales detectados en ${localMigrationSource.key}: ${localMigrationSource.summary}.`
-              : t("settings.migration.noLocalData")}
-          </span>
+          {dataMode !== "cloud" && <span>{t("settings.migration.cloudDisconnected")}</span>}
+          {localMigrationSource && (
+            <span>{`Datos locales detectados en ${localMigrationSource.key}: ${localMigrationSource.summary}.`}</span>
+          )}
           <span>{t("settings.migration.replaceNotice")}</span>
         </div>
         {migrationMessage && <p className={`mutation-message ${migrationMessage.type}`}>{migrationMessage.text}</p>}

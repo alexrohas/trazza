@@ -27,8 +27,11 @@ import {
   ZoomIn,
   X,
 } from "lucide-react";
+import { DatePicker } from "./DatePicker";
+import { FilterToggleButton } from "./FilterToggle";
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
+import { Select } from "./Select";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
 import { useI18n, useT } from "../lib/i18n/context";
@@ -284,6 +287,7 @@ export function JournalEntriesView({
   const [errorFilter, setErrorFilter] = useState("all");
   const [errorTypeDraft, setErrorTypeDraft] = useState<JournalErrorTypeInput>(() => createEmptyErrorTypeInput());
   const [editingErrorTypeId, setEditingErrorTypeId] = useState<string | undefined>();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [fromFilter, setFromFilter] = useState("");
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
   const [importing, setImporting] = useState(false);
@@ -347,6 +351,17 @@ export function JournalEntriesView({
   const accountsForFirm = useMemo(
     () => (draft.firmId ? accounts.filter((account) => account.firmId === draft.firmId) : accounts),
     [accounts, draft.firmId],
+  );
+  const entryFirmOptions = useMemo(
+    () => [{ label: t("journal.entryForm.noFirm"), value: "" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
+    [firms, t],
+  );
+  const entryAccountOptions = useMemo(
+    () => [
+      { label: t("journal.entryForm.noAccount"), value: "" },
+      ...accountsForFirm.map((account) => ({ label: account.name, value: account.id })),
+    ],
+    [accountsForFirm, t],
   );
   const filteredEntries = useMemo(
     () => {
@@ -471,6 +486,18 @@ export function JournalEntriesView({
     setSortMode("date-desc");
     setToFilter("");
   };
+  const hasActiveJournalFilters =
+    disciplineFilter !== "all" ||
+    directionFilter !== "all" ||
+    emotionFilter !== "all" ||
+    errorFilter !== "all" ||
+    fromFilter !== "" ||
+    mediaFilter !== "all" ||
+    pnlFilter !== "all" ||
+    resultFilter !== "all" ||
+    sessionFilter !== "all" ||
+    sortMode !== "date-desc" ||
+    toFilter !== "";
 
   const handleExportFilteredCsv = () => {
     if (!filteredEntries.length) return;
@@ -933,116 +960,99 @@ export function JournalEntriesView({
             <span className="result-count">
               {filteredEntries.length} {t("common.of")} {entries.length} {t("journal.entries.countSuffix")}
           </span>
+            <FilterToggleButton
+              active={hasActiveJournalFilters}
+              isOpen={filtersOpen}
+              onClick={() => setFiltersOpen((current) => !current)}
+            />
           </div>
         </div>
+        {filtersOpen && (
         <div className="view-filters">
           <label>
             <span>{t("journal.filter.result")}</span>
-            <select value={resultFilter} onChange={(event) => setResultFilter(event.target.value as "all" | JournalResult)}>
-              <option value="all">{t("common.all")}</option>
-              {resultOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setResultFilter(next as "all" | JournalResult)}
+              options={[{ label: t("common.all"), value: "all" }, ...resultOptions]}
+              value={resultFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.emotion")}</span>
-            <select value={emotionFilter} onChange={(event) => setEmotionFilter(event.target.value as "all" | JournalEmotion)}>
-              <option value="all">{t("common.all")}</option>
-              {emotionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setEmotionFilter(next as "all" | JournalEmotion)}
+              options={[{ label: t("common.all"), value: "all" }, ...emotionOptions]}
+              value={emotionFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.error")}</span>
-            <select value={errorFilter} onChange={(event) => setErrorFilter(event.target.value)}>
-              <option value="all">{t("common.all")}</option>
-              {effectiveErrorTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.active ? type.label : `${type.label} ${t("journal.filter.hiddenSuffix")}`}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={setErrorFilter}
+              options={[
+                { label: t("common.all"), value: "all" },
+                ...effectiveErrorTypes.map((type) => ({
+                  label: type.active ? type.label : `${type.label} ${t("journal.filter.hiddenSuffix")}`,
+                  value: type.id,
+                })),
+              ]}
+              value={errorFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.session")}</span>
-            <select value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value as "all" | JournalTradingSession)}>
-              <option value="all">{t("common.all")}</option>
-              {sessionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setSessionFilter(next as "all" | JournalTradingSession)}
+              options={[{ label: t("common.all"), value: "all" }, ...sessionOptions]}
+              value={sessionFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.direction")}</span>
-            <select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value as "all" | JournalDirection)}>
-              <option value="all">{t("common.all")}</option>
-              {directionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setDirectionFilter(next as "all" | JournalDirection)}
+              options={[{ label: t("common.all"), value: "all" }, ...directionOptions]}
+              value={directionFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.pnl")}</span>
-            <select value={pnlFilter} onChange={(event) => setPnlFilter(event.target.value as JournalPnlFilter)}>
-              {pnlFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select onChange={(next) => setPnlFilter(next as JournalPnlFilter)} options={pnlFilterOptions} value={pnlFilter} />
           </label>
           <label>
             <span>{t("journal.filter.discipline")}</span>
-            <select value={disciplineFilter} onChange={(event) => setDisciplineFilter(event.target.value as JournalDisciplineFilter)}>
-              {disciplineFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setDisciplineFilter(next as JournalDisciplineFilter)}
+              options={disciplineFilterOptions}
+              value={disciplineFilter}
+            />
           </label>
           <label>
             <span>{t("journal.filter.media")}</span>
-            <select value={mediaFilter} onChange={(event) => setMediaFilter(event.target.value as JournalMediaFilter)}>
-              {mediaFilterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select onChange={(next) => setMediaFilter(next as JournalMediaFilter)} options={mediaFilterOptions} value={mediaFilter} />
           </label>
           <label>
             <span>{t("journal.filter.order")}</span>
-            <select data-testid="journal-sort-mode" value={sortMode} onChange={(event) => setSortMode(event.target.value as JournalSortMode)}>
-              {sortModeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              id="journal-sort-mode"
+              onChange={(next) => setSortMode(next as JournalSortMode)}
+              options={sortModeOptions}
+              value={sortMode}
+            />
           </label>
           <label>
             <span>{t("dashboard.filter.from")}</span>
-            <input type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
+            <DatePicker onChange={setFromFilter} value={fromFilter} />
           </label>
           <label>
             <span>{t("dashboard.filter.to")}</span>
-            <input type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
+            <DatePicker onChange={setToFilter} value={toFilter} />
           </label>
           <button className="secondary-action" onClick={resetJournalFilters} type="button">
             {t("journal.filter.reset")}
           </button>
         </div>
+        )}
         <div className="journal-review-summary" aria-label={t("journal.summary.label")}>
           <span>
             {t("journal.summary.subset")}
@@ -1288,50 +1298,37 @@ export function JournalEntriesView({
         >
           <label>
             <span>{t("journal.entryForm.date")}</span>
-            <input
+            <DatePicker
+              clearable={false}
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))}
-              required
-              type="date"
+              onChange={(next) => setDraft((current) => ({ ...current, date: next }))}
               value={draft.date}
             />
           </label>
           <label>
             <span>{t("journal.entryForm.firm")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value, accountId: "" }))}
+              onChange={(next) => setDraft((current) => ({ ...current, firmId: next, accountId: "" }))}
+              options={entryFirmOptions}
               value={draft.firmId || ""}
-            >
-              <option value="">{t("journal.entryForm.noFirm")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label>
             <span>{t("journal.entryForm.account")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => {
-                const account = accounts.find((item) => item.id === event.target.value);
+              onChange={(next) => {
+                const account = accounts.find((item) => item.id === next);
                 setDraft((current) => ({
                   ...current,
-                  accountId: event.target.value,
+                  accountId: next,
                   firmId: account?.firmId || current.firmId,
                 }));
               }}
+              options={entryAccountOptions}
               value={draft.accountId || ""}
-            >
-              <option value="">{t("journal.entryForm.noAccount")}</option>
-              {accountsForFirm.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label>
             <span>{t("journal.entryForm.symbol")}</span>
@@ -3050,13 +3047,7 @@ function SelectField({
   return (
     <label>
       <span>{label}</span>
-      <select disabled={disabled} onChange={(event) => onChange(event.target.value)} value={value}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <Select disabled={disabled} onChange={onChange} options={options} value={value} />
     </label>
   );
 }

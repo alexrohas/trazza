@@ -1,8 +1,12 @@
 import { useMemo, useState } from "react";
 import { Activity, CircleDollarSign, Gauge, Percent, Target, TrendingUp, WalletCards } from "lucide-react";
 import { CapitalCurve } from "./CapitalCurve";
+import { DatePicker } from "./DatePicker";
+import { FilterToggleButton } from "./FilterToggle";
+import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { MovementsTable } from "./MovementsTable";
+import { Select } from "./Select";
 import {
   calculateDashboardModel,
   formatMoney,
@@ -42,6 +46,7 @@ const initialFilters: DashboardFilters = {
 
 export function DashboardView({ accounts, currency, firms, journalEntries, movements }: DashboardViewProps) {
   const [filters, setFilters] = useState<DashboardFilters>(initialFilters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [summaryRange, setSummaryRange] = useState<SummaryRange>("6m");
   const t = useT();
   const { language } = useI18n();
@@ -86,76 +91,87 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
     () => buildAccountRows(filteredAccounts, dashboardModel.scopedMovements, firms, t),
     [dashboardModel.scopedMovements, filteredAccounts, firms, t],
   );
+  const firmFilterOptions = useMemo(
+    () => [{ label: t("common.all"), value: "all" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
+    [firms, t],
+  );
+  const accountFilterOptions = useMemo(
+    () => [
+      { label: t("common.all"), value: "all" },
+      ...accounts
+        .filter((account) => filters.firmId === "all" || account.firmId === filters.firmId)
+        .map((account) => ({ label: account.name, value: account.id })),
+    ],
+    [accounts, filters.firmId, t],
+  );
+  const periodOptions = useMemo(
+    () => [
+      { label: t("dashboard.filter.periodAll"), value: "all" },
+      { label: t("dashboard.filter.period30d"), value: "30d" },
+      { label: t("dashboard.filter.period90d"), value: "90d" },
+      { label: t("dashboard.filter.periodMonth"), value: "month" },
+      { label: t("dashboard.filter.periodCustom"), value: "custom" },
+    ],
+    [t],
+  );
+  const hasActiveFilters =
+    filters.firmId !== "all" ||
+    filters.accountId !== "all" ||
+    filters.period !== "all" ||
+    filters.from !== "" ||
+    filters.to !== "";
 
   return (
     <div className="view-stack">
+      <div className="dashboard-filter-bar">
+        <FilterToggleButton active={hasActiveFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
+      </div>
+      {filtersOpen && (
       <section className="panel dashboard-filter-panel">
         <div className="dashboard-filters">
           <label>
             <span>{t("dashboard.filter.firm")}</span>
-            <select
+            <Select
+              onChange={(next) => setFilters((current) => ({ ...current, firmId: next, accountId: "all" }))}
+              options={firmFilterOptions}
               value={filters.firmId}
-              onChange={(event) => setFilters((current) => ({ ...current, firmId: event.target.value, accountId: "all" }))}
-            >
-              <option value="all">{t("common.all")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label>
             <span>{t("dashboard.filter.account")}</span>
-            <select value={filters.accountId} onChange={(event) => setFilters((current) => ({ ...current, accountId: event.target.value }))}>
-              <option value="all">{t("common.all")}</option>
-              {accounts
-                .filter((account) => filters.firmId === "all" || account.firmId === filters.firmId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-            </select>
+            <Select
+              onChange={(next) => setFilters((current) => ({ ...current, accountId: next }))}
+              options={accountFilterOptions}
+              value={filters.accountId}
+            />
           </label>
           <label>
             <span>{t("dashboard.filter.period")}</span>
-            <select
-              value={filters.period}
-              onChange={(event) => {
-                const period = event.target.value as PeriodFilter;
+            <Select
+              onChange={(next) => {
+                const period = next as PeriodFilter;
                 setFilters((current) => ({
                   ...current,
                   period,
                   ...(period === "custom" ? {} : { from: "", to: "" }),
                 }));
               }}
-            >
-              <option value="all">{t("dashboard.filter.periodAll")}</option>
-              <option value="30d">{t("dashboard.filter.period30d")}</option>
-              <option value="90d">{t("dashboard.filter.period90d")}</option>
-              <option value="month">{t("dashboard.filter.periodMonth")}</option>
-              <option value="custom">{t("dashboard.filter.periodCustom")}</option>
-            </select>
+              options={periodOptions}
+              value={filters.period}
+            />
           </label>
           <label>
             <span>{t("dashboard.filter.from")}</span>
-            <input
-              type="date"
+            <DatePicker
+              onChange={(next) => setFilters((current) => ({ ...current, from: next, period: "custom" }))}
               value={filters.from}
-              onClick={() => setFilters((current) => ({ ...current, period: "custom" }))}
-              onFocus={() => setFilters((current) => ({ ...current, period: "custom" }))}
-              onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value, period: "custom" }))}
             />
           </label>
           <label>
             <span>{t("dashboard.filter.to")}</span>
-            <input
-              type="date"
+            <DatePicker
+              onChange={(next) => setFilters((current) => ({ ...current, to: next, period: "custom" }))}
               value={filters.to}
-              onClick={() => setFilters((current) => ({ ...current, period: "custom" }))}
-              onFocus={() => setFilters((current) => ({ ...current, period: "custom" }))}
-              onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value, period: "custom" }))}
             />
           </label>
           <button className="secondary-action" type="button" onClick={() => setFilters(initialFilters)}>
@@ -163,6 +179,7 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
           </button>
         </div>
       </section>
+      )}
 
       <section className="metric-grid" aria-label={t("dashboard.metrics.label")}>
         <MetricCard
@@ -214,9 +231,9 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
         <CapitalCurve currency={currency} movements={dashboardModel.scopedMovements} points={dashboardModel.curve} />
         <section className="panel period-summary-panel">
           <div className="panel-heading">
-            <div>
+            <div className="panel-title-row">
               <h2>{t("dashboard.period.title")}</h2>
-              <p>{scopeLabel}</p>
+              <InfoHint text={scopeLabel} />
             </div>
           </div>
           <div className="period-summary-list">
@@ -394,9 +411,9 @@ function MonthlyMovementBars({
   return (
     <div className="period-month-chart" aria-label={t("dashboard.monthly.label")}>
       <div className="period-month-chart-head">
-        <div>
+        <div className="panel-title-row">
           <span>{t("dashboard.monthly.title")}</span>
-          <small>{t("dashboard.monthly.subtitle")}</small>
+          <InfoHint text={t("dashboard.monthly.subtitle")} />
         </div>
         <div className="period-range-tabs" aria-label={t("dashboard.monthly.rangeLabel")}>
           {summaryRangeOptions.map((option) => (

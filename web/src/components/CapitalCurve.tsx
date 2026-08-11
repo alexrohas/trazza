@@ -2,6 +2,7 @@ import { useMemo, useState, type PointerEvent } from "react";
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import type { CapitalPoint, Currency, Movement } from "../types";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { InfoHint } from "./InfoHint";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
 import { formatMoney, signedTone } from "../lib/metrics";
@@ -111,13 +112,15 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   return (
     <section className="panel chart-panel">
       <div className="panel-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("capitalCurve.title")}</h2>
-          <p>
-            {zoomLevel > 0
-              ? `${visiblePoints.length} ${t("common.of")} ${points.length} ${t("capitalCurve.visibleEventsSuffix")}`
-              : `${points.length} ${t("capitalCurve.allEventsSuffix")}`}
-          </p>
+          <InfoHint
+            text={
+              zoomLevel > 0
+                ? `${visiblePoints.length} ${t("common.of")} ${points.length} ${t("capitalCurve.visibleEventsSuffix")}`
+                : `${points.length} ${t("capitalCurve.allEventsSuffix")}`
+            }
+          />
         </div>
         <div className="chart-heading-actions">
           <strong className={`chart-delta ${signedTone(delta)}`}>{formatMoney(delta, currency)}</strong>
@@ -181,8 +184,6 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
               y2={height - padding.bottom}
             />
           )}
-          {scaledPoints.length <= 12 &&
-            scaledPoints.map((point, index) => <circle className="chart-point is-muted" key={`${point.date}-${index}`} cx={point.x} cy={point.y} r="3.5" />)}
           {activeScaledPoint && <circle className="chart-point is-active" cx={activeScaledPoint.x} cy={activeScaledPoint.y} r="4.6" />}
           {lastScaledPoint && <circle className="chart-point is-last" cx={lastScaledPoint.x} cy={lastScaledPoint.y} r="5.2" />}
         </svg>
@@ -212,11 +213,6 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
             )}
           </div>
         )}
-      </div>
-      <div className="chart-footer">
-        <span>{visiblePoints[0]?.date}</span>
-        <span>{lastPoint ? formatMoney(lastPoint.value, currency) : formatMoney(0, currency)}</span>
-        <span>{lastPoint?.date}</span>
       </div>
     </section>
   );

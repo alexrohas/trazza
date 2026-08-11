@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { DatePicker } from "./DatePicker";
+import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
+import { Select } from "./Select";
 import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAmount } from "../lib/metrics";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
@@ -76,6 +79,7 @@ export function MovementsView({
   const [draft, setDraft] = useState<MovementInput>(emptyMovementInput);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [categoryFilter, setCategoryFilter] = useState<"all" | MovementCategory>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [firmFilter, setFirmFilter] = useState("all");
   const [fromFilter, setFromFilter] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | MovementKind>("all");
@@ -94,6 +98,46 @@ export function MovementsView({
   );
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const accountNameById = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
+  const kindOptions = useMemo(
+    () => [
+      { label: t("movement.kind.expense"), value: "expense" },
+      { label: t("movement.kind.income"), value: "income" },
+    ],
+    [t],
+  );
+  const categoryOptions = useMemo(
+    () => categories.map((category) => ({ label: categoryLabels[category], value: category })),
+    [categories, categoryLabels],
+  );
+  const firmFormOptions = useMemo(
+    () => [{ label: t("movement.field.firmGeneral"), value: "" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
+    [firms, t],
+  );
+  const accountFormOptions = useMemo(
+    () => [
+      { label: t("movement.field.noAccount"), value: "" },
+      ...accountsForFirm.map((account) => ({ label: account.name, value: account.id })),
+    ],
+    [accountsForFirm, t],
+  );
+  const firmFilterOptions = useMemo(
+    () => [{ label: t("common.all"), value: "all" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
+    [firms, t],
+  );
+  const kindFilterOptions = useMemo(
+    () => [
+      { label: t("movement.filter.kindAll"), value: "all" },
+      { label: t("movement.filter.expenses"), value: "expense" },
+      { label: t("movement.filter.incomes"), value: "income" },
+    ],
+    [t],
+  );
+  const categoryFilterOptions = useMemo(
+    () => [{ label: t("common.all"), value: "all" }, ...allCategories.map((category) => ({ label: categoryLabels[category], value: category }))],
+    [categoryLabels, t],
+  );
+  const hasActiveMovementFilters =
+    firmFilter !== "all" || kindFilter !== "all" || categoryFilter !== "all" || fromFilter !== "" || toFilter !== "";
   const filteredMovements = useMemo(
     () =>
       movements.filter((movement) => {
@@ -179,20 +223,19 @@ export function MovementsView({
         >
           <label>
             <span>{t("movement.field.date")}</span>
-            <input
+            <DatePicker
+              clearable={false}
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))}
-              required
-              type="date"
+              onChange={(next) => setDraft((current) => ({ ...current, date: next }))}
               value={draft.date}
             />
           </label>
           <label>
             <span>{t("movement.field.kind")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => {
-                const kind = event.target.value as MovementKind;
+              onChange={(next) => {
+                const kind = next as MovementKind;
                 setDraft((current) => ({
                   ...current,
                   kind,
@@ -202,18 +245,16 @@ export function MovementsView({
                   payoutProfitSplit: kind === "income" ? 100 : undefined,
                 }));
               }}
+              options={kindOptions}
               value={draft.kind}
-            >
-              <option value="expense">{t("movement.kind.expense")}</option>
-              <option value="income">{t("movement.kind.income")}</option>
-            </select>
+            />
           </label>
           <label>
             <span>{t("movement.field.category")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => {
-                const category = event.target.value as MovementCategory;
+              onChange={(next) => {
+                const category = next as MovementCategory;
                 setDraft((current) => ({
                   ...current,
                   category,
@@ -221,14 +262,9 @@ export function MovementsView({
                   payoutProfitSplit: category === "payout" ? current.payoutProfitSplit || 100 : undefined,
                 }));
               }}
+              options={categoryOptions}
               value={draft.category}
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {categoryLabels[category]}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           {isPayout ? (
             <>
@@ -301,40 +337,28 @@ export function MovementsView({
           )}
           <label>
             <span>{t("movement.field.firm")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value, accountId: "" }))}
+              onChange={(next) => setDraft((current) => ({ ...current, firmId: next, accountId: "" }))}
+              options={firmFormOptions}
               value={draft.firmId || ""}
-            >
-              <option value="">{t("movement.field.firmGeneral")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label>
             <span>{t("movement.field.account")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => {
-                const account = accounts.find((item) => item.id === event.target.value);
+              onChange={(next) => {
+                const account = accounts.find((item) => item.id === next);
                 setDraft((current) => ({
                   ...current,
-                  accountId: event.target.value,
+                  accountId: next,
                   firmId: account?.firmId || current.firmId,
                 }));
               }}
+              options={accountFormOptions}
               value={draft.accountId || ""}
-            >
-              <option value="">{t("movement.field.noAccount")}</option>
-              {accountsForFirm.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="wide-field">
             <span>{t("movement.field.note")}</span>
@@ -369,45 +393,38 @@ export function MovementsView({
             <h2>{t("movement.list.title")}</h2>
             <p>{t("movement.list.subtitle")}</p>
           </div>
+          <div className="account-filter-head-actions">
+            <span className="result-count">
+              {filteredMovements.length} {t("common.of")} {movements.length} {t("movement.filter.countSuffix")}
+            </span>
+            <FilterToggleButton active={hasActiveMovementFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
+          </div>
         </div>
+        {filtersOpen && (
         <div className="view-filters">
           <label>
             <span>{t("movement.field.firm")}</span>
-            <select value={firmFilter} onChange={(event) => setFirmFilter(event.target.value)}>
-              <option value="all">{t("common.all")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
           </label>
           <label>
             <span>{t("movement.field.kind")}</span>
-            <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as "all" | MovementKind)}>
-              <option value="all">{t("movement.filter.kindAll")}</option>
-              <option value="expense">{t("movement.filter.expenses")}</option>
-              <option value="income">{t("movement.filter.incomes")}</option>
-            </select>
+            <Select onChange={(next) => setKindFilter(next as "all" | MovementKind)} options={kindFilterOptions} value={kindFilter} />
           </label>
           <label>
             <span>{t("movement.field.category")}</span>
-            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as "all" | MovementCategory)}>
-              <option value="all">{t("common.all")}</option>
-              {allCategories.map((category) => (
-                <option key={category} value={category}>
-                  {categoryLabels[category]}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setCategoryFilter(next as "all" | MovementCategory)}
+              options={categoryFilterOptions}
+              value={categoryFilter}
+            />
           </label>
           <label>
             <span>{t("movement.filter.from")}</span>
-            <input type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} />
+            <DatePicker onChange={setFromFilter} value={fromFilter} />
           </label>
           <label>
             <span>{t("movement.filter.to")}</span>
-            <input type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} />
+            <DatePicker onChange={setToFilter} value={toFilter} />
           </label>
           <button
             className="secondary-action"
@@ -422,10 +439,8 @@ export function MovementsView({
           >
             {t("movement.filter.resetFilters")}
           </button>
-          <span className="result-count">
-            {filteredMovements.length} {t("common.of")} {movements.length} {t("movement.filter.countSuffix")}
-          </span>
         </div>
+        )}
       </section>
 
       <section className="panel table-panel">

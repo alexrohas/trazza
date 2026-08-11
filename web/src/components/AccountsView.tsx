@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, WalletCards } from "lucide-react";
+import { DatePicker } from "./DatePicker";
+import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
+import { Select } from "./Select";
 import { formatAccountSize, formatMoney } from "../lib/metrics";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
@@ -74,12 +77,16 @@ export function AccountsView({
   const [draft, setDraft] = useState<AccountInput>(emptyAccountInput);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [firmFilter, setFirmFilter] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [firmRequiredError, setFirmRequiredError] = useState(false);
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [statusFilter, setStatusFilter] = useState<"all" | AccountStatus>("all");
   const t = useT();
   const accountStatusOptions = useMemo(() => getAccountStatusOptions(t), [t]);
   const accountStatusFilters = useMemo(() => [{ label: t("common.all"), value: "all" as const }, ...accountStatusOptions], [accountStatusOptions, t]);
   const accountStatusLabelByValue = useMemo(() => new Map(accountStatusOptions.map((option) => [option.value, option.label])), [accountStatusOptions]);
+  const firmOptions = useMemo(() => firms.map((firm) => ({ label: firm.name, value: firm.id })), [firms]);
+  const firmFilterOptions = useMemo(() => [{ label: t("common.all"), value: "all" }, ...firmOptions], [firmOptions, t]);
   const canWrite = dataMode === "cloud" && firms.length > 0;
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const statusCounts = useMemo(() => {
@@ -174,25 +181,28 @@ export function AccountsView({
           className="entity-form resource-form-grid modal-form-grid"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (!draft.firmId) {
+              setFirmRequiredError(true);
+              return;
+            }
+            setFirmRequiredError(false);
             const saved = await onSaveAccount(draft, editingId);
             if (saved) closeForm();
           }}
         >
           <label>
             <span>{t("account.field.firm")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, firmId: event.target.value }))}
-              required
+              onChange={(next) => {
+                setFirmRequiredError(false);
+                setDraft((current) => ({ ...current, firmId: next }));
+              }}
+              options={firmOptions}
+              placeholder={t("account.field.selectFirm")}
               value={draft.firmId}
-            >
-              <option value="">{t("account.field.selectFirm")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            />
+            {firmRequiredError && <p className="mutation-message error">{t("account.field.selectFirmRequired")}</p>}
           </label>
 
           <label>
@@ -210,17 +220,12 @@ export function AccountsView({
 
           <label>
             <span>{t("account.field.status")}</span>
-            <select
+            <Select
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as AccountStatus }))}
+              onChange={(next) => setDraft((current) => ({ ...current, status: next as AccountStatus }))}
+              options={accountStatusOptions}
               value={draft.status}
-            >
-              {accountStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
 
           <label>
@@ -237,10 +242,9 @@ export function AccountsView({
 
           <label>
             <span>{t("account.field.purchase")}</span>
-            <input
+            <DatePicker
               disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, purchasedAt: event.target.value }))}
-              type="date"
+              onChange={(next) => setDraft((current) => ({ ...current, purchasedAt: next }))}
               value={draft.purchasedAt || ""}
             />
           </label>
@@ -316,21 +320,18 @@ export function AccountsView({
             <h2>{t("account.filter.title")}</h2>
             <p>{t("account.filter.subtitle")}</p>
           </div>
-          <span className="result-count">
-            {filteredAccounts.length} {t("common.of")} {accounts.length} {t("account.filter.countSuffix")}
-          </span>
+          <div className="account-filter-head-actions">
+            <span className="result-count">
+              {filteredAccounts.length} {t("common.of")} {accounts.length} {t("account.filter.countSuffix")}
+            </span>
+            <FilterToggleButton active={firmFilter !== "all"} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
+          </div>
         </div>
+        {filtersOpen && (
         <div className="account-filter-row">
           <label>
             <span>{t("account.field.firm")}</span>
-            <select value={firmFilter} onChange={(event) => setFirmFilter(event.target.value)}>
-              <option value="all">{t("common.all")}</option>
-              {firms.map((firm) => (
-                <option key={firm.id} value={firm.id}>
-                  {firm.name}
-                </option>
-              ))}
-            </select>
+            <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
           </label>
           <button
             className="secondary-action"
@@ -343,6 +344,7 @@ export function AccountsView({
             {t("account.filter.resetFilters")}
           </button>
         </div>
+        )}
         <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
           {accountStatusFilters.map((option) => {
             const count = option.value === "all" ? accounts.length : statusCounts[option.value];
