@@ -292,10 +292,6 @@
   stroke: #263139;
 }
 
-:root[data-theme="dark"] .chart-point {
-  fill: var(--surface);
-}
-
 :root[data-theme="dark"] .journal-row-topline span,
 :root[data-theme="dark"] .directory-kicker,
 :root[data-theme="dark"] .status-dot.evaluation,
@@ -2903,12 +2899,68 @@ button {
 }
 
 .chart-panel {
-  min-height: 374px;
+  min-height: 592px;
+}
+
+.chart-delta-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.chart-delta-block small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .chart-delta {
   white-space: nowrap;
   font-size: 1rem;
+}
+
+/* Etiquetas de precio del eje: viven en el margen izquierdo del marco, fuera del SVG, para
+   que no las deforme el estirado del viewBox. */
+.chart-value-axis {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.chart-value-axis span {
+  position: absolute;
+  left: 10px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Solo se muestra con zoom puesto, asi que puede ser discreto: no compite cuando no hace
+   falta y aparece justo cuando el usuario podria necesitar volver. */
+.chart-reset-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chart-reset-zoom:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
 }
 
 .chart-heading-actions {
@@ -2919,40 +2971,10 @@ button {
   min-width: 0;
 }
 
-.chart-zoom-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.chart-zoom-controls .compact-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: transparent;
-}
-
-.chart-zoom-controls .compact-icon:hover:not(:disabled) {
-  background: var(--surface-muted);
-}
-
-.chart-zoom-controls .compact-icon:disabled {
-  cursor: default;
-  opacity: 0.38;
-}
-
-.chart-zoom-controls span {
-  min-width: 42px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-align: center;
-  white-space: nowrap;
-}
 
 .chart-frame {
   position: relative;
-  height: 286px;
+  height: 500px;
   border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
   border-radius: 12px;
   overflow: hidden;
@@ -2977,12 +2999,21 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+/* Mas tenues que antes (72% -> 42%): en la curva de capital estas quedan como unica
+   rejilla, y deben leerse como guia de fondo, no como una cuadricula dibujada. */
 .chart-axis.muted {
-  stroke: color-mix(in srgb, var(--line) 72%, transparent);
+  stroke: color-mix(in srgb, var(--line) 42%, transparent);
 }
 
+/* La curva de capital ya no dibuja verticales, pero el grafico de P&L del Journal si. */
 .chart-axis.vertical {
   stroke: color-mix(in srgb, var(--line) 52%, transparent);
+}
+
+/* Suelo de la franja de movimientos: algo mas marcado que la rejilla, porque separa dos
+   zonas con escalas distintas, pero sin competir con la linea de cero de la curva. */
+.chart-axis.band-baseline {
+  stroke: color-mix(in srgb, var(--muted) 34%, transparent);
 }
 
 .chart-fill {
@@ -3027,25 +3058,33 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
-.chart-point {
-  fill: #ffffff;
-  stroke: var(--accent-strong);
-  stroke-width: 2.6;
-  vector-effect: non-scaling-stroke;
+/* Puntos en HTML, no en el SVG: ver el comentario de CapitalCurve.tsx. Al vivir fuera del
+   viewBox estirado son circulos exactos y su tamano no depende del ancho del panel. */
+.chart-dot {
+  position: absolute;
+  z-index: 2;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
-.chart-point.is-last {
-  fill: var(--accent);
-  stroke: var(--surface);
-  opacity: 1;
+.chart-dot.is-last {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
-.chart-point.is-active {
-  fill: var(--surface);
-  stroke: var(--accent);
-  stroke-width: 3;
-  vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 52%, transparent));
+/* Mas pequeno que el punto final y sin aro blanco: acompana al cursor, no marca un hito.
+   El halo translucido le da presencia sin engordar el punto. */
+.chart-dot.is-active {
+  width: 6px;
+  height: 6px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent);
+  transition: left 90ms var(--ease), top 90ms var(--ease);
 }
 
 .chart-date-axis {

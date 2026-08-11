@@ -1,5 +1,5 @@
-import { useMemo, useState, type PointerEvent } from "react";
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { RotateCcw } from "lucide-react";
 import type { CapitalPoint, Currency, Movement } from "../types";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { InfoHint } from "./InfoHint";
@@ -13,19 +13,34 @@ type CapitalCurveProps = {
   movements?: Movement[];
 };
 
-const MAX_ZOOM_LEVEL = 3;
+/* Mismos factores que el grafico del legado, que es la referencia de tacto que se quiere
+   replicar: cada muesca de rueda encoge la ventana a 0.78 o la agranda a 1.28. */
+const ZOOM_IN_FACTOR = 0.78;
+const ZOOM_OUT_FACTOR = 1.28;
+const MIN_VISIBLE_POINTS = 4;
 
 export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveProps) {
   const t = useT();
   const { language } = useI18n();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(0);
+  /* Ventana visible como {inicio, cantidad} en vez de niveles discretos de zoom: la rueda
+     necesita anclar el punto que hay bajo el cursor, y para eso hace falta poder mover el
+     inicio libremente, no solo recortar por el final como hacia el zoom por niveles. */
+  const [view, setView] = useState<{ count: number; start: number } | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const width = 760;
-  const height = 320;
-  const padding = { bottom: 42, left: 48, right: 26, top: 32 };
-  const visibleCount = getVisibleCount(points.length, zoomLevel);
-  const visibleStart = Math.max(0, points.length - visibleCount);
-  const visiblePoints = points.slice(visibleStart);
+  /* Mas alto que ancho de lo que pedia la proporcion original: con 320 la curva se
+     aplastaba y las variaciones pequenas no se distinguian. El alto del marco en CSS
+     sube en la misma medida, asi que el grafico crece de verdad y no se estira.
+     Con la franja de movimientos ocupando 166, hacen falta 560 para que la curva gane
+     alto en vez de limitarse a cederselo a la franja. */
+  const height = 560;
+  /* left algo mas ancho que el resto: ahi viven las etiquetas de precio del eje. */
+  const padding = { bottom: 42, left: 62, right: 26, top: 32 };
+  const totalPoints = points.length;
+  const visibleCount = view ? clamp(view.count, Math.min(MIN_VISIBLE_POINTS, totalPoints), totalPoints) : totalPoints;
+  const visibleStart = view ? clamp(view.start, 0, Math.max(0, totalPoints - visibleCount)) : 0;
+  const visiblePoints = points.slice(visibleStart, visibleStart + visibleCount);
   const sortedMovements = [...movements].sort((left, right) => left.date.localeCompare(right.date));
   const visibleMovements = sortedMovements.slice(visibleStart, visibleStart + visiblePoints.length);
   const values = visiblePoints.map((point) => point.value);
@@ -33,32 +48,51 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   const max = Math.max(1, ...values);
   const range = max - min || 1;
   const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
+  /* Los movimientos viven en su propia franja bajo la curva, no encima. Superpuestos le
+     comian hasta un tercio del alto y se peleaban con el relleno; y como su altura era un
+     porcentaje del alto del grafico, dependia de cuanto hubiera subido el capital en vez
+     de cuanto dinero movio cada uno. Aqui se comparan entre si. */
+  const bandHeight = 150;
+  const bandGap = 16;
+  const chartHeight = height - padding.top - padding.bottom - bandHeight - bandGap;
+  const chartBottom = padding.top + chartHeight;
+  const bandBaseline = chartBottom + bandGap + bandHeight;
   const step = visiblePoints.length > 1 ? chartWidth / (visiblePoints.length - 1) : 0;
   const scaledPoints = visiblePoints.map((point, index) => ({
     date: point.date,
     value: point.value,
     x: padding.left + index * step,
-    y: height - padding.bottom - ((point.value - min) / range) * chartHeight,
+    y: chartBottom - ((point.value - min) / range) * chartHeight,
   }));
   const path = buildSmoothPath(scaledPoints);
   const lastPoint = visiblePoints.at(-1);
   const lastScaledPoint = scaledPoints.at(-1);
   const firstPoint = visiblePoints.at(0);
   const delta = lastPoint && firstPoint ? lastPoint.value - firstPoint.value : 0;
-  const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
+  const baselineY = chartBottom - ((0 - min) / range) * chartHeight;
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
-  const verticalLines = [0, 0.25, 0.5, 0.75, 1];
+  /* Etiquetas del eje de precios: la posicion 0 es la parte de arriba, asi que el valor
+     baja de max a min segun se desciende. Dan una referencia de en que rango se mueve la
+     curva, que antes no habia en ningun sitio. */
+  const axisValues = gridLines.map((position) => ({
+    position,
+    value: max - position * range,
+  }));
+  /* Escala lineal a proposito: la altura es directamente proporcional al importe, asi que
+     el doble de alto es el doble de dinero. Se probo comprimir con raiz cuadrada para que
+     los gastos pequenos (50 frente a retiros de 900, proporcion de 1 a 18) no quedaran en
+     unos pocos pixeles, pero deformaba la lectura. Se prefiere fidelidad sobre
+     legibilidad: un gasto pequeno se ve pequeno porque lo es. */
   const maxMovementAmount = Math.max(1, ...visibleMovements.map((movement) => movement.amount));
   const movementStep = visibleMovements.length > 1 ? chartWidth / (visibleMovements.length - 1) : 0;
   const eventBars = visibleMovements.map((movement, index) => {
-    const barHeight = Math.max(7, Math.min(chartHeight * 0.34, (movement.amount / maxMovementAmount) * chartHeight * 0.34));
+    const barHeight = Math.max(4, (movement.amount / maxMovementAmount) * bandHeight * 0.9);
     return {
       amount: movement.amount,
       date: movement.date,
       kind: movement.kind,
       x: padding.left + index * movementStep,
-      y: baselineY - barHeight,
+      y: bandBaseline - barHeight,
       height: barHeight,
     };
   });
@@ -67,10 +101,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
   const activePoint = safeActiveIndex === null ? null : visiblePoints[safeActiveIndex];
   const activeMovement = safeActiveIndex === null ? null : visibleMovements[safeActiveIndex];
-  const nextVisibleCount = getVisibleCount(points.length, zoomLevel + 1);
-  const canZoomIn = points.length > 3 && zoomLevel < MAX_ZOOM_LEVEL && nextVisibleCount < visibleCount;
-  const canZoomOut = zoomLevel > 0;
-  const zoomLabel = zoomLevel === 0 ? t("capitalCurve.zoomAll") : `${visiblePoints.length}/${points.length}`;
+  const isZoomed = visibleCount < totalPoints;
   const activeTooltipPosition = activeScaledPoint
     ? {
         left: `${(clamp(activeScaledPoint.x, padding.left + 74, width - padding.right - 74) / width) * 100}%`,
@@ -90,10 +121,32 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
     setActiveIndex(nearestIndex);
   };
 
-  const updateZoom = (nextZoomLevel: number) => {
-    setActiveIndex(null);
-    setZoomLevel(clamp(nextZoomLevel, 0, MAX_ZOOM_LEVEL));
-  };
+  /* Listener nativo y no pasivo: React registra `wheel` en la raiz como pasivo, asi que un
+     onWheel de JSX no puede llamar a preventDefault() y la pagina scrollearia al hacer zoom.
+     Mismo motivo por el que el legado lo registra con { passive: false }. */
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || totalPoints < MIN_VISIBLE_POINTS) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = frame.getBoundingClientRect();
+      // Proporcion dentro del area dibujable, descontando el padding lateral del viewBox.
+      const localX = ((event.clientX - rect.left) / rect.width) * width;
+      const ratio = clamp((localX - padding.left) / Math.max(1, chartWidth), 0, 1);
+      const factor = event.deltaY < 0 ? ZOOM_IN_FACTOR : ZOOM_OUT_FACTOR;
+      const nextCount = clamp(Math.round(visibleCount * factor), Math.min(MIN_VISIBLE_POINTS, totalPoints), totalPoints);
+      if (nextCount === visibleCount) return;
+
+      // El punto bajo el cursor se queda donde esta: se despeja el inicio que lo mantiene.
+      const anchor = visibleStart + ratio * Math.max(visibleCount - 1, 1);
+      const nextStart = clamp(Math.round(anchor - ratio * Math.max(nextCount - 1, 1)), 0, totalPoints - nextCount);
+      setView(nextCount >= totalPoints ? null : { count: nextCount, start: nextStart });
+    };
+
+    frame.addEventListener("wheel", handleWheel, { passive: false });
+    return () => frame.removeEventListener("wheel", handleWheel);
+  }, [chartWidth, padding.left, totalPoints, visibleCount, visibleStart, width]);
 
   if (points.length === 0) {
     return (
@@ -116,34 +169,51 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
           <h2>{t("capitalCurve.title")}</h2>
           <InfoHint
             text={
-              zoomLevel > 0
+              isZoomed
                 ? `${visiblePoints.length} ${t("common.of")} ${points.length} ${t("capitalCurve.visibleEventsSuffix")}`
                 : `${points.length} ${t("capitalCurve.allEventsSuffix")}`
             }
           />
         </div>
         <div className="chart-heading-actions">
-          <strong className={`chart-delta ${signedTone(delta)}`}>{formatMoney(delta, currency)}</strong>
-          <div className="chart-zoom-controls" aria-label={t("capitalCurve.zoomLabel")}>
-            <button className="icon-control compact-icon" disabled={!canZoomOut} onClick={() => updateZoom(zoomLevel - 1)} title={t("capitalCurve.zoomOut")} type="button">
-              <ZoomOut size={15} strokeWidth={2.25} />
+          {/* Iba suelto y en color, asi que se confundia con el saldo final que muestra la
+              etiqueta del ultimo punto (359,24 de variacion frente a 319,24 de saldo).
+              Con rotulo y signo explicito se lee por lo que es. */}
+          <span className="chart-delta-block">
+            <small>{t("capitalCurve.deltaLabel")}</small>
+            <strong className={`chart-delta ${signedTone(delta)}`}>
+              {delta > 0 ? "+" : ""}
+              {formatMoney(delta, currency)}
+            </strong>
+          </span>
+          {/* Sin lupas: el zoom es con la rueda. Este boton solo aparece con zoom puesto,
+              para no dejar sin salida a quien no descubra la rueda. */}
+          {isZoomed && (
+            <button
+              className="chart-reset-zoom"
+              onClick={() => {
+                setActiveIndex(null);
+                setView(null);
+              }}
+              type="button"
+            >
+              <RotateCcw size={13} strokeWidth={2.4} />
+              {t("capitalCurve.viewAll")}
             </button>
-            <span>{zoomLabel}</span>
-            <button className="icon-control compact-icon" disabled={!canZoomIn} onClick={() => updateZoom(zoomLevel + 1)} title={t("capitalCurve.zoomIn")} type="button">
-              <ZoomIn size={15} strokeWidth={2.25} />
-            </button>
-            <button className="icon-control compact-icon" disabled={zoomLevel === 0} onClick={() => updateZoom(0)} title={t("capitalCurve.viewAll")} type="button">
-              <RotateCcw size={15} strokeWidth={2.25} />
-            </button>
-          </div>
+          )}
         </div>
       </div>
       <div
         className="chart-frame is-interactive"
         role="img"
         aria-label={t("capitalCurve.chartAriaLabel")}
+        onDoubleClick={() => {
+          setActiveIndex(null);
+          setView(null);
+        }}
         onPointerLeave={() => setActiveIndex(null)}
         onPointerMove={handlePointerMove}
+        ref={frameRef}
       >
         <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
           <defs>
@@ -157,12 +227,12 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
             const y = padding.top + chartHeight * position;
             return <line className="chart-axis muted" key={`h-${position}`} x1={padding.left} x2={width - padding.right} y1={y} y2={y} />;
           })}
-          {verticalLines.map((position) => {
-            const x = padding.left + chartWidth * position;
-            return <line className="chart-axis vertical" key={`v-${position}`} x1={x} x2={x} y1={padding.top} y2={height - padding.bottom} />;
-          })}
+          {/* Sin lineas verticales: junto con las horizontales de los extremos dibujaban un
+              marco rectangular que ensuciaba el grafico. La referencia vertical ya la da la
+              guia que sigue al cursor, que aparece solo cuando hace falta. */}
           <line className="chart-axis baseline" x1={padding.left} x2={width - padding.right} y1={baselineY} y2={baselineY} />
-          <path className="chart-fill" d={scaledPoints.length ? buildAreaPath(path, scaledPoints[0], scaledPoints.at(-1) || scaledPoints[0], height - padding.bottom) : ""} />
+          <path className="chart-fill" d={scaledPoints.length ? buildAreaPath(path, scaledPoints[0], scaledPoints.at(-1) || scaledPoints[0], chartBottom) : ""} />
+          <line className="chart-axis band-baseline" x1={padding.left} x2={width - padding.right} y1={bandBaseline} y2={bandBaseline} />
           {eventBars.map((bar, index) => (
             <rect
               className={`chart-event-bar ${bar.kind === "income" ? "income" : "expense"} ${activeIndex === index ? "is-active" : ""}`}
@@ -176,17 +246,40 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
           ))}
           <path className="chart-line" d={path} />
           {activeScaledPoint && (
+            /* La guia cruza tambien la franja: es lo que ata visualmente el punto de la
+               curva con el movimiento que lo provoco, ahora que ya no se solapan. */
             <line
               className="chart-hover-line"
               x1={activeScaledPoint.x}
               x2={activeScaledPoint.x}
               y1={padding.top}
-              y2={height - padding.bottom}
+              y2={bandBaseline}
             />
           )}
-          {activeScaledPoint && <circle className="chart-point is-active" cx={activeScaledPoint.x} cy={activeScaledPoint.y} r="4.6" />}
-          {lastScaledPoint && <circle className="chart-point is-last" cx={lastScaledPoint.x} cy={lastScaledPoint.y} r="5.2" />}
         </svg>
+        {/* Los puntos van en HTML, no como <circle> en el SVG: con preserveAspectRatio
+            "none" las escalas X e Y difieren, asi que un circulo salia ovalado (hasta un
+            53% mas ancho que alto en paneles anchos). En HTML son circulos de verdad y su
+            tamano se fija en pixeles reales, sin depender del ancho del panel. */}
+        {lastScaledPoint && (
+          <span
+            className="chart-dot is-last"
+            style={{ left: `${(lastScaledPoint.x / width) * 100}%`, top: `${(lastScaledPoint.y / height) * 100}%` }}
+          />
+        )}
+        {activeScaledPoint && (
+          <span
+            className="chart-dot is-active"
+            style={{ left: `${(activeScaledPoint.x / width) * 100}%`, top: `${(activeScaledPoint.y / height) * 100}%` }}
+          />
+        )}
+        <div className="chart-value-axis" aria-hidden="true">
+          {axisValues.map((tick) => (
+            <span key={tick.position} style={{ top: `${((padding.top + chartHeight * tick.position) / height) * 100}%` }}>
+              {formatCompactValue(tick.value, language)}
+            </span>
+          ))}
+        </div>
         <div className="chart-date-axis" aria-hidden="true">
           {dateTicks.map((tick) => (
             <span key={`${tick.date}-${tick.x}`} style={{ left: `${(tick.x / width) * 100}%` }}>
@@ -218,10 +311,13 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   );
 }
 
-function getVisibleCount(total: number, zoomLevel: number) {
-  const ratios = [1, 0.72, 0.5, 0.34];
-  const ratio = ratios[clamp(zoomLevel, 0, MAX_ZOOM_LEVEL)] || 1;
-  return Math.min(total, Math.max(3, Math.ceil(total * ratio)));
+/** Formato corto para el eje: en 62px de margen no cabe "1.085,54 US$", y ahi solo hace
+ *  falta el orden de magnitud. El importe exacto lo dan el tooltip y la etiqueta final. */
+function formatCompactValue(value: number, language: Language) {
+  return new Intl.NumberFormat(language === "en" ? "en-US" : "es-ES", {
+    maximumFractionDigits: Math.abs(value) >= 1000 ? 1 : 0,
+    notation: "compact",
+  }).format(value);
 }
 
 function buildDateTicks(points: Array<{ date: string; x: number }>) {

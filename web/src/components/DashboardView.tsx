@@ -87,6 +87,14 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
   const scopeLabel = buildScopeLabel(filters, firms, accounts, t);
   const expenseRows = useMemo(() => buildExpenseRows(dashboardModel.scopedMovements, t), [dashboardModel.scopedMovements, t]);
   const monthlyRows = useMemo(() => buildMonthlyMovementRows(dashboardModel.scopedMovements, summaryRange), [dashboardModel.scopedMovements, summaryRange]);
+  /* Los totales salen de las mismas filas que dibuja el grafico, no del modelo global:
+     asi el rango elegido manda sobre toda la tarjeta y lo que se lee arriba siempre es
+     exactamente la suma de las barras de abajo. */
+  const rangeTotals = useMemo(() => {
+    const expenses = monthlyRows.reduce((total, row) => total + row.expenses, 0);
+    const income = monthlyRows.reduce((total, row) => total + row.income, 0);
+    return { expenses, income, net: income - expenses };
+  }, [monthlyRows]);
   const accountRows = useMemo(
     () => buildAccountRows(filteredAccounts, dashboardModel.scopedMovements, firms, t),
     [dashboardModel.scopedMovements, filteredAccounts, firms, t],
@@ -104,6 +112,7 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
     ],
     [accounts, filters.firmId, t],
   );
+  const summaryRangeOptions = useMemo(() => getSummaryRangeOptions(t), [t]);
   const periodOptions = useMemo(
     () => [
       { label: t("dashboard.filter.periodAll"), value: "all" },
@@ -235,22 +244,34 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
               <h2>{t("dashboard.period.title")}</h2>
               <InfoHint text={scopeLabel} />
             </div>
+            <div className="period-range-tabs" aria-label={t("dashboard.monthly.rangeLabel")}>
+              {summaryRangeOptions.map((option) => (
+                <button
+                  className={summaryRange === option.value ? "active" : ""}
+                  key={option.value}
+                  onClick={() => setSummaryRange(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="period-summary-list">
             <div>
               <span>{t("dashboard.period.expense")}</span>
-              <strong className="negative">{formatMoney(dashboardModel.expenses, currency)}</strong>
+              <strong className="negative">{formatMoney(rangeTotals.expenses, currency)}</strong>
             </div>
             <div>
               <span>{t("dashboard.period.withdrawals")}</span>
-              <strong className="positive">{formatMoney(dashboardModel.income, currency)}</strong>
+              <strong className="positive">{formatMoney(rangeTotals.income, currency)}</strong>
             </div>
             <div>
               <span>{t("dashboard.period.net")}</span>
-              <strong className={signedTone(dashboardModel.net)}>{formatMoney(dashboardModel.net, currency)}</strong>
+              <strong className={signedTone(rangeTotals.net)}>{formatMoney(rangeTotals.net, currency)}</strong>
             </div>
           </div>
-          <MonthlyMovementBars currency={currency} language={language} range={summaryRange} rows={monthlyRows} t={t} onRangeChange={setSummaryRange} />
+          <MonthlyMovementBars currency={currency} language={language} rows={monthlyRows} t={t} />
         </section>
       </div>
 
@@ -391,22 +412,17 @@ function getSummaryRangeOptions(t: ReturnType<typeof useT>): Array<{ label: stri
 function MonthlyMovementBars({
   currency,
   language,
-  onRangeChange,
-  range,
   rows,
   t,
 }: {
   currency: Currency;
   language: Language;
-  onRangeChange: (range: SummaryRange) => void;
-  range: SummaryRange;
   rows: Array<{ expenses: number; income: number; month: string }>;
   t: ReturnType<typeof useT>;
 }) {
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
   const maxValue = Math.max(1, ...rows.flatMap((row) => [row.expenses, row.income]));
   const activeRow = activeMonth ? rows.find((row) => row.month === activeMonth) : undefined;
-  const summaryRangeOptions = getSummaryRangeOptions(t);
 
   return (
     <div className="period-month-chart" aria-label={t("dashboard.monthly.label")}>
@@ -414,21 +430,6 @@ function MonthlyMovementBars({
         <div className="panel-title-row">
           <span>{t("dashboard.monthly.title")}</span>
           <InfoHint text={t("dashboard.monthly.subtitle")} />
-        </div>
-        <div className="period-range-tabs" aria-label={t("dashboard.monthly.rangeLabel")}>
-          {summaryRangeOptions.map((option) => (
-            <button
-              className={range === option.value ? "active" : ""}
-              key={option.value}
-              onClick={() => {
-                setActiveMonth(null);
-                onRangeChange(option.value);
-              }}
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
         </div>
       </div>
       {rows.length ? (
