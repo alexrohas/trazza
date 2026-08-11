@@ -8,3 +8,8 @@ dist/
 .env
 .env.local
 .env.*.local
+
+# Copia de trabajo del legado (repo propio dentro, no debe anidarse aqui)
+tmp/
+# Permisos de Claude Code especificos de cada maquina
+.claude/settings.local.json
