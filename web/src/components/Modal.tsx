@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "../lib/i18n/context";
 
@@ -22,7 +23,15 @@ export function Modal({ children, onClose, subtitle, title, width = "default" }:
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  return (
+  /**
+   * Se monta en <body>, no donde se declara. Las vistas (.firms-workspace, .view-stack)
+   * llevan animacion de entrada con transform, y un transform en un ancestro convierte
+   * el contenedor de referencia de los position:fixed descendientes: .modal-layer dejaba
+   * de medir la ventana y pasaba a medir toda la pagina, dejando el modal centrado a
+   * mitad del scroll. Con el portal el modal cuelga del body y ningun ancestro puede
+   * volver a romperlo.
+   */
+  return createPortal(
     <div className="modal-layer" role="presentation">
       <button className="modal-backdrop" aria-label={t("common.closeModal")} onClick={onClose} type="button" />
       <section className={`modal-card ${width === "wide" ? "is-wide" : ""}`} aria-modal="true" role="dialog" aria-labelledby="modal-title">
@@ -37,6 +46,7 @@ export function Modal({ children, onClose, subtitle, title, width = "default" }:
         </header>
         <div className="modal-body">{children}</div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

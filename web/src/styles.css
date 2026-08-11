@@ -29,7 +29,190 @@
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  /* Curva desacelerada: arranca rapido y frena al llegar, que es lo que hace que algo
+     parezca que "aterriza" en vez de aparecer. Portada del legado (--ease), donde ya
+     gobernaba section-enter/modal-enter. Se queda para micro-cambios (color, fondo,
+     borde), donde solo importa que no sea un corte seco. */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Para entradas --ease no vale: es tan frontal que a mitad de tiempo ya ha recorrido
+     el 95%, asi que el desplazamiento no llega a verse. Esta reparte el recorrido de
+     forma perceptible (~72% a mitad de tiempo) y es lo que hace que se "vea" algo. */
+  --ease-entrance: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* Rebase corto al final: el elemento pasa un pelin de su sitio y vuelve. Es lo que
+     separa un panel que "aparece" de uno que "entra". Solo en modal y desplegables. */
+  --ease-overshoot: cubic-bezier(0.34, 1.35, 0.64, 1);
+  --dur-fast: 180ms;
+  --dur: 280ms;
+  --dur-slow: 380ms;
   font-family: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* "Reducir movimiento" no es "quitar toda animacion": lo que molesta (mareo, trastorno
+   vestibular) es el desplazamiento y el escalado, no un fundido. Anular todo dejaba la
+   app completamente muerta para cualquiera que tenga los efectos de animacion
+   desactivados en el sistema, que en Windows viene apagado en mas maquinas de las que
+   uno espera. Aqui se sustituye el movimiento por un fundido limpio y se conserva el
+   escalonado, que no desplaza nada. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-name: fade-in !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* El acuse de pulsacion si se retira: es un escalado, justo lo que se pide evitar. */
+  .primary-action:active:not(:disabled),
+  .secondary-action:active:not(:disabled),
+  .danger-action:active:not(:disabled),
+  .ghost-action:active:not(:disabled),
+  .icon-control:active:not(:disabled),
+  .theme-toggle:active:not(:disabled),
+  .filter-toggle-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ============= MOTION =============
+   Todas las entradas usan fill-mode `backwards`, nunca `both`. Con `both` el elemento
+   conserva el transform del ultimo fotograma para siempre, y aunque sea la identidad
+   (matrix(1,0,0,1,0,0)) un transform crea contexto de apilado y bloque contenedor:
+   eso encerraba el z-index de los desplegables dentro de su panel (quedaban por detras
+   de las tarjetas) y hacia que los position:fixed midieran la pagina en vez de la
+   ventana. `backwards` mantiene el estado inicial durante el retardo, que es lo que
+   necesita el escalonado, y no deja residuo al terminar. */
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Los desplegables nacen desde el borde que los ancla, no desde su centro: por eso
+   el transform-origin lo fija cada uno segun abra hacia abajo o hacia arriba. */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scaleY(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+/* El panel sale DEL boton, no desde abajo. El truco no esta en el keyframe sino en el
+   transform-origin: al escalar desde la esquina donde vive el disparador (arriba a la
+   derecha en las cuatro pantallas), el panel crece hacia afuera desde ese punto y se
+   lee como que el boton se despliega. Escalando desde el centro, que es lo que hace
+   por defecto, parecia que aterrizaba de la nada. */
+@keyframes expand-from-toggle {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Acuse de pulsacion: sin esto el clic no devuelve nada y la interfaz parece congelada
+   hasta que llega el resultado. Se hunde solo mientras el boton esta presionado. */
+.primary-action,
+.secondary-action,
+.danger-action,
+.ghost-action,
+.icon-control,
+.theme-toggle,
+.filter-toggle-button {
+  /* Bajada casi instantanea y subida con calma: un clic dura ~80ms, asi que con la
+     duracion normal el boton no llegaba a hundirse antes de soltarlo y no se veia nada.
+     El rebote de vuelta es el que da la sensacion de tecla. */
+  transition: transform 90ms var(--ease);
+}
+
+.primary-action:active:not(:disabled),
+.secondary-action:active:not(:disabled),
+.danger-action:active:not(:disabled),
+.ghost-action:active:not(:disabled),
+.icon-control:active:not(:disabled),
+.theme-toggle:active:not(:disabled),
+.filter-toggle-button:active:not(:disabled) {
+  transform: scale(0.94);
+  transition-duration: 60ms;
+}
+
+/* Raiz de cada vista: al cambiar de seccion el componente se desmonta y monta otro,
+   asi que la animacion se dispara sola en el cambio, no en cada re-render. Es lo que
+   hacia .section-panel en el legado y se perdio al reescribir en React. */
+.view-stack,
+.firms-workspace,
+.settings-grid {
+  animation: enter-up var(--dur-slow) var(--ease-entrance) backwards;
+}
+
+/* Escalonado corto: da sensacion de que la fila se compone, pero cortado al 6º para
+   que la ultima tarjeta no llegue tarde (7 columnas x 40ms ya serian 280ms). */
+.metric-grid .metric-card {
+  animation: enter-up var(--dur) var(--ease-entrance) backwards;
+}
+
+.metric-grid .metric-card:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.metric-grid .metric-card:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.metric-grid .metric-card:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.metric-grid .metric-card:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.metric-grid .metric-card:nth-child(n + 6) {
+  animation-delay: 200ms;
 }
 
 :root[data-theme="dark"] {
