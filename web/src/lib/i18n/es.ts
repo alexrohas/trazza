@@ -244,7 +244,6 @@ export const es = {
   "movement.category.other": "Otro",
   "movement.modal.editTitle": "Editar movimiento",
   "movement.modal.newTitle": "Nuevo movimiento",
-  "movement.modal.subtitle": "Registra el pago o ingreso sin salir del historial.",
   "movement.field.date": "Fecha",
   "movement.field.kind": "Tipo",
   "movement.kind.expense": "Gasto",

@@ -2129,6 +2129,10 @@ button {
    va la estructura compartida: layout, texto truncado, y el panel del desplegable. */
 .custom-select {
   position: relative;
+  /* Sin esto el envoltorio usa min-width:auto y se niega a encoger por debajo de su
+     contenido: una opcion larga desbordaba la columna del formulario (208px sobre 171)
+     y desalineaba el campo respecto a la fila de arriba. */
+  min-width: 0;
 }
 
 .custom-select-trigger {
@@ -2226,6 +2230,8 @@ button {
    Select (mismo borde, sombra y radio) para que ambos se lean como la misma familia. */
 .date-picker {
   position: relative;
+  /* Mismo motivo que .custom-select: el envoltorio no debe imponer su ancho al formulario. */
+  min-width: 0;
 }
 
 .date-picker-panel {
@@ -2529,8 +2535,7 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
+  padding-top: 4px;
 }
 
 .modal-layer {
@@ -2753,13 +2758,14 @@ button {
   }
 }
 
+/* Sin linea inferior: el espacio ya separa la cabecera del formulario, y la raya solo
+   anadia peso. Mismo criterio en .form-action-row. */
 .modal-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid var(--line);
-  padding: 20px 22px 16px;
+  padding: 20px 22px 6px;
 }
 
 .modal-header h2 {
@@ -4832,6 +4838,11 @@ tbody tr:last-child td {
 .entity-form label {
   display: grid;
   gap: 7px;
+  /* Sin esto el label, como elemento de grid, usa min-width:auto y se ensancha hasta
+     caber su contenido: una opcion larga ("General / sin empresa") empujaba el campo
+     37px por encima de su columna, desalineandolo de la fila de arriba y sacando el
+     chevron fuera del boton. Con 0 manda la columna y el texto recorta con ellipsis. */
+  min-width: 0;
   color: var(--strong-muted);
   font-size: 0.78rem;
   font-weight: 800;
@@ -4956,6 +4967,110 @@ tbody tr:last-child td {
 .firm-notes-field,
 .wide-field {
   grid-column: 1 / span 2;
+}
+
+/* ===== Formulario de movimiento =====
+   Ordenado por jerarquia en vez de una rejilla plana de 4 columnas donde todo pesaba
+   igual: tipo (binario, condiciona el resto) -> importe (el dato) -> contexto. */
+.movement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  /* Anula la rejilla de 4 columnas que hereda de .entity-form. El align-items:end de esa
+     clase, en un flex en columna, actua sobre el eje horizontal: encogia cada bloque a su
+     contenido y lo pegaba a la derecha en vez de ocupar el ancho. */
+  grid-template-columns: none;
+  align-items: stretch;
+}
+
+.movement-kind-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.movement-kind-toggle button {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.movement-kind-toggle button:hover:not(:disabled):not(.is-active) {
+  color: var(--strong-muted);
+}
+
+/* El color lo pone el significado, no la marca: un gasto sale del bolsillo y un ingreso
+   entra, y es la misma pareja de colores que usa el resto de la app para importes. */
+.movement-kind-toggle button.is-active.is-expense {
+  border-color: color-mix(in srgb, var(--negative) 28%, transparent);
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.movement-kind-toggle button.is-active.is-income {
+  border-color: color-mix(in srgb, var(--positive) 28%, transparent);
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.movement-kind-toggle button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.movement-amount-input {
+  position: relative;
+}
+
+/* Tipografia de cifra, no de campo: es el dato que da sentido a todo el formulario. */
+.movement-form .movement-amount-input input {
+  min-height: 62px;
+  padding-right: 60px;
+  font-size: 1.62rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.movement-amount-input em {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-style: normal;
+  font-weight: 850;
+  pointer-events: none;
+}
+
+.movement-payout-block {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 13px;
+  background: var(--surface-muted);
+}
+
+.movement-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  align-items: end;
+}
+
+.movement-form-full {
+  grid-column: 1 / -1;
 }
 
 .journal-error-picker {

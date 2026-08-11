@@ -246,7 +246,6 @@ export const en: Record<TranslationKey, string> = {
   "movement.category.other": "Other",
   "movement.modal.editTitle": "Edit movement",
   "movement.modal.newTitle": "New movement",
-  "movement.modal.subtitle": "Log the payment or income without leaving the history.",
   "movement.field.date": "Date",
   "movement.field.kind": "Type",
   "movement.kind.expense": "Expense",

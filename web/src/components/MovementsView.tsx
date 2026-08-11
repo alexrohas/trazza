@@ -200,13 +200,9 @@ export function MovementsView({
   return (
     <div className="firms-workspace">
       {screen === "form" && (
-      <Modal
-        onClose={closeForm}
-        title={editingId ? t("movement.modal.editTitle") : t("movement.modal.newTitle")}
-        subtitle={t("movement.modal.subtitle")}
-      >
+      <Modal onClose={closeForm} title={editingId ? t("movement.modal.editTitle") : t("movement.modal.newTitle")}>
         <form
-          className="entity-form resource-form-grid modal-form-grid"
+          className="entity-form movement-form modal-form-grid"
           onSubmit={async (event) => {
             event.preventDefault();
             const input = isPayout
@@ -221,72 +217,63 @@ export function MovementsView({
             if (saved) closeForm();
           }}
         >
-          <label>
-            <span>{t("movement.field.date")}</span>
-            <DatePicker
-              clearable={false}
-              disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, date: next }))}
-              value={draft.date}
-            />
+          {/* Tipo primero y como segmentado, no desplegable: es binario, condiciona la lista
+              de categorias y el signo del movimiento, asi que merece verse de un vistazo
+              en vez de esconderse tras un clic. */}
+          <div className="movement-kind-toggle" role="radiogroup" aria-label={t("movement.field.kind")}>
+            {kindOptions.map((option) => (
+              <button
+                aria-checked={draft.kind === option.value}
+                className={`${draft.kind === option.value ? "is-active" : ""} ${option.value === "income" ? "is-income" : "is-expense"}`}
+                disabled={!canWrite || mutating}
+                key={option.value}
+                onClick={() => {
+                  const kind = option.value as MovementKind;
+                  setDraft((current) => ({
+                    ...current,
+                    kind,
+                    category: kind === "income" ? "payout" : "challenge",
+                    amount: kind === "income" ? calculatePayoutNetAmount(current.amount, 100) : current.amount,
+                    payoutGrossAmount: kind === "income" ? current.amount || undefined : undefined,
+                    payoutProfitSplit: kind === "income" ? 100 : undefined,
+                  }));
+                }}
+                role="radio"
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* El importe es el dato que da sentido al resto: tipografia grande y sufijo de
+              divisa, para que sea lo primero que se lee y no una casilla mas de la rejilla. */}
+          <label className="movement-amount-field">
+            <span>{isPayout ? t("movement.field.payoutRequested") : t("movement.field.amount")}</span>
+            <div className="movement-amount-input">
+              <input
+                disabled={!canWrite || mutating}
+                min="0.01"
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setDraft((current) =>
+                    isPayout
+                      ? { ...current, amount: calculatePayoutNetAmount(value, current.payoutProfitSplit || 100), payoutGrossAmount: value }
+                      : { ...current, amount: value },
+                  );
+                }}
+                placeholder="0,00"
+                required
+                step="0.01"
+                type="number"
+                value={(isPayout ? draft.payoutGrossAmount : draft.amount) || ""}
+              />
+              <em>{currency}</em>
+            </div>
           </label>
-          <label>
-            <span>{t("movement.field.kind")}</span>
-            <Select
-              disabled={!canWrite || mutating}
-              onChange={(next) => {
-                const kind = next as MovementKind;
-                setDraft((current) => ({
-                  ...current,
-                  kind,
-                  category: kind === "income" ? "payout" : "challenge",
-                  amount: kind === "income" ? calculatePayoutNetAmount(current.amount, 100) : current.amount,
-                  payoutGrossAmount: kind === "income" ? current.amount || undefined : undefined,
-                  payoutProfitSplit: kind === "income" ? 100 : undefined,
-                }));
-              }}
-              options={kindOptions}
-              value={draft.kind}
-            />
-          </label>
-          <label>
-            <span>{t("movement.field.category")}</span>
-            <Select
-              disabled={!canWrite || mutating}
-              onChange={(next) => {
-                const category = next as MovementCategory;
-                setDraft((current) => ({
-                  ...current,
-                  category,
-                  payoutGrossAmount: category === "payout" ? current.payoutGrossAmount || current.amount || undefined : undefined,
-                  payoutProfitSplit: category === "payout" ? current.payoutProfitSplit || 100 : undefined,
-                }));
-              }}
-              options={categoryOptions}
-              value={draft.category}
-            />
-          </label>
-          {isPayout ? (
-            <>
-              <label>
-                <span>{t("movement.field.payoutRequested")}</span>
-                <input
-                  disabled={!canWrite || mutating}
-                  min="0.01"
-                  onChange={(event) => {
-                    const grossAmount = Number(event.target.value);
-                    setDraft((current) => ({
-                      ...current,
-                      amount: calculatePayoutNetAmount(grossAmount, current.payoutProfitSplit || 100),
-                      payoutGrossAmount: grossAmount,
-                    }));
-                  }}
-                  required
-                  step="0.01"
-                  type="number"
-                  value={draft.payoutGrossAmount || ""}
-                />
-              </label>
+
+          {isPayout && (
+            <div className="movement-payout-block">
               <label>
                 <span>{t("movement.field.profitSplit")}</span>
                 <div className="input-with-suffix">
@@ -310,7 +297,7 @@ export function MovementsView({
                   <span>%</span>
                 </div>
               </label>
-              <div className="payout-calculation wide-field" aria-live="polite">
+              <div className="payout-calculation" aria-live="polite">
                 <span>
                   <small>{t("movement.payout.receiveInFinance")}</small>
                   <strong className="positive">+{formatMoney(draft.amount, currency)}</strong>
@@ -320,21 +307,36 @@ export function MovementsView({
                   <strong className="negative">-{formatMoney(payoutGrossAmount, currency)}</strong>
                 </span>
               </div>
-            </>
-          ) : (
-            <label>
-              <span>{t("movement.field.amount")}</span>
-              <input
-                disabled={!canWrite || mutating}
-                min="0.01"
-                onChange={(event) => setDraft((current) => ({ ...current, amount: Number(event.target.value) }))}
-                required
-                step="0.01"
-                type="number"
-                value={draft.amount || ""}
-              />
-            </label>
+            </div>
           )}
+
+          <div className="movement-form-grid">
+          <label>
+            <span>{t("movement.field.date")}</span>
+            <DatePicker
+              clearable={false}
+              disabled={!canWrite || mutating}
+              onChange={(next) => setDraft((current) => ({ ...current, date: next }))}
+              value={draft.date}
+            />
+          </label>
+          <label>
+            <span>{t("movement.field.category")}</span>
+            <Select
+              disabled={!canWrite || mutating}
+              onChange={(next) => {
+                const category = next as MovementCategory;
+                setDraft((current) => ({
+                  ...current,
+                  category,
+                  payoutGrossAmount: category === "payout" ? current.payoutGrossAmount || current.amount || undefined : undefined,
+                  payoutProfitSplit: category === "payout" ? current.payoutProfitSplit || 100 : undefined,
+                }));
+              }}
+              options={categoryOptions}
+              value={draft.category}
+            />
+          </label>
           <label>
             <span>{t("movement.field.firm")}</span>
             <Select
@@ -360,7 +362,9 @@ export function MovementsView({
               value={draft.accountId || ""}
             />
           </label>
-          <label className="wide-field">
+          {/* Clase propia en vez de .wide-field, que abarca 2 de 4 columnas y aqui dejaba
+              media fila vacia. Esta ocupa el ancho completo de la rejilla de dos. */}
+          <label className="movement-form-full">
             <span>{t("movement.field.note")}</span>
             <input
               disabled={!canWrite || mutating}
@@ -370,6 +374,7 @@ export function MovementsView({
               value={draft.note || ""}
             />
           </label>
+          </div>
 
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
