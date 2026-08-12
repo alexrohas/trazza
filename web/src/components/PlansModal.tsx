@@ -12,8 +12,8 @@ type PlansModalProps = {
 
 // Los precios no pasan por i18n a proposito: son importes fijos en euros, iguales en
 // ambos idiomas. Solo se traduce el sufijo de periodo.
-const MONTHLY_PRICE = "6,99€";
-const ANNUAL_PRICE = "59€";
+const MONTHLY_PRICE = "4,99€";
+const ANNUAL_PRICE = "42€";
 
 export function PlansModal({ busy, error, onClose, onSelect }: PlansModalProps) {
   const t = useT();
