@@ -27,9 +27,16 @@ cuenta autoservicio. Todo desplegado y verificado con dinero real. Precio actual
 **4,99 €/mes, 42 €/año** (bajado desde 6,99/59 — el anual se recalculó para que la
 insignia "Ahorra 30%" siguiera siendo cierta, no es casualidad que dé 42).
 
-**Pendiente de Stripe** (fuera del código, hay que hacerlo en el dashboard): crear los
-precios nuevos y apuntar los secretos de las Edge Functions a ellos. Los suscriptores
-existentes no cambian de precio solos.
+El cambio de precio quedó **cerrado el 13 de agosto de 2026**: precios nuevos creados en
+Stripe, `STRIPE_PRICE_MONTHLY` y `STRIPE_PRICE_ANNUAL` apuntando a ellos, y verificado
+con un checkout real (sale 4,99). El trial de 14 días **no vive en Stripe** — lo crea el
+trigger de `supabase-subscriptions.sql`, y el checkout no manda `trial_period_days`; si
+algún día se añade un periodo de prueba a un precio de Stripe, se sumarían los dos.
+
+El dashboard de Stripe quedó ordenado en la misma sesión: 4,99 es el precio
+"Predeterminado" del producto, y los dos viejos (6,99 y 59) están archivados. La única
+suscripción que colgaba del 6,99 era de prueba, así que no hubo que migrar a nadie —
+no queda ningún suscriptor en precios antiguos.
 
 **React, pulido visual — hecho pantalla a pantalla**: Login, Ajustes, Panel (dashboard),
 Empresas, Cuentas. Cada una se llevó varias iteraciones de feedback visual real contra
