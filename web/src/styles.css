@@ -2164,6 +2164,43 @@ button {
   color: var(--muted);
 }
 
+/* El campo hereda el aspecto del contexto donde vive (.firm-form input), asi que aqui
+   solo hace falta dejar sitio al chevron y colocarlo. */
+.combobox {
+  display: flex;
+}
+
+.firm-form .combobox-input,
+.entity-form .combobox-input {
+  width: 100%;
+  padding-right: 34px;
+}
+
+.combobox-toggle {
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.combobox-toggle:hover:not(:disabled) {
+  color: var(--strong-muted);
+}
+
+.combobox-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .custom-select-panel {
   position: absolute;
   z-index: 30;
@@ -4533,12 +4570,16 @@ button {
   gap: 14px;
 }
 
+/* Mismo criterio que .firm-card: sin min-height, para que cada tarjeta mida lo que dice
+   en vez de igualarlas todas. Flex en columna para que las acciones se anclen abajo
+   aunque la fila del grid estire la tarjeta. */
 .account-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  min-height: 280px;
   border-radius: var(--radius-sm);
   padding: 18px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 28%, transparent), transparent 48%),
     var(--surface);
@@ -4621,15 +4662,32 @@ button {
   margin-top: auto;
 }
 
-.account-card-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+/* Esta tarjeta no lleva borde, se define por fondo y sombra: el realce del hover tiene
+   que ir por sombra, un aro de acento en vez de un cambio de border-color que aqui no
+   pintaria nada. margin-top:auto ancla las acciones abajo al estirarse la fila. */
+.account-card:hover {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent),
+    0 4px 16px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-.account-card-actions .secondary-action,
-.account-card-actions .danger-action {
-  width: 100%;
+.account-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.account-card-actions .secondary-action {
+  flex: 1;
+}
+
+/* Un limite sin definir se lee como texto, no como cifra: tipografia normal y color
+   apagado para que no compita con los valores reales de al lado. */
+.account-card-rules strong.is-unset {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .account-row-main {
@@ -5173,6 +5231,25 @@ tbody tr:last-child td {
   color: var(--strong-muted);
 }
 
+/* No habia hover en ninguno de los dos, y se usan por toda la app (editar, exportar,
+   reiniciar filtros, cancelar): al pasar el raton no devolvian nada y parecian inertes.
+   El borde se tine de acento y el fondo se apaga un punto, sin desplazar nada. */
+.secondary-action:hover:not(:disabled),
+.ghost-action:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.secondary-action,
+.ghost-action {
+  transition:
+    transform 90ms var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
 .danger-action {
   border: 1px solid rgba(194, 65, 45, 0.22);
   background: var(--negative-soft);
@@ -5433,11 +5510,25 @@ tbody tr:last-child td {
   align-items: stretch;
 }
 
+/* Sin min-height: obligaba a las 7 tarjetas a medir lo mismo, asi que una empresa sin
+   cuentas ocupaba tanto como una con cuatro. Ahora cada una mide lo que dice.
+   Flex en columna en vez de grid: las tarjetas de una misma fila siguen igualandose por
+   el estiramiento del grid padre, pero aqui el contenido se queda arriba y el
+   margin-top:auto de las acciones las ancla abajo, cosa que con grid y align-content
+   no ocurre porque no queda hueco libre que absorber. */
 .firm-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  min-height: 276px;
   padding: 18px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+/* La tarjeta entera acusa el paso del raton, no solo sus botones: deja claro sobre cual
+   se esta actuando cuando hay varias en rejilla. */
+.firm-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .firm-card-header {
@@ -5447,14 +5538,47 @@ tbody tr:last-child td {
   align-items: center;
 }
 
+/* El tono lo inyecta el componente como --firm-hue, derivado de un hash del nombre.
+   Antes todas las empresas compartian el mismo icono y el mismo color, asi que la
+   cabecera de la tarjeta no ayudaba a distinguirlas de un vistazo. */
 .firm-avatar {
   display: inline-grid;
   place-items: center;
   width: 42px;
   height: 42px;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 15%, var(--surface-muted));
-  color: var(--accent-strong);
+  background: hsl(var(--firm-hue, 258) 62% 93%);
+  color: hsl(var(--firm-hue, 258) 48% 34%);
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+:root[data-theme="dark"] .firm-avatar {
+  background: hsl(var(--firm-hue, 258) 32% 22%);
+  color: hsl(var(--firm-hue, 258) 68% 76%);
+}
+
+/* Fondo claro en los DOS temas, no var(--surface-muted). En oscuro ese token es casi
+   negro (#1b1b20) y la mayoria de logos de prop firms son oscuros sobre transparente:
+   se volverian invisibles. Una placa clara garantiza que cualquier logo se lea, venga
+   como venga, y es el patron habitual para mostrar marcas ajenas. El color del
+   monograma tampoco vale aqui: competiria con el de la propia marca.
+   contain y no cover, para no recortar los logos que no sean cuadrados. */
+.firm-avatar.has-logo,
+:root[data-theme="dark"] .firm-avatar.has-logo {
+  background: #f4f4f6;
+  padding: 5px;
+}
+
+:root[data-theme="dark"] .firm-avatar.has-logo {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.firm-avatar.has-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .firm-type-pill {
@@ -5558,9 +5682,43 @@ tbody tr:last-child td {
   gap: 10px;
 }
 
-.firm-card-actions .secondary-action,
-.firm-card-actions .danger-action {
+/* Editar ocupa la fila y borrar se queda en un icono al margen: es irreversible y no
+   debe pesar lo mismo que la accion rutinaria. */
+.firm-card-actions .secondary-action {
   flex: 1;
+}
+
+.card-delete {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.card-delete:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--negative) 32%, transparent);
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.card-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Sustituye a las tres cifras a cero y la barra vacia de una empresa sin cuentas. */
+.firm-card-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .firms-grid .empty-panel {
@@ -5719,6 +5877,13 @@ tbody tr:last-child td {
   .journal-top-grid,
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* .firms-grid es tambien .directory-grid, asi que se tragaba el colapso a una
+     columna de arriba pese a declarar auto-fit minmax(280px, 1fr), que ya se adapta
+     sola. El resultado era una tarjeta de 709px de ancho para mostrar tres cifras. */
+  .firms-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 
   .journal-dashboard-widget[data-widget-size="third"] {

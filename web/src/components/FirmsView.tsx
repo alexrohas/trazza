@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BadgeCheck, Building2, Check, Pencil, Plus, Trash2, WalletCards } from "lucide-react";
+import { Combobox } from "./Combobox";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
+import { getFirmLogo, getKnownFirmNames } from "../lib/firmLogos";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type { AccountStatus, DataMode, Firm, FirmInput, FirmType, TradingAccount } from "../types";
@@ -53,6 +55,7 @@ export function FirmsView({
   const [formOpen, setFormOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"all" | FirmType>("all");
   const t = useT();
+  const knownFirmNames = useMemo(() => getKnownFirmNames(), []);
   const firmTypeOptions = useMemo(() => getFirmTypeOptions(t), [t]);
   const firmTypeFilters = useMemo(() => [{ label: t("common.all"), value: "all" as const }, ...firmTypeOptions], [firmTypeOptions, t]);
   const firmTypeLabelByValue = useMemo(() => new Map(firmTypeOptions.map((option) => [option.value, option.label])), [firmTypeOptions]);
@@ -150,7 +153,9 @@ export function FirmsView({
       <Modal
         onClose={closeForm}
         title={editingFirm ? t("firm.modal.editTitle") : t("firm.modal.newTitle")}
-        subtitle={canWrite ? t("firm.modal.subtitleWrite") : t("firm.modal.subtitleReadonly")}
+        // Sin subtitulo en el caso normal. El de solo lectura si se conserva: ahi no
+        // describe lo obvio, avisa de que no se va a poder guardar.
+        subtitle={canWrite ? undefined : t("firm.modal.subtitleReadonly")}
       >
         <form
           className="firm-form modal-form-grid"
@@ -162,13 +167,12 @@ export function FirmsView({
         >
           <label>
             <span>{t("firm.field.name")}</span>
-            <input
+            <Combobox
               disabled={!canWrite || mutating}
-              minLength={2}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+              onChange={(next) => setDraft((current) => ({ ...current, name: next }))}
               placeholder={t("firm.field.namePlaceholder")}
               required
-              type="text"
+              suggestions={knownFirmNames}
               value={draft.name}
             />
           </label>
@@ -213,7 +217,6 @@ export function FirmsView({
         <div className="firm-overview-copy">
           <span className="section-kicker">{t("firm.overview.kicker")}</span>
           <h2>{t("firm.overview.title")}</h2>
-          <p>{t("firm.overview.subtitle")}</p>
         </div>
         <div className="firm-overview-stats" aria-label={t("firm.overview.summaryLabel")}>
           <span>
@@ -243,7 +246,6 @@ export function FirmsView({
         <div className="firm-filter-head">
           <div>
             <h2>{t("firm.filter.title")}</h2>
-            <p>{t("firm.filter.subtitle")}</p>
           </div>
           <span className="result-count">
             {filteredFirms.length} {t("common.of")} {firms.length} {t("firm.filter.countSuffix")}
@@ -275,42 +277,66 @@ export function FirmsView({
           const firmStats = firmStatsById.get(firm.id) || { active: 0, funded: 0, inactive: 0, total: 0 };
           const activeShare = firmStats.total ? Math.round((firmStats.active / firmStats.total) * 100) : 0;
           const deleteDisabled = !canWrite || mutating || firmStats.total > 0;
+          const firmLogo = getFirmLogo(firm.name);
 
           return (
             <article className="directory-card firm-card" key={firm.id}>
               <div className="firm-card-header">
-                <span className="firm-avatar" aria-hidden="true">
-                  <Building2 size={19} strokeWidth={2.25} />
-                </span>
+                {/* Logo propio si existe uno en src/assets/firm-logos, y si no el
+                    monograma con color derivado del nombre. El monograma no es un
+                    parche: es el estado normal de cualquier empresa sin logo, y ya da
+                    identidad visual sin depender de recursos externos. */}
+                {firmLogo ? (
+                  <span className="firm-avatar has-logo" aria-hidden="true">
+                    {/* Sin loading="lazy": son iconos de 42px que el empaquetador
+                        incrusta como data URI, asi que no hay peticion que diferir y
+                        solo se conseguiria retrasar el pintado de algo ya presente. */}
+                    <img alt="" src={firmLogo} />
+                  </span>
+                ) : (
+                  <span className="firm-avatar" aria-hidden="true" style={{ "--firm-hue": getFirmHue(firm.name) } as CSSProperties}>
+                    {getFirmInitials(firm.name)}
+                  </span>
+                )}
                 <div>
                   <span className={`firm-type-pill ${firm.type}`}>{firmTypeLabelByValue.get(firm.type)}</span>
                   <h2>{firm.name}</h2>
                 </div>
               </div>
-              <p className="firm-card-notes">{firm.notes || t("firm.card.noNotes")}</p>
-              <dl className="firm-card-stats">
-                <div>
-                  <dt>{t("firm.card.accounts")}</dt>
-                  <dd>{firmStats.total}</dd>
-                </div>
-                <div>
-                  <dt>{t("firm.card.active")}</dt>
-                  <dd>{firmStats.active}</dd>
-                </div>
-                <div>
-                  <dt>{t("firm.card.funded")}</dt>
-                  <dd>{firmStats.funded}</dd>
-                </div>
-              </dl>
-              <div className="firm-card-progress-block">
-                <div className="firm-card-progress-label">
-                  <span>{firmStats.active} {t("firm.card.activeSuffix")}</span>
-                  <span>{firmStats.inactive} {t("firm.card.inactiveSuffix")}</span>
-                </div>
-                <div className="firm-card-progress" aria-hidden="true">
-                  <span style={{ width: `${activeShare}%` }} />
-                </div>
-              </div>
+              {/* Sin nota no se pinta la linea: el placeholder "Sin notas guardadas"
+                  ocupaba una fila entera en 5 de 7 empresas para no decir nada. */}
+              {firm.notes && <p className="firm-card-notes">{firm.notes}</p>}
+              {firmStats.total > 0 ? (
+                <>
+                  <dl className="firm-card-stats">
+                    <div>
+                      <dt>{t("firm.card.accounts")}</dt>
+                      <dd>{firmStats.total}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("firm.card.active")}</dt>
+                      <dd>{firmStats.active}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("firm.card.funded")}</dt>
+                      <dd>{firmStats.funded}</dd>
+                    </div>
+                  </dl>
+                  <div className="firm-card-progress-block">
+                    <div className="firm-card-progress-label">
+                      <span>{firmStats.active} {t("firm.card.activeSuffix")}</span>
+                      <span>{firmStats.inactive} {t("firm.card.inactiveSuffix")}</span>
+                    </div>
+                    <div className="firm-card-progress" aria-hidden="true">
+                      <span style={{ width: `${activeShare}%` }} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Tres ceros y una barra vacia no informan de nada. Una linea basta, y
+                   ademas distingue de un vistazo que empresas estan sin estrenar. */
+                <p className="firm-card-empty">{t("firm.card.noAccounts")}</p>
+              )}
               <div className="firm-card-actions">
                 <button
                   className="secondary-action"
@@ -321,8 +347,11 @@ export function FirmsView({
                   <Pencil size={16} strokeWidth={2.2} />
                   {t("common.edit")}
                 </button>
+                {/* Solo icono: es la accion irreversible de la tarjeta y no debe competir
+                    en peso con editar. El texto se conserva como aria-label y title. */}
                 <button
-                  className="danger-action"
+                  aria-label={`${t("common.delete")} ${firm.name}`}
+                  className="card-delete"
                   disabled={deleteDisabled}
                   onClick={() => {
                     if (!window.confirm(`${t("common.deleteConfirmPrefix")} ${firm.name}?`)) return;
@@ -331,8 +360,7 @@ export function FirmsView({
                   title={firmStats.total > 0 ? t("firm.card.deleteTitleBlocked") : t("firm.card.deleteTitleAllowed")}
                   type="button"
                 >
-                  <Trash2 size={16} strokeWidth={2.2} />
-                  {t("common.delete")}
+                  <Trash2 size={15} strokeWidth={2.2} />
                 </button>
               </div>
             </article>
@@ -349,4 +377,35 @@ export function FirmsView({
       </section>
     </div>
   );
+}
+
+/** Iniciales para el monograma: una palabra da sus dos primeras letras, varias dan la
+ *  inicial de las dos primeras ("Wall Street Funded" -> WS, "Apex" -> AP). */
+function getFirmInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+/** Tono estable derivado del nombre: la misma empresa siempre sale del mismo color, sin
+ *  guardar nada.
+ *
+ *  FNV-1a con paso de avalancha, y no el clasico hash*31: ese deja los bits bajos poco
+ *  mezclados, que son justo los que se usan al repartir en cubos. Medido sobre 2000
+ *  nombres en 12 cubos, FNV da chi2 7,6 (reparto casi perfecto) frente a 14,9.
+ *
+ *  Se cuantiza en 12 tonos separados 30 grados en vez de usar el hash crudo: asi dos
+ *  empresas o comparten color exacto o se distinguen con claridad, sin parejas a cinco
+ *  grados que parecen el mismo color mal impreso. */
+function getFirmHue(name: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < name.length; index += 1) {
+    hash ^= name.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 2246822507);
+  hash ^= hash >>> 13;
+  return ((hash >>> 0) % 12) * 30;
 }

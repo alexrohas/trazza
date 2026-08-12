@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, WalletCards } from "lucide-react";
+import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
@@ -79,6 +79,7 @@ export function AccountsView({
   const [firmFilter, setFirmFilter] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [firmRequiredError, setFirmRequiredError] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [statusFilter, setStatusFilter] = useState<"all" | AccountStatus>("all");
   const t = useT();
@@ -115,6 +116,19 @@ export function AccountsView({
       { accounts: 0, active: 0, funded: 0, inactive: 0 },
     );
   }, [accounts]);
+  /* Gastado y retirado por cuenta. En una cuenta terminada esto es lo unico que sigue
+     siendo cierto: el objetivo y los drawdowns ya no rigen nada. */
+  const accountTotals = useMemo(() => {
+    const totals = new Map<string, { expenses: number; income: number }>();
+    movements.forEach((movement) => {
+      if (!movement.accountId) return;
+      const current = totals.get(movement.accountId) || { expenses: 0, income: 0 };
+      if (movement.kind === "income") current.income += movement.amount;
+      else current.expenses += movement.amount;
+      totals.set(movement.accountId, current);
+    });
+    return totals;
+  }, [movements]);
   const filteredAccounts = useMemo(
     () =>
       accounts.filter((account) => {
@@ -132,9 +146,31 @@ export function AccountsView({
     [accounts, firmFilter, firmNameById, searchQuery, statusFilter],
   );
 
+  /* Nombre propuesto a partir de empresa y tamano, con sufijo si ya existe uno igual.
+     Antes habia que escribirlo a mano, y acababa cargando datos que la app ya conoce
+     ("[ALPHA] 25K FUNDED" lleva empresa y estado dentro del texto libre). */
+  const suggestedName = useMemo(() => {
+    const firmName = firmNameById.get(draft.firmId);
+    if (!firmName || !draft.size.trim()) return "";
+    const base = `${firmName} ${formatSizeForName(draft.size)}`.trim();
+    const taken = accounts.filter((account) => account.id !== editingId).map((account) => account.name.toLowerCase());
+    if (!taken.includes(base.toLowerCase())) return base;
+    let index = 2;
+    while (taken.includes(`${base} #${index}`.toLowerCase())) index += 1;
+    return `${base} #${index}`;
+  }, [accounts, draft.firmId, draft.size, editingId, firmNameById]);
+
+  useEffect(() => {
+    /* Solo se rellena solo mientras el nombre no se haya tocado. Al editar una cuenta
+       existente nunca se pisa: nameTouched se marca al abrir el formulario. */
+    if (nameTouched || !suggestedName) return;
+    setDraft((current) => (current.name === suggestedName ? current : { ...current, name: suggestedName }));
+  }, [nameTouched, suggestedName]);
+
   const resetForm = () => {
     setDraft(emptyAccountInput);
     setEditingId(undefined);
+    setNameTouched(false);
   };
 
   const closeForm = () => {
@@ -159,6 +195,8 @@ export function AccountsView({
       maxDrawdown: account.maxDrawdown || undefined,
       dailyDrawdown: account.dailyDrawdown || undefined,
     });
+    /* Una cuenta ya guardada tiene su nombre decidido: no se regenera al abrirla. */
+    setNameTouched(true);
     setScreen("form");
   };
 
@@ -210,7 +248,12 @@ export function AccountsView({
             <input
               disabled={!canWrite || mutating}
               minLength={2}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) => {
+                /* En cuanto se escribe, el nombre pasa a ser tuyo y deja de regenerarse.
+                   Si se vacia vuelve a considerarse automatico, para poder deshacer. */
+                setNameTouched(event.target.value.trim().length > 0);
+                setDraft((current) => ({ ...current, name: event.target.value }));
+              }}
               placeholder={t("account.field.namePlaceholder")}
               required
               type="text"
@@ -288,7 +331,6 @@ export function AccountsView({
         <div className="accounts-overview-copy">
           <span className="section-kicker">{t("account.overview.kicker")}</span>
           <h2>{t("account.overview.title")}</h2>
-          <p>{t("account.overview.subtitle")}</p>
         </div>
         <div className="accounts-overview-stats" aria-label={t("account.overview.summaryLabel")}>
           <span>
@@ -318,7 +360,6 @@ export function AccountsView({
         <div className="account-filter-head">
           <div>
             <h2>{t("account.filter.title")}</h2>
-            <p>{t("account.filter.subtitle")}</p>
           </div>
           <div className="account-filter-head-actions">
             <span className="result-count">
@@ -371,6 +412,16 @@ export function AccountsView({
           const relatedMovements = movements.some((movement) => movement.accountId === account.id);
           const relatedJournal = journalEntries.some((entry) => entry.accountId === account.id);
           const deleteDisabled = !canWrite || mutating || relatedMovements || relatedJournal;
+          /* Un limite sin definir llega como 0 desde la base de datos (numberOrZero en
+             db.ts), asi que sin esta comprobacion se mostraba "0,00 US$": un dato
+             ausente disfrazado de objetivo real. El DD diario ya lo distinguia; ahora
+             los tres se comportan igual. */
+          const isFinished = blockedAccountStatuses.has(account.status);
+          const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
+          const netResult = totals.income - totals.expenses;
+          const hasActivity = totals.expenses > 0 || totals.income > 0;
+          const hasPhaseTarget = Boolean(account.phaseTarget);
+          const hasMaxDrawdown = Boolean(account.maxDrawdown);
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
 
           return (
@@ -387,23 +438,60 @@ export function AccountsView({
                 <strong>{formatAccountSize(account, currency)}</strong>
               </div>
 
-              <div className="account-card-rules">
-                <span>
-                  <Flag size={15} strokeWidth={2.2} />
-                  <small>{t("account.card.target")}</small>
-                  <strong>{formatMoney(account.phaseTarget, currency)}</strong>
-                </span>
-                <span>
-                  <Shield size={15} strokeWidth={2.2} />
-                  <small>{t("account.card.maxDrawdown")}</small>
-                  <strong>{formatMoney(account.maxDrawdown, currency)}</strong>
-                </span>
-                <span>
-                  <CalendarDays size={15} strokeWidth={2.2} />
-                  <small>{t("account.card.dailyDrawdown")}</small>
-                  <strong>{hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}</strong>
-                </span>
-              </div>
+              {/* Una cuenta fallada o cerrada ya no se rige por objetivo ni drawdowns:
+                  mostrarlos es ocupar sitio con reglas que no aplican. En su lugar va el
+                  desenlace, que es lo unico que sigue siendo cierto de esa cuenta. */}
+              {isFinished ? (
+                <div className="account-card-rules is-outcome">
+                  <span>
+                    <Wallet size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.spent")}</small>
+                    <strong className={totals.expenses ? "negative" : "is-unset"}>
+                      {totals.expenses ? formatMoney(totals.expenses, currency) : t("account.card.none")}
+                    </strong>
+                  </span>
+                  <span>
+                    <TrendingUp size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.withdrawn")}</small>
+                    <strong className={totals.income ? "positive" : "is-unset"}>
+                      {totals.income ? formatMoney(totals.income, currency) : t("account.card.none")}
+                    </strong>
+                  </span>
+                  <span>
+                    <Flag size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.balance")}</small>
+                    {/* Sin ningun movimiento no hay balance que dar: un "0,00" ahi seria
+                        el mismo cero vacio que se retiro del objetivo y los drawdowns. */}
+                    <strong className={hasActivity ? (netResult > 0 ? "positive" : netResult < 0 ? "negative" : undefined) : "is-unset"}>
+                      {hasActivity ? formatMoney(netResult, currency) : t("account.card.none")}
+                    </strong>
+                  </span>
+                </div>
+              ) : (
+                <div className="account-card-rules">
+                  <span>
+                    <Flag size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.target")}</small>
+                    <strong className={hasPhaseTarget ? undefined : "is-unset"}>
+                      {hasPhaseTarget ? formatMoney(account.phaseTarget, currency) : t("account.card.noTarget")}
+                    </strong>
+                  </span>
+                  <span>
+                    <Shield size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.maxDrawdown")}</small>
+                    <strong className={hasMaxDrawdown ? undefined : "is-unset"}>
+                      {hasMaxDrawdown ? formatMoney(account.maxDrawdown, currency) : t("account.card.noLimit")}
+                    </strong>
+                  </span>
+                  <span>
+                    <CalendarDays size={15} strokeWidth={2.2} />
+                    <small>{t("account.card.dailyDrawdown")}</small>
+                    <strong className={hasDailyDrawdown ? undefined : "is-unset"}>
+                      {hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}
+                    </strong>
+                  </span>
+                </div>
+              )}
 
               <div className="account-card-meta">
                 <span>{t("account.card.purchasePrefix")} {account.purchasedAt || t("account.card.noDate")}</span>
@@ -424,8 +512,12 @@ export function AccountsView({
                   <Pencil size={16} strokeWidth={2.2} />
                   {t("common.edit")}
                 </button>
+                {/* Solo icono, igual que en Empresas: es la accion irreversible y ademas
+                    esta bloqueada en casi todas las cuentas (las que tienen movimientos o
+                    journal), asi que no merece media fila de acciones. */}
                 <button
-                  className="danger-action"
+                  aria-label={`${t("common.delete")} ${account.name}`}
+                  className="card-delete"
                   disabled={deleteDisabled}
                   onClick={() => {
                     if (!window.confirm(`${t("common.deleteConfirmPrefix")} ${account.name}?`)) return;
@@ -434,8 +526,7 @@ export function AccountsView({
                   title={deleteDisabled ? t("account.card.deleteTitleBlocked") : t("account.card.deleteTitleAllowed")}
                   type="button"
                 >
-                  <Trash2 size={16} strokeWidth={2.2} />
-                  {t("common.delete")}
+                  <Trash2 size={15} strokeWidth={2.2} />
                 </button>
               </div>
             </article>
@@ -479,4 +570,17 @@ function NumberField({
       />
     </label>
   );
+}
+
+/** "25000" -> "25K" para el nombre automatico. Si ya viene escrito como etiqueta
+ *  ("25K", "Flex 25K") se respeta tal cual: el usuario ya eligio como llamarlo. */
+function formatSizeForName(size: string) {
+  const raw = size.trim();
+  const numeric = Number(raw.replace(/[^\d.-]/g, ""));
+  if (!/^[\d.,\s]+$/.test(raw) || !Number.isFinite(numeric) || numeric <= 0) return raw;
+  if (numeric >= 1000) {
+    const thousands = numeric / 1000;
+    return `${Number.isInteger(thousands) ? thousands : thousands.toFixed(1)}K`;
+  }
+  return String(numeric);
 }

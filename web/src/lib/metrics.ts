@@ -20,6 +20,12 @@ export function formatMoney(value: number, currency: Currency = "EUR") {
     style: "currency",
     currency,
     maximumFractionDigits: 2,
+    /* El espanol omite el separador de miles en numeros de cuatro cifras (5000, no
+       5.000). Es correcto al escribir, pero en una columna de importes deja "5000,00"
+       junto a "25.000,00" y cuesta compararlos de un vistazo.
+       Se usa `true` y no "always" porque la version de TypeScript del proyecto aun tipa
+       esta opcion como booleana; el resultado es identico. */
+    useGrouping: true,
   }).format(value);
 }
 
