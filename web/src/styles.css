@@ -5295,6 +5295,12 @@ tbody tr:last-child td {
   gap: 8px;
 }
 
+/* Hueco de una celda sin dato. Se atenua para que la raya no se lea como contenido:
+   en la tabla de movimientos 8 de 25 notas estan vacias. */
+.cell-empty {
+  color: var(--muted);
+}
+
 .editable-journal-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

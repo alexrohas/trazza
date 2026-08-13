@@ -396,7 +396,6 @@ export function MovementsView({
         <div className="resource-list-toolbar">
           <div>
             <h2>{t("movement.list.title")}</h2>
-            <p>{t("movement.list.subtitle")}</p>
           </div>
           <div className="account-filter-head-actions">
             <span className="result-count">
@@ -448,13 +447,10 @@ export function MovementsView({
         )}
       </section>
 
+      {/* Sin cabecera propia: la tabla es el resultado del panel de filtros de arriba, no
+          otra seccion. Repetirla dejaba "Movimientos" tres veces en la misma pantalla
+          (titulo de vista, filtros y tabla). Mismo criterio que la rejilla de Empresas. */}
       <section className="panel table-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{t("movement.table.title")}</h2>
-            <p>{t("movement.table.subtitle")}</p>
-          </div>
-        </div>
         <div className="table-scroll">
           <table>
             <thead>
@@ -486,7 +482,9 @@ export function MovementsView({
                       )}
                     </span>
                   </td>
-                  <td data-label={t("movement.table.note")}>{movement.note || "-"}</td>
+                  <td data-label={t("movement.table.note")}>
+                    {movement.note || <span className="cell-empty">—</span>}
+                  </td>
                   <td className={`align-right amount ${movement.kind}`} data-label={t("movement.table.amount")}>
                     {movement.kind === "income" ? "+" : "-"}
                     {formatMoney(movement.amount, currency)}
@@ -502,17 +500,21 @@ export function MovementsView({
                         <Pencil size={16} strokeWidth={2.2} />
                         {t("common.edit")}
                       </button>
+                      {/* Solo icono, igual que en las tarjetas de Empresas y Cuentas: es la
+                          accion irreversible y no debe competir en peso con editar. Con texto
+                          ocupaba mas ancho que cualquier columna de datos de la tabla. */}
                       <button
-                        className="danger-action"
+                        aria-label={`${t("common.delete")} ${movement.date}`}
+                        className="card-delete"
                         disabled={!canWrite || mutating}
                         onClick={() => {
                           if (!window.confirm(t("movement.deleteConfirm"))) return;
                           void onDeleteMovement(movement.id);
                         }}
+                        title={t("common.delete")}
                         type="button"
                       >
-                        <Trash2 size={16} strokeWidth={2.2} />
-                        {t("common.delete")}
+                        <Trash2 size={15} strokeWidth={2.2} />
                       </button>
                     </div>
                   </td>
