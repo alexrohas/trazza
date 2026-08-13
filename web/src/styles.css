@@ -336,6 +336,10 @@
 :root[data-theme="dark"] .journal-detail-grid div,
 :root[data-theme="dark"] .journal-error-options label,
 :root[data-theme="dark"] .journal-error-type-row,
+/* Se quedo fuera de la lista: su fondo iba fijo (#fbfcfd) y su texto con token, asi que
+   en oscuro era texto casi blanco sobre fondo casi blanco. Mismo caso que la pastilla
+   de cuenta cerrada. */
+:root[data-theme="dark"] .journal-error-type-form input[type="text"],
 :root[data-theme="dark"] .journal-operation-dropzone,
 :root[data-theme="dark"] .journal-pnl-chart-frame,
 :root[data-theme="dark"] .journal-recent-row,
@@ -4942,9 +4946,13 @@ button {
   color: var(--negative);
 }
 
+/* El fondo iba escrito a mano (#edf0f3, gris casi blanco) mientras el texto usaba un
+   token. En oscuro el token se aclaraba y el fondo no cambiaba, asi que la pastilla
+   quedaba en texto claro sobre fondo claro: contraste 1,29, ilegible. Las hermanas
+   (failed, evaluation...) ya usaban token en ambos lados y por eso no fallaban. */
 .status-dot.closed,
 .account-status-pill.closed {
-  background: #edf0f3;
+  background: var(--surface-muted);
   color: var(--strong-muted);
 }
 
