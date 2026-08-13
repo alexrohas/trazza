@@ -2,9 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "trazza-web",
+      "name": "trazza-web-mac",
       "runtimeExecutable": "zsh",
       "runtimeArgs": ["-lc", "pnpm --dir web dev"],
+      "port": 5174
+    },
+    {
+      "name": "trazza-web-windows",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "web", "dev"],
       "port": 5174
     }
   ]

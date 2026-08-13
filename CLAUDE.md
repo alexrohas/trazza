@@ -19,6 +19,18 @@ cambio de esquema: lo que se toque en SQL lo ven las dos apps a la vez.
 `web/.env.local` no viaja con git (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) —
 cópialo de la máquina anterior o pídelo.
 
+**El proyecto se trabaja en dos máquinas: un Mac y un PC con Windows.** Por eso
+`.claude/launch.json` tiene dos configuraciones y hay que elegir la de la máquina en la
+que estés: `trazza-web-mac` y `trazza-web-windows`. En Windows basta con invocar `pnpm`
+directamente, pero en el Mac no: el lanzador ejecuta el binario sin pasar por un shell
+de login, y allí Node vive en `~/.local/node` exportado desde `~/.zshenv`, así que sin
+`zsh -lc` no lo encuentra. No unifiques las dos en una: arreglar una rompe la otra.
+
+Aviso relacionado para el Mac: si dentro de una sesión ya arrancada sale
+`node: command not found`, no es que falte Node — es que ese shell se inicializó antes
+de que existiera el `.zshenv`. Antepón
+`export PATH="$HOME/.local/node/bin:$HOME/Library/pnpm:$PATH"` en la propia llamada.
+
 ## Qué está cerrado
 
 **Monetización con Stripe**, sobre el legado: trial de 14 días, checkout mensual/anual,
