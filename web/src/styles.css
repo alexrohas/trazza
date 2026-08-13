@@ -680,14 +680,32 @@ button {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  /* Si la fila no cabe, que baje a una segunda linea. Es la red de seguridad del
+     flex-shrink: 0 de abajo: sin ella un ancho imprevisto (una etiqueta larga, el
+     tipo de letra ampliado del sistema) desbordaria la barra en vez de plegarse. */
+  flex-wrap: wrap;
   gap: var(--space-sm);
   min-width: 0;
+}
+
+/* Cada control de la barra ya tiene su propio ancho: 38px los cuadrados de icono, el
+   texto los demas. Flex los encoge por debajo de eso salvo que se le prohiba, y era
+   justo lo que pasaba en movil: a 375px los cuadrados de 38 se quedaban en 20 con el
+   icono asomando por fuera, y "Nuevo movimiento" se cortaba dentro de su pastilla.
+   Aqui se encoge la columna del titulo, que si puede reflowear, no los botones. */
+.topbar-actions > * {
+  flex-shrink: 0;
 }
 
 .topbar-primary {
   min-height: 40px;
   padding-inline: var(--space-2xl);
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+}
+
+.topbar-primary,
+.topbar-exit {
+  white-space: nowrap;
 }
 
 .topbar-exit {
@@ -6012,6 +6030,23 @@ tbody tr:last-child td {
   }
 }
 
+/* La barra superior se queda sin sitio bastante antes de llegar a movil, y no por el
+   boton principal: el titulo con su fecha pide ~180px y los seis controles ~473px, o
+   sea ~670px de contenido, y por debajo de ~940px de ventana el area util ya no da.
+   Medido: a 960px la fila entra justa (942px utiles), a 900 ya no. Se apila con margen
+   sobre ese cruce para que la fila de acciones tenga el ancho entero para ella. */
+@media (max-width: 960px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-base);
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 820px) {
   body {
     overflow-x: hidden;
@@ -6141,6 +6176,33 @@ tbody tr:last-child td {
 @media (max-width: 560px) {
   .workspace {
     padding: var(--space-xl);
+  }
+
+  /* Ni con la fila entera para el caben las dos etiquetas: con ellas la fila mide 473px
+     y a 375px solo hay ~343px. Se quedan los iconos y el texto pasa a aria-label (ver
+     AppShell.tsx, donde ambos botones lo llevan puesto para este caso). */
+  .topbar-primary span,
+  .topbar-exit span {
+    display: none;
+  }
+
+  /* Solo con iconos la fila mide 293px, y a 320px —el movil mas estrecho que se ve—
+     hay 288: se pasaba por 5px y se partia en dos lineas. Bajar el hueco 2px la
+     devuelve a una sola sin que se note en pantallas mas anchas. */
+  .topbar-actions {
+    gap: var(--space-xs);
+  }
+
+  /* Cuadrados: el principal hereda 44px de alto de .primary-action y los interruptores
+     miden 38, asi que cada uno iguala su ancho al alto que ya tiene. */
+  .topbar-primary {
+    width: 44px;
+    padding-inline: 0;
+  }
+
+  .topbar-exit {
+    width: 38px;
+    padding-inline: 0;
   }
 
   .state-notice {

@@ -200,8 +200,10 @@ export function AppShell({
           </div>
 
           <div className="topbar-actions">
+            {/* En movil el <span> de este boton y el de Salir se ocultan y queda solo el
+                icono, asi que el nombre tiene que vivir tambien en un aria-label. */}
             {activeView !== "settings" && (
-              <button className="primary-action topbar-primary" onClick={onPrimaryAction} type="button">
+              <button aria-label={activeCopy.primary} className="primary-action topbar-primary" onClick={onPrimaryAction} type="button">
                 <Plus size={17} strokeWidth={2.3} />
                 <span>{activeCopy.primary}</span>
               </button>
@@ -227,7 +229,7 @@ export function AppShell({
               </button>
             )}
             {onSignOut && (
-              <button className="secondary-action topbar-exit" onClick={onSignOut} type="button">
+              <button aria-label={t("appShell.topbar.signOut")} className="secondary-action topbar-exit" onClick={onSignOut} type="button">
                 <LogOut size={16} strokeWidth={2.2} />
                 <span>{t("appShell.topbar.signOut")}</span>
               </button>
