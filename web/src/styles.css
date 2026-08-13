@@ -25,10 +25,53 @@
   --accent-strong: #6d3ff0;
   --accent-soft: rgba(139, 92, 246, 0.14);
   --warning: #d97706;
-  --shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+  /* ESCALA DE ELEVACION. Antes habia una sola sombra para todo, asi que una tarjeta
+     quieta y un modal flotando pesaban lo mismo. Tres niveles con una regla clara:
+     -flat para lo que esta apoyado en la pagina (tarjetas, paneles), -raised para lo
+     que se despliega sobre ella y se va (desplegables, calendario, tooltip), -overlay
+     para lo que bloquea (modales). --shadow se mantiene como alias de -flat porque lo
+     usan reglas repartidas por el fichero. */
+  --shadow-flat: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --shadow-raised: 0 4px 12px rgba(9, 9, 11, 0.08), 0 1px 2px rgba(9, 9, 11, 0.04);
+  --shadow-overlay: 0 28px 90px rgba(0, 0, 0, 0.26);
+  --shadow: var(--shadow-flat);
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  /* ESCALA TIPOGRAFICA. Derivada de los 184 font-size que ya habia, no inventada:
+     eran 46 tamanos distintos con saltos de 0,3px (0,78 / 0,82 / 0,84rem) que nadie
+     percibe como jerarquia pero impiden que nada alinee entre pantallas. Estos 10
+     pasos absorben todos con un desplazamiento medio de 0,35px, y solo 2 de los 184
+     usos se mueven mas de 1px. En px y no en rem a proposito: el escalado del
+     navegador ya lo cubre :root, y en rem los valores volvian a ser ilegibles. */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 21px;
+  --text-2xl: 24px;
+  --text-3xl: 28px;
+  --text-4xl: 32px;
+  /* ESCALA DE ESPACIADO. Mismo criterio: 396 valores de padding/gap/margin repartidos
+     en 22 cifras distintas, con impares sueltos (3, 5, 7, 9, 11px) que solo aportaban
+     ruido. Base de 2px y no de 4px porque el ritmo real de esta app ya era par: 10, 14,
+     18 y 22px suman 128 usos y forzarlos a una rejilla de 4 los movia 2px a todos.
+     Desplazamiento medio 0,27px; solo 11 de 396 se mueven mas de 1px. */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 10px;
+  --space-base: 12px;
+  --space-lg: 14px;
+  --space-xl: 16px;
+  --space-2xl: 18px;
+  --space-3xl: 20px;
+  --space-4xl: 24px;
+  --space-5xl: 28px;
+  --space-6xl: 32px;
   /* Curva desacelerada: arranca rapido y frena al llegar, que es lo que hace que algo
      parezca que "aterriza" en vez de aparecer. Portada del legado (--ease), donde ya
      gobernaba section-enter/modal-enter. Se queda para micro-cambios (color, fondo,
@@ -236,13 +279,18 @@
   --accent-strong: #c4a7ff;
   --accent-soft: rgba(167, 121, 255, 0.16);
   --warning: #f5a524;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* En oscuro la sombra separa menos que en claro (hay menos contraste contra el fondo),
+     asi que los niveles altos suben opacidad en vez de solo radio. */
+  --shadow-flat: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-overlay: 0 28px 90px rgba(0, 0, 0, 0.6);
+  --shadow: var(--shadow-flat);
 }
 
 :root[data-theme="dark"] .auth-screen,
 :root[data-theme="dark"] .loading-screen {
   background:
-    radial-gradient(circle at 30% 20%, rgba(50, 184, 178, 0.14), transparent 34%),
+    radial-gradient(circle at 30% 20%, var(--accent-soft), transparent 34%),
     var(--bg);
 }
 
@@ -298,7 +346,7 @@
 :root[data-theme="dark"] .journal-mode-tabs button.active,
 :root[data-theme="dark"] .journal-review-presets button.active,
 :root[data-theme="dark"] .account-status-pill.evaluation {
-  background: rgba(50, 184, 178, 0.14);
+  background: var(--accent-soft);
 }
 
 :root[data-theme="dark"] .workspace-header {
@@ -1644,7 +1692,7 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-flat);
 }
 
 .metric-card {
@@ -2069,7 +2117,7 @@ button {
 .view-filters .custom-select-trigger:focus-visible,
 .settings-form .custom-select-trigger:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .dashboard-filters input:disabled,
@@ -2216,7 +2264,7 @@ button {
   border-radius: var(--radius-sm);
   padding: 4px;
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raised);
   list-style: none;
 }
 
@@ -2283,7 +2331,7 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raised);
   transform-origin: top center;
   animation: drop-in var(--dur-fast) var(--ease-overshoot) backwards;
 }
@@ -2607,7 +2655,7 @@ button {
   border-radius: 18px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 96%, transparent);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.26);
+  box-shadow: var(--shadow-overlay);
   backdrop-filter: blur(22px);
 }
 
@@ -2915,7 +2963,7 @@ button {
   border-radius: var(--radius-md);
   padding: 8px 11px;
   background: var(--surface-raised);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raised);
   color: var(--text);
   font-size: 0.76rem;
   font-weight: 650;
@@ -3808,7 +3856,7 @@ button {
 
 .journal-error-type-form input[type="text"]:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .journal-error-color-options {
@@ -3829,7 +3877,7 @@ button {
 
 .journal-error-color-options button.active {
   border-color: var(--text);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.14);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .journal-error-color-options input {
@@ -3942,7 +3990,7 @@ button {
 
 .journal-day.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.14);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .journal-day.positive {
@@ -4205,7 +4253,7 @@ button {
 .journal-operation-dropzone:focus,
 .journal-operation-dropzone.is-dragging {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .journal-operation-dropzone.is-disabled {
@@ -4360,7 +4408,7 @@ button {
 .journal-row-topline span {
   border-radius: 999px;
   padding: 3px 8px;
-  background: #e8f3f3;
+  background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 0.72rem;
   font-weight: 800;
@@ -4523,7 +4571,7 @@ button {
 
 .account-filter-row .custom-select-trigger:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .account-status-tabs {
@@ -4583,7 +4631,7 @@ button {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 28%, transparent), transparent 48%),
     var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-flat);
 }
 
 .account-card-head {
@@ -4733,7 +4781,7 @@ button {
 
 .status-dot.evaluation,
 .account-status-pill.evaluation {
-  background: #e8f3f3;
+  background: var(--accent-soft);
   color: var(--accent-strong);
 }
 
@@ -5019,7 +5067,7 @@ tbody tr:last-child td {
 .firm-form .custom-select-trigger:focus-visible,
 .entity-form .custom-select-trigger:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 143, 141, 0.12);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .firm-notes-field,
@@ -5347,7 +5395,7 @@ tbody tr:last-child td {
   margin-bottom: 14px;
   border-radius: 999px;
   padding: 5px 10px;
-  background: #e8f3f3;
+  background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 0.73rem;
   font-weight: 800;
