@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
+import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, WalletCards } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
@@ -144,6 +144,17 @@ export function AccountsView({
         ]);
       }),
     [accounts, firmFilter, firmNameById, searchQuery, statusFilter],
+  );
+  /* Dos grupos con peso distinto: lo que sigue corriendo y lo que ya termino. Ambos
+     salen del mismo filtrado, asi que las pestanas de estado y el buscador siguen
+     mandando sobre los dos. */
+  const liveAccounts = useMemo(
+    () => filteredAccounts.filter((account) => !blockedAccountStatuses.has(account.status)),
+    [filteredAccounts],
+  );
+  const finishedAccounts = useMemo(
+    () => filteredAccounts.filter((account) => blockedAccountStatuses.has(account.status)),
+    [filteredAccounts],
   );
 
   /* Nombre propuesto a partir de empresa y tamano, con sufijo si ya existe uno igual.
@@ -407,8 +418,12 @@ export function AccountsView({
         </div>
       </section>
 
+      {/* La rejilla es solo para cuentas vivas. Una fallada o cerrada no es un elemento
+          de trabajo sino una entrada de archivo, y darle la misma tarjeta que a una que
+          sigue corriendo era el motivo real de que la pantalla se sintiera cargada: con
+          8 de 9 cuentas terminadas, lo unico vivo quedaba enterrado entre lo muerto. */}
       <section className="account-card-grid" aria-label={t("account.card.gridLabel")}>
-        {filteredAccounts.map((account) => {
+        {liveAccounts.map((account) => {
           const relatedMovements = movements.some((movement) => movement.accountId === account.id);
           const relatedJournal = journalEntries.some((entry) => entry.accountId === account.id);
           const deleteDisabled = !canWrite || mutating || relatedMovements || relatedJournal;
@@ -416,10 +431,6 @@ export function AccountsView({
              db.ts), asi que sin esta comprobacion se mostraba "0,00 US$": un dato
              ausente disfrazado de objetivo real. El DD diario ya lo distinguia; ahora
              los tres se comportan igual. */
-          const isFinished = blockedAccountStatuses.has(account.status);
-          const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
-          const netResult = totals.income - totals.expenses;
-          const hasActivity = totals.expenses > 0 || totals.income > 0;
           const hasPhaseTarget = Boolean(account.phaseTarget);
           const hasMaxDrawdown = Boolean(account.maxDrawdown);
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
@@ -438,60 +449,31 @@ export function AccountsView({
                 <strong>{formatAccountSize(account, currency, t("account.card.noSize"))}</strong>
               </div>
 
-              {/* Una cuenta fallada o cerrada ya no se rige por objetivo ni drawdowns:
-                  mostrarlos es ocupar sitio con reglas que no aplican. En su lugar va el
-                  desenlace, que es lo unico que sigue siendo cierto de esa cuenta. */}
-              {isFinished ? (
-                <div className="account-card-rules is-outcome">
-                  <span>
-                    <Wallet size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.spent")}</small>
-                    <strong className={totals.expenses ? "negative" : "is-unset"}>
-                      {totals.expenses ? formatMoney(totals.expenses, currency) : t("account.card.none")}
-                    </strong>
-                  </span>
-                  <span>
-                    <TrendingUp size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.withdrawn")}</small>
-                    <strong className={totals.income ? "positive" : "is-unset"}>
-                      {totals.income ? formatMoney(totals.income, currency) : t("account.card.none")}
-                    </strong>
-                  </span>
-                  <span>
-                    <Flag size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.balance")}</small>
-                    {/* Sin ningun movimiento no hay balance que dar: un "0,00" ahi seria
-                        el mismo cero vacio que se retiro del objetivo y los drawdowns. */}
-                    <strong className={hasActivity ? (netResult > 0 ? "positive" : netResult < 0 ? "negative" : undefined) : "is-unset"}>
-                      {hasActivity ? formatMoney(netResult, currency) : t("account.card.none")}
-                    </strong>
-                  </span>
-                </div>
-              ) : (
-                <div className="account-card-rules">
-                  <span>
-                    <Flag size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.target")}</small>
-                    <strong className={hasPhaseTarget ? undefined : "is-unset"}>
-                      {hasPhaseTarget ? formatMoney(account.phaseTarget, currency) : t("account.card.noTarget")}
-                    </strong>
-                  </span>
-                  <span>
-                    <Shield size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.maxDrawdown")}</small>
-                    <strong className={hasMaxDrawdown ? undefined : "is-unset"}>
-                      {hasMaxDrawdown ? formatMoney(account.maxDrawdown, currency) : t("account.card.noLimit")}
-                    </strong>
-                  </span>
-                  <span>
-                    <CalendarDays size={15} strokeWidth={2.2} />
-                    <small>{t("account.card.dailyDrawdown")}</small>
-                    <strong className={hasDailyDrawdown ? undefined : "is-unset"}>
-                      {hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}
-                    </strong>
-                  </span>
-                </div>
-              )}
+              {/* Sin condicional: a esta rejilla ya solo llegan cuentas vivas, y en una
+                  cuenta viva el objetivo y los drawdowns son justo lo que sigue rigiendo. */}
+              <div className="account-card-rules">
+                <span>
+                  <Flag size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.target")}</small>
+                  <strong className={hasPhaseTarget ? undefined : "is-unset"}>
+                    {hasPhaseTarget ? formatMoney(account.phaseTarget, currency) : t("account.card.noTarget")}
+                  </strong>
+                </span>
+                <span>
+                  <Shield size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.maxDrawdown")}</small>
+                  <strong className={hasMaxDrawdown ? undefined : "is-unset"}>
+                    {hasMaxDrawdown ? formatMoney(account.maxDrawdown, currency) : t("account.card.noLimit")}
+                  </strong>
+                </span>
+                <span>
+                  <CalendarDays size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.dailyDrawdown")}</small>
+                  <strong className={hasDailyDrawdown ? undefined : "is-unset"}>
+                    {hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}
+                  </strong>
+                </span>
+              </div>
 
               <div className="account-card-meta">
                 <span>{t("account.card.purchasePrefix")} {account.purchasedAt || t("account.card.noDate")}</span>
@@ -540,6 +522,80 @@ export function AccountsView({
           </article>
         )}
       </section>
+
+      {/* Archivo. Una fila por cuenta terminada y un solo numero: el resultado. Antes
+          eran tres cajas (gastado, retirado, balance) de las que el balance no aportaba
+          nunca, porque ninguna cuenta tiene gastado y retirado a la vez y acababa siendo
+          uno de los otros dos repetido con el signo cambiado. El desglose se conserva en
+          el title, y entero en Movimientos. */}
+      {finishedAccounts.length > 0 && (
+        <section className="account-archive" aria-label={t("account.archive.gridLabel")}>
+          <h2>
+            {t("account.archive.title")}
+            <span>{finishedAccounts.length}</span>
+          </h2>
+          <ul>
+            {finishedAccounts.map((account) => {
+              const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
+              const netResult = totals.income - totals.expenses;
+              const hasActivity = totals.expenses > 0 || totals.income > 0;
+              const deleteDisabled =
+                !canWrite ||
+                mutating ||
+                movements.some((movement) => movement.accountId === account.id) ||
+                journalEntries.some((entry) => entry.accountId === account.id);
+
+              return (
+                <li className="account-archive-row" key={account.id}>
+                  <span className={`account-status-pill ${account.status}`}>
+                    {accountStatusLabelByValue.get(account.status) || account.status}
+                  </span>
+                  <strong className="account-archive-name">{account.name}</strong>
+                  <span className="account-archive-size">
+                    {formatAccountSize(account, currency, t("account.card.noSize"))}
+                  </span>
+                  <strong
+                    className={`account-archive-result ${hasActivity ? (netResult > 0 ? "positive" : netResult < 0 ? "negative" : "") : "is-unset"}`}
+                    title={
+                      hasActivity
+                        ? `${t("account.card.spent")}: ${formatMoney(totals.expenses, currency)} · ${t("account.card.withdrawn")}: ${formatMoney(totals.income, currency)}`
+                        : undefined
+                    }
+                  >
+                    {hasActivity ? formatMoney(netResult, currency) : t("account.card.none")}
+                  </strong>
+                  <span className="account-archive-date">{account.purchasedAt || t("account.card.noDate")}</span>
+                  <span className="account-archive-actions">
+                    <button
+                      aria-label={`${t("common.edit")} ${account.name}`}
+                      className="card-delete"
+                      disabled={!canWrite || mutating}
+                      onClick={() => openEditAccount(account)}
+                      title={t("common.edit")}
+                      type="button"
+                    >
+                      <Pencil size={15} strokeWidth={2.2} />
+                    </button>
+                    <button
+                      aria-label={`${t("common.delete")} ${account.name}`}
+                      className="card-delete"
+                      disabled={deleteDisabled}
+                      onClick={() => {
+                        if (!window.confirm(`${t("common.deleteConfirmPrefix")} ${account.name}?`)) return;
+                        void onDeleteAccount(account.id);
+                      }}
+                      title={deleteDisabled ? t("account.card.deleteTitleBlocked") : t("account.card.deleteTitleAllowed")}
+                      type="button"
+                    >
+                      <Trash2 size={15} strokeWidth={2.2} />
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       </>
     </div>
   );

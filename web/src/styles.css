@@ -4662,10 +4662,108 @@ button {
   font-size: var(--text-xs);
 }
 
+/* auto-fill y no auto-fit: con auto-fit las columnas vacias colapsan y el reparto se
+   hace solo entre las tarjetas que hay, asi que con una sola cuenta viva se estiraba a
+   los 1164px de la fila entera. auto-fill conserva las pistas y la tarjeta mantiene su
+   ancho de columna haya una o seis. */
 .account-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--space-lg);
+}
+
+/* ARCHIVO DE CUENTAS. Una cuenta terminada es una entrada de historico, no un elemento
+   de trabajo: se le da una fila y no una tarjeta. La rejilla reparte a lo ancho y deja
+   el resultado y la fecha alineados en columna entre filas, que es lo que permite
+   escanearlas de un vistazo sin leer cada una. */
+.account-archive {
+  margin-top: var(--space-4xl);
+}
+
+.account-archive > h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-base);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.account-archive > h2 span {
+  border-radius: 999px;
+  padding: 2px var(--space-xs);
+  background: var(--surface-muted);
+  font-size: var(--text-2xs);
+  letter-spacing: 0;
+}
+
+.account-archive ul {
+  display: grid;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-archive-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: var(--space-base);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--surface);
+}
+
+.account-archive-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-archive-size,
+.account-archive-date {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.account-archive-result {
+  min-width: 96px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-archive-result.is-unset {
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+.account-archive-actions {
+  display: inline-flex;
+  gap: var(--space-xs);
+}
+
+/* Por debajo de la rejilla de tarjetas la fila no cabe en una linea: el nombre pasa a
+   ocupar el ancho y el resto se reordena debajo. */
+@media (max-width: 720px) {
+  .account-archive-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: var(--space-sm);
+  }
+
+  .account-archive-name {
+    grid-column: 2 / -1;
+  }
 }
 
 /* Mismo criterio que .firm-card: sin min-height, para que cada tarjeta mida lo que dice
@@ -4716,10 +4814,13 @@ button {
   text-align: right;
 }
 
+/* auto-fit y no tres columnas fijas: con tres fijas un importe de cinco cifras se
+   cortaba por 2px en cuanto la tarjeta bajaba de ancho, y el corte dependia de que la
+   cifra saliera justa. Asi las cajas se pliegan a dos filas antes que recortar. */
 .account-card-rules {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: var(--space-sm);
 }
 
 .account-card-rules span {
@@ -4727,7 +4828,7 @@ button {
   gap: var(--space-xs);
   min-width: 0;
   border-radius: var(--radius-sm);
-  padding: var(--space-md);
+  padding: var(--space-sm);
   background: var(--surface-muted);
 }
 
