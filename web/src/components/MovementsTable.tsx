@@ -40,7 +40,9 @@ export function MovementsTable({ movements, accounts, currency }: MovementsTable
               return (
                 <tr key={movement.id}>
                   <td data-label={t("movement.table.date")}>{movement.date}</td>
-                  <td data-label={t("movement.table.account")}>{getAccountName(accounts, movement.accountId)}</td>
+                  <td data-label={t("movement.table.account")}>
+                    {getAccountName(accounts, movement.accountId, t("movement.field.noAccount"))}
+                  </td>
                   <td data-label={t("movement.table.category")}>
                     <span className={`movement-badge ${movement.kind}`}>
                       <Icon size={14} strokeWidth={2.4} />

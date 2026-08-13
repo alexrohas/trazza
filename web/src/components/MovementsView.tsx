@@ -473,7 +473,9 @@ export function MovementsView({
                 <tr key={movement.id}>
                   <td data-label={t("movement.table.date")}>{movement.date}</td>
                   <td data-label={t("movement.table.firm")}>{firmNameById.get(movement.firmId) || t("movement.table.generalFirm")}</td>
-                  <td data-label={t("movement.table.account")}>{getAccountName(accounts, movement.accountId)}</td>
+                  <td data-label={t("movement.table.account")}>
+                    {getAccountName(accounts, movement.accountId, t("movement.field.noAccount"))}
+                  </td>
                   <td data-label={t("movement.table.category")}>
                     <span className="movement-category-copy">
                       <strong>{categoryLabels[movement.category]}</strong>

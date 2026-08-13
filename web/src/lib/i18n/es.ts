@@ -214,6 +214,7 @@ export const es = {
   "account.filter.tabsLabel": "Filtrar cuentas por estado",
   "account.card.gridLabel": "Cuentas registradas",
   "account.card.noFirm": "Sin empresa",
+  "account.card.noSize": "Sin tamano",
   "account.card.target": "Objetivo",
   "account.card.maxDrawdown": "DD max.",
   "account.card.dailyDrawdown": "DD diario",

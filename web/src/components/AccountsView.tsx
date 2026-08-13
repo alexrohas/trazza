@@ -435,7 +435,7 @@ export function AccountsView({
                     {firmNameById.get(account.firmId) || t("account.card.noFirm")}
                   </p>
                 </div>
-                <strong>{formatAccountSize(account, currency)}</strong>
+                <strong>{formatAccountSize(account, currency, t("account.card.noSize"))}</strong>
               </div>
 
               {/* Una cuenta fallada o cerrada ya no se rige por objetivo ni drawdowns:

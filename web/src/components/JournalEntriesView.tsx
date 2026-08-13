@@ -736,7 +736,7 @@ export function JournalEntriesView({
                 </div>
                 <div>
                   <dt>{t("journal.detail.account")}</dt>
-                  <dd>{getAccountName(accounts, selectedEntry.accountId)}</dd>
+                  <dd>{getAccountName(accounts, selectedEntry.accountId, t("journal.entryForm.noAccount"))}</dd>
                 </div>
                 <div>
                   <dt>{t("journal.detail.direction")}</dt>
@@ -1557,7 +1557,7 @@ export function JournalEntriesView({
                   <span>{entry.direction}</span>
                 </div>
                 <small>
-                  {entry.date} - {getEntryFirmName(entry, accountById, firmNameById, t)} - {getAccountName(accounts, entry.accountId)}
+                  {entry.date} - {getEntryFirmName(entry, accountById, firmNameById, t)} - {getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}
                 </small>
                 <p>{entry.notes || entry.lesson || t("journal.list.noNotes")}</p>
                 <JournalErrorChips compact errorTypes={effectiveErrorTypes} errors={getEntryErrors(entry, effectiveErrorTypes)} />
@@ -1896,7 +1896,7 @@ function JournalRecentTradesPanel({
                 <small>{formatTradingSessionLabel(entry, sessionOptions, t)}</small>
               </span>
               <span>
-                <strong>{getAccountName(accounts, entry.accountId)}</strong>
+                <strong>{getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}</strong>
                 <small>{getEntryFirmName(entry, accountById, firmNameById, t)}</small>
               </span>
               <span>
@@ -2765,7 +2765,7 @@ function downloadJournalCsv({
     [
       entry.date,
       getEntryFirmName(entry, accountById, firmNameById, t),
-      getAccountName(Array.from(accountById.values()), entry.accountId),
+      getAccountName(Array.from(accountById.values()), entry.accountId, t("journal.entryForm.noAccount")),
       entry.symbol,
       findOptionLabel(directionOptions, entry.direction),
       formatTradingSessionLabel(entry, sessionOptions, t),

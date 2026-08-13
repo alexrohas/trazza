@@ -216,6 +216,7 @@ export const en: Record<TranslationKey, string> = {
   "account.filter.tabsLabel": "Filter accounts by status",
   "account.card.gridLabel": "Registered accounts",
   "account.card.noFirm": "No firm",
+  "account.card.noSize": "No size",
   "account.card.target": "Target",
   "account.card.maxDrawdown": "Max DD",
   "account.card.dailyDrawdown": "Daily DD",

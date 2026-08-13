@@ -36,9 +36,12 @@ export function formatPercent(value: number) {
   }).format(value);
 }
 
-export function formatAccountSize(account: TradingAccount, currency: Currency = "EUR") {
+/* El texto de respaldo se recibe traducido en vez de estar escrito aqui: esta funcion
+   la llaman pantallas de los dos idiomas, y un literal en castellano se colaba tal cual
+   en la interfaz en ingles. */
+export function formatAccountSize(account: TradingAccount, currency: Currency = "EUR", fallback: string) {
   if (account.size > 0) return formatMoney(account.size, currency);
-  return account.sizeLabel || "Sin tamano";
+  return account.sizeLabel || fallback;
 }
 
 export function signedTone(value: number) {
@@ -56,8 +59,11 @@ export function formatDisciplineScore(value: number, scale = value > 5 ? 10 : 5)
   return `${formatted}/${scale}`;
 }
 
-export function getAccountName(accounts: TradingAccount[], accountId?: string) {
-  return accounts.find((account) => account.id === accountId)?.name ?? "Sin cuenta";
+/* Mismo motivo que en formatAccountSize: el respaldo llega traducido desde quien llama.
+   Este era el caso mas visible — 16 de 25 movimientos reales no tienen cuenta asociada,
+   asi que dos tercios de la columna mostraban castellano con la app en ingles. */
+export function getAccountName(accounts: TradingAccount[], accountId: string | undefined, fallback: string) {
+  return accounts.find((account) => account.id === accountId)?.name ?? fallback;
 }
 
 export function calculatePayoutNetAmount(grossAmount: number, profitSplit: number) {
