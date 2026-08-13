@@ -4818,12 +4818,122 @@ button {
   text-align: right;
 }
 
+/* BARRA DE RECORRIDO DE UNA CUENTA VIVA. El centro es el balance de partida: a la
+   izquierda lo que queda antes de reventar el drawdown, a la derecha lo que falta para
+   el objetivo. Las dos mitades no comparten escala a proposito, porque un objetivo de
+   1.250 y un drawdown de 1.000 no son magnitudes comparables; cada lado responde a
+   "cuanto me queda de lo mio", que es la pregunta que se hace el trader. */
+.account-track {
+  display: grid;
+  gap: var(--space-sm);
+  border-radius: var(--radius-sm);
+  padding: var(--space-base) var(--space-sm) var(--space-sm);
+  background: var(--surface-muted);
+}
+
+.account-track-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+/* La marca del balance de partida. Va por encima del relleno para que siga visible
+   cuando el recorrido la cubre. */
+.account-track-start {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  z-index: 1;
+  width: 2px;
+  transform: translateX(-1px);
+  border-radius: 999px;
+  background: var(--strong-muted);
+}
+
+.account-track-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--muted);
+  transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+}
+
+.account-track.is-up .account-track-fill {
+  background: var(--positive);
+}
+
+.account-track.is-down .account-track-fill {
+  background: var(--negative);
+}
+
+.account-track-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.account-track-ends span {
+  display: grid;
+  gap: 1px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.account-track-ends small {
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.account-track-floor {
+  color: var(--negative);
+}
+
+.account-track-ceiling {
+  color: var(--positive);
+  text-align: right;
+}
+
+/* Aviso de challenge superado. No cambia nada por su cuenta: de esta evaluacion tiene
+   que nacer una cuenta fondeada nueva, y eso lo confirma el usuario. */
+.account-card-promote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--positive) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--positive-soft);
+  color: var(--positive);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+/* En bloque y no en linea: "392,50 US$ / 1.250,00 US$" pide 161px y la caja da 151, asi
+   que en linea se recortaba el objetivo, que es justo la referencia que da sentido a la
+   cifra. Apilado cabe sin tocar el ancho de la tarjeta. */
+.account-card-rules strong em {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-weight: var(--weight-medium);
+}
+
 /* auto-fit y no tres columnas fijas: con tres fijas un importe de cinco cifras se
    cortaba por 2px en cuanto la tarjeta bajaba de ancho, y el corte dependia de que la
    cifra saliera justa. Asi las cajas se pliegan a dos filas antes que recortar. */
+/* Minimo de 140px y no de 92: con cuatro cajas en una columna de tarjeta caben tres por
+   fila a 107px cada una, y ahi un balance de cinco cifras ya no entra. A 140 caen dos
+   por fila, que da 167px por caja y deja sitio de sobra al importe mas largo. */
 .account-card-rules {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--space-sm);
 }
 

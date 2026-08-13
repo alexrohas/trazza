@@ -15,6 +15,78 @@ const byDate = <T extends { date: string }>(left: T, right: T) => left.date.loca
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
+/* Tipo de cuenta derivado de los campos que ya existen: si tiene objetivo de fase es un
+   challenge y si no, una fondeada. Es provisional. El tipo real pasa a ser una columna
+   propia (kind) con supabase-accounts-kind.sql, que ademas admite "capital propio", un
+   caso que no hay forma de distinguir con los datos de hoy. Cuando la columna este,
+   esto se sustituye por account.kind y esta funcion desaparece. */
+export type DerivedAccountKind = "challenge" | "funded";
+
+export function getAccountKind(account: TradingAccount): DerivedAccountKind {
+  return account.phaseTarget > 0 ? "challenge" : "funded";
+}
+
+/* Lo que la cuenta lleva ganado o perdido operando. Sale del journal y no de los
+   movimientos a proposito: los movimientos son costes y retiros (la cuota del
+   challenge, un payout), no resultado de trading, y meterlos aqui desplazaria el
+   balance de la cuenta por haber pagado la inscripcion. */
+export function getAccountPnl(entries: JournalEntry[], accountId: string) {
+  return sum(entries.filter((entry) => entry.accountId === accountId).map((entry) => entry.pnl));
+}
+
+export function getAccountTradingDays(entries: JournalEntry[], accountId: string) {
+  return new Set(entries.filter((entry) => entry.accountId === accountId).map((entry) => entry.date)).size;
+}
+
+export type AccountProgress = {
+  /** Balance de partida: el tamano nominal de la cuenta. */
+  start: number;
+  /** Balance ahora mismo, segun el journal. */
+  current: number;
+  pnl: number;
+  /** Suelo: donde salta el drawdown maximo. undefined si la cuenta no tiene limite. */
+  floor?: number;
+  /** Techo: donde se supera el objetivo. undefined en fondeadas y capital propio. */
+  ceiling?: number;
+  /** Posicion en la barra, de 0 a 1, con 0,5 siempre en el balance de partida. */
+  position: number;
+  reachedTarget: boolean;
+  breachedFloor: boolean;
+};
+
+/* Geometria de la barra de progreso. El 0,5 es siempre el balance de partida, no el
+   punto medio entre suelo y techo: asi la mitad izquierda es lo que puedes perder y la
+   derecha lo que te falta, aunque las dos distancias sean muy distintas. Con un
+   objetivo de 1.250 y un drawdown de 1.000 las escalas no coinciden, y eso es correcto:
+   lo que importa es cuanto te queda de cada lado, no que sean comparables entre si. */
+export function getAccountProgress(account: TradingAccount, entries: JournalEntry[]): AccountProgress {
+  const start = account.size;
+  const pnl = getAccountPnl(entries, account.id);
+  const current = start + pnl;
+  const floor = account.maxDrawdown > 0 ? start - account.maxDrawdown : undefined;
+  const ceiling = account.phaseTarget > 0 ? start + account.phaseTarget : undefined;
+
+  let position = 0.5;
+  if (pnl > 0) {
+    const margen = ceiling ? ceiling - start : account.maxDrawdown || start;
+    position = 0.5 + Math.min(pnl / margen, 1) * 0.5;
+  } else if (pnl < 0) {
+    const margen = floor !== undefined ? start - floor : account.phaseTarget || start;
+    position = 0.5 - Math.min(Math.abs(pnl) / margen, 1) * 0.5;
+  }
+
+  return {
+    start,
+    current,
+    pnl,
+    floor,
+    ceiling,
+    position,
+    reachedTarget: ceiling !== undefined && current >= ceiling,
+    breachedFloor: floor !== undefined && current <= floor,
+  };
+}
+
 export function formatMoney(value: number, currency: Currency = "EUR") {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",

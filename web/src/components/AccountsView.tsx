@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, WalletCards } from "lucide-react";
+import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
-import { formatAccountSize, formatMoney } from "../lib/metrics";
+import {
+  formatAccountSize,
+  formatMoney,
+  getAccountKind,
+  getAccountProgress,
+  getAccountTradingDays,
+} from "../lib/metrics";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
@@ -434,6 +440,13 @@ export function AccountsView({
           const hasPhaseTarget = Boolean(account.phaseTarget);
           const hasMaxDrawdown = Boolean(account.maxDrawdown);
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
+          const kind = getAccountKind(account);
+          const progress = getAccountProgress(account, journalEntries);
+          const tradingDays = getAccountTradingDays(journalEntries, account.id);
+          /* La barra necesita al menos un extremo para tener escala. Una cuenta de
+             capital propio no tiene ni objetivo ni drawdown, asi que ahi no se pinta:
+             se queda con balance y resultado, que es todo lo que se puede afirmar. */
+          const hasBar = progress.floor !== undefined || progress.ceiling !== undefined;
 
           return (
             <article className={`account-card ${account.status}`} key={account.id}>
@@ -449,31 +462,82 @@ export function AccountsView({
                 <strong>{formatAccountSize(account, currency, t("account.card.noSize"))}</strong>
               </div>
 
-              {/* Sin condicional: a esta rejilla ya solo llegan cuentas vivas, y en una
-                  cuenta viva el objetivo y los drawdowns son justo lo que sigue rigiendo. */}
+              {/* Una cuenta viva se mide por donde esta, no por sus reglas en abstracto.
+                  Antes las tres cajas repetian el objetivo y los drawdowns tal cual se
+                  metieron en el formulario, sin decir cuanto llevas recorrido de cada
+                  uno. Ahora el balance y el resultado van primero, y las reglas quedan
+                  como referencia de lo que falta. */}
               <div className="account-card-rules">
                 <span>
-                  <Flag size={15} strokeWidth={2.2} />
-                  <small>{t("account.card.target")}</small>
-                  <strong className={hasPhaseTarget ? undefined : "is-unset"}>
-                    {hasPhaseTarget ? formatMoney(account.phaseTarget, currency) : t("account.card.noTarget")}
-                  </strong>
+                  <Wallet size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.balanceNow")}</small>
+                  <strong>{formatMoney(progress.current, currency)}</strong>
                 </span>
                 <span>
-                  <Shield size={15} strokeWidth={2.2} />
-                  <small>{t("account.card.maxDrawdown")}</small>
-                  <strong className={hasMaxDrawdown ? undefined : "is-unset"}>
-                    {hasMaxDrawdown ? formatMoney(account.maxDrawdown, currency) : t("account.card.noLimit")}
+                  <TrendingUp size={15} strokeWidth={2.2} />
+                  <small>{kind === "challenge" ? t("account.card.towardsTarget") : t("account.card.result")}</small>
+                  <strong className={progress.pnl > 0 ? "positive" : progress.pnl < 0 ? "negative" : "is-unset"}>
+                    {progress.pnl === 0 ? t("account.card.none") : formatMoney(progress.pnl, currency)}
+                    {hasPhaseTarget && progress.pnl > 0 && (
+                      <em> / {formatMoney(account.phaseTarget, currency)}</em>
+                    )}
                   </strong>
                 </span>
                 <span>
                   <CalendarDays size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.tradingDays")}</small>
+                  <strong className={tradingDays ? undefined : "is-unset"}>
+                    {tradingDays || t("account.card.none")}
+                  </strong>
+                </span>
+                <span>
+                  <Shield size={15} strokeWidth={2.2} />
                   <small>{t("account.card.dailyDrawdown")}</small>
                   <strong className={hasDailyDrawdown ? undefined : "is-unset"}>
                     {hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}
                   </strong>
                 </span>
               </div>
+
+              {/* Barra de recorrido: el centro es el balance de partida, a la izquierda
+                  lo que puedes perder antes de reventar el drawdown y a la derecha lo
+                  que falta para el objetivo. Las dos mitades no comparten escala a
+                  proposito (un objetivo de 1.250 y un drawdown de 1.000 no son
+                  comparables); cada lado mide cuanto te queda de lo suyo. */}
+              {hasBar && (
+                <div className={`account-track ${progress.pnl > 0 ? "is-up" : progress.pnl < 0 ? "is-down" : ""}`}>
+                  <div className="account-track-bar">
+                    <span className="account-track-start" aria-hidden="true" />
+                    <span
+                      className="account-track-fill"
+                      style={{
+                        left: `${Math.min(progress.position, 0.5) * 100}%`,
+                        width: `${Math.abs(progress.position - 0.5) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="account-track-ends">
+                    <span className="account-track-floor">
+                      {progress.floor !== undefined ? formatMoney(progress.floor, currency) : "—"}
+                      <small>{t("account.card.lossLimit")}</small>
+                    </span>
+                    <span className="account-track-ceiling">
+                      {progress.ceiling !== undefined ? formatMoney(progress.ceiling, currency) : "—"}
+                      <small>{hasPhaseTarget ? t("account.card.target") : t("account.card.noTarget")}</small>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* El challenge ya cumple el objetivo. No se cambia nada solo: de esta
+                  evaluacion tiene que nacer una cuenta fondeada nueva, y su numero y su
+                  tamano solo los sabe el usuario. */}
+              {kind === "challenge" && progress.reachedTarget && (
+                <p className="account-card-promote">
+                  <BadgeCheck size={15} strokeWidth={2.2} />
+                  {t("account.card.targetReached")}
+                </p>
+              )}
 
               <div className="account-card-meta">
                 <span>{t("account.card.purchasePrefix")} {account.purchasedAt || t("account.card.noDate")}</span>
