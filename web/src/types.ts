@@ -17,11 +17,18 @@ export type FirmInput = {
 
 export type AccountStatus = "active" | "evaluation" | "passed" | "funded" | "failed" | "closed";
 
+export type AccountKind = "challenge" | "funded" | "own";
+
+export type DrawdownType = "static" | "trailing";
+
 export type TradingAccount = {
   id: string;
   firmId: string;
   name: string;
   status: AccountStatus;
+  kind: AccountKind;
+  drawdownType: DrawdownType;
+  parentAccountId?: string;
   size: number;
   sizeLabel?: string;
   purchasedAt: string;
@@ -34,6 +41,9 @@ export type AccountInput = {
   firmId: string;
   name: string;
   status: AccountStatus;
+  kind: AccountKind;
+  drawdownType: DrawdownType;
+  parentAccountId?: string;
   size: string;
   purchasedAt?: string;
   phaseTarget?: number;

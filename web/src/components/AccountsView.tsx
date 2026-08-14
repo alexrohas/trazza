@@ -7,7 +7,6 @@ import { Select } from "./Select";
 import {
   formatAccountSize,
   formatMoney,
-  getAccountKind,
   getAccountProgress,
   getAccountTradingDays,
 } from "../lib/metrics";
@@ -15,9 +14,11 @@ import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
   AccountInput,
+  AccountKind,
   AccountStatus,
   Currency,
   DataMode,
+  DrawdownType,
   Firm,
   JournalEntry,
   Movement,
@@ -51,6 +52,21 @@ function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: str
   ];
 }
 
+function getAccountKindOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountKind }> {
+  return [
+    { label: t("account.kind.challenge"), value: "challenge" },
+    { label: t("account.kind.funded"), value: "funded" },
+    { label: t("account.kind.own"), value: "own" },
+  ];
+}
+
+function getDrawdownTypeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: DrawdownType }> {
+  return [
+    { label: t("account.drawdownType.static"), value: "static" },
+    { label: t("account.drawdownType.trailing"), value: "trailing" },
+  ];
+}
+
 const activeAccountStatuses = new Set<AccountStatus>(["active", "evaluation", "passed", "funded"]);
 const blockedAccountStatuses = new Set<AccountStatus>(["failed", "closed"]);
 
@@ -58,6 +74,9 @@ const emptyAccountInput: AccountInput = {
   firmId: "",
   name: "",
   status: "active",
+  kind: "challenge",
+  drawdownType: "static",
+  parentAccountId: undefined,
   size: "",
   purchasedAt: "",
   phaseTarget: undefined,
@@ -86,15 +105,32 @@ export function AccountsView({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [firmRequiredError, setFirmRequiredError] = useState(false);
   const [nameTouched, setNameTouched] = useState(false);
+  /* Id de la evaluacion que se esta promocionando a fondeada. Solo se usa cuando el
+     formulario se abrio desde el aviso de objetivo superado: al guardar la cuenta
+     nueva, esta evaluacion pasa a status "passed" con una segunda llamada. */
+  const [promotingFromId, setPromotingFromId] = useState<string | undefined>();
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [statusFilter, setStatusFilter] = useState<"all" | AccountStatus>("all");
   const t = useT();
   const accountStatusOptions = useMemo(() => getAccountStatusOptions(t), [t]);
   const accountStatusFilters = useMemo(() => [{ label: t("common.all"), value: "all" as const }, ...accountStatusOptions], [accountStatusOptions, t]);
   const accountStatusLabelByValue = useMemo(() => new Map(accountStatusOptions.map((option) => [option.value, option.label])), [accountStatusOptions]);
+  const accountKindOptions = useMemo(() => getAccountKindOptions(t), [t]);
+  const drawdownTypeOptions = useMemo(() => getDrawdownTypeOptions(t), [t]);
   const firmOptions = useMemo(() => firms.map((firm) => ({ label: firm.name, value: firm.id })), [firms]);
   const firmFilterOptions = useMemo(() => [{ label: t("common.all"), value: "all" }, ...firmOptions], [firmOptions, t]);
-  const canWrite = dataMode === "cloud" && firms.length > 0;
+  /* Capital propio no depende de una prop firm, asi que no hace falta tener ninguna
+     empresa creada para poder guardarlo. El resto de tipos si la necesitan. */
+  const canWrite = dataMode === "cloud" && (firms.length > 0 || draft.kind === "own");
+  /* Cuentas de origen para el selector de "cuenta de origen" de una fondeada: solo
+     challenges, y nunca la propia cuenta que se esta editando. */
+  const challengeAccountOptions = useMemo(
+    () =>
+      accounts
+        .filter((account) => account.kind === "challenge" && account.id !== editingId)
+        .map((account) => ({ label: account.name, value: account.id })),
+    [accounts, editingId],
+  );
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const statusCounts = useMemo(() => {
     const counts: Record<AccountStatus, number> = {
@@ -184,10 +220,25 @@ export function AccountsView({
     setDraft((current) => (current.name === suggestedName ? current : { ...current, name: suggestedName }));
   }, [nameTouched, suggestedName]);
 
+  const accountToInput = (account: TradingAccount): AccountInput => ({
+    firmId: account.firmId,
+    name: account.name,
+    status: account.status,
+    kind: account.kind,
+    drawdownType: account.drawdownType,
+    parentAccountId: account.parentAccountId,
+    size: account.sizeLabel || String(account.size || ""),
+    purchasedAt: account.purchasedAt,
+    phaseTarget: account.phaseTarget || undefined,
+    maxDrawdown: account.maxDrawdown || undefined,
+    dailyDrawdown: account.dailyDrawdown || undefined,
+  });
+
   const resetForm = () => {
     setDraft(emptyAccountInput);
     setEditingId(undefined);
     setNameTouched(false);
+    setPromotingFromId(undefined);
   };
 
   const closeForm = () => {
@@ -202,18 +253,25 @@ export function AccountsView({
 
   const openEditAccount = (account: TradingAccount) => {
     setEditingId(account.id);
-    setDraft({
-      firmId: account.firmId,
-      name: account.name,
-      status: account.status,
-      size: account.sizeLabel || String(account.size || ""),
-      purchasedAt: account.purchasedAt,
-      phaseTarget: account.phaseTarget || undefined,
-      maxDrawdown: account.maxDrawdown || undefined,
-      dailyDrawdown: account.dailyDrawdown || undefined,
-    });
+    setDraft(accountToInput(account));
     /* Una cuenta ya guardada tiene su nombre decidido: no se regenera al abrirla. */
     setNameTouched(true);
+    setScreen("form");
+  };
+
+  /* Alta de la fondeada que nace de un challenge superado: formulario en blanco pero
+     con el tipo, la empresa y la cuenta de origen ya resueltos. Es alta, no edicion
+     (editingId se queda vacio): la evaluacion original sigue siendo su propia fila. */
+  const openPromoteAccount = (account: TradingAccount) => {
+    resetForm();
+    setDraft({
+      ...emptyAccountInput,
+      kind: "funded",
+      firmId: account.firmId,
+      parentAccountId: account.id,
+      purchasedAt: new Date().toISOString().slice(0, 10),
+    });
+    setPromotingFromId(account.id);
     setScreen("form");
   };
 
@@ -236,29 +294,60 @@ export function AccountsView({
           className="entity-form resource-form-grid modal-form-grid"
           onSubmit={async (event) => {
             event.preventDefault();
-            if (!draft.firmId) {
+            if (!draft.firmId && draft.kind !== "own") {
               setFirmRequiredError(true);
               return;
             }
             setFirmRequiredError(false);
             const saved = await onSaveAccount(draft, editingId);
-            if (saved) closeForm();
+            if (!saved) return;
+            /* Promocion: la cuenta fondeada ya se guardo, ahora la evaluacion de origen
+               pasa a superada. Segunda llamada aparte porque son dos filas distintas. */
+            if (promotingFromId) {
+              const source = accounts.find((account) => account.id === promotingFromId);
+              if (source) await onSaveAccount({ ...accountToInput(source), status: "passed" }, promotingFromId);
+            }
+            closeForm();
           }}
         >
           <label>
-            <span>{t("account.field.firm")}</span>
+            <span>{t("account.field.kind")}</span>
             <Select
               disabled={!canWrite || mutating}
               onChange={(next) => {
+                const kind = next as AccountKind;
                 setFirmRequiredError(false);
-                setDraft((current) => ({ ...current, firmId: next }));
+                setDraft((current) => ({
+                  ...current,
+                  kind,
+                  firmId: kind === "own" ? "" : current.firmId,
+                  phaseTarget: kind === "challenge" ? current.phaseTarget : undefined,
+                  maxDrawdown: kind === "own" ? undefined : current.maxDrawdown,
+                  dailyDrawdown: kind === "own" ? undefined : current.dailyDrawdown,
+                  parentAccountId: kind === "funded" ? current.parentAccountId : undefined,
+                }));
               }}
-              options={firmOptions}
-              placeholder={t("account.field.selectFirm")}
-              value={draft.firmId}
+              options={accountKindOptions}
+              value={draft.kind}
             />
-            {firmRequiredError && <p className="mutation-message error">{t("account.field.selectFirmRequired")}</p>}
           </label>
+
+          {draft.kind !== "own" && (
+            <label>
+              <span>{t("account.field.firm")}</span>
+              <Select
+                disabled={!canWrite || mutating}
+                onChange={(next) => {
+                  setFirmRequiredError(false);
+                  setDraft((current) => ({ ...current, firmId: next }));
+                }}
+                options={firmOptions}
+                placeholder={t("account.field.selectFirm")}
+                value={draft.firmId}
+              />
+              {firmRequiredError && <p className="mutation-message error">{t("account.field.selectFirmRequired")}</p>}
+            </label>
+          )}
 
           <label>
             <span>{t("account.field.name")}</span>
@@ -309,24 +398,51 @@ export function AccountsView({
             />
           </label>
 
-          <NumberField
-            disabled={!canWrite || mutating}
-            label={t("account.field.target")}
-            onChange={(value) => setDraft((current) => ({ ...current, phaseTarget: value }))}
-            value={draft.phaseTarget}
-          />
-          <NumberField
-            disabled={!canWrite || mutating}
-            label={t("account.field.maxDrawdown")}
-            onChange={(value) => setDraft((current) => ({ ...current, maxDrawdown: value }))}
-            value={draft.maxDrawdown}
-          />
-          <NumberField
-            disabled={!canWrite || mutating}
-            label={t("account.field.dailyDrawdown")}
-            onChange={(value) => setDraft((current) => ({ ...current, dailyDrawdown: value }))}
-            value={draft.dailyDrawdown}
-          />
+          {draft.kind === "challenge" && (
+            <NumberField
+              disabled={!canWrite || mutating}
+              label={t("account.field.target")}
+              onChange={(value) => setDraft((current) => ({ ...current, phaseTarget: value }))}
+              value={draft.phaseTarget}
+            />
+          )}
+          {draft.kind !== "own" && (
+            <>
+              <NumberField
+                disabled={!canWrite || mutating}
+                label={t("account.field.maxDrawdown")}
+                onChange={(value) => setDraft((current) => ({ ...current, maxDrawdown: value }))}
+                value={draft.maxDrawdown}
+              />
+              <label>
+                <span>{t("account.field.drawdownType")}</span>
+                <Select
+                  disabled={!canWrite || mutating}
+                  onChange={(next) => setDraft((current) => ({ ...current, drawdownType: next as DrawdownType }))}
+                  options={drawdownTypeOptions}
+                  value={draft.drawdownType}
+                />
+              </label>
+              <NumberField
+                disabled={!canWrite || mutating}
+                label={t("account.field.dailyDrawdown")}
+                onChange={(value) => setDraft((current) => ({ ...current, dailyDrawdown: value }))}
+                value={draft.dailyDrawdown}
+              />
+            </>
+          )}
+          {draft.kind === "funded" && (
+            <label>
+              <span>{t("account.field.parentAccount")}</span>
+              <Select
+                disabled={!canWrite || mutating}
+                onChange={(next) => setDraft((current) => ({ ...current, parentAccountId: next || undefined }))}
+                options={[{ label: t("account.field.parentAccountNone"), value: "" }, ...challengeAccountOptions]}
+                placeholder={t("account.field.parentAccountNone")}
+                value={draft.parentAccountId || ""}
+              />
+            </label>
+          )}
 
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
@@ -440,7 +556,7 @@ export function AccountsView({
           const hasPhaseTarget = Boolean(account.phaseTarget);
           const hasMaxDrawdown = Boolean(account.maxDrawdown);
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
-          const kind = getAccountKind(account);
+          const kind = account.kind;
           const progress = getAccountProgress(account, journalEntries);
           const tradingDays = getAccountTradingDays(journalEntries, account.id);
           /* La barra necesita al menos un extremo para tener escala. Una cuenta de
@@ -529,14 +645,19 @@ export function AccountsView({
                 </div>
               )}
 
-              {/* El challenge ya cumple el objetivo. No se cambia nada solo: de esta
-                  evaluacion tiene que nacer una cuenta fondeada nueva, y su numero y su
-                  tamano solo los sabe el usuario. */}
+              {/* El challenge ya cumple el objetivo. No se cambia nada solo: el boton
+                  abre el alta de la fondeada ya precargada, y al guardarla esta cuenta
+                  pasa a superada. */}
               {kind === "challenge" && progress.reachedTarget && (
-                <p className="account-card-promote">
+                <button
+                  className="account-card-promote"
+                  disabled={!canWrite || mutating}
+                  onClick={() => openPromoteAccount(account)}
+                  type="button"
+                >
                   <BadgeCheck size={15} strokeWidth={2.2} />
                   {t("account.card.targetReached")}
-                </p>
+                </button>
               )}
 
               <div className="account-card-meta">

@@ -15,17 +15,6 @@ const byDate = <T extends { date: string }>(left: T, right: T) => left.date.loca
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
-/* Tipo de cuenta derivado de los campos que ya existen: si tiene objetivo de fase es un
-   challenge y si no, una fondeada. Es provisional. El tipo real pasa a ser una columna
-   propia (kind) con supabase-accounts-kind.sql, que ademas admite "capital propio", un
-   caso que no hay forma de distinguir con los datos de hoy. Cuando la columna este,
-   esto se sustituye por account.kind y esta funcion desaparece. */
-export type DerivedAccountKind = "challenge" | "funded";
-
-export function getAccountKind(account: TradingAccount): DerivedAccountKind {
-  return account.phaseTarget > 0 ? "challenge" : "funded";
-}
-
 /* Lo que la cuenta lleva ganado o perdido operando. Sale del journal y no de los
    movimientos a proposito: los movimientos son costes y retiros (la cuota del
    challenge, un payout), no resultado de trading, y meterlos aqui desplazaria el
@@ -54,6 +43,28 @@ export type AccountProgress = {
   breachedFloor: boolean;
 };
 
+/* Suelo de un drawdown EOD trailing: sube con el balance de cierre mas alto alcanzado
+   (arrancando en el balance de partida, que ya es un cierre valido antes de operar) y
+   se bloquea en cuanto ese pico llega a partida + drawdown, quedandose fijo en el
+   balance de partida a partir de ahi. Es la convencion habitual en Apex/Topstep/etc. */
+function getTrailingFloor(entries: JournalEntry[], accountId: string, start: number, maxDrawdown: number) {
+  const pnlByDate = new Map<string, number>();
+  entries
+    .filter((entry) => entry.accountId === accountId)
+    .forEach((entry) => {
+      pnlByDate.set(entry.date, (pnlByDate.get(entry.date) || 0) + entry.pnl);
+    });
+
+  let balance = start;
+  let peak = start;
+  [...pnlByDate.keys()].sort().forEach((date) => {
+    balance += pnlByDate.get(date) || 0;
+    if (balance > peak) peak = balance;
+  });
+
+  return Math.min(peak - maxDrawdown, start);
+}
+
 /* Geometria de la barra de progreso. El 0,5 es siempre el balance de partida, no el
    punto medio entre suelo y techo: asi la mitad izquierda es lo que puedes perder y la
    derecha lo que te falta, aunque las dos distancias sean muy distintas. Con un
@@ -63,11 +74,25 @@ export function getAccountProgress(account: TradingAccount, entries: JournalEntr
   const start = account.size;
   const pnl = getAccountPnl(entries, account.id);
   const current = start + pnl;
-  const floor = account.maxDrawdown > 0 ? start - account.maxDrawdown : undefined;
+  const floor =
+    account.maxDrawdown > 0
+      ? account.drawdownType === "trailing"
+        ? getTrailingFloor(entries, account.id, start, account.maxDrawdown)
+        : start - account.maxDrawdown
+      : undefined;
   const ceiling = account.phaseTarget > 0 ? start + account.phaseTarget : undefined;
+  const reachedTarget = ceiling !== undefined && current >= ceiling;
+  const breachedFloor = floor !== undefined && current <= floor;
 
+  /* Un trailing bloqueado deja el suelo igual al balance de partida: ahi el margen de
+     perdida es 0, y dividir por el rompe el calculo de mas abajo. Resolver primero si
+     ya se rompio el suelo o se supero el techo evita esa division por cero. */
   let position = 0.5;
-  if (pnl > 0) {
+  if (breachedFloor) {
+    position = 0;
+  } else if (reachedTarget) {
+    position = 1;
+  } else if (pnl > 0) {
     const margen = ceiling ? ceiling - start : account.maxDrawdown || start;
     position = 0.5 + Math.min(pnl / margen, 1) * 0.5;
   } else if (pnl < 0) {
@@ -82,8 +107,8 @@ export function getAccountProgress(account: TradingAccount, entries: JournalEntr
     floor,
     ceiling,
     position,
-    reachedTarget: ceiling !== undefined && current >= ceiling,
-    breachedFloor: floor !== undefined && current <= floor,
+    reachedTarget,
+    breachedFloor,
   };
 }
 

@@ -1,4 +1,5 @@
 import type {
+  AccountKind,
   AccountStatus,
   AppData,
   FirmType,
@@ -102,15 +103,18 @@ export function parseTrazzaImport(raw: string): AppData {
   const accounts = arrayOf(source.accounts)
     .map((account) => {
       const sizeLabel = text(account.sizeLabel) || text(account.size);
+      const phaseTarget = parseFlexibleNumber(account.phaseTarget ?? account.phase_target);
       return {
         id: text(account.id) || createStableClientId("account"),
         firmId: text(account.firmId) || text(account.firm_id),
         name: text(account.name) || text(account.label),
         status: normalizeAccountStatus(account.status),
+        kind: deriveAccountKind(phaseTarget),
+        drawdownType: "static" as const,
         size: parseFlexibleNumber(sizeLabel),
         sizeLabel,
         purchasedAt: normalizeDate(text(account.purchasedAt) || text(account.purchased_at)),
-        phaseTarget: parseFlexibleNumber(account.phaseTarget ?? account.phase_target),
+        phaseTarget,
         maxDrawdown: parseFlexibleNumber(account.maxDrawdown ?? account.max_drawdown),
         dailyDrawdown: parseFlexibleNumber(account.dailyDrawdown ?? account.daily_drawdown),
       };
@@ -219,6 +223,12 @@ function normalizeFirmType(value: unknown): FirmType {
 function normalizeAccountStatus(value: unknown): AccountStatus {
   const normalized = text(value).toLowerCase() as AccountStatus;
   return accountStatuses.has(normalized) ? normalized : "active";
+}
+
+// El export legado no conoce kind: se deriva igual que hace el relleno del SQL (con
+// objetivo de fase es un challenge, si no una fondeada).
+function deriveAccountKind(phaseTarget: number): AccountKind {
+  return phaseTarget > 0 ? "challenge" : "funded";
 }
 
 function normalizeMovementKind(value: unknown): MovementKind {

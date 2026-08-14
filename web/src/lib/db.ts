@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AccountKind,
   AccountStatus,
   AccountInput,
   AppData,
+  DrawdownType,
   Firm,
   FirmInput,
   FirmType,
@@ -31,6 +33,8 @@ type QueryResult = {
 
 const firmTypes = new Set<FirmType>(["futures", "forex", "crypto", "other"]);
 const accountStatuses = new Set<AccountStatus>(["active", "evaluation", "passed", "funded", "failed", "closed"]);
+const accountKinds = new Set<AccountKind>(["challenge", "funded", "own"]);
+const drawdownTypes = new Set<DrawdownType>(["static", "trailing"]);
 const movementKinds = new Set<MovementKind>(["expense", "income"]);
 const movementCategories = new Set<MovementCategory>([
   "challenge",
@@ -344,16 +348,20 @@ function fromDbFirm(row: DbRow): Firm {
 
 function fromDbAccount(row: DbRow): TradingAccount {
   const rawSize = row.size;
+  const phaseTarget = numberOrZero(row.phase_target);
 
   return {
     id: text(row.id),
     firmId: text(row.firm_id),
     name: text(row.name) || "Cuenta sin nombre",
     status: normalizeAccountStatus(row.status),
+    kind: normalizeAccountKind(row.kind, phaseTarget),
+    drawdownType: normalizeDrawdownType(row.drawdown_type),
+    parentAccountId: text(row.parent_account_id) || undefined,
     size: parseAccountSizeAmount(rawSize),
     sizeLabel: text(rawSize),
     purchasedAt: text(row.purchased_at),
-    phaseTarget: numberOrZero(row.phase_target),
+    phaseTarget,
     maxDrawdown: numberOrZero(row.max_drawdown),
     dailyDrawdown: numberOrZero(row.daily_drawdown),
   };
@@ -413,10 +421,13 @@ function accountInputToDb(userId: string, input: AccountInput, includeUser = tru
     name: input.name.trim(),
     size: input.size.trim() || null,
     status: input.status,
+    kind: input.kind,
+    drawdown_type: input.kind === "own" ? null : input.drawdownType,
+    parent_account_id: input.kind === "funded" ? input.parentAccountId || null : null,
     purchased_at: input.purchasedAt || null,
-    phase_target: nullableNumber(input.phaseTarget),
-    max_drawdown: nullableNumber(input.maxDrawdown),
-    daily_drawdown: nullableNumber(input.dailyDrawdown),
+    phase_target: input.kind === "challenge" ? nullableNumber(input.phaseTarget) : null,
+    max_drawdown: input.kind === "own" ? null : nullableNumber(input.maxDrawdown),
+    daily_drawdown: input.kind === "own" ? null : nullableNumber(input.dailyDrawdown),
   };
 }
 
@@ -498,6 +509,11 @@ function mapImportedDataForCloud(userId: string, imported: AppData) {
         name: account.name.trim(),
         size: account.sizeLabel || String(account.size || ""),
         status: normalizeAccountStatus(account.status),
+        // parent_account_id no se puede reconstruir de un import: el enlace se hace a
+        // mano despues, desde el selector de cuenta de origen o via SQL.
+        kind: normalizeAccountKind(account.kind, nullableNumber(account.phaseTarget) ?? 0),
+        drawdown_type: "static",
+        parent_account_id: null,
         purchased_at: account.purchasedAt || null,
         phase_target: nullableNumber(account.phaseTarget),
         max_drawdown: nullableNumber(account.maxDrawdown),
@@ -621,6 +637,19 @@ function normalizeFirmType(value: unknown): FirmType {
 function normalizeAccountStatus(value: unknown): AccountStatus {
   const normalized = text(value) as AccountStatus;
   return accountStatuses.has(normalized) ? normalized : "active";
+}
+
+// Sin kind guardado (filas de antes de la migracion), se deriva igual que hace el
+// relleno del SQL: con objetivo de fase es un challenge, si no una fondeada.
+function normalizeAccountKind(value: unknown, phaseTarget: number): AccountKind {
+  const normalized = text(value) as AccountKind;
+  if (accountKinds.has(normalized)) return normalized;
+  return phaseTarget > 0 ? "challenge" : "funded";
+}
+
+function normalizeDrawdownType(value: unknown): DrawdownType {
+  const normalized = text(value) as DrawdownType;
+  return drawdownTypes.has(normalized) ? normalized : "static";
 }
 
 function normalizeMovementKind(value: unknown): MovementKind {
