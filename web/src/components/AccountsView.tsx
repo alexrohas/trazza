@@ -146,18 +146,36 @@ export function AccountsView({
     });
     return counts;
   }, [accounts]);
+  /* Un challenge superado que ya tiene su fondeada enlazada ha terminado su historia
+     como evaluacion, pase lo que pase despues con la fondeada: no hay nada mas que
+     seguir midiendole dia a dia, asi que cuenta como terminada igual que una fallada o
+     cerrada. Mientras no tenga fondeada enlazada se queda viva (con el aviso de
+     promocionar), porque ahi si sigue pendiente una accion. */
+  const finishedAccountIds = useMemo(() => {
+    const ids = new Set<string>();
+    accounts.forEach((account) => {
+      if (blockedAccountStatuses.has(account.status)) {
+        ids.add(account.id);
+        return;
+      }
+      const hasFundedChild = account.kind === "challenge" && account.status === "passed"
+        && accounts.some((other) => other.parentAccountId === account.id);
+      if (hasFundedChild) ids.add(account.id);
+    });
+    return ids;
+  }, [accounts]);
   const accountOverview = useMemo(() => {
     return accounts.reduce(
       (total, account) => {
         total.accounts += 1;
-        if (activeAccountStatuses.has(account.status)) total.active += 1;
+        if (!finishedAccountIds.has(account.id)) total.active += 1;
         if (account.status === "funded") total.funded += 1;
-        if (blockedAccountStatuses.has(account.status)) total.inactive += 1;
+        if (finishedAccountIds.has(account.id)) total.inactive += 1;
         return total;
       },
       { accounts: 0, active: 0, funded: 0, inactive: 0 },
     );
-  }, [accounts]);
+  }, [accounts, finishedAccountIds]);
   /* Gastado y retirado por cuenta. En una cuenta terminada esto es lo unico que sigue
      siendo cierto: el objetivo y los drawdowns ya no rigen nada. */
   const accountTotals = useMemo(() => {
@@ -191,12 +209,12 @@ export function AccountsView({
      salen del mismo filtrado, asi que las pestanas de estado y el buscador siguen
      mandando sobre los dos. */
   const liveAccounts = useMemo(
-    () => filteredAccounts.filter((account) => !blockedAccountStatuses.has(account.status)),
-    [filteredAccounts],
+    () => filteredAccounts.filter((account) => !finishedAccountIds.has(account.id)),
+    [filteredAccounts, finishedAccountIds],
   );
   const finishedAccounts = useMemo(
-    () => filteredAccounts.filter((account) => blockedAccountStatuses.has(account.status)),
-    [filteredAccounts],
+    () => filteredAccounts.filter((account) => finishedAccountIds.has(account.id)),
+    [filteredAccounts, finishedAccountIds],
   );
 
   /* Nombre propuesto a partir de empresa y tamano, con sufijo si ya existe uno igual.
@@ -269,6 +287,14 @@ export function AccountsView({
       kind: "funded",
       firmId: account.firmId,
       parentAccountId: account.id,
+      /* La fondeada casi siempre hereda el tamano y las reglas de riesgo de la
+         evaluacion de la que sale: mismo capital, mismo drawdown. El nombre se deja
+         vacio a proposito para que el autogenerado (firma + tamano) haga lo suyo, que
+         ya anade "#2" si el nombre base esta cogido. */
+      size: account.sizeLabel || String(account.size || ""),
+      maxDrawdown: account.maxDrawdown || undefined,
+      dailyDrawdown: account.dailyDrawdown || undefined,
+      drawdownType: account.drawdownType,
       purchasedAt: new Date().toISOString().slice(0, 10),
     });
     setPromotingFromId(account.id);
@@ -563,6 +589,9 @@ export function AccountsView({
              capital propio no tiene ni objetivo ni drawdown, asi que ahi no se pinta:
              se queda con balance y resultado, que es todo lo que se puede afirmar. */
           const hasBar = progress.floor !== undefined || progress.ceiling !== undefined;
+          /* Si ya existe una fondeada enlazada a esta evaluacion, promocionar otra vez
+             crearia una segunda por error. Una vez enlazada, el aviso ya no aporta nada. */
+          const hasFundedChild = accounts.some((other) => other.parentAccountId === account.id);
 
           return (
             <article className={`account-card ${account.status}`} key={account.id}>
@@ -647,8 +676,9 @@ export function AccountsView({
 
               {/* El challenge ya cumple el objetivo. No se cambia nada solo: el boton
                   abre el alta de la fondeada ya precargada, y al guardarla esta cuenta
-                  pasa a superada. */}
-              {kind === "challenge" && progress.reachedTarget && (
+                  pasa a superada. No se ofrece si ya tiene una fondeada enlazada: ya se
+                  uso este objetivo, promocionar otra vez crearia una segunda de mas. */}
+              {kind === "challenge" && progress.reachedTarget && !hasFundedChild && (
                 <button
                   className="account-card-promote"
                   disabled={!canWrite || mutating}
