@@ -1,4 +1,4 @@
--- Tipo de cuenta y enlace evaluacion -> fondeada.
+-- Tipo de cuenta, tipo de drawdown y enlace evaluacion -> fondeada.
 --
 -- Se ejecuta a mano en el SQL Editor de Supabase. Es ADITIVO a proposito: no toca la
 -- columna status ni sus valores, asi que la app legada (app.js, la que sirve
@@ -10,6 +10,13 @@
 --   status -> QUE le ha pasado: sigue en los valores de siempre
 -- Los tres estados que usa el React (activa / fallada / superada) caen sobre valores
 -- que status ya tiene: active, failed y passed. Por eso no hace falta migrar el enum.
+--
+-- drawdown_type es aparte de kind porque responde una tercera pregunta distinta: COMO
+-- se mide el drawdown de una cuenta con limite. 'static' es un suelo fijo desde el
+-- balance de partida (como se calculaba hasta ahora). 'trailing' es EOD trailing: el
+-- suelo sube con el balance de cierre mas alto alcanzado, hasta bloquearse en el
+-- balance de partida (la convencion habitual en Apex/Topstep/etc: una vez el pico llega
+-- a partida + drawdown, el suelo deja de subir).
 
 -- ---------------------------------------------------------------------------
 -- 0. ANTES DE NADA: mira que hay. Ejecuta solo esto primero y revisa el resultado.
@@ -28,6 +35,9 @@
 alter table public.accounts
   add column if not exists kind text;
 
+alter table public.accounts
+  add column if not exists drawdown_type text;
+
 -- on delete set null y no cascade: borrar la evaluacion no debe llevarse por delante
 -- la cuenta fondeada que salio de ella, solo deshacer el enlace.
 alter table public.accounts
@@ -39,11 +49,18 @@ create index if not exists accounts_parent_idx on public.accounts (parent_accoun
 -- 2. Relleno. Deriva el tipo de lo que ya hay: si la cuenta tiene objetivo de fase
 --    es un challenge, y si no, una fondeada. Capital propio no se asigna a nadie
 --    automaticamente porque no hay forma de distinguirlo con los datos actuales:
---    esas las marca el usuario a mano cuando las edite.
+--    esas las marca el usuario a mano cuando las edite. drawdown_type se rellena a
+--    'static' para todo lo existente porque es como se ha calculado hasta hoy; las
+--    cuentas que en realidad son EOD trailing (como la del propio usuario) se marcan
+--    a mano despues, igual que el enlace de la seccion 4.
 -- ---------------------------------------------------------------------------
 update public.accounts
 set kind = case when coalesce(phase_target, 0) > 0 then 'challenge' else 'funded' end
 where kind is null;
+
+update public.accounts
+set drawdown_type = 'static'
+where drawdown_type is null;
 
 -- ---------------------------------------------------------------------------
 -- 3. Restriccion, despues del relleno para que no falle con las filas existentes.
@@ -58,13 +75,28 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'accounts_drawdown_type_check'
+  ) then
+    alter table public.accounts
+      add constraint accounts_drawdown_type_check check (drawdown_type in ('static', 'trailing'));
+  end if;
+end $$;
+
 alter table public.accounts
   alter column kind set default 'challenge';
+
+alter table public.accounts
+  alter column drawdown_type set default 'static';
 
 -- ---------------------------------------------------------------------------
 -- 4. Enlace de las cuentas que ya existen. NO se automatiza: emparejar una
 --    evaluacion con su fondeada requiere saber cual salio de cual, y eso no esta en
---    los datos. Se hace a mano, caso por caso.
+--    los datos. Se hace a mano, caso por caso — via SQL aqui abajo, o mas comodo
+--    una vez este desplegado el React nuevo: el formulario de una cuenta fondeada
+--    tiene un selector "cuenta de origen" que hace este mismo update sin tocar SQL.
 --
 --    Ejemplo real detectado en la cuenta de alexrgsbj@gmail.com: "Alpha Futures 25K"
 --    solo tiene un gasto de 39,50 (la cuota del challenge) y "Alpha Futures 25K #2"
@@ -73,6 +105,10 @@ alter table public.accounts
 --
 --    Descomenta y sustituye los ids despues de localizarlos con:
 --      select id, name, status, kind from public.accounts where name ilike 'alpha futures%';
+--
+--    Si alguna de las dos es EOD trailing (no static), marcala tambien aqui o desde
+--    el selector de tipo de drawdown del formulario una vez desplegado:
+--      update public.accounts set drawdown_type = 'trailing' where id = '<id>';
 -- ---------------------------------------------------------------------------
 -- update public.accounts set parent_account_id = '<id-de-Alpha-Futures-25K>'
 --   where id = '<id-de-Alpha-Futures-25K-#2>';
@@ -86,3 +122,5 @@ alter table public.accounts
 -- ---------------------------------------------------------------------------
 -- select kind, status, count(*) from public.accounts group by kind, status order by 1, 2;
 -- select count(*) as sin_tipo from public.accounts where kind is null;  -- debe dar 0
+-- select drawdown_type, count(*) from public.accounts group by drawdown_type;
+-- select count(*) as sin_drawdown_type from public.accounts where drawdown_type is null;  -- debe dar 0
