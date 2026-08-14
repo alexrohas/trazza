@@ -38,7 +38,7 @@ type AccountsViewProps = {
   searchQuery: string;
   onDeleteAccount: (accountId: string) => Promise<boolean>;
   onNewAccountRequestHandled?: () => void;
-  onSaveAccount: (input: AccountInput, accountId?: string) => Promise<boolean>;
+  onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
 };
 
 function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountStatus }> {

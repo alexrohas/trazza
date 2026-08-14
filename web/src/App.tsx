@@ -41,12 +41,13 @@ export default function App() {
   /**
    * Paywall en un unico punto: en vez de repetir la comprobacion en cada vista, se
    * envuelven aqui las mutaciones. Si el acceso no esta activo se abre el selector de
-   * planes en lugar de fallar en silencio. Todas devuelven Promise<boolean>, asi que la
-   * firma se mantiene intacta para las vistas.
+   * planes en lugar de fallar en silencio. TResult acepta tanto Promise<boolean> (la
+   * mayoria) como Promise<T | false> (saveAccount, que devuelve la cuenta guardada) sin
+   * tener que forzar la firma de todas a boolean.
    */
   const guard = useCallback(
-    <TArgs extends unknown[]>(action: (...args: TArgs) => Promise<boolean>) =>
-      async (...args: TArgs): Promise<boolean> => {
+    <TArgs extends unknown[], TResult>(action: (...args: TArgs) => Promise<TResult | false>) =>
+      async (...args: TArgs): Promise<TResult | false> => {
         if (!canMutateData) {
           setPlansOpen(true);
           return false;
@@ -216,6 +217,7 @@ export default function App() {
           mutating={dataState.mutating}
           onDeleteMovement={guarded.deleteMovement}
           onNewMovementRequestHandled={() => setCreateRequest(null)}
+          onSaveAccount={guarded.saveAccount}
           onSaveMovement={guarded.saveMovement}
         />
       )}

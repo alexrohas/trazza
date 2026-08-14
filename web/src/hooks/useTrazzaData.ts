@@ -19,7 +19,7 @@ import {
   upsertCloudJournalErrorType,
 } from "../lib/db";
 import { supabaseClient } from "../lib/supabase";
-import type { AccountInput, AppData, DataMode, FirmInput, JournalEntryInput, JournalErrorTypeInput, MovementInput } from "../types";
+import type { AccountInput, AppData, DataMode, FirmInput, JournalEntryInput, JournalErrorTypeInput, MovementInput, TradingAccount } from "../types";
 
 type DataStatus = "demo" | "idle" | "loading" | "ready" | "error";
 
@@ -111,8 +111,11 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     [enabled, reload, userId],
   );
 
+  /* Devuelve la cuenta guardada (no solo si fue bien) porque Movimientos la necesita:
+     al crear una cuenta al vuelo desde el formulario de un gasto, hace falta el id
+     nuevo para enlazar el movimiento a ella en el mismo guardado. */
   const saveAccount = useCallback(
-    async (input: AccountInput, accountId?: string) => {
+    async (input: AccountInput, accountId?: string): Promise<TradingAccount | false> => {
       if (!enabled || !userId || !supabaseClient) {
         setMutationError("Conecta Supabase para guardar cuentas reales.");
         return false;
@@ -122,13 +125,11 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
       setMutationError(null);
 
       try {
-        if (accountId) {
-          await updateCloudAccount(supabaseClient, userId, accountId, input);
-        } else {
-          await createCloudAccount(supabaseClient, userId, input);
-        }
+        const account = accountId
+          ? await updateCloudAccount(supabaseClient, userId, accountId, input)
+          : await createCloudAccount(supabaseClient, userId, input);
         await reload();
-        return true;
+        return account;
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "No se pudo guardar la cuenta.";
         setMutationError(message);

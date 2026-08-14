@@ -5462,6 +5462,38 @@ tbody tr:last-child td {
   grid-column: 1 / -1;
 }
 
+/* Panel de alta rapida de cuenta: mismo lenguaje que .movement-payout-block (borde +
+   fondo muted) para que se lea como un sub-bloque del formulario, no como un modal
+   aparte. */
+.movement-quick-account {
+  display: grid;
+  gap: var(--space-base);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-base);
+  background: var(--surface-muted);
+}
+
+.movement-quick-account-title {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.movement-quick-account-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-base);
+}
+
+.movement-quick-account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
 .journal-error-picker {
   display: grid;
   gap: var(--space-sm);
