@@ -538,24 +538,6 @@ export function AccountsView({
             <FilterToggleButton active={firmFilter !== "all"} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
           </div>
         </div>
-        {filtersOpen && (
-        <div className="account-filter-row">
-          <label>
-            <span>{t("account.field.firm")}</span>
-            <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
-          </label>
-          <button
-            className="secondary-action"
-            onClick={() => {
-              setFirmFilter("all");
-              setStatusFilter("all");
-            }}
-            type="button"
-          >
-            {t("account.filter.resetFilters")}
-          </button>
-        </div>
-        )}
         <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
           {accountStatusFilters.map((option) => {
             const count = option.value === "all" ? accounts.length : statusCounts[option.value];
@@ -576,6 +558,30 @@ export function AccountsView({
           })}
         </div>
       </section>
+
+      {/* Tarjeta propia, no una fila mas dentro de account-filter-panel: asi se oculta
+          entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas, en
+          vez de dejar un hueco que cambia de alto dentro de la tarjeta del listado. */}
+      {filtersOpen && (
+        <section className="panel dashboard-filter-panel">
+          <div className="account-filter-row">
+            <label>
+              <span>{t("account.field.firm")}</span>
+              <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
+            </label>
+            <button
+              className="secondary-action"
+              onClick={() => {
+                setFirmFilter("all");
+                setStatusFilter("all");
+              }}
+              type="button"
+            >
+              {t("account.filter.resetFilters")}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* La rejilla es solo para cuentas vivas. Una fallada o cerrada no es un elemento
           de trabajo sino una entrada de archivo, y darle la misma tarjeta que a una que

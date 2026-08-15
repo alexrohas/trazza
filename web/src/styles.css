@@ -2124,8 +2124,12 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: var(--space-sm);
   align-items: end;
-  transform-origin: top right;
-  animation: expand-from-toggle var(--dur-slow) var(--ease-overshoot) backwards;
+}
+
+/* Sin esto el boton se estira al ancho completo de su celda igual que un campo mas,
+   sobre todo si la fila tiene sitio de sobra: se queda con su tamaño natural. */
+.view-filters button {
+  justify-self: start;
 }
 
 .dashboard-filters label,
@@ -4604,21 +4608,29 @@ button {
   gap: var(--space-base);
 }
 
+/* Flex y no grid con "auto" para la columna del boton: con un unico campo de por medio,
+   auto se acababa repartiendo el ancho sobrante igual que el campo en vez de ceñirse a
+   su contenido, y "Reset filtros" salia tan ancho como el selector de al lado. Con
+   flex:none explicito en el boton no hay ambiguedad posible. La animacion vive en el
+   panel que envuelve esto (.dashboard-filter-panel), no aqui, para no duplicarla. */
 .account-filter-row {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.42fr) auto;
-  gap: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
-  transform-origin: top right;
-  animation: expand-from-toggle var(--dur-slow) var(--ease-overshoot) backwards;
+  gap: var(--space-md);
 }
 
 .account-filter-row label {
   display: grid;
+  flex: 1 1 220px;
   gap: var(--space-xs);
   color: var(--strong-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
+}
+
+.account-filter-row button {
+  flex: none;
 }
 
 .account-filter-row select,
@@ -6283,9 +6295,16 @@ tbody tr:last-child td {
     grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.6fr);
   }
 
-  .accounts-overview-panel,
-  .account-filter-row {
+  .accounts-overview-panel {
     grid-template-columns: 1fr;
+  }
+
+  .account-filter-row label {
+    flex-basis: 100%;
+  }
+
+  .account-filter-row button {
+    width: 100%;
   }
 
   .accounts-overview-stats {

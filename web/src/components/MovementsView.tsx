@@ -432,48 +432,53 @@ export function MovementsView({
             <FilterToggleButton active={hasActiveMovementFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
           </div>
         </div>
-        {filtersOpen && (
-        <div className="view-filters">
-          <label>
-            <span>{t("movement.field.firm")}</span>
-            <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
-          </label>
-          <label>
-            <span>{t("movement.field.kind")}</span>
-            <Select onChange={(next) => setKindFilter(next as "all" | MovementKind)} options={kindFilterOptions} value={kindFilter} />
-          </label>
-          <label>
-            <span>{t("movement.field.category")}</span>
-            <Select
-              onChange={(next) => setCategoryFilter(next as "all" | MovementCategory)}
-              options={categoryFilterOptions}
-              value={categoryFilter}
-            />
-          </label>
-          <label>
-            <span>{t("movement.filter.from")}</span>
-            <DatePicker onChange={setFromFilter} value={fromFilter} />
-          </label>
-          <label>
-            <span>{t("movement.filter.to")}</span>
-            <DatePicker onChange={setToFilter} value={toFilter} />
-          </label>
-          <button
-            className="secondary-action"
-            onClick={() => {
-              setCategoryFilter("all");
-              setFirmFilter("all");
-              setFromFilter("");
-              setKindFilter("all");
-              setToFilter("");
-            }}
-            type="button"
-          >
-            {t("movement.filter.resetFilters")}
-          </button>
-        </div>
-        )}
       </section>
+
+      {/* Tarjeta propia, no una fila mas dentro de view-filter-panel: asi se oculta
+          entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas. */}
+      {filtersOpen && (
+        <section className="panel dashboard-filter-panel">
+          <div className="view-filters">
+            <label>
+              <span>{t("movement.field.firm")}</span>
+              <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
+            </label>
+            <label>
+              <span>{t("movement.field.kind")}</span>
+              <Select onChange={(next) => setKindFilter(next as "all" | MovementKind)} options={kindFilterOptions} value={kindFilter} />
+            </label>
+            <label>
+              <span>{t("movement.field.category")}</span>
+              <Select
+                onChange={(next) => setCategoryFilter(next as "all" | MovementCategory)}
+                options={categoryFilterOptions}
+                value={categoryFilter}
+              />
+            </label>
+            <label>
+              <span>{t("movement.filter.from")}</span>
+              <DatePicker onChange={setFromFilter} value={fromFilter} />
+            </label>
+            <label>
+              <span>{t("movement.filter.to")}</span>
+              <DatePicker onChange={setToFilter} value={toFilter} />
+            </label>
+            <button
+              className="secondary-action"
+              onClick={() => {
+                setCategoryFilter("all");
+                setFirmFilter("all");
+                setFromFilter("");
+                setKindFilter("all");
+                setToFilter("");
+              }}
+              type="button"
+            >
+              {t("movement.filter.resetFilters")}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Sin cabecera propia: la tabla es el resultado del panel de filtros de arriba, no
           otra seccion. Repetirla dejaba "Movimientos" tres veces en la misma pantalla
