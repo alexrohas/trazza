@@ -29,6 +29,7 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
      que en Select (ver ese componente) — sin esto, un modal corto recortaba la lista de
      sugerencias en vez de dejarla salir por encima. */
   const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const panelRef = useRef<HTMLUListElement>(null);
 
   /* Se filtra por coincidencia en cualquier parte, no solo al principio: quien escribe
      "futures" espera encontrar "Alpha Futures". */
@@ -48,10 +49,22 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
       const rect = rootRef.current.getBoundingClientRect();
       setPanelPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     }
+    /* El panel esta portado a document.body: sin comprobar tambien panelRef, un
+       pointerdown en cualquier sugerencia contaba como "fuera" y cerraba el panel
+       antes de que el click llegara a completarse. Mismo bug que en Select. */
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
-    const handleScroll = () => setIsOpen(false);
+    /* El scroll dentro del propio panel (lista de sugerencias con overflow) se ignora:
+       no desalinea nada, es solo navegar la lista. Sin este filtro, cerraba el panel
+       antes de que un click en una sugerencia llegara a completarse. */
+    const handleScroll = (event: Event) => {
+      if (panelRef.current && panelRef.current.contains(event.target as Node)) return;
+      setIsOpen(false);
+    };
     document.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", handleScroll);
@@ -123,6 +136,7 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
       {isOpen && matches.length > 0 && panelPosition && createPortal(
         <ul
           className="custom-select-panel"
+          ref={panelRef}
           role="listbox"
           style={{ position: "fixed", top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }}
         >

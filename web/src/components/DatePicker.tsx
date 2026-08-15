@@ -32,6 +32,7 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
      Modal.tsx ya usa portal. */
   const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; openUpward: boolean } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const t = useT();
   const { language } = useI18n();
   const locale = language === "en" ? "en-US" : "es-ES";
@@ -48,17 +49,27 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    /* El panel esta portado a document.body: sin comprobar tambien panelRef, un
+       pointerdown en cualquier dia contaba como "fuera" y cerraba el calendario antes
+       de que el click llegara a completarse. Mismo bug que en Select. */
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
     };
     /* La posicion se calcula una vez al abrir, no se recalcula en cada frame: si el
-       usuario hace scroll (del modal o de la pagina) mientras el panel esta abierto, en
-       vez de perseguir al disparador se cierra — mas simple y es lo que se espera de
-       cualquier desplegable. */
-    const handleScroll = () => setIsOpen(false);
+       usuario hace scroll fuera del panel (del modal o de la pagina) mientras esta
+       abierto, en vez de perseguir al disparador se cierra. El scroll dentro del panel
+       mismo se ignora (no desalinea nada) — sin este filtro, cerraba el calendario antes
+       de que un click en un dia llegara a completarse. */
+    const handleScroll = (event: Event) => {
+      if (panelRef.current && panelRef.current.contains(event.target as Node)) return;
+      setIsOpen(false);
+    };
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -122,6 +133,7 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
       {isOpen && panelPosition && createPortal(
         <div
           className={`date-picker-panel ${panelPosition.openUpward ? "is-upward" : ""}`}
+          ref={panelRef}
           role="dialog"
           style={
             panelPosition.openUpward

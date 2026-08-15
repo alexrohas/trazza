@@ -38,14 +38,22 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
   const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; width: number; openUpward: boolean } | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLUListElement>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : undefined;
 
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    /* El panel esta portado a document.body (ver render), asi que ya no es
+       descendiente de rootRef: sin comprobar tambien panelRef, un pointerdown en
+       cualquier opcion contaba como "fuera" y cerraba el panel antes de que el click
+       llegara a completarse — la opcion nunca se seleccionaba. */
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -72,9 +80,15 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
       }
     };
     /* Igual que en el click-fuera: la posicion se calcula una vez al abrir. Si el
-       usuario hace scroll (del modal o de la pagina) con el panel abierto, se cierra
-       en vez de perseguir al disparador. */
-    const handleScroll = () => setIsOpen(false);
+       usuario hace scroll fuera del panel (del modal o de la pagina) con el panel
+       abierto, se cierra en vez de perseguir al disparador. El scroll DENTRO del panel
+       (max-height 260px, con overflow propio si hay muchas opciones) se ignora: es
+       navegacion normal de la lista, no debe cerrarla — cerraba antes de que el click
+       en una opcion llegara a completarse. */
+    const handleScroll = (event: Event) => {
+      if (panelRef.current && panelRef.current.contains(event.target as Node)) return;
+      setIsOpen(false);
+    };
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -122,6 +136,7 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
       {isOpen && panelPosition && createPortal(
         <ul
           className={`custom-select-panel ${panelPosition.openUpward ? "is-upward" : ""}`}
+          ref={panelRef}
           role="listbox"
           style={{
             position: "fixed",
