@@ -597,6 +597,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.media.loadError": "Could not load the capture.",
   "journal.media.dragValidImage": "Drag a valid image.",
   "journal.media.captureAlt": "Trade capture",
+  "journal.gallery.noCapture": "No capture",
 
   "journal.import.importing": "Importing CSV...",
   "journal.import.rowsImportedSuffix": "rows imported",

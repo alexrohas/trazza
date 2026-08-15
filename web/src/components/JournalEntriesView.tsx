@@ -14,6 +14,7 @@ import {
   FileUp,
   Gauge,
   GripVertical,
+  Image as ImageIcon,
   ImagePlus,
   LayoutGrid,
   ListChecks,
@@ -287,6 +288,7 @@ export function JournalEntriesView({
   const [errorFilter, setErrorFilter] = useState("all");
   const [errorTypeDraft, setErrorTypeDraft] = useState<JournalErrorTypeInput>(() => createEmptyErrorTypeInput());
   const [editingErrorTypeId, setEditingErrorTypeId] = useState<string | undefined>();
+  const [errorManagerOpen, setErrorManagerOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [fromFilter, setFromFilter] = useState("");
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
@@ -298,6 +300,10 @@ export function JournalEntriesView({
   const [resultFilter, setResultFilter] = useState<"all" | JournalResult>("all");
   const [reviewPreset, setReviewPreset] = useState<JournalReviewPreset>("all");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
+  /* Independiente de selectedEntryId: ese lo gobierna el calendario del cockpit, y este
+     la tarjeta pulsada en la galeria. Compartirlos hacia que abrir una entrada desde la
+     galeria moviera tambien la seleccion del calendario. */
+  const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
   const [sessionFilter, setSessionFilter] = useState<"all" | JournalTradingSession>("all");
   const [sortMode, setSortMode] = useState<JournalSortMode>("date-desc");
   const [toFilter, setToFilter] = useState("");
@@ -434,6 +440,7 @@ export function JournalEntriesView({
     ],
   );
   const selectedEntry = selectedEntryId ? filteredEntries.find((entry) => entry.id === selectedEntryId) : undefined;
+  const detailEntry = detailEntryId ? filteredEntries.find((entry) => entry.id === detailEntryId) : undefined;
   const calendarDays = useMemo(
     () => buildCalendarDays(visibleMonth, filteredEntries, movements),
     [filteredEntries, movements, visibleMonth],
@@ -646,6 +653,111 @@ export function JournalEntriesView({
     if (saved && editingErrorTypeId === type.id) resetErrorTypeForm();
   };
 
+  /* El mismo detalle lo usan el panel del cockpit (seleccion del calendario) y el modal
+     que abre la galeria de entradas. Se define como funcion en lugar de componente para
+     no tener que pasarle como props las quince cosas de las que depende. */
+  const renderEntryDetail = (entry: JournalEntry) => {
+    const sameDayEntries = filteredEntries.filter((item) => item.date === entry.date);
+    return (
+      <div className="journal-detail-card">
+        <div className="journal-detail-hero">
+          <div>
+            <span>{entry.symbol}</span>
+            <strong>{entry.date}</strong>
+          </div>
+          <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
+        </div>
+        <dl className="journal-detail-grid">
+          <div>
+            <dt>{t("journal.detail.firm")}</dt>
+            <dd>
+              {firmNameById.get(entry.firmId || "") ||
+                firmNameById.get(accountById.get(entry.accountId)?.firmId || "") ||
+                t("account.card.noFirm")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.account")}</dt>
+            <dd>{getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.direction")}</dt>
+            <dd>{findOptionLabel(directionOptions, entry.direction)}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.session")}</dt>
+            <dd>{formatTradingSessionLabel(entry, sessionOptions, t)}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.type")}</dt>
+            <dd>{findOptionLabel(sessionTypeOptions, entry.sessionType || "other")}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.result")}</dt>
+            <dd>{findOptionLabel(resultOptions, entry.result || "neutral")}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.discipline")}</dt>
+            <dd>{formatDisciplineScore(entry.discipline)}</dd>
+          </div>
+          <div>
+            <dt>{t("journal.detail.emotion")}</dt>
+            <dd>{findOptionLabel(emotionOptions, entry.emotion)}</dd>
+          </div>
+        </dl>
+        <div className="journal-detail-copy">
+          <span>{t("journal.detail.errors")}</span>
+          <JournalErrorChips errorTypes={effectiveErrorTypes} errors={getEntryErrors(entry, effectiveErrorTypes)} />
+        </div>
+        <div className="journal-detail-copy">
+          <span>{t("journal.detail.notes")}</span>
+          <p>{entry.notes || t("journal.detail.noNotes")}</p>
+        </div>
+        <div className="journal-detail-copy">
+          <span>{t("journal.detail.lesson")}</span>
+          <p>{entry.lesson || t("journal.detail.noLesson")}</p>
+        </div>
+        {entry.operationUrl && (
+          <div className="journal-detail-copy">
+            <span>{t("journal.detail.mediaLabel")}</span>
+            {isImageSource(entry.operationUrl) ? (
+              <button className="journal-media-preview-button" onClick={() => setZoomImage(entry.operationUrl)} type="button">
+                <img className="journal-media-preview" src={entry.operationUrl} alt={`${t("journal.media.captureAlt")} ${entry.symbol}`} />
+                <span>
+                  <ZoomIn size={15} strokeWidth={2.2} />
+                  {t("journal.detail.enlargeCapture")}
+                </span>
+              </button>
+            ) : (
+              <a className="journal-media-link" href={entry.operationUrl} rel="noreferrer" target="_blank">
+                <ExternalLink size={15} strokeWidth={2.2} />
+                {t("journal.detail.openReference")}
+              </a>
+            )}
+          </div>
+        )}
+        {sameDayEntries.length > 1 && (
+          <div className="journal-same-day">
+            <span>{t("journal.detail.otherEntriesSameDay")}</span>
+            <div>
+              {sameDayEntries.map((item) => (
+                <button
+                  className={item.id === entry.id ? "active" : ""}
+                  key={item.id}
+                  onClick={() => (detailEntryId ? setDetailEntryId(item.id) : setSelectedEntryId(item.id))}
+                  type="button"
+                >
+                  {item.symbol}
+                  <strong className={signedTone(item.pnl)}>{formatMoney(item.pnl, currency)}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const journalWidgetContent: Record<JournalWidgetId, ReactElement> = {
     calendar: (
       <section className="journal-top-grid">
@@ -716,110 +828,7 @@ export function JournalEntriesView({
               </button>
             )}
           </div>
-          {selectedEntry ? (
-            <div className="journal-detail-card">
-              <div className="journal-detail-hero">
-                <div>
-                  <span>{selectedEntry.symbol}</span>
-                  <strong>{selectedEntry.date}</strong>
-                </div>
-                <strong className={signedTone(selectedEntry.pnl)}>{formatMoney(selectedEntry.pnl, currency)}</strong>
-              </div>
-              <dl className="journal-detail-grid">
-                <div>
-                  <dt>{t("journal.detail.firm")}</dt>
-                  <dd>
-                    {firmNameById.get(selectedEntry.firmId || "") ||
-                      firmNameById.get(accountById.get(selectedEntry.accountId)?.firmId || "") ||
-                      t("account.card.noFirm")}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.account")}</dt>
-                  <dd>{getAccountName(accounts, selectedEntry.accountId, t("journal.entryForm.noAccount"))}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.direction")}</dt>
-                  <dd>{findOptionLabel(directionOptions, selectedEntry.direction)}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.session")}</dt>
-                  <dd>{formatTradingSessionLabel(selectedEntry, sessionOptions, t)}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.type")}</dt>
-                  <dd>{findOptionLabel(sessionTypeOptions, selectedEntry.sessionType || "other")}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.result")}</dt>
-                  <dd>{findOptionLabel(resultOptions, selectedEntry.result || "neutral")}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.discipline")}</dt>
-                  <dd>{formatDisciplineScore(selectedEntry.discipline)}</dd>
-                </div>
-                <div>
-                  <dt>{t("journal.detail.emotion")}</dt>
-                  <dd>{findOptionLabel(emotionOptions, selectedEntry.emotion)}</dd>
-                </div>
-              </dl>
-              <div className="journal-detail-copy">
-                <span>{t("journal.detail.errors")}</span>
-              <JournalErrorChips errorTypes={effectiveErrorTypes} errors={getEntryErrors(selectedEntry, effectiveErrorTypes)} />
-              </div>
-              <div className="journal-detail-copy">
-                <span>{t("journal.detail.notes")}</span>
-                <p>{selectedEntry.notes || t("journal.detail.noNotes")}</p>
-              </div>
-              <div className="journal-detail-copy">
-                <span>{t("journal.detail.lesson")}</span>
-                <p>{selectedEntry.lesson || t("journal.detail.noLesson")}</p>
-              </div>
-              {selectedEntry.operationUrl && (
-                <div className="journal-detail-copy">
-                  <span>{t("journal.detail.mediaLabel")}</span>
-                  {isImageSource(selectedEntry.operationUrl) ? (
-                    <button
-                      className="journal-media-preview-button"
-                      onClick={() => setZoomImage(selectedEntry.operationUrl)}
-                      type="button"
-                    >
-                      <img className="journal-media-preview" src={selectedEntry.operationUrl} alt={`${t("journal.media.captureAlt")} ${selectedEntry.symbol}`} />
-                      <span>
-                        <ZoomIn size={15} strokeWidth={2.2} />
-                        {t("journal.detail.enlargeCapture")}
-                      </span>
-                    </button>
-                  ) : (
-                    <a className="journal-media-link" href={selectedEntry.operationUrl} rel="noreferrer" target="_blank">
-                      <ExternalLink size={15} strokeWidth={2.2} />
-                      {t("journal.detail.openReference")}
-                    </a>
-                  )}
-                </div>
-              )}
-              {selectedDayEntries.length > 1 && (
-                <div className="journal-same-day">
-                  <span>{t("journal.detail.otherEntriesSameDay")}</span>
-                  <div>
-                    {selectedDayEntries.map((entry) => (
-                      <button
-                        className={entry.id === selectedEntry.id ? "active" : ""}
-                        key={entry.id}
-                        onClick={() => setSelectedEntryId(entry.id)}
-                        type="button"
-                      >
-                        {entry.symbol}
-                        <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="chart-empty">{t("journal.detail.noEntrySelected")}</div>
-          )}
+          {selectedEntry ? renderEntryDetail(selectedEntry) : <div className="chart-empty">{t("journal.detail.noEntrySelected")}</div>}
         </section>
       </section>
     ),
@@ -947,6 +956,10 @@ export function JournalEntriesView({
             <p>{t("journal.entries.subtitle")}</p>
           </div>
           <div className="journal-review-actions">
+            <button className="secondary-action" onClick={() => setErrorManagerOpen(true)} type="button">
+              <ShieldAlert size={16} strokeWidth={2.2} />
+              {t("journal.errorManager.title")}
+            </button>
             <button
               className="secondary-action"
               data-testid="journal-export-csv"
@@ -1119,14 +1132,11 @@ export function JournalEntriesView({
         </>
       )}
 
-      {journalMode === "entries" && (
-      <section className="panel journal-error-manager-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{t("journal.errorManager.title")}</h2>
-            <p>{t("journal.errorManager.subtitle")}</p>
-          </div>
-        </div>
+      {/* En modal, como en el legado (journalErrorManagerDialog). Incrustado ocupaba 1516px
+          entre el resumen y la primera operacion: se entra aqui a mirar trades, no a
+          configurar tipos de error, que se tocan de tarde en tarde. */}
+      {errorManagerOpen && (
+      <Modal onClose={() => setErrorManagerOpen(false)} subtitle={t("journal.errorManager.subtitle")} title={t("journal.errorManager.title")} width="wide">
         <div className="journal-error-manager-grid">
           <form
             className="journal-error-type-form"
@@ -1238,7 +1248,7 @@ export function JournalEntriesView({
             })}
           </div>
         </div>
-      </section>
+      </Modal>
       )}
 
       {journalMode === "entryForm" && (
@@ -1548,78 +1558,42 @@ export function JournalEntriesView({
             <p>{t("journal.list.subtitle")}</p>
           </div>
         </div>
-        <div className="journal-list">
+        {/* Galeria, no listado: la tarjeta solo lleva captura, mercado, direccion y P&L,
+            que es lo que permite reconocer una operacion de un vistazo. El resto del
+            dato (notas, errores, disciplina, empresa, cuenta) vive en el detalle, que se
+            abre pulsando la tarjeta. Antes cada fila cargaba todo eso mas tres botones,
+            multiplicado por las entradas que haya. */}
+        <div className="journal-gallery">
           {filteredEntries.map((entry) => (
-            <article className="journal-row editable-journal-row" key={entry.id}>
-              <div>
-                <div className="journal-row-topline">
-                  <strong>{entry.symbol}</strong>
-                  <span>{entry.direction}</span>
-                </div>
-                <small>
-                  {entry.date} - {getEntryFirmName(entry, accountById, firmNameById, t)} - {getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}
-                </small>
-                <p>{entry.notes || entry.lesson || t("journal.list.noNotes")}</p>
-                <JournalErrorChips compact errorTypes={effectiveErrorTypes} errors={getEntryErrors(entry, effectiveErrorTypes)} />
+            <article
+              aria-label={`${entry.symbol} ${entry.date}`}
+              className="journal-card"
+              key={entry.id}
+              onClick={() => setDetailEntryId(entry.id)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                setDetailEntryId(entry.id);
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="journal-card-media">
+                {entry.operationUrl && isImageSource(entry.operationUrl) ? (
+                  <img alt={`${t("journal.media.captureAlt")} ${entry.symbol}`} src={entry.operationUrl} />
+                ) : (
+                  <span className="is-placeholder">
+                    <ImageIcon size={20} strokeWidth={2} />
+                    {t("journal.gallery.noCapture")}
+                  </span>
+                )}
               </div>
-              <div className="journal-score">
-                <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                <span>{t("journal.list.disciplinePrefix")} {formatDisciplineScore(entry.discipline)}</span>
-                {entry.operationUrl && <span>{t("journal.list.reference")}</span>}
-              </div>
-              <div className="row-actions">
-                <button
-                  className="secondary-action"
-                  onClick={() => {
-                    setSelectedEntryId(entry.id);
-                    setJournalMode("cockpit");
-                  }}
-                  type="button"
-                >
-                  <Eye size={16} strokeWidth={2.2} />
-                  {t("journal.list.detail")}
-                </button>
-                <button
-                  className="secondary-action"
-                  disabled={!canWrite || mutating}
-                  onClick={() => {
-                    setEditingId(entry.id);
-                    setDraft({
-                      date: entry.date,
-                      firmId: entry.firmId || "",
-                      accountId: entry.accountId || "",
-                      symbol: entry.symbol,
-                      direction: entry.direction,
-                      tradingSession: getEntryTradingSession(entry) || "newYork",
-                      sessionType: entry.sessionType || "trading-day",
-                      result: entry.result || "neutral",
-                      emotion: entry.emotion,
-                      discipline: entry.discipline || 3,
-                      pnl: entry.pnl,
-                      errors: getEntryErrors(entry, effectiveErrorTypes),
-                      operationUrl: entry.operationUrl || "",
-                      notes: entry.notes || "",
-                      lesson: entry.lesson || "",
-                    });
-                    setJournalMode("entryForm");
-                  }}
-                  type="button"
-                >
-                  <Pencil size={16} strokeWidth={2.2} />
-                  {t("common.edit")}
-                </button>
-                <button
-                  className="danger-action"
-                  disabled={!canWrite || mutating}
-                  onClick={() => {
-                    if (!window.confirm(t("journal.list.deleteConfirm"))) return;
-                    void onDeleteEntry(entry.id);
-                  }}
-                  type="button"
-                >
-                  <Trash2 size={16} strokeWidth={2.2} />
-                  {t("common.delete")}
-                </button>
+              <div className="journal-card-footer">
+                <strong>
+                  <span>{entry.symbol}</span>
+                  <em className={`journal-card-direction ${entry.direction}`}>{findOptionLabel(directionOptions, entry.direction)}</em>
+                </strong>
+                <span className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</span>
               </div>
             </article>
           ))}
@@ -1633,6 +1607,66 @@ export function JournalEntriesView({
         )}
       </section>
       </>
+      )}
+
+      {/* Editar y eliminar viven aqui, no en la tarjeta: multiplicados por cada entrada
+          llenaban la galeria de botones, y son acciones que se deciden despues de mirar
+          la operacion, no antes. */}
+      {detailEntry && (
+        <Modal
+          onClose={() => setDetailEntryId(undefined)}
+          title={`${detailEntry.symbol} - ${detailEntry.date}`}
+          width="wide"
+        >
+          {renderEntryDetail(detailEntry)}
+          <div className="form-action-row">
+            <button
+              className="card-delete"
+              aria-label={t("common.delete")}
+              disabled={!canWrite || mutating}
+              onClick={() => {
+                if (!window.confirm(t("journal.list.deleteConfirm"))) return;
+                void onDeleteEntry(detailEntry.id).then((deleted) => {
+                  if (deleted) setDetailEntryId(undefined);
+                });
+              }}
+              title={t("common.delete")}
+              type="button"
+            >
+              <Trash2 size={15} strokeWidth={2.2} />
+            </button>
+            <button
+              className="primary-action"
+              disabled={!canWrite || mutating}
+              onClick={() => {
+                setEditingId(detailEntry.id);
+                setDraft({
+                  date: detailEntry.date,
+                  firmId: detailEntry.firmId || "",
+                  accountId: detailEntry.accountId || "",
+                  symbol: detailEntry.symbol,
+                  direction: detailEntry.direction,
+                  tradingSession: getEntryTradingSession(detailEntry) || "newYork",
+                  sessionType: detailEntry.sessionType || "trading-day",
+                  result: detailEntry.result || "neutral",
+                  emotion: detailEntry.emotion,
+                  discipline: detailEntry.discipline || 3,
+                  pnl: detailEntry.pnl,
+                  errors: getEntryErrors(detailEntry, effectiveErrorTypes),
+                  operationUrl: detailEntry.operationUrl || "",
+                  notes: detailEntry.notes || "",
+                  lesson: detailEntry.lesson || "",
+                });
+                setDetailEntryId(undefined);
+                setJournalMode("entryForm");
+              }}
+              type="button"
+            >
+              <Pencil size={16} strokeWidth={2.2} />
+              {t("common.edit")}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {zoomImage && (

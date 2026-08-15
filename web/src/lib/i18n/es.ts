@@ -595,6 +595,7 @@ export const es = {
   "journal.media.loadError": "No se pudo cargar la captura.",
   "journal.media.dragValidImage": "Arrastra una imagen valida.",
   "journal.media.captureAlt": "Captura de la operacion",
+  "journal.gallery.noCapture": "Sin captura",
 
   "journal.import.importing": "Importando CSV...",
   "journal.import.rowsImportedSuffix": "filas importadas",
