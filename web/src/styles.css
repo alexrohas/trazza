@@ -4540,22 +4540,33 @@ button {
   gap: var(--space-xs);
 }
 
-.accounts-overview-copy h2,
-.account-filter-head h2 {
+.accounts-overview-copy h2 {
   margin: 0;
   color: var(--text);
   font-size: var(--text-lg);
   line-height: var(--leading-tight);
 }
 
-.accounts-overview-copy p,
-.account-filter-head p {
+.accounts-overview-copy p {
   max-width: 620px;
   margin: 0;
   color: var(--muted);
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
   line-height: var(--leading-normal);
+}
+
+/* Fila de pestañas + conteo/filtro dentro de accounts-overview-panel: grid-column:1/-1
+   para que abarque las dos columnas del grid de arriba (copy + stats) en vez de
+   quedarse encajada solo bajo la primera. Vivia en su propia tarjeta "Listado" debajo,
+   que no aportaba nada por si sola. */
+.overview-tabs-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
 }
 
 .accounts-overview-stats {
@@ -4587,19 +4598,6 @@ button {
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-}
-
-.account-filter-panel {
-  display: grid;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-}
-
-.account-filter-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
 }
 
 .account-filter-head-actions {
@@ -5778,16 +5776,14 @@ tbody tr:last-child td {
   text-transform: uppercase;
 }
 
-.firm-overview-copy h2,
-.firm-filter-head h2 {
+.firm-overview-copy h2 {
   margin: 0;
   color: var(--text);
   font-size: var(--text-lg);
   line-height: var(--leading-tight);
 }
 
-.firm-overview-copy p,
-.firm-filter-head p {
+.firm-overview-copy p {
   max-width: 620px;
   margin: 0;
   color: var(--muted);
@@ -5825,19 +5821,6 @@ tbody tr:last-child td {
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-}
-
-.firm-filter-panel {
-  display: grid;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-}
-
-.firm-filter-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
 }
 
 .firm-type-tabs {

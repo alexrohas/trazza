@@ -524,12 +524,29 @@ export function AccountsView({
             <small>{t("account.overview.inactive")}</small>
           </span>
         </div>
-      </section>
-
-      <section className="panel account-filter-panel">
-        <div className="account-filter-head">
-          <div>
-            <h2>{t("account.filter.title")}</h2>
+        {/* Pestañas de estado y el disparador del filtro en la misma tarjeta que las
+            metricas: antes vivian en su propia tarjeta "Listado" debajo, que no aportaba
+            nada por si sola y duplicaba el aire que ya daba esta. grid-column:1/-1 para
+            que la fila ocupe las dos columnas del grid de arriba (copy + stats). */}
+        <div className="overview-tabs-row">
+          <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
+            {accountStatusFilters.map((option) => {
+              const count = option.value === "all" ? accounts.length : statusCounts[option.value];
+              const selected = statusFilter === option.value;
+              return (
+                <button
+                  aria-selected={selected}
+                  className={selected ? "is-active" : ""}
+                  key={option.value}
+                  onClick={() => setStatusFilter(option.value)}
+                  role="tab"
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  <strong>{count}</strong>
+                </button>
+              );
+            })}
           </div>
           <div className="account-filter-head-actions">
             <span className="result-count">
@@ -537,25 +554,6 @@ export function AccountsView({
             </span>
             <FilterToggleButton active={firmFilter !== "all"} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
           </div>
-        </div>
-        <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
-          {accountStatusFilters.map((option) => {
-            const count = option.value === "all" ? accounts.length : statusCounts[option.value];
-            const selected = statusFilter === option.value;
-            return (
-              <button
-                aria-selected={selected}
-                className={selected ? "is-active" : ""}
-                key={option.value}
-                onClick={() => setStatusFilter(option.value)}
-                role="tab"
-                type="button"
-              >
-                <span>{option.label}</span>
-                <strong>{count}</strong>
-              </button>
-            );
-          })}
         </div>
       </section>
 

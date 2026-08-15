@@ -240,35 +240,32 @@ export function FirmsView({
             <small>{t("firm.overview.active")}</small>
           </span>
         </div>
-      </section>
-
-      <section className="panel firm-filter-panel">
-        <div className="firm-filter-head">
-          <div>
-            <h2>{t("firm.filter.title")}</h2>
+        {/* Mismo criterio que en Cuentas: las pestañas de tipo y el conteo viven en la
+            tarjeta de metricas, no en una tarjeta "Listado" aparte que no aportaba nada
+            por si sola. grid-column:1/-1 para abarcar las dos columnas del grid. */}
+        <div className="overview-tabs-row">
+          <div className="firm-type-tabs" role="tablist" aria-label={t("firm.filter.tabsLabel")}>
+            {firmTypeFilters.map((option) => {
+              const count = option.value === "all" ? firms.length : firmTypeCounts[option.value];
+              const selected = typeFilter === option.value;
+              return (
+                <button
+                  aria-selected={selected}
+                  className={selected ? "is-active" : ""}
+                  key={option.value}
+                  onClick={() => setTypeFilter(option.value)}
+                  role="tab"
+                  type="button"
+                >
+                  <span>{option.label}</span>
+                  <strong>{count}</strong>
+                </button>
+              );
+            })}
           </div>
           <span className="result-count">
             {filteredFirms.length} {t("common.of")} {firms.length} {t("firm.filter.countSuffix")}
           </span>
-        </div>
-        <div className="firm-type-tabs" role="tablist" aria-label={t("firm.filter.tabsLabel")}>
-          {firmTypeFilters.map((option) => {
-            const count = option.value === "all" ? firms.length : firmTypeCounts[option.value];
-            const selected = typeFilter === option.value;
-            return (
-              <button
-                aria-selected={selected}
-                className={selected ? "is-active" : ""}
-                key={option.value}
-                onClick={() => setTypeFilter(option.value)}
-                role="tab"
-                type="button"
-              >
-                <span>{option.label}</span>
-                <strong>{count}</strong>
-              </button>
-            );
-          })}
         </div>
       </section>
 
