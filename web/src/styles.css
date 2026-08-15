@@ -2303,12 +2303,14 @@ button {
   opacity: 0.5;
 }
 
+/* position:fixed con top/left/width/bottom puestos en linea desde JS (Select.tsx), no
+   absolute: el panel se porta a document.body por el mismo motivo que .date-picker-panel
+   (ver ese comentario) — un modal corto con muchas opciones tambien podia recortarlo.
+   z-index por encima de .modal-layer (120): al colgar de body ya no hereda su contexto
+   de apilamiento. */
 .custom-select-panel {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  position: fixed;
+  z-index: 130;
   transform-origin: top center;
   animation: drop-in var(--dur-fast) var(--ease-overshoot) backwards;
   max-height: 260px;
@@ -2323,8 +2325,6 @@ button {
 }
 
 .custom-select-panel.is-upward {
-  top: auto;
-  bottom: calc(100% + 4px);
   transform-origin: bottom center;
   animation-name: lift-in;
 }
@@ -2383,11 +2383,15 @@ button {
   min-width: 0;
 }
 
+/* position:fixed con top/left/bottom puestos en linea desde JS (DatePicker.tsx), no
+   absolute: el panel se porta a document.body para que ningun ancestro con
+   overflow:hidden y altura maxima (como .modal-card) pueda recortarlo — el calendario
+   mide unos 330px y un modal corto no siempre tiene esa altura libre debajo del campo.
+   z-index por encima de .modal-layer (120): al colgar de body ya no hereda el contexto
+   de apilamiento del modal, compite con el directamente. */
 .date-picker-panel {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 4px);
-  left: 0;
+  position: fixed;
+  z-index: 130;
   display: grid;
   gap: var(--space-md);
   width: 268px;
@@ -2401,8 +2405,6 @@ button {
 }
 
 .date-picker-panel.is-upward {
-  top: auto;
-  bottom: calc(100% + 4px);
   transform-origin: bottom center;
   animation-name: lift-in;
 }

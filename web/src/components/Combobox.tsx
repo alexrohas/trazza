@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 type ComboboxProps = {
@@ -24,6 +25,10 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  /* Posicion en px del viewport: el panel se porta a document.body por el mismo motivo
+     que en Select (ver ese componente) — sin esto, un modal corto recortaba la lista de
+     sugerencias en vez de dejarla salir por encima. */
+  const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
   /* Se filtra por coincidencia en cualquier parte, no solo al principio: quien escribe
      "futures" espera encontrar "Alpha Futures". */
@@ -39,11 +44,22 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
 
   useEffect(() => {
     if (!isOpen) return undefined;
+    if (rootRef.current) {
+      const rect = rootRef.current.getBoundingClientRect();
+      setPanelPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
     const handlePointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) setIsOpen(false);
     };
+    const handleScroll = () => setIsOpen(false);
     document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, [isOpen]);
 
   const choose = (name: string) => {
@@ -104,8 +120,12 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
         <ChevronDown size={15} strokeWidth={2.2} />
       </button>
 
-      {isOpen && matches.length > 0 && (
-        <ul className="custom-select-panel" role="listbox">
+      {isOpen && matches.length > 0 && panelPosition && createPortal(
+        <ul
+          className="custom-select-panel"
+          role="listbox"
+          style={{ position: "fixed", top: panelPosition.top, left: panelPosition.left, width: panelPosition.width }}
+        >
           {matches.map((name, index) => (
             <li
               aria-selected={name === value}
@@ -126,7 +146,8 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
               {name === value && <Check size={14} strokeWidth={2.4} />}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );

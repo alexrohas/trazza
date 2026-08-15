@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 export type SelectOption = {
@@ -30,7 +31,11 @@ type SelectProps = {
  */
 export function Select({ disabled, id, onChange, options, placeholder, value }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
+  /* Posicion en px del viewport, no relativa al padre: el panel se porta a
+     document.body (ver render mas abajo) para que ningun ancestro con overflow:hidden
+     y altura maxima (como .modal-card) pueda recortarlo — mismo motivo que Modal.tsx
+     ya usa portal. */
+  const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; width: number; openUpward: boolean } | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
@@ -66,12 +71,20 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
         }
       }
     };
+    /* Igual que en el click-fuera: la posicion se calcula una vez al abrir. Si el
+       usuario hace scroll (del modal o de la pagina) con el panel abierto, se cierra
+       en vez de perseguir al disparador. */
+    const handleScroll = () => setIsOpen(false);
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
     };
   }, [highlightedIndex, isOpen, onChange, options]);
 
@@ -80,7 +93,13 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
     if (rootRef.current) {
       const rect = rootRef.current.getBoundingClientRect();
       const roomBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(roomBelow < 240 && rect.top > roomBelow);
+      const openUpward = roomBelow < 240 && rect.top > roomBelow;
+      setPanelPosition({
+        top: openUpward ? rect.top - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        openUpward,
+      });
     }
     setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
     setIsOpen(true);
@@ -100,8 +119,19 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
         <span className={selected ? undefined : "is-placeholder"}>{selected?.label ?? placeholder ?? ""}</span>
         <ChevronDown className="custom-select-chevron" size={15} strokeWidth={2.2} />
       </button>
-      {isOpen && (
-        <ul className={`custom-select-panel ${openUpward ? "is-upward" : ""}`} role="listbox">
+      {isOpen && panelPosition && createPortal(
+        <ul
+          className={`custom-select-panel ${panelPosition.openUpward ? "is-upward" : ""}`}
+          role="listbox"
+          style={{
+            position: "fixed",
+            left: panelPosition.left,
+            width: panelPosition.width,
+            ...(panelPosition.openUpward
+              ? { bottom: window.innerHeight - panelPosition.top }
+              : { top: panelPosition.top }),
+          }}
+        >
           {options.map((option, index) => (
             <li
               aria-selected={option.value === value}
@@ -127,7 +157,8 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
               {option.value === value && <Check size={14} strokeWidth={2.4} />}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );

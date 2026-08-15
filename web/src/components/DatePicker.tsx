@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n, useT } from "../lib/i18n/context";
 
@@ -25,7 +26,11 @@ type DatePickerProps = {
  */
 export function DatePicker({ clearable = true, disabled, id, onChange, placeholder, value }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
+  /* Posicion en px del viewport, no relativa al padre: el panel se porta a document.body
+     (ver comentario mas abajo en el render) para que ningun ancestro con overflow:hidden
+     y altura maxima (como .modal-card) pueda recortarlo, el mismo motivo por el que
+     Modal.tsx ya usa portal. */
+  const [panelPosition, setPanelPosition] = useState<{ top: number; left: number; openUpward: boolean } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const t = useT();
   const { language } = useI18n();
@@ -49,12 +54,21 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
     };
+    /* La posicion se calcula una vez al abrir, no se recalcula en cada frame: si el
+       usuario hace scroll (del modal o de la pagina) mientras el panel esta abierto, en
+       vez de perseguir al disparador se cierra — mas simple y es lo que se espera de
+       cualquier desplegable. */
+    const handleScroll = () => setIsOpen(false);
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
     };
   }, [isOpen]);
 
@@ -76,7 +90,12 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
     if (rootRef.current) {
       const rect = rootRef.current.getBoundingClientRect();
       const roomBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(roomBelow < 330 && rect.top > roomBelow);
+      const openUpward = roomBelow < 330 && rect.top > roomBelow;
+      setPanelPosition({
+        top: openUpward ? rect.top - 4 : rect.bottom + 4,
+        left: rect.left,
+        openUpward,
+      });
     }
     setIsOpen(true);
   };
@@ -100,8 +119,16 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
         <CalendarDays className="custom-select-chevron" size={15} strokeWidth={2.2} />
       </button>
 
-      {isOpen && (
-        <div className={`date-picker-panel ${openUpward ? "is-upward" : ""}`} role="dialog">
+      {isOpen && panelPosition && createPortal(
+        <div
+          className={`date-picker-panel ${panelPosition.openUpward ? "is-upward" : ""}`}
+          role="dialog"
+          style={
+            panelPosition.openUpward
+              ? { bottom: window.innerHeight - panelPosition.top, left: panelPosition.left }
+              : { top: panelPosition.top, left: panelPosition.left }
+          }
+        >
           <div className="date-picker-head">
             <button
               aria-label={t("datePicker.previousMonth")}
@@ -174,7 +201,8 @@ export function DatePicker({ clearable = true, disabled, id, onChange, placehold
               {t("datePicker.today")}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
