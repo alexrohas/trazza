@@ -109,7 +109,14 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
                 index === highlightedIndex ? "is-highlighted" : ""
               } ${option.accent ? "is-accent" : ""}`}
               key={option.value}
-              onClick={() => {
+              onClick={(event) => {
+                /* El <li> no es un control de formulario, asi que un click aqui, al
+                   estar este panel dentro del <label> que envuelve el disparador, hace
+                   que el navegador reenvie un click extra a ese boton (asi funciona un
+                   label con cualquier descendiente no interactivo). Sin este
+                   preventDefault, ese click fantasma volvia a abrir el panel justo
+                   despues de cerrarlo. */
+                event.preventDefault();
                 onChange(option.value);
                 setIsOpen(false);
               }}

@@ -113,7 +113,12 @@ export function Combobox({ disabled, onChange, placeholder, required, suggestion
                 index === highlightedIndex ? "is-highlighted" : ""
               }`}
               key={name}
-              onClick={() => choose(name)}
+              onClick={(event) => {
+                // Mismo motivo que en Select: sin esto, el label que envuelve el
+                // input reenvia un click/foco fantasma en cuanto se cierra el panel.
+                event.preventDefault();
+                choose(name);
+              }}
               onPointerEnter={() => setHighlightedIndex(index)}
               role="option"
             >
