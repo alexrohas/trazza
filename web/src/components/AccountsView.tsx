@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import { Select } from "./Select";
 import {
   formatAccountSize,
+  formatAmount,
   formatMoney,
   getAccountProgress,
   getAccountTradingDays,
@@ -632,9 +633,15 @@ export function AccountsView({
                   <TrendingUp size={15} strokeWidth={2.2} />
                   <small>{kind === "challenge" ? t("account.card.towardsTarget") : t("account.card.result")}</small>
                   <strong className={progress.pnl > 0 ? "positive" : progress.pnl < 0 ? "negative" : "is-unset"}>
-                    {progress.pnl === 0 ? t("account.card.none") : formatMoney(progress.pnl, currency)}
-                    {hasPhaseTarget && progress.pnl > 0 && (
-                      <em> / {formatMoney(account.phaseTarget, currency)}</em>
+                    {progress.pnl === 0 ? (
+                      t("account.card.none")
+                    ) : hasPhaseTarget && progress.pnl > 0 ? (
+                      <>
+                        {formatAmount(progress.pnl)}
+                        <em> / {formatMoney(account.phaseTarget, currency)}</em>
+                      </>
+                    ) : (
+                      formatMoney(progress.pnl, currency)
                     )}
                   </strong>
                 </span>

@@ -126,6 +126,17 @@ export function formatMoney(value: number, currency: Currency = "EUR") {
   }).format(value);
 }
 
+/* Igual que formatMoney pero sin simbolo de divisa: para un par "actual / objetivo"
+   repetir la divisa en los dos numeros no cabe en el ancho de una caja de tarjeta y no
+   aporta nada que el segundo numero no diga ya. */
+export function formatAmount(value: number) {
+  return new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    useGrouping: true,
+  }).format(value);
+}
+
 export function formatPercent(value: number) {
   return new Intl.NumberFormat("es-ES", {
     style: "percent",

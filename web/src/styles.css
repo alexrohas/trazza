@@ -4940,11 +4940,14 @@ button {
   cursor: not-allowed;
 }
 
-/* En bloque y no en linea: "392,50 US$ / 1.250,00 US$" pide 161px y la caja da 151, asi
-   que en linea se recortaba el objetivo, que es justo la referencia que da sentido a la
-   cifra. Apilado cabe sin tocar el ancho de la tarjeta. */
+/* En linea, no en bloque: apilar el objetivo debajo dejaba esta caja mas alta que las
+   otras tres de la fila, y con una cuenta recien creada (sin objetivo que mostrar,
+   "Nada" en una sola linea) la tarjeta entera quedaba mas baja que las que si tienen
+   datos — dos alturas de tarjeta distintas una al lado de la otra. En una linea todas
+   las cajas miden igual. El texto sin divisa del numero principal (formatAmount, no
+   formatMoney) es lo que deja sitio: "351,50 / 1.250,00 US$" en vez de "351,50 US$ /
+   1.250,00 US$" ahorra justo el ancho que antes obligaba a apilar. */
 .account-card-rules strong em {
-  display: block;
   color: var(--muted);
   font-size: var(--text-xs);
   font-style: normal;
@@ -5027,6 +5030,21 @@ button {
   color: var(--muted);
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+}
+
+/* .account-card-rules strong ya fija color:var(--text) con mas especificidad que la
+   utilidad generica .positive/.negative (una clase de tag+clase gana a una clase
+   sola), asi que sin este override el resultado del challenge se quedaba en negro
+   pese a llevar la clase. Ganado/perdido es lo primero que se quiere leer de un
+   vistazo, asi que ademas del color va en negrita. */
+.account-card-rules strong.positive {
+  color: var(--positive);
+  font-weight: var(--weight-bold);
+}
+
+.account-card-rules strong.negative {
+  color: var(--negative);
+  font-weight: var(--weight-bold);
 }
 
 .account-row-main {
