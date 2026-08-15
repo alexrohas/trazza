@@ -2647,29 +2647,6 @@ button {
   margin-bottom: 14px;
 }
 
-.resource-list-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-xl);
-  margin-bottom: 14px;
-}
-
-.resource-list-toolbar h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--text-md);
-  line-height: var(--leading-tight);
-}
-
-.resource-list-toolbar p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-normal);
-}
-
 .resource-form-heading {
   display: grid;
   grid-template-columns: minmax(160px, auto) minmax(0, 1fr) auto;
@@ -4600,12 +4577,6 @@ button {
   font-weight: var(--weight-bold);
 }
 
-.account-filter-head-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-base);
-}
-
 /* Flex y no grid con "auto" para la columna del boton: con un unico campo de por medio,
    auto se acababa repartiendo el ancho sobrante igual que el campo en vez de ceñirse a
    su contenido, y "Reset filtros" salia tan ancho como el selector de al lado. Con
@@ -6422,10 +6393,6 @@ tbody tr:last-child td {
 
   .resource-form-heading {
     grid-template-columns: 1fr;
-  }
-
-  .resource-list-toolbar {
-    display: grid;
   }
 
   .journal-error-type-row {

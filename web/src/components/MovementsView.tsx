@@ -420,22 +420,15 @@ export function MovementsView({
       )}
 
       <>
-      <section className="panel view-filter-panel">
-        <div className="resource-list-toolbar">
-          <div>
-            <h2>{t("movement.list.title")}</h2>
-          </div>
-          <div className="account-filter-head-actions">
-            <span className="result-count">
-              {filteredMovements.length} {t("common.of")} {movements.length} {t("movement.filter.countSuffix")}
-            </span>
-            <FilterToggleButton active={hasActiveMovementFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
-          </div>
-        </div>
-      </section>
+      {/* Sin tarjeta propia ni titulo: era una tarjeta suelta que solo decia
+          "Movimientos", ya dicho por la vista misma, y no aportaba nada aparte del
+          boton. Mismo patron que el dashboard de Finanzas (dashboard-filter-bar). */}
+      <div className="dashboard-filter-bar">
+        <FilterToggleButton active={hasActiveMovementFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
+      </div>
 
-      {/* Tarjeta propia, no una fila mas dentro de view-filter-panel: asi se oculta
-          entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas. */}
+      {/* Tarjeta propia, no una fila mas junto al boton: asi se oculta entera cuando no
+          hace falta filtrar, igual que en el dashboard de Finanzas. */}
       {filtersOpen && (
         <section className="panel dashboard-filter-panel">
           <div className="view-filters">
