@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, Languages, Moon, Save, Sun, Trash2 } from "lucide-react";
+import { Download, FileDown, FileUp, Languages, Moon, Save, Sun, Trash2 } from "lucide-react";
 import {
   findLocalMigrationSource,
   hasImportData,
@@ -9,6 +9,7 @@ import {
   type LocalMigrationSource,
 } from "../lib/legacyImport";
 import { useI18n, useT } from "../lib/i18n/context";
+import { exportJournalEntriesCsv } from "../lib/journalCsv";
 import { Select } from "./Select";
 import { SubscriptionPanel } from "./SubscriptionPanel";
 import type { useSubscription } from "../hooks/useSubscription";
@@ -213,6 +214,15 @@ export function SettingsView({
           <button className="secondary-action" onClick={() => exportJson(data, dataMode)} type="button">
             <Download size={17} strokeWidth={2.2} />
             {t("settings.export.button")}
+          </button>
+          <button
+            className="secondary-action"
+            disabled={!data.journalEntries.length}
+            onClick={() => exportJournalEntriesCsv(data.journalEntries, data.accounts, data.firms, data.journalErrorTypes, t)}
+            type="button"
+          >
+            <FileDown size={17} strokeWidth={2.2} />
+            {t("journal.entries.exportCsv")}
           </button>
           <button className="secondary-action" disabled={!canImport} onClick={() => importInputRef.current?.click()} type="button">
             <FileUp size={17} strokeWidth={2.2} />

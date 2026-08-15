@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent, type ReactElement } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   BarChart3,
@@ -8,7 +9,6 @@ import {
   ChevronRight,
   Clock3,
   ExternalLink,
-  FileDown,
   Eye,
   EyeOff,
   FileUp,
@@ -21,6 +21,7 @@ import {
   Pencil,
   Percent,
   Plus,
+  Settings2,
   ShieldAlert,
   Target,
   Trash2,
@@ -38,7 +39,6 @@ import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJou
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
 import {
-  formatDisciplineScore,
   formatMoney,
   formatPercent,
   getAccountName,
@@ -216,45 +216,17 @@ type LocalMessage = {
   type: "error" | "info" | "success";
 };
 
-type JournalDisciplineFilter = "all" | "high" | "low";
-type JournalMediaFilter = "all" | "withMedia" | "withoutMedia";
-type JournalPnlFilter = "all" | "winning" | "losing" | "breakeven";
 type JournalReviewPreset = "all" | "today" | "week" | "month" | "losers" | "errors" | "needsReview";
 type JournalSortMode = "date-desc" | "date-asc" | "pnl-desc" | "pnl-asc" | "discipline-desc" | "discipline-asc";
+type JournalPeriodFilter = "all" | "current-month" | "last-30" | "last-90" | "year";
 
-function getPnlFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalPnlFilter }> {
+function getPeriodFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalPeriodFilter }> {
   return [
-    { label: t("journal.pnlFilter.all"), value: "all" },
-    { label: t("journal.pnlFilter.winning"), value: "winning" },
-    { label: t("journal.pnlFilter.losing"), value: "losing" },
-    { label: t("journal.pnlFilter.breakeven"), value: "breakeven" },
-  ];
-}
-
-function getDisciplineFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalDisciplineFilter }> {
-  return [
-    { label: t("journal.disciplineFilter.all"), value: "all" },
-    { label: t("journal.disciplineFilter.high"), value: "high" },
-    { label: t("journal.disciplineFilter.low"), value: "low" },
-  ];
-}
-
-function getMediaFilterOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalMediaFilter }> {
-  return [
-    { label: t("journal.mediaFilter.all"), value: "all" },
-    { label: t("journal.mediaFilter.withMedia"), value: "withMedia" },
-    { label: t("journal.mediaFilter.withoutMedia"), value: "withoutMedia" },
-  ];
-}
-
-function getSortModeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalSortMode }> {
-  return [
-    { label: t("journal.sort.dateDesc"), value: "date-desc" },
-    { label: t("journal.sort.dateAsc"), value: "date-asc" },
-    { label: t("journal.sort.pnlDesc"), value: "pnl-desc" },
-    { label: t("journal.sort.pnlAsc"), value: "pnl-asc" },
-    { label: t("journal.sort.disciplineDesc"), value: "discipline-desc" },
-    { label: t("journal.sort.disciplineAsc"), value: "discipline-asc" },
+    { label: t("journal.periodFilter.all"), value: "all" },
+    { label: t("journal.periodFilter.currentMonth"), value: "current-month" },
+    { label: t("journal.periodFilter.last30"), value: "last-30" },
+    { label: t("journal.periodFilter.last90"), value: "last-90" },
+    { label: t("journal.periodFilter.year"), value: "year" },
   ];
 }
 
@@ -280,33 +252,25 @@ export function JournalEntriesView({
 }: JournalEntriesViewProps) {
   const operationFileInputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState<JournalEntryInput>(() => createEmptyJournalInput());
-  const [disciplineFilter, setDisciplineFilter] = useState<JournalDisciplineFilter>("all");
-  const [directionFilter, setDirectionFilter] = useState<"all" | JournalDirection>("all");
+  const [accountFilter, setAccountFilter] = useState("all");
   const [draggingOperationMedia, setDraggingOperationMedia] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
-  const [emotionFilter, setEmotionFilter] = useState<"all" | JournalEmotion>("all");
-  const [errorFilter, setErrorFilter] = useState("all");
   const [errorTypeDraft, setErrorTypeDraft] = useState<JournalErrorTypeInput>(() => createEmptyErrorTypeInput());
   const [editingErrorTypeId, setEditingErrorTypeId] = useState<string | undefined>();
   const [errorManagerOpen, setErrorManagerOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [fromFilter, setFromFilter] = useState("");
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
   const [importing, setImporting] = useState(false);
-  const [mediaFilter, setMediaFilter] = useState<JournalMediaFilter>("all");
   const [mediaMessage, setMediaMessage] = useState<LocalMessage | null>(null);
-  const [pnlFilter, setPnlFilter] = useState<JournalPnlFilter>("all");
   const [journalMode, setJournalMode] = useState<"cockpit" | "entries" | "entryForm">(initialMode);
-  const [resultFilter, setResultFilter] = useState<"all" | JournalResult>("all");
+  const [periodFilter, setPeriodFilter] = useState<JournalPeriodFilter>("all");
   const [reviewPreset, setReviewPreset] = useState<JournalReviewPreset>("all");
+  const [searchText, setSearchText] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
   /* Independiente de selectedEntryId: ese lo gobierna el calendario del cockpit, y este
      la tarjeta pulsada en la galeria. Compartirlos hacia que abrir una entrada desde la
      galeria moviera tambien la seleccion del calendario. */
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
-  const [sessionFilter, setSessionFilter] = useState<"all" | JournalTradingSession>("all");
-  const [sortMode, setSortMode] = useState<JournalSortMode>("date-desc");
-  const [toFilter, setToFilter] = useState("");
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [zoomImage, setZoomImage] = useState<string | undefined>();
   const canWrite = dataMode === "cloud";
@@ -320,15 +284,16 @@ export function JournalEntriesView({
   const resultOptions = useMemo(() => getResultOptions(t), [t]);
   const emotionOptions = useMemo(() => getEmotionOptions(t), [t]);
   const weekdayLabels = useMemo(() => getWeekdayLabels(t), [t]);
-  const pnlFilterOptions = useMemo(() => getPnlFilterOptions(t), [t]);
-  const disciplineFilterOptions = useMemo(() => getDisciplineFilterOptions(t), [t]);
-  const mediaFilterOptions = useMemo(() => getMediaFilterOptions(t), [t]);
-  const sortModeOptions = useMemo(() => getSortModeOptions(t), [t]);
+  const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
+  const accountFilterOptions = useMemo(
+    () => [{ label: t("common.all"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
+    [accounts, t],
+  );
   const effectiveErrorTypes = useMemo(() => mergeJournalErrorTypes(journalErrorTypes), [journalErrorTypes]);
   const cloudErrorTypeIds = useMemo(() => new Set(journalErrorTypes.map((type) => type.id)), [journalErrorTypes]);
   const activeErrorTypes = useMemo(
-    () => effectiveErrorTypes.filter((type) => type.active || draft.errors.includes(type.id) || errorFilter === type.id),
-    [draft.errors, effectiveErrorTypes, errorFilter],
+    () => effectiveErrorTypes.filter((type) => type.active || draft.errors.includes(type.id)),
+    [draft.errors, effectiveErrorTypes],
   );
   const errorUsageById = useMemo(() => {
     const usage = new Map<string, number>();
@@ -369,31 +334,17 @@ export function JournalEntriesView({
     ],
     [accountsForFirm, t],
   );
+  const periodRange = useMemo(() => getPeriodDateRange(periodFilter), [periodFilter]);
   const filteredEntries = useMemo(
     () => {
       const rows = entries.filter((entry) => {
         const account = accountById.get(entry.accountId);
         const firmName = firmNameById.get(entry.firmId || "") || firmNameById.get(account?.firmId || "");
-        const entrySession = getEntryTradingSession(entry);
         const entryErrors = getEntryErrors(entry, effectiveErrorTypes);
-        const entryPnl = toFiniteNumber(entry.pnl) ?? 0;
-        const hasMedia = Boolean(entry.operationUrl?.trim());
         if (!matchesReviewPreset(entry, reviewPreset, entryErrors, reviewPresetRange)) return false;
-        if (directionFilter !== "all" && entry.direction !== directionFilter) return false;
-        if (emotionFilter !== "all" && entry.emotion !== emotionFilter) return false;
-        if (errorFilter !== "all" && !entryErrors.includes(errorFilter)) return false;
-        if (pnlFilter === "winning" && entryPnl <= 0) return false;
-        if (pnlFilter === "losing" && entryPnl >= 0) return false;
-        if (pnlFilter === "breakeven" && entryPnl !== 0) return false;
-        if (disciplineFilter === "high" && entry.discipline < 4) return false;
-        if (disciplineFilter === "low" && entry.discipline > 2) return false;
-        if (mediaFilter === "withMedia" && !hasMedia) return false;
-        if (mediaFilter === "withoutMedia" && hasMedia) return false;
-        if (resultFilter !== "all" && (entry.result || "neutral") !== resultFilter) return false;
-        if (sessionFilter !== "all" && entrySession !== sessionFilter) return false;
-        if (fromFilter && entry.date < fromFilter) return false;
-        if (toFilter && entry.date > toFilter) return false;
-        return matchesSearch(searchQuery, [
+        if (accountFilter !== "all" && entry.accountId !== accountFilter) return false;
+        if (periodRange && (entry.date < periodRange.from || entry.date > periodRange.to)) return false;
+        return matchesSearch(searchText, [
           entry.date,
           entry.symbol,
           entry.direction,
@@ -411,32 +362,23 @@ export function JournalEntriesView({
         ]);
       });
 
-      return rows.sort((left, right) => compareJournalEntries(left, right, sortMode));
+      return rows.sort((left, right) => compareJournalEntries(left, right, "date-desc"));
     },
     [
       accountById,
+      accountFilter,
       directionOptions,
-      disciplineFilter,
-      directionFilter,
-      emotionFilter,
       emotionOptions,
       entries,
-      errorFilter,
       effectiveErrorTypes,
       firmNameById,
-      fromFilter,
-      mediaFilter,
-      pnlFilter,
-      resultFilter,
+      periodRange,
       resultOptions,
       reviewPreset,
       reviewPresetRange,
-      searchQuery,
-      sessionFilter,
+      searchText,
       sessionOptions,
-      sortMode,
       t,
-      toFilter,
     ],
   );
   const selectedEntry = selectedEntryId ? filteredEntries.find((entry) => entry.id === selectedEntryId) : undefined;
@@ -453,7 +395,6 @@ export function JournalEntriesView({
     () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, emotionOptions, weekdayLabels),
     [effectiveErrorTypes, emotionOptions, filteredEntries, sessionOptions, weekdayLabels],
   );
-  const reviewSummary = useMemo(() => buildJournalReviewSummary(filteredEntries), [filteredEntries]);
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
 
   const resetForm = () => {
@@ -480,47 +421,12 @@ export function JournalEntriesView({
   }, [newEntryToken, onNewEntryRequestHandled]);
 
   const resetJournalFilters = () => {
-    setDisciplineFilter("all");
-    setDirectionFilter("all");
-    setEmotionFilter("all");
-    setErrorFilter("all");
-    setFromFilter("");
-    setMediaFilter("all");
-    setPnlFilter("all");
-    setResultFilter("all");
+    setAccountFilter("all");
+    setPeriodFilter("all");
     setReviewPreset("all");
-    setSessionFilter("all");
-    setSortMode("date-desc");
-    setToFilter("");
+    setSearchText("");
   };
-  const hasActiveJournalFilters =
-    disciplineFilter !== "all" ||
-    directionFilter !== "all" ||
-    emotionFilter !== "all" ||
-    errorFilter !== "all" ||
-    fromFilter !== "" ||
-    mediaFilter !== "all" ||
-    pnlFilter !== "all" ||
-    resultFilter !== "all" ||
-    sessionFilter !== "all" ||
-    sortMode !== "date-desc" ||
-    toFilter !== "";
-
-  const handleExportFilteredCsv = () => {
-    if (!filteredEntries.length) return;
-    downloadJournalCsv({
-      accountById,
-      directionOptions,
-      entries: filteredEntries,
-      errorTypes: effectiveErrorTypes,
-      emotionOptions,
-      firmNameById,
-      resultOptions,
-      sessionOptions,
-      sessionTypeOptions,
-      t,
-    });
-  };
+  const hasActiveJournalFilters = accountFilter !== "all" || periodFilter !== "all" || searchText !== "";
 
   const handleCsvImport = async (file: File) => {
     if (!canWrite) return;
@@ -658,6 +564,9 @@ export function JournalEntriesView({
      no tener que pasarle como props las quince cosas de las que depende. */
   const renderEntryDetail = (entry: JournalEntry) => {
     const sameDayEntries = filteredEntries.filter((item) => item.date === entry.date);
+    const account = accountById.get(entry.accountId);
+    const riskAmount = account && account.size > 0 ? account.size * 0.01 : 0;
+    const rMultiple = riskAmount > 0 ? entry.pnl / riskAmount : null;
     return (
       <div className="journal-detail-card">
         <div className="journal-detail-hero">
@@ -669,40 +578,12 @@ export function JournalEntriesView({
         </div>
         <dl className="journal-detail-grid">
           <div>
-            <dt>{t("journal.detail.firm")}</dt>
-            <dd>
-              {firmNameById.get(entry.firmId || "") ||
-                firmNameById.get(accountById.get(entry.accountId)?.firmId || "") ||
-                t("account.card.noFirm")}
-            </dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.account")}</dt>
-            <dd>{getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}</dd>
+            <dt>{t("journal.detail.rMultiple")}</dt>
+            <dd className={signedTone(rMultiple ?? 0)}>{formatRMultiple(rMultiple)}</dd>
           </div>
           <div>
             <dt>{t("journal.detail.direction")}</dt>
             <dd>{findOptionLabel(directionOptions, entry.direction)}</dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.session")}</dt>
-            <dd>{formatTradingSessionLabel(entry, sessionOptions, t)}</dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.type")}</dt>
-            <dd>{findOptionLabel(sessionTypeOptions, entry.sessionType || "other")}</dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.result")}</dt>
-            <dd>{findOptionLabel(resultOptions, entry.result || "neutral")}</dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.discipline")}</dt>
-            <dd>{formatDisciplineScore(entry.discipline)}</dd>
-          </div>
-          <div>
-            <dt>{t("journal.detail.emotion")}</dt>
-            <dd>{findOptionLabel(emotionOptions, entry.emotion)}</dd>
           </div>
         </dl>
         <div className="journal-detail-copy">
@@ -712,10 +593,6 @@ export function JournalEntriesView({
         <div className="journal-detail-copy">
           <span>{t("journal.detail.notes")}</span>
           <p>{entry.notes || t("journal.detail.noNotes")}</p>
-        </div>
-        <div className="journal-detail-copy">
-          <span>{t("journal.detail.lesson")}</span>
-          <p>{entry.lesson || t("journal.detail.noLesson")}</p>
         </div>
         {entry.operationUrl && (
           <div className="journal-detail-copy">
@@ -949,158 +826,45 @@ export function JournalEntriesView({
   return (
     <div className="firms-workspace">
       {journalMode !== "cockpit" && (
-      <section className="panel view-filter-panel">
-        <div className="journal-review-toolbar">
-          <div>
-            <h2>{t("journal.entries.title")}</h2>
-            <p>{t("journal.entries.subtitle")}</p>
-          </div>
-          <div className="journal-review-actions">
-            <button className="secondary-action" onClick={() => setErrorManagerOpen(true)} type="button">
-              <ShieldAlert size={16} strokeWidth={2.2} />
-              {t("journal.errorManager.title")}
-            </button>
-            <button
-              className="secondary-action"
-              data-testid="journal-export-csv"
-              disabled={!filteredEntries.length}
-              onClick={handleExportFilteredCsv}
-              type="button"
-            >
-              <FileDown size={16} strokeWidth={2.2} />
-              {t("journal.entries.exportCsv")}
-            </button>
-            <span className="result-count">
-              {filteredEntries.length} {t("common.of")} {entries.length} {t("journal.entries.countSuffix")}
-          </span>
-            <FilterToggleButton
-              active={hasActiveJournalFilters}
-              isOpen={filtersOpen}
-              onClick={() => setFiltersOpen((current) => !current)}
-            />
-          </div>
-        </div>
-        {filtersOpen && (
+      <>
+      <div className="dashboard-filter-bar">
+        <FilterToggleButton
+          active={hasActiveJournalFilters}
+          isOpen={filtersOpen}
+          onClick={() => setFiltersOpen((current) => !current)}
+        />
+      </div>
+      {filtersOpen && (
+      <section className="panel dashboard-filter-panel">
         <div className="view-filters">
           <label>
-            <span>{t("journal.filter.result")}</span>
+            <span>{t("journal.filter.account")}</span>
+            <Select onChange={setAccountFilter} options={accountFilterOptions} value={accountFilter} />
+          </label>
+          <label>
+            <span>{t("journal.filter.period")}</span>
             <Select
-              onChange={(next) => setResultFilter(next as "all" | JournalResult)}
-              options={[{ label: t("common.all"), value: "all" }, ...resultOptions]}
-              value={resultFilter}
+              onChange={(next) => setPeriodFilter(next as JournalPeriodFilter)}
+              options={periodFilterOptions}
+              value={periodFilter}
             />
           </label>
           <label>
-            <span>{t("journal.filter.emotion")}</span>
-            <Select
-              onChange={(next) => setEmotionFilter(next as "all" | JournalEmotion)}
-              options={[{ label: t("common.all"), value: "all" }, ...emotionOptions]}
-              value={emotionFilter}
+            <span>{t("journal.filter.search")}</span>
+            <input
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder={t("journal.filter.searchPlaceholder")}
+              type="search"
+              value={searchText}
             />
-          </label>
-          <label>
-            <span>{t("journal.filter.error")}</span>
-            <Select
-              onChange={setErrorFilter}
-              options={[
-                { label: t("common.all"), value: "all" },
-                ...effectiveErrorTypes.map((type) => ({
-                  label: type.active ? type.label : `${type.label} ${t("journal.filter.hiddenSuffix")}`,
-                  value: type.id,
-                })),
-              ]}
-              value={errorFilter}
-            />
-          </label>
-          <label>
-            <span>{t("journal.filter.session")}</span>
-            <Select
-              onChange={(next) => setSessionFilter(next as "all" | JournalTradingSession)}
-              options={[{ label: t("common.all"), value: "all" }, ...sessionOptions]}
-              value={sessionFilter}
-            />
-          </label>
-          <label>
-            <span>{t("journal.filter.direction")}</span>
-            <Select
-              onChange={(next) => setDirectionFilter(next as "all" | JournalDirection)}
-              options={[{ label: t("common.all"), value: "all" }, ...directionOptions]}
-              value={directionFilter}
-            />
-          </label>
-          <label>
-            <span>{t("journal.filter.pnl")}</span>
-            <Select onChange={(next) => setPnlFilter(next as JournalPnlFilter)} options={pnlFilterOptions} value={pnlFilter} />
-          </label>
-          <label>
-            <span>{t("journal.filter.discipline")}</span>
-            <Select
-              onChange={(next) => setDisciplineFilter(next as JournalDisciplineFilter)}
-              options={disciplineFilterOptions}
-              value={disciplineFilter}
-            />
-          </label>
-          <label>
-            <span>{t("journal.filter.media")}</span>
-            <Select onChange={(next) => setMediaFilter(next as JournalMediaFilter)} options={mediaFilterOptions} value={mediaFilter} />
-          </label>
-          <label>
-            <span>{t("journal.filter.order")}</span>
-            <Select
-              id="journal-sort-mode"
-              onChange={(next) => setSortMode(next as JournalSortMode)}
-              options={sortModeOptions}
-              value={sortMode}
-            />
-          </label>
-          <label>
-            <span>{t("dashboard.filter.from")}</span>
-            <DatePicker onChange={setFromFilter} value={fromFilter} />
-          </label>
-          <label>
-            <span>{t("dashboard.filter.to")}</span>
-            <DatePicker onChange={setToFilter} value={toFilter} />
           </label>
           <button className="secondary-action" onClick={resetJournalFilters} type="button">
             {t("journal.filter.reset")}
           </button>
         </div>
-        )}
-        <div className="journal-review-summary" aria-label={t("journal.summary.label")}>
-          <span>
-            {t("journal.summary.subset")}
-            <strong>{filteredEntries.length}</strong>
-          </span>
-          <span>
-            {t("journal.summary.net")}
-            <strong className={signedTone(analytics.stats.netPnl)}>{formatMoney(analytics.stats.netPnl, currency)}</strong>
-          </span>
-          <span>
-            {t("journal.summary.avgTrade")}
-            <strong className={signedTone(reviewSummary.averagePnl)}>{formatMoney(reviewSummary.averagePnl, currency)}</strong>
-          </span>
-          <span>
-            {t("journal.summary.bestTrade")}
-            <strong className={signedTone(reviewSummary.bestPnl ?? 0)}>
-              {reviewSummary.bestPnl === null ? "-" : formatMoney(reviewSummary.bestPnl, currency)}
-            </strong>
-          </span>
-          <span>
-            {t("journal.summary.worstTrade")}
-            <strong className={signedTone(reviewSummary.worstPnl ?? 0)}>
-              {reviewSummary.worstPnl === null ? "-" : formatMoney(reviewSummary.worstPnl, currency)}
-            </strong>
-          </span>
-          <span>
-            {t("journal.summary.captures")}
-            <strong>{reviewSummary.withMedia}</strong>
-          </span>
-          <span>
-            {t("journal.summary.pending")}
-            <strong>{reviewSummary.needsReview}</strong>
-          </span>
-        </div>
       </section>
+      )}
+      </>
       )}
 
       {journalMode === "cockpit" &&
@@ -1410,7 +1174,13 @@ export function JournalEntriesView({
             />
           </label>
           <div className="wide-field journal-error-picker">
-            <span>{t("journal.entryForm.errors")}</span>
+            <div className="journal-operation-media-toolbar">
+              <span>{t("journal.entryForm.errors")}</span>
+              <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
+                <Settings2 size={15} strokeWidth={2.2} />
+                {t("journal.errorManager.configure")}
+              </button>
+            </div>
             <div className="journal-error-options">
               {activeErrorTypes.map((type) => {
                 const selected = draft.errors.includes(type.id);
@@ -1551,53 +1321,44 @@ export function JournalEntriesView({
 
       {(journalMode === "entries" || journalMode === "entryForm") && (
       <>
-      <section className="panel table-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{t("journal.list.title")}</h2>
-            <p>{t("journal.list.subtitle")}</p>
-          </div>
-        </div>
-        {/* Galeria, no listado: la tarjeta solo lleva captura, mercado, direccion y P&L,
-            que es lo que permite reconocer una operacion de un vistazo. El resto del
-            dato (notas, errores, disciplina, empresa, cuenta) vive en el detalle, que se
-            abre pulsando la tarjeta. Antes cada fila cargaba todo eso mas tres botones,
-            multiplicado por las entradas que haya. */}
-        <div className="journal-gallery">
-          {filteredEntries.map((entry) => (
-            <article
-              aria-label={`${entry.symbol} ${entry.date}`}
-              className="journal-card"
-              key={entry.id}
-              onClick={() => setDetailEntryId(entry.id)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                setDetailEntryId(entry.id);
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="journal-card-media">
-                {entry.operationUrl && isImageSource(entry.operationUrl) ? (
-                  <img alt={`${t("journal.media.captureAlt")} ${entry.symbol}`} src={entry.operationUrl} />
-                ) : (
-                  <span className="is-placeholder">
-                    <ImageIcon size={20} strokeWidth={2} />
-                    {t("journal.gallery.noCapture")}
-                  </span>
-                )}
-              </div>
-              <div className="journal-card-footer">
-                <strong>
-                  <span>{entry.symbol}</span>
-                  <em className={`journal-card-direction ${entry.direction}`}>{findOptionLabel(directionOptions, entry.direction)}</em>
-                </strong>
-                <span className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</span>
-              </div>
-            </article>
-          ))}
-        </div>
+      {/* Sin tarjeta ni cabecera propia: cada entrada ya es su propia tarjeta
+          (.journal-card lleva borde y sombra), envolverlas todas en una tarjeta mas
+          era una tarjeta dentro de otra. Mismo criterio que .account-card-grid en
+          Cuentas, que tampoco va dentro de un .panel. */}
+      <section className="journal-gallery" aria-label={t("journal.list.title")}>
+        {filteredEntries.map((entry) => (
+          <article
+            aria-label={`${entry.symbol} ${entry.date}`}
+            className="journal-card"
+            key={entry.id}
+            onClick={() => setDetailEntryId(entry.id)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              setDetailEntryId(entry.id);
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="journal-card-media">
+              {entry.operationUrl && isImageSource(entry.operationUrl) ? (
+                <img alt={`${t("journal.media.captureAlt")} ${entry.symbol}`} src={entry.operationUrl} />
+              ) : (
+                <span className="is-placeholder">
+                  <ImageIcon size={20} strokeWidth={2} />
+                  {t("journal.gallery.noCapture")}
+                </span>
+              )}
+            </div>
+            <div className="journal-card-footer">
+              <strong>
+                <span>{entry.symbol}</span>
+                <em className={`journal-card-direction ${entry.direction}`}>{findOptionLabel(directionOptions, entry.direction)}</em>
+              </strong>
+              <span className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</span>
+            </div>
+          </article>
+        ))}
         {filteredEntries.length === 0 && (
           <article className="empty-panel inline-empty">
             <Plus size={22} strokeWidth={2.2} />
@@ -1613,11 +1374,7 @@ export function JournalEntriesView({
           llenaban la galeria de botones, y son acciones que se deciden despues de mirar
           la operacion, no antes. */}
       {detailEntry && (
-        <Modal
-          onClose={() => setDetailEntryId(undefined)}
-          title={`${detailEntry.symbol} - ${detailEntry.date}`}
-          width="wide"
-        >
+        <Modal onClose={() => setDetailEntryId(undefined)} title={`${detailEntry.symbol} - ${detailEntry.date}`}>
           {renderEntryDetail(detailEntry)}
           <div className="form-action-row">
             <button
@@ -1669,17 +1426,19 @@ export function JournalEntriesView({
         </Modal>
       )}
 
-      {zoomImage && (
-        <div className="journal-image-zoom-overlay" role="dialog" aria-modal="true" aria-label={t("journal.zoom.label")}>
-          <button className="journal-image-zoom-backdrop" onClick={() => setZoomImage(undefined)} type="button" />
-          <div className="journal-image-zoom-card">
-            <button className="icon-control compact-icon journal-image-zoom-close" onClick={() => setZoomImage(undefined)} type="button">
-              <X size={18} strokeWidth={2.2} />
-            </button>
-            <img src={zoomImage} alt={t("journal.zoom.alt")} />
-          </div>
-        </div>
-      )}
+      {zoomImage &&
+        createPortal(
+          <div className="journal-image-zoom-overlay" role="dialog" aria-modal="true" aria-label={t("journal.zoom.label")}>
+            <button className="journal-image-zoom-backdrop" onClick={() => setZoomImage(undefined)} type="button" />
+            <div className="journal-image-zoom-card">
+              <button className="icon-control compact-icon journal-image-zoom-close" onClick={() => setZoomImage(undefined)} type="button">
+                <X size={18} strokeWidth={2.2} />
+              </button>
+              <img src={zoomImage} alt={t("journal.zoom.alt")} />
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {customizeOpen && (
         <Modal
@@ -1784,14 +1543,6 @@ type JournalAnalytics = {
   sessionRows: JournalSummaryRow[];
   stats: JournalStats;
   weekdayRows: JournalSummaryRow[];
-};
-
-type JournalReviewSummary = {
-  averagePnl: number;
-  bestPnl: number | null;
-  needsReview: number;
-  withMedia: number;
-  worstPnl: number | null;
 };
 
 type JournalDateRange = {
@@ -2474,18 +2225,6 @@ function summarizeJournalEntries(entries: JournalEntry[]): JournalSummary {
   };
 }
 
-function buildJournalReviewSummary(entries: JournalEntry[]): JournalReviewSummary {
-  const values = entries.map((entry) => toFiniteNumber(entry.pnl)).filter((value): value is number => value !== null);
-
-  return {
-    averagePnl: values.length ? sumNumbers(values) / values.length : 0,
-    bestPnl: values.length ? Math.max(...values) : null,
-    needsReview: entries.filter(needsJournalReview).length,
-    withMedia: entries.filter((entry) => Boolean(entry.operationUrl?.trim())).length,
-    worstPnl: values.length ? Math.min(...values) : null,
-  };
-}
-
 function matchesReviewPreset(
   entry: JournalEntry,
   preset: JournalReviewPreset,
@@ -2524,6 +2263,33 @@ function getReviewPresetDateRange(preset: JournalReviewPreset): JournalDateRange
   return null;
 }
 
+function getPeriodDateRange(period: JournalPeriodFilter): JournalDateRange | null {
+  const today = new Date();
+  const todayKey = dateToIso(today);
+
+  if (period === "current-month") {
+    return { from: `${todayKey.slice(0, 7)}-01`, to: todayKey };
+  }
+
+  if (period === "last-30") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    return { from: dateToIso(start), to: todayKey };
+  }
+
+  if (period === "last-90") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 89);
+    return { from: dateToIso(start), to: todayKey };
+  }
+
+  if (period === "year") {
+    return { from: `${todayKey.slice(0, 4)}-01-01`, to: todayKey };
+  }
+
+  return null;
+}
+
 function compareJournalEntries(left: JournalEntry, right: JournalEntry, sortMode: JournalSortMode) {
   const dateDesc = right.date.localeCompare(left.date) || right.id.localeCompare(left.id);
   const dateAsc = left.date.localeCompare(right.date) || left.id.localeCompare(right.id);
@@ -2547,6 +2313,16 @@ function compareJournalEntries(left: JournalEntry, right: JournalEntry, sortMode
 
 function formatRatioPercent(value: number | null) {
   return value === null ? "-" : formatPercent(value);
+}
+
+/* R = pnl / (tamano de la cuenta * 1%): el mismo riesgo fijo por operacion que ya usaba
+   el legado (JOURNAL_DEFAULT_RISK_PERCENT), no un dato que se guarde por entrada. */
+function formatRMultiple(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "-";
+  const formatted = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Math.abs(value));
+  if (value > 0) return `+${formatted}R`;
+  if (value < 0) return `-${formatted}R`;
+  return "0,00R";
 }
 
 function formatNullableMoney(value: number | null, currency: Currency) {
@@ -2753,86 +2529,6 @@ function normalizeMonth(month: string) {
 
 function dateToIso(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function downloadJournalCsv({
-  accountById,
-  directionOptions,
-  emotionOptions,
-  entries,
-  errorTypes,
-  firmNameById,
-  resultOptions,
-  sessionOptions,
-  sessionTypeOptions,
-  t,
-}: {
-  accountById: Map<string, TradingAccount>;
-  directionOptions: Array<{ label: string; value: JournalDirection }>;
-  emotionOptions: Array<{ label: string; value: JournalEmotion }>;
-  entries: JournalEntry[];
-  errorTypes: JournalErrorType[];
-  firmNameById: Map<string, string>;
-  resultOptions: Array<{ label: string; value: JournalResult }>;
-  sessionOptions: Array<{ label: string; value: JournalTradingSession }>;
-  sessionTypeOptions: Array<{ label: string; value: JournalSessionType }>;
-  t: ReturnType<typeof useT>;
-}) {
-  const header = [
-    "date",
-    "firm",
-    "account",
-    "symbol",
-    "direction",
-    "tradingSession",
-    "sessionType",
-    "result",
-    "emotion",
-    "discipline",
-    "pnl",
-    "errors",
-    "operationUrl",
-    "notes",
-    "lesson",
-  ];
-  const lines = entries.map((entry) =>
-    [
-      entry.date,
-      getEntryFirmName(entry, accountById, firmNameById, t),
-      getAccountName(Array.from(accountById.values()), entry.accountId, t("journal.entryForm.noAccount")),
-      entry.symbol,
-      findOptionLabel(directionOptions, entry.direction),
-      formatTradingSessionLabel(entry, sessionOptions, t),
-      findOptionLabel(sessionTypeOptions, entry.sessionType || "other"),
-      findOptionLabel(resultOptions, entry.result || "neutral"),
-      findOptionLabel(emotionOptions, entry.emotion),
-      entry.discipline,
-      entry.pnl,
-      getEntryErrors(entry, errorTypes)
-        .map((error) => getJournalErrorLabel(errorTypes, error))
-        .join(" | "),
-      entry.operationUrl || "",
-      entry.notes || "",
-      entry.lesson || "",
-    ]
-      .map(escapeCsvValue)
-      .join(","),
-  );
-  const csv = [header.join(","), ...lines].join("\r\n");
-  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = `trazza-journal-${todayIso()}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(href);
-}
-
-function escapeCsvValue(value: string | number) {
-  const source = String(value);
-  return /[",\r\n]/.test(source) ? `"${source.replaceAll('"', '""')}"` : source;
 }
 
 async function importCsv(
