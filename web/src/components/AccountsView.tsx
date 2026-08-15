@@ -548,12 +548,7 @@ export function AccountsView({
               );
             })}
           </div>
-          <div className="account-filter-head-actions">
-            <span className="result-count">
-              {filteredAccounts.length} {t("common.of")} {accounts.length} {t("account.filter.countSuffix")}
-            </span>
-            <FilterToggleButton active={firmFilter !== "all"} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
-          </div>
+          <FilterToggleButton active={firmFilter !== "all"} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
         </div>
       </section>
 

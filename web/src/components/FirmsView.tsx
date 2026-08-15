@@ -263,9 +263,6 @@ export function FirmsView({
               );
             })}
           </div>
-          <span className="result-count">
-            {filteredFirms.length} {t("common.of")} {firms.length} {t("firm.filter.countSuffix")}
-          </span>
         </div>
       </section>
 
