@@ -16,7 +16,7 @@ import { useTrazzaData } from "./hooks/useTrazzaData";
 import { useI18n, useT } from "./lib/i18n/context";
 import { isSupabaseConfigured } from "./lib/supabase";
 import { filterJournalByAccount, filterMovementsByAccount } from "./lib/metrics";
-import type { NavigationView } from "./types";
+import type { AccountInput, MovementInput, NavigationView } from "./types";
 
 export default function App() {
   const auth = useAuth();
@@ -30,6 +30,10 @@ export default function App() {
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("all");
+  /* Movimiento a medio crear en espera de una cuenta que todavia no existe: se guarda
+     aqui (no en Supabase) mientras el usuario rellena el alta en Cuentas, y se guarda
+     de verdad ya enlazado en cuanto esa cuenta se crea. Ver saveAccountAndLinkPendingMovement. */
+  const [pendingMovementLink, setPendingMovementLink] = useState<{ input: MovementInput; movementId?: string } | null>(null);
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
   const subscription = useSubscription(auth.user);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -72,6 +76,38 @@ export default function App() {
     }),
     [dataState, guard],
   );
+
+  /* Movimientos manda aqui cuando el usuario elige "crear cuenta nueva" en vez de
+     enlazar una existente: guarda el borrador del movimiento (sin tocar Supabase
+     todavia), lleva a Cuentas y abre su alta, igual que el "+" de la cabecera. */
+  const requestAccountForMovement = useCallback((input: MovementInput, movementId?: string) => {
+    setPendingMovementLink({ input, movementId });
+    setActiveView("accounts");
+    setCreateRequest((current) => ({ id: (current?.id || 0) + 1, target: "account" }));
+  }, []);
+
+  /* La cuenta que se cree mientras haya un movimiento en espera se enlaza sola: en
+     cuanto el alta (una creacion, no una edicion) sale bien, se guarda el movimiento
+     pendiente con el id y la empresa de la cuenta recien creada. */
+  const saveAccountAndLinkPendingMovement = useCallback(
+    async (input: AccountInput, accountId?: string) => {
+      const result = await guarded.saveAccount(input, accountId);
+      if (result && !accountId && pendingMovementLink) {
+        await guarded.saveMovement(
+          { ...pendingMovementLink.input, accountId: result.id, firmId: result.firmId },
+          pendingMovementLink.movementId,
+        );
+        setPendingMovementLink(null);
+      }
+      return result;
+    },
+    [guarded, pendingMovementLink],
+  );
+
+  /* Se cierre como se cierre el alta (guardada o cancelada), el movimiento pendiente
+     deja de estarlo: si se guardo, ya se enlazo arriba; si se cancelo, no debe quedar
+     colgado esperando una cuenta que nunca llego. */
+  const handleAccountModalClosed = useCallback(() => setPendingMovementLink(null), []);
 
   const visibleAccounts = useMemo(
     () => (selectedAccountId === "all" ? accounts : accounts.filter((account) => account.id === selectedAccountId)),
@@ -196,12 +232,14 @@ export default function App() {
           journalEntries={journalEntries}
           movements={movements}
           newAccountToken={createRequest?.target === "account" ? createRequest.id : 0}
+          presetFirmId={pendingMovementLink?.input.firmId || undefined}
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
+          onClose={handleAccountModalClosed}
           onDeleteAccount={guarded.deleteAccount}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
-          onSaveAccount={guarded.saveAccount}
+          onSaveAccount={saveAccountAndLinkPendingMovement}
         />
       )}
       {activeView === "movements" && (
@@ -217,7 +255,7 @@ export default function App() {
           mutating={dataState.mutating}
           onDeleteMovement={guarded.deleteMovement}
           onNewMovementRequestHandled={() => setCreateRequest(null)}
-          onSaveAccount={guarded.saveAccount}
+          onRequestAccountForMovement={requestAccountForMovement}
           onSaveMovement={guarded.saveMovement}
         />
       )}

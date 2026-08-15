@@ -276,8 +276,6 @@ export const es = {
   "movement.field.account": "Cuenta",
   "movement.field.noAccount": "Sin cuenta",
   "movement.field.createAccount": "+ Crear cuenta nueva",
-  "movement.quickAccount.title": "Cuenta nueva",
-  "movement.quickAccount.create": "Crear y usar",
   "movement.field.note": "Nota",
   "movement.field.notePlaceholder": "Detalle del pago o retiro",
   "movement.modal.create": "Crear movimiento",

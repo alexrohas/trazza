@@ -278,8 +278,6 @@ export const en: Record<TranslationKey, string> = {
   "movement.field.account": "Account",
   "movement.field.noAccount": "No account",
   "movement.field.createAccount": "+ Create new account",
-  "movement.quickAccount.title": "New account",
-  "movement.quickAccount.create": "Create and use",
   "movement.field.note": "Note",
   "movement.field.notePlaceholder": "Payment or withdrawal detail",
   "movement.modal.create": "Create movement",

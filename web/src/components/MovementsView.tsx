@@ -8,7 +8,6 @@ import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAm
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
-  AccountInput,
   Currency,
   DataMode,
   Firm,
@@ -31,7 +30,11 @@ type MovementsViewProps = {
   searchQuery: string;
   onDeleteMovement: (movementId: string) => Promise<boolean>;
   onNewMovementRequestHandled?: () => void;
-  onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
+  /* No crea la cuenta aqui: lleva a Cuentas con el alta ya abierta y precargada, y esta
+     misma entrada del movimiento en espera de la cuenta que salga de ahi. Reutiliza el
+     formulario completo de cuenta (tipo, drawdown, objetivo) en vez de duplicar un
+     subconjunto de campos dentro de este modal. */
+  onRequestAccountForMovement: (input: MovementInput, movementId?: string) => void;
   onSaveMovement: (input: MovementInput, movementId?: string) => Promise<boolean>;
 };
 
@@ -80,7 +83,7 @@ export function MovementsView({
   searchQuery,
   onDeleteMovement,
   onNewMovementRequestHandled,
-  onSaveAccount,
+  onRequestAccountForMovement,
   onSaveMovement,
 }: MovementsViewProps) {
   const [draft, setDraft] = useState<MovementInput>(emptyMovementInput);
@@ -92,11 +95,6 @@ export function MovementsView({
   const [kindFilter, setKindFilter] = useState<"all" | MovementKind>("all");
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [toFilter, setToFilter] = useState("");
-  /* Alta rapida de cuenta sin salir del movimiento: nace de ver que "comprar el
-     challenge" pasa antes de que la cuenta exista en Trazza, y hasta ahora eso se
-     compensaba escribiendo el tamano a mano en la nota con la cuenta en "Sin cuenta". */
-  const [creatingAccount, setCreatingAccount] = useState(false);
-  const [newAccountDraft, setNewAccountDraft] = useState({ firmId: "", name: "", size: "" });
   const t = useT();
   const categoryLabels = useMemo(() => getMovementCategoryLabels(t), [t]);
   const canWrite = dataMode === "cloud";
@@ -127,9 +125,11 @@ export function MovementsView({
   );
   const accountFormOptions = useMemo(
     () => [
+      /* Primera y con acento: comprar el challenge antes de que la cuenta exista es
+         el caso mas comun al registrar un gasto, no la excepcion. */
+      { label: t("movement.field.createAccount"), value: NEW_ACCOUNT_OPTION, accent: true },
       { label: t("movement.field.noAccount"), value: "" },
       ...accountsForFirm.map((account) => ({ label: account.name, value: account.id })),
-      { label: t("movement.field.createAccount"), value: NEW_ACCOUNT_OPTION },
     ],
     [accountsForFirm, t],
   );
@@ -176,8 +176,6 @@ export function MovementsView({
   const resetForm = () => {
     setDraft(emptyMovementInput);
     setEditingId(undefined);
-    setCreatingAccount(false);
-    setNewAccountDraft({ firmId: "", name: "", size: "" });
   };
 
   const closeForm = () => {
@@ -228,6 +226,14 @@ export function MovementsView({
                   payoutProfitSplit,
                 }
               : { ...draft, payoutGrossAmount: undefined, payoutProfitSplit: undefined };
+            /* Cuenta por crear: no se guarda el movimiento aqui. Se pasa a Cuentas con
+               el alta abierta, y esta entrada queda a la espera de la cuenta que salga
+               de ahi para guardarse ya enlazada. */
+            if (input.accountId === NEW_ACCOUNT_OPTION) {
+              onRequestAccountForMovement({ ...input, accountId: "" }, editingId);
+              closeForm();
+              return;
+            }
             const saved = await onSaveMovement(input, editingId);
             if (saved) closeForm();
           }}
@@ -361,94 +367,29 @@ export function MovementsView({
               value={draft.firmId || ""}
             />
           </label>
-          {!creatingAccount ? (
-            <label>
-              <span>{t("movement.field.account")}</span>
-              <Select
-                disabled={!canWrite || mutating}
-                onChange={(next) => {
-                  if (next === NEW_ACCOUNT_OPTION) {
-                    setNewAccountDraft({ firmId: draft.firmId || "", name: "", size: "" });
-                    setCreatingAccount(true);
-                    return;
-                  }
-                  const account = accounts.find((item) => item.id === next);
-                  setDraft((current) => ({
-                    ...current,
-                    accountId: next,
-                    firmId: account?.firmId || current.firmId,
-                  }));
-                }}
-                options={accountFormOptions}
-                value={draft.accountId || ""}
-              />
-            </label>
-          ) : (
-            /* Alta rapida: justo lo minimo para que el movimiento tenga a que
-               enlazarse (empresa, nombre, tamano). Nace como challenge activo; el
-               resto de reglas (drawdown, objetivo) se completan luego en Cuentas. */
-            <div className="movement-quick-account movement-form-full">
-              <span className="movement-quick-account-title">{t("movement.quickAccount.title")}</span>
-              <div className="movement-quick-account-fields">
-                <label>
-                  <span>{t("account.field.firm")}</span>
-                  <Select
-                    disabled={!canWrite || mutating}
-                    onChange={(next) => setNewAccountDraft((current) => ({ ...current, firmId: next }))}
-                    options={firms.map((firm) => ({ label: firm.name, value: firm.id }))}
-                    placeholder={t("account.field.selectFirm")}
-                    value={newAccountDraft.firmId}
-                  />
-                </label>
-                <label>
-                  <span>{t("account.field.name")}</span>
-                  <input
-                    disabled={!canWrite || mutating}
-                    onChange={(event) => setNewAccountDraft((current) => ({ ...current, name: event.target.value }))}
-                    placeholder={t("account.field.namePlaceholder")}
-                    type="text"
-                    value={newAccountDraft.name}
-                  />
-                </label>
-                <label>
-                  <span>{t("account.field.size")}</span>
-                  <input
-                    disabled={!canWrite || mutating}
-                    onChange={(event) => setNewAccountDraft((current) => ({ ...current, size: event.target.value }))}
-                    placeholder={t("account.field.sizePlaceholder")}
-                    type="text"
-                    value={newAccountDraft.size}
-                  />
-                </label>
-              </div>
-              <div className="movement-quick-account-actions">
-                <button className="ghost-action" disabled={mutating} onClick={() => setCreatingAccount(false)} type="button">
-                  {t("common.cancel")}
-                </button>
-                <button
-                  className="secondary-action"
-                  disabled={!canWrite || mutating || !newAccountDraft.firmId || !newAccountDraft.name.trim() || !newAccountDraft.size.trim()}
-                  onClick={async () => {
-                    const created = await onSaveAccount({
-                      firmId: newAccountDraft.firmId,
-                      name: newAccountDraft.name,
-                      status: "active",
-                      kind: "challenge",
-                      drawdownType: "static",
-                      size: newAccountDraft.size,
-                      purchasedAt: draft.date,
-                    });
-                    if (!created) return;
-                    setDraft((current) => ({ ...current, accountId: created.id, firmId: created.firmId }));
-                    setCreatingAccount(false);
-                  }}
-                  type="button"
-                >
-                  {t("movement.quickAccount.create")}
-                </button>
-              </div>
-            </div>
-          )}
+          <label>
+            <span>{t("movement.field.account")}</span>
+            <Select
+              disabled={!canWrite || mutating}
+              onChange={(next) => {
+                if (next === NEW_ACCOUNT_OPTION) {
+                  /* No se crea aqui: se marca la intencion y se resuelve al enviar el
+                     formulario, para no interrumpir mientras se sigue rellenando el
+                     resto del movimiento. */
+                  setDraft((current) => ({ ...current, accountId: NEW_ACCOUNT_OPTION }));
+                  return;
+                }
+                const account = accounts.find((item) => item.id === next);
+                setDraft((current) => ({
+                  ...current,
+                  accountId: next,
+                  firmId: account?.firmId || current.firmId,
+                }));
+              }}
+              options={accountFormOptions}
+              value={draft.accountId || ""}
+            />
+          </label>
           {/* Clase propia en vez de .wide-field, que abarca 2 de 4 columnas y aqui dejaba
               media fila vacia. Esta ocupa el ancho completo de la rejilla de dos. */}
           <label className="movement-form-full">

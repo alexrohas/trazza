@@ -2359,6 +2359,16 @@ button {
   font-weight: var(--weight-bold);
 }
 
+/* Opcion-accion dentro de una lista de valores normales ("+ Crear cuenta nueva"): color
+   de acento y una linea debajo para separarla del resto, aunque este primera en el
+   orden. Independiente de is-selected/is-highlighted, que siguen aplicando encima. */
+.custom-select-option.is-accent {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+  border-bottom: 1px solid var(--line);
+  border-radius: 6px 6px 0 0;
+}
+
 .custom-select-option svg {
   flex-shrink: 0;
   color: var(--accent);
@@ -5460,38 +5470,6 @@ tbody tr:last-child td {
 
 .movement-form-full {
   grid-column: 1 / -1;
-}
-
-/* Panel de alta rapida de cuenta: mismo lenguaje que .movement-payout-block (borde +
-   fondo muted) para que se lea como un sub-bloque del formulario, no como un modal
-   aparte. */
-.movement-quick-account {
-  display: grid;
-  gap: var(--space-base);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: var(--space-base);
-  background: var(--surface-muted);
-}
-
-.movement-quick-account-title {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.movement-quick-account-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-base);
-}
-
-.movement-quick-account-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-sm);
 }
 
 .journal-error-picker {

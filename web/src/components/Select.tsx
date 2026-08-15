@@ -4,6 +4,10 @@ import { Check, ChevronDown } from "lucide-react";
 export type SelectOption = {
   label: string;
   value: string;
+  /* Para la opcion que no es un valor real sino una acción ("+ Crear cuenta nueva"):
+     la distingue visualmente del resto de la lista sin que el componente tenga que
+     saber nada del caso de uso concreto. */
+  accent?: boolean;
 };
 
 type SelectProps = {
@@ -103,7 +107,7 @@ export function Select({ disabled, id, onChange, options, placeholder, value }: 
               aria-selected={option.value === value}
               className={`custom-select-option ${option.value === value ? "is-selected" : ""} ${
                 index === highlightedIndex ? "is-highlighted" : ""
-              }`}
+              } ${option.accent ? "is-accent" : ""}`}
               key={option.value}
               onClick={() => {
                 onChange(option.value);

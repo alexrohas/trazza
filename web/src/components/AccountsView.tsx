@@ -35,7 +35,11 @@ type AccountsViewProps = {
   mutationError?: string | null;
   mutating?: boolean;
   newAccountToken?: number;
+  /* Empresa con la que precargar el alta cuando la abre otra pantalla (Movimientos,
+     al pedir crear la cuenta de un movimiento sin la suya todavia). */
+  presetFirmId?: string;
   searchQuery: string;
+  onClose?: () => void;
   onDeleteAccount: (accountId: string) => Promise<boolean>;
   onNewAccountRequestHandled?: () => void;
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
@@ -94,7 +98,9 @@ export function AccountsView({
   mutationError,
   mutating = false,
   newAccountToken = 0,
+  presetFirmId,
   searchQuery,
+  onClose,
   onDeleteAccount,
   onNewAccountRequestHandled,
   onSaveAccount,
@@ -262,6 +268,7 @@ export function AccountsView({
   const closeForm = () => {
     resetForm();
     setScreen("list");
+    onClose?.();
   };
 
   const openNewAccount = () => {
@@ -304,6 +311,9 @@ export function AccountsView({
   useEffect(() => {
     if (!newAccountToken) return;
     openNewAccount();
+    /* Si otra pantalla pidio el alta con una empresa ya decidida (el caso de
+       Movimientos), se precarga aqui: openNewAccount ya dejo el draft en blanco. */
+    if (presetFirmId) setDraft((current) => ({ ...current, firmId: presetFirmId }));
     onNewAccountRequestHandled?.();
   }, [newAccountToken, onNewAccountRequestHandled]);
 
