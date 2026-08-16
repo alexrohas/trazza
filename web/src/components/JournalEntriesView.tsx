@@ -420,6 +420,23 @@ export function JournalEntriesView({
     onNewEntryRequestHandled?.();
   }, [newEntryToken, onNewEntryRequestHandled]);
 
+  /* En captura, no en burbuja: el zoom se abre encima del modal de detalle, y ese
+     modal (Modal.tsx) ya escucha Escape en burbuja sobre document para cerrarse el
+     solo. Sin esto, un Escape cerraba el modal de detalle por debajo y la imagen
+     ampliada se quedaba huerfana en pantalla, sin nada que la cierre. Con la
+     captura, este handler llega primero y para la propagacion: un Escape cierra
+     solo el zoom, hace falta un segundo para cerrar el detalle. */
+  useEffect(() => {
+    if (!zoomImage) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setZoomImage(undefined);
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [zoomImage]);
+
   const resetJournalFilters = () => {
     setAccountFilter("all");
     setPeriodFilter("all");
