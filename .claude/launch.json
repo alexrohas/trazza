@@ -12,6 +12,20 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "web", "dev"],
       "port": 5174
+    },
+    {
+      "name": "trazza-legacy-mac",
+      "runtimeExecutable": "zsh",
+      "runtimeArgs": ["-lc", "node /Users/rjsalex/Desktop/trazza/.claude/serve-legacy.mjs"],
+      "port": 5178,
+      "url": "http://localhost:5178"
+    },
+    {
+      "name": "trazza-legacy-windows",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/serve-legacy.mjs"],
+      "port": 5178,
+      "url": "http://localhost:5178"
     }
   ]
 }
