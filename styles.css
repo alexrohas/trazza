@@ -2278,9 +2278,39 @@ tbody tr:hover {
   background: var(--hover-bg);
 }
 
+/* Cuenta fuera de los selectores: sigue siendo una fila normal (se edita, se borra, suma en
+   los totales), solo baja de tono para que se vea que no se ofrece al escribir. */
+tbody tr.is-account-hidden {
+  opacity: 0.62;
+}
+
 .table-title {
   display: grid;
   gap: 2px;
+}
+
+.table-flag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Va dentro del <strong> del nombre, no en la linea de meta: el meta puede venir vacio y
+   :first-child no lo detecta (un nodo de texto no es un hijo elemento), asi que el margen
+   se quedaba a cero justo cuando si hacia falta. El nombre nunca esta vacio. */
+.table-title strong .table-flag {
+  vertical-align: 1px;
 }
 
 .table-title strong {

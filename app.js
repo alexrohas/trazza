@@ -2026,6 +2026,14 @@ function isAccountRulesSetupError(error) {
   );
 }
 
+// accounts.visible es aditiva y se ejecuta a mano, asi que puede faltar en la base de
+// datos de alguien que aun no haya pasado supabase-accounts-visibility.sql. PGRST204 es
+// el "no existe esa columna" de PostgREST, igual que en las reglas de cuenta de arriba.
+function isAccountVisibilitySetupError(error) {
+  const message = String(error?.message || "");
+  return error?.code === "PGRST204" && message.includes("visible");
+}
+
 function isJournalSetupError(error) {
   const message = String(error?.message || "");
   return (
@@ -2304,6 +2312,9 @@ function fromDbAccount(row) {
     maxDrawdown: dbAmountOrNull(row.max_drawdown),
     dailyDrawdown: dbAmountOrNull(row.daily_drawdown),
     notes: row.notes || "",
+    // Sin la columna (supabase-accounts-visibility.sql sin ejecutar) row.visible llega
+    // undefined y la cuenta se comporta como visible, que es como se ha comportado siempre.
+    visible: row.visible !== false,
     createdAt: row.created_at,
     updatedAt: row.created_at,
   };
@@ -2704,11 +2715,26 @@ function setSelectOptions(select, optionsHtml, fallbackValue = "") {
   syncCustomSelect(select);
 }
 
+// La visibilidad solo existe para los selectores: una cuenta oculta sigue en la tabla de
+// Cuentas, sigue sumando en el panel y sus movimientos y entradas no se tocan. Es para que
+// la lista de cuentas de alguien con anos de challenges fallados no crezca sin fin.
+function isAccountVisible(account) {
+  return account?.visible !== false;
+}
+
+// Un selector que ya apunta a una cuenta oculta tiene que seguir mostrandola: si no, al
+// editar una entrada vieja el desplegable se quedaria sin la cuenta que tiene guardada y
+// la perderia al volver a guardar.
+function isAccountSelectable(account, selectedId) {
+  return isAccountVisible(account) || (Boolean(selectedId) && account?.id === selectedId);
+}
+
 function fillDashboardAccountFilter() {
   if (!els.dashboardAccountFilter) return;
   const firmId = els.dashboardFirmFilter.value || "all";
   const accountOptions = state.accounts
     .filter((account) => firmId === "all" || account.firmId === firmId)
+    .filter(isAccountVisible)
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
     .join("");
@@ -2719,7 +2745,7 @@ function fillDashboardAccountFilter() {
 function fillJournalAccountFilter() {
   if (!els.journalAccountFilter && !els.journalEntriesAccountFilter && !els.journalImportAccount) return;
   const accountOptions = state.accounts
-    .slice()
+    .filter(isAccountVisible)
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`)
     .join("");
@@ -2732,8 +2758,8 @@ function fillJournalAccountFilter() {
 
 function fillJournalImportAccountSelect() {
   if (!els.journalImportAccount) return;
-  const options = state.accounts
-    .slice()
+  const selectable = state.accounts.filter(isAccountVisible);
+  const options = selectable
     .sort((a, b) => {
       const firmA = getFirm(a.firmId)?.name || "";
       const firmB = getFirm(b.firmId)?.name || "";
@@ -2745,8 +2771,11 @@ function fillJournalImportAccountSelect() {
       return `<option value="${escapeHtml(account.id)}">${escapeHtml(label)}</option>`;
     })
     .join("");
-  const fallback = state.accounts[0]?.id || "";
-  setSelectOptions(els.journalImportAccount, options || `<option value="">Crea una cuenta primero</option>`, fallback);
+  const fallback = selectable[0]?.id || "";
+  const emptyOption = state.accounts.length
+    ? `<option value="">Muestra una cuenta para importar</option>`
+    : `<option value="">Crea una cuenta primero</option>`;
+  setSelectOptions(els.journalImportAccount, options || emptyOption, fallback);
 }
 
 function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
@@ -2754,6 +2783,7 @@ function fillAccountSelect(select, firmId, includeEmpty, selectedId = "") {
   const isGeneralTransaction = firmId === GENERAL_TRANSACTION_FIRM_VALUE;
   const accounts = state.accounts
     .filter((account) => !isGeneralTransaction && (!firmId || account.firmId === firmId))
+    .filter((account) => isAccountSelectable(account, selectedId))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
   const empty = includeEmpty ? `<option value="">Sin cuenta concreta</option>` : "";
   select.innerHTML = `${empty}${accounts
@@ -3161,11 +3191,16 @@ function renderAccountsTable() {
       const income = sum(txs.filter((tx) => tx.kind === "income").map((tx) => tx.amount));
       const net = income - expenses;
       const accountMeta = [account.notes, getAccountRulesSummary(account)].filter(Boolean).join(" · ");
+      // La marca va en su propio elemento y no pegada al texto del meta porque el traductor
+      // (i18n.js) compara nodos de texto completos: dentro de la cadena concatenada no la
+      // reconoceria y en ingles se quedaria en castellano.
+      const hidden = !isAccountVisible(account);
+      const hiddenFlag = hidden ? `<em class="table-flag">Oculta</em>` : "";
       return `
-        <tr>
+        <tr${hidden ? ` class="is-account-hidden"` : ""}>
           <td data-label="Cuenta">
             <div class="table-title">
-              <strong>${escapeHtml(account.name)}</strong>
+              <strong>${escapeHtml(account.name)}${hiddenFlag}</strong>
               <span>${escapeHtml(accountMeta)}</span>
             </div>
           </td>
@@ -3179,6 +3214,11 @@ function renderAccountsTable() {
           <td data-label="Acciones">
             <div class="row-actions">
               ${actionButton("edit-account", account.id, "Editar", "pencil")}
+              ${
+                hidden
+                  ? actionButton("show-account", account.id, "Mostrar cuenta", "eye")
+                  : actionButton("hide-account", account.id, "Ocultar cuenta", "eye-off")
+              }
               ${actionButton("delete-account", account.id, "Eliminar", "trash-2")}
             </div>
           </td>
@@ -5603,18 +5643,24 @@ function openJournalEntryModeDialog() {
   }
 
   if (els.journalEntryModeCsvButton) {
-    const hasAccounts = state.accounts.length > 0;
+    const hasAccounts = state.accounts.some(isAccountVisible);
     els.journalEntryModeCsvButton.disabled = !hasAccounts;
     els.journalEntryModeCsvButton.title = hasAccounts
       ? "Importar entradas desde un CSV de Tradovate Performance"
-      : "Crea una cuenta antes de importar CSV";
+      : state.accounts.length
+        ? "Muestra una cuenta antes de importar CSV"
+        : "Crea una cuenta antes de importar CSV";
   }
 
   showDialog(els.journalEntryModeDialog);
 }
 
 function openJournalImportDialog() {
-  if (!state.accounts.length) {
+  if (!state.accounts.some(isAccountVisible)) {
+    if (state.accounts.length) {
+      toast("Muestra una cuenta antes de importar un CSV.");
+      return;
+    }
     openAccountDialog();
     toast("Crea una cuenta antes de importar un CSV.");
     return;
@@ -6664,6 +6710,8 @@ function handleTableAction(event) {
   if (action === "edit-journal-error") openJournalErrorDialog(getJournalErrorType(id));
   if (action === "archive-journal-error") requestToggleJournalErrorType(id, false);
   if (action === "restore-journal-error") requestToggleJournalErrorType(id, true);
+  if (action === "hide-account") requestToggleAccountVisibility(id, false);
+  if (action === "show-account") requestToggleAccountVisibility(id, true);
   if (action === "delete-firm") requestDeleteFirm(id);
   if (action === "delete-account") requestDeleteAccount(id);
   if (action === "delete-transaction") requestDeleteTransaction(id);
@@ -6750,6 +6798,32 @@ function requestDeleteFirm(id) {
       toast(error.message || "No se pudo eliminar la empresa.");
     }
   });
+}
+
+// Sin openConfirm a proposito: ocultar no borra nada y se deshace desde el mismo boton, asi
+// que un dialogo de confirmacion solo estorbaria. Se escribe con update de una sola columna
+// en vez de reutilizar accountToDb para que el formulario de cuenta siga sin mencionar
+// visible: si alguien despliega este JS antes de pasar el SQL, lo unico que falla es este
+// boton, no el guardado de cuentas.
+async function requestToggleAccountVisibility(id, visible) {
+  if (!canMutateData()) return openSubscriptionRequiredNotice();
+  const account = getAccount(id);
+  if (!account) return;
+
+  try {
+    const result = await supabaseClient.from("accounts").update({ visible }).eq("id", id).select().single();
+    if (result.error && isAccountVisibilitySetupError(result.error)) {
+      throw new Error("Ejecuta supabase-accounts-visibility.sql en Supabase para ocultar cuentas.");
+    }
+    throwIfSupabaseError(result);
+    const savedAccount = fromDbAccount(result.data);
+    state.accounts = state.accounts.map((item) => (item.id === id ? savedAccount : item));
+    persist();
+    refreshAll();
+    toast(visible ? "Cuenta visible." : "Cuenta oculta.");
+  } catch (error) {
+    toast(error.message || "No se pudo actualizar la cuenta.");
+  }
 }
 
 function requestDeleteAccount(id) {
