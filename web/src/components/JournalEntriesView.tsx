@@ -16,7 +16,6 @@ import {
   GripVertical,
   Image as ImageIcon,
   ImagePlus,
-  Info,
   LayoutGrid,
   ListChecks,
   Pencil,
@@ -32,6 +31,7 @@ import {
 } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
+import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
@@ -1050,8 +1050,7 @@ export function JournalEntriesView({
           title={t("journal.entryMode.title")}
         >
           <div className="journal-entry-mode-help">
-            <Info size={15} strokeWidth={2.2} />
-            <span>{t("journal.entryMode.help")}</span>
+            <InfoHint text={t("journal.entryMode.help")} />
           </div>
           <div className="journal-entry-mode-grid">
             <button
@@ -1117,8 +1116,7 @@ export function JournalEntriesView({
               />
             </label>
             <div className="wide-field journal-import-note">
-              <Info size={15} strokeWidth={2.2} />
-              <span>{t("journal.import.note")}</span>
+              <InfoHint text={t("journal.import.note")} />
             </div>
 
             {importMessage && <p className={`mutation-message ${importMessage.type} wide-field`}>{importMessage.text}</p>}

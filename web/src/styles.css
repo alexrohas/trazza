@@ -336,6 +336,9 @@
 :root[data-theme="dark"] .journal-detail-grid div,
 :root[data-theme="dark"] .journal-error-options label,
 :root[data-theme="dark"] .journal-error-type-row,
+:root[data-theme="dark"] .journal-errors-field,
+:root[data-theme="dark"] .journal-money-input,
+:root[data-theme="dark"] .journal-import-preview-row,
 /* Se quedo fuera de la lista: su fondo iba fijo (#fbfcfd) y su texto con token, asi que
    en oscuro era texto casi blanco sobre fondo casi blanco. Mismo caso que la pastilla
    de cuenta cerrada. */
@@ -5413,6 +5416,15 @@ tbody tr:last-child td {
   padding: 0 var(--space-base);
 }
 
+/* El contenido de un input de archivo (boton + nombre) no se centra solo dentro de los
+   44px del campo: con padding vertical 0 se pega arriba y deja el hueco debajo. Se
+   centra con flex, que si le aplica al contenido nativo. */
+.entity-form input[type="file"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .firm-form textarea,
 .entity-form textarea {
   min-height: 44px;
@@ -5492,25 +5504,17 @@ tbody tr:last-child td {
 }
 
 /* ALTA DE ENTRADA EN TRES PASOS (modo -> CSV -> vista previa), como el legado. */
+
+/* Sin caja: el texto explica el modal entero, se lee una vez y luego estorba en cada
+   alta. Va detras de un InfoHint, que solo deja la "i" y saca el texto al pasar el
+   cursor.
+   A la izquierda, no a la derecha: el tooltip de .info-hint-tooltip esta anclado por
+   la izquierda y crece hacia la derecha, asi que pegado al borde derecho del modal se
+   salia y .modal-card (overflow:hidden) lo recortaba a media frase. */
 .journal-entry-mode-help,
 .journal-import-note {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md);
-  background: #fbfcfd;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-normal);
-}
-
-.journal-entry-mode-help > svg,
-.journal-import-note > svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--accent-strong);
+  justify-content: flex-start;
 }
 
 .journal-entry-mode-grid {
