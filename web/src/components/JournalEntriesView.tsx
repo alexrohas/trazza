@@ -16,6 +16,7 @@ import {
   GripVertical,
   Image as ImageIcon,
   ImagePlus,
+  Info,
   LayoutGrid,
   ListChecks,
   Pencil,
@@ -54,7 +55,7 @@ import {
   severityRank,
 } from "../lib/journalErrors";
 import { matchesSearch } from "../lib/search";
-import { parseTradovatePerformanceCsv } from "../lib/tradovateImport";
+import { parseTradovatePerformanceCsv, type TradovateImportResult } from "../lib/tradovateImport";
 import type {
   Currency,
   DataMode,
@@ -162,15 +163,13 @@ function getSessionOptions(t: ReturnType<typeof useT>): Array<{ label: string; v
   ];
 }
 
-function getSessionTypeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: JournalSessionType }> {
+function getDisciplineOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: string }> {
   return [
-    { label: t("journal.option.sessionType.tradingDay"), value: "trading-day" },
-    { label: t("journal.option.sessionType.evaluation"), value: "evaluation" },
-    { label: t("journal.option.sessionType.funded"), value: "funded" },
-    { label: t("journal.option.sessionType.payoutDay"), value: "payout-day" },
-    { label: t("journal.option.sessionType.newsDay"), value: "news-day" },
-    { label: t("journal.option.sessionType.review"), value: "review" },
-    { label: t("journal.option.sessionType.other"), value: "other" },
+    { label: t("journal.option.discipline.five"), value: "5" },
+    { label: t("journal.option.discipline.four"), value: "4" },
+    { label: t("journal.option.discipline.three"), value: "3" },
+    { label: t("journal.option.discipline.two"), value: "2" },
+    { label: t("journal.option.discipline.one"), value: "1" },
   ];
 }
 
@@ -273,6 +272,14 @@ export function JournalEntriesView({
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [zoomImage, setZoomImage] = useState<string | undefined>();
+  /* Alta en tres pasos como el legado: se elige modo, y si es CSV se pide cuenta,
+     sesion y archivo antes de revisar lo detectado. Manual salta directo al formulario. */
+  const [entryModeOpen, setEntryModeOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importAccountId, setImportAccountId] = useState("");
+  const [importSession, setImportSession] = useState<JournalTradingSession | "">("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<TradovateImportResult | null>(null);
   const canWrite = dataMode === "cloud";
   const dashboardLayout = useJournalDashboardLayout();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -280,9 +287,9 @@ export function JournalEntriesView({
   const { language } = useI18n();
   const directionOptions = useMemo(() => getDirectionOptions(t), [t]);
   const sessionOptions = useMemo(() => getSessionOptions(t), [t]);
-  const sessionTypeOptions = useMemo(() => getSessionTypeOptions(t), [t]);
   const resultOptions = useMemo(() => getResultOptions(t), [t]);
   const emotionOptions = useMemo(() => getEmotionOptions(t), [t]);
+  const disciplineOptions = useMemo(() => getDisciplineOptions(t), [t]);
   const weekdayLabels = useMemo(() => getWeekdayLabels(t), [t]);
   const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
   const accountFilterOptions = useMemo(
@@ -416,9 +423,94 @@ export function JournalEntriesView({
   useEffect(() => {
     if (!newEntryToken) return;
     resetForm();
-    setJournalMode("entryForm");
+    setImportMessage(null);
+    setEntryModeOpen(true);
     onNewEntryRequestHandled?.();
   }, [newEntryToken, onNewEntryRequestHandled]);
+
+  const closeImportFlow = () => {
+    setImportOpen(false);
+    setImportPreview(null);
+    setImportFile(null);
+  };
+
+  const openImportDialog = () => {
+    setEntryModeOpen(false);
+    setImportPreview(null);
+    setImportFile(null);
+    setImportMessage(null);
+    setImportAccountId((current) => current || accounts[0]?.id || "");
+    setImportOpen(true);
+  };
+
+  /* Paso 2 -> 3: analiza el CSV y decide destino como el legado. Una sola operacion
+     detectada no merece una pantalla de revision: rellena el formulario manual y se
+     revisa alli. Varias van a la lista de vista previa antes de crear nada. */
+  const handleImportAnalyze = async () => {
+    const account = accounts.find((item) => item.id === importAccountId);
+    if (!account || !importFile) return;
+
+    setImporting(true);
+    setImportMessage({ type: "info", text: t("journal.import.readingTradovate") });
+
+    try {
+      const text = await importFile.text();
+      const firmName = firmNameById.get(account.firmId) || "";
+      const result = parseTradovatePerformanceCsv(text, account, firmName, importSession || "newYork");
+
+      if (result.entries.length === 1) {
+        const preview = result.entries[0];
+        setDraft((current) => ({ ...current, ...preview.input }));
+        const commissionText =
+          preview.commissionAmount > 0
+            ? ` ${t("journal.import.netPnlPrefix")} ${formatMoney(preview.input.pnl, currency)} ${t("journal.import.afterCommissionSuffix")} ${formatMoney(preview.commissionAmount, currency)} ${t("journal.import.commissionSuffix")}`
+            : "";
+        closeImportFlow();
+        setJournalMode("entryForm");
+        setImportMessage({ type: "success", text: `${t("journal.import.detectedSingle")}${commissionText}` });
+        return;
+      }
+
+      setImportPreview(result);
+      setImportMessage(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("journal.import.tradovateGenericError");
+      setImportMessage({ type: "error", text: message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    if (!importPreview) return;
+    setImporting(true);
+
+    let imported = 0;
+    let failed = 0;
+    let totalCommission = 0;
+    const missingSymbols = new Set<string>();
+
+    for (const preview of importPreview.entries) {
+      const saved = await onSaveEntry(preview.input);
+      if (saved) {
+        imported += 1;
+        totalCommission += preview.commissionAmount;
+        preview.commissionMissingSymbols.forEach((symbol) => missingSymbols.add(symbol));
+      } else {
+        failed += 1;
+      }
+    }
+
+    const commissionText = totalCommission > 0 ? ` ${t("journal.import.commissionDeducted")} ${formatMoney(totalCommission, currency)}.` : "";
+    const missingText = missingSymbols.size ? ` ${t("journal.import.noCommissionPresetFor")} ${[...missingSymbols].join(", ")}.` : "";
+
+    setImportMessage({
+      type: failed > 0 ? "error" : "success",
+      text: `${imported} ${t("common.of")} ${importPreview.entries.length} ${t("journal.import.entriesImportedSuffix")}${failed > 0 ? ` ${t("journal.import.failedSuffix")} ${failed}.` : ""}${commissionText}${missingText}`,
+    });
+    setImporting(false);
+    closeImportFlow();
+  };
 
   /* En captura, no en burbuja: el zoom se abre encima del modal de detalle, y ese
      modal (Modal.tsx) ya escucha Escape en burbuja sobre document para cerrarse el
@@ -463,66 +555,6 @@ export function JournalEntriesView({
     } catch (error) {
       const message = error instanceof Error ? error.message : t("journal.import.genericError");
       setImportMessage({ type: "error", text: message });
-    }
-  };
-
-  const handleTradovateImport = async (file: File) => {
-    if (!canWrite) return;
-    const account = accounts.find((item) => item.id === draft.accountId);
-    if (!account) {
-      setImportMessage({ type: "error", text: t("journal.import.selectAccountFirst") });
-      return;
-    }
-    const firmName = firmNameById.get(account.firmId) || "";
-
-    setImporting(true);
-    setImportMessage({ type: "info", text: t("journal.import.readingTradovate") });
-
-    try {
-      const text = await file.text();
-      const result = parseTradovatePerformanceCsv(text, account, firmName, draft.tradingSession);
-
-      if (result.entries.length === 1) {
-        const preview = result.entries[0];
-        setDraft((current) => ({ ...current, ...preview.input }));
-        const commissionText =
-          preview.commissionAmount > 0
-            ? ` ${t("journal.import.netPnlPrefix")} ${formatMoney(preview.input.pnl, currency)} ${t("journal.import.afterCommissionSuffix")} ${formatMoney(preview.commissionAmount, currency)} ${t("journal.import.commissionSuffix")}`
-            : "";
-        setImportMessage({ type: "success", text: `${t("journal.import.detectedSingle")}${commissionText}` });
-        return;
-      }
-
-      let imported = 0;
-      let failed = 0;
-      let totalCommission = 0;
-      const missingSymbols = new Set<string>();
-
-      for (const preview of result.entries) {
-        const saved = await onSaveEntry(preview.input);
-        if (saved) {
-          imported += 1;
-          totalCommission += preview.commissionAmount;
-          preview.commissionMissingSymbols.forEach((symbol) => missingSymbols.add(symbol));
-        } else {
-          failed += 1;
-        }
-      }
-
-      const commissionText = totalCommission > 0 ? ` ${t("journal.import.commissionDeducted")} ${formatMoney(totalCommission, currency)}.` : "";
-      const missingText = missingSymbols.size
-        ? ` ${t("journal.import.noCommissionPresetFor")} ${[...missingSymbols].join(", ")}.`
-        : "";
-
-      setImportMessage({
-        type: failed > 0 ? "error" : "success",
-        text: `${imported} ${t("common.of")} ${result.entries.length} ${t("journal.import.entriesImportedSuffix")}${failed > 0 ? ` ${t("journal.import.failedSuffix")} ${failed}.` : ""}${commissionText}${missingText}`,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("journal.import.tradovateGenericError");
-      setImportMessage({ type: "error", text: message });
-    } finally {
-      setImporting(false);
     }
   };
 
@@ -1032,55 +1064,163 @@ export function JournalEntriesView({
       </Modal>
       )}
 
+      {entryModeOpen && (
+        <Modal
+          onClose={() => setEntryModeOpen(false)}
+          subtitle={t("journal.entryMode.subtitle")}
+          title={t("journal.entryMode.title")}
+        >
+          <div className="journal-entry-mode-help">
+            <Info size={15} strokeWidth={2.2} />
+            <span>{t("journal.entryMode.help")}</span>
+          </div>
+          <div className="journal-entry-mode-grid">
+            <button
+              className="journal-entry-mode-option"
+              onClick={() => {
+                setEntryModeOpen(false);
+                setJournalMode("entryForm");
+              }}
+              type="button"
+            >
+              <Pencil size={20} strokeWidth={2.2} />
+              <strong>{t("journal.entryMode.manual")}</strong>
+              <span>{t("journal.entryMode.manualHint")}</span>
+            </button>
+            <button
+              className="journal-entry-mode-option"
+              disabled={!accounts.length}
+              onClick={openImportDialog}
+              title={accounts.length ? t("journal.entryMode.csvTitle") : t("journal.entryMode.csvBlocked")}
+              type="button"
+            >
+              <FileUp size={20} strokeWidth={2.2} />
+              <strong>{t("journal.entryMode.csv")}</strong>
+              <span>{t("journal.entryMode.csvHint")}</span>
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {importOpen && !importPreview && (
+        <Modal onClose={closeImportFlow} subtitle={t("journal.import.dialogSubtitle")} title={t("journal.import.dialogTitle")}>
+          <form
+            className="entity-form resource-form-grid modal-form-grid journal-entry-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleImportAnalyze();
+            }}
+          >
+            <label>
+              <span>{t("journal.entryForm.account")}</span>
+              <Select
+                disabled={importing}
+                onChange={setImportAccountId}
+                options={accounts.map((account) => ({ label: account.name, value: account.id }))}
+                value={importAccountId}
+              />
+            </label>
+            <SelectField
+              disabled={importing}
+              label={t("journal.filter.session")}
+              onChange={(value) => setImportSession(value as JournalTradingSession | "")}
+              options={[{ label: t("journal.session.none"), value: "" }, ...sessionOptions]}
+              value={importSession}
+            />
+            <label className="wide-field">
+              <span>{t("journal.import.csvFile")}</span>
+              <input
+                accept=".csv,text/csv"
+                disabled={importing}
+                onChange={(event) => setImportFile(event.target.files?.[0] || null)}
+                required
+                type="file"
+              />
+            </label>
+            <div className="wide-field journal-import-note">
+              <Info size={15} strokeWidth={2.2} />
+              <span>{t("journal.import.note")}</span>
+            </div>
+
+            {importMessage && <p className={`mutation-message ${importMessage.type} wide-field`}>{importMessage.text}</p>}
+
+            <div className="form-action-row">
+              <button
+                className="ghost-action"
+                onClick={() => {
+                  closeImportFlow();
+                  setEntryModeOpen(true);
+                }}
+                type="button"
+              >
+                {t("journal.import.back")}
+              </button>
+              <button className="primary-action" disabled={importing || !importFile || !importAccountId} type="submit">
+                <Check size={17} strokeWidth={2.2} />
+                {importing ? t("journal.entryForm.importing") : t("journal.import.analyze")}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {importPreview && (
+        <Modal onClose={closeImportFlow} subtitle={t("journal.import.previewSubtitle")} title={t("journal.import.previewTitle")} width="wide">
+          <div className="journal-detail-grid">
+            <div>
+              <dt>{t("journal.entryForm.account")}</dt>
+              <dd>{accounts.find((item) => item.id === importAccountId)?.name || "-"}</dd>
+            </div>
+            <div>
+              <dt>{t("journal.import.detected")}</dt>
+              <dd>
+                {importPreview.rawRows === importPreview.entries.length
+                  ? `${importPreview.entries.length} ${t("journal.import.operations")}`
+                  : `${importPreview.rawRows} ${t("journal.import.rowsGroupedInto")} ${importPreview.entries.length}`}
+              </dd>
+            </div>
+          </div>
+          <div className="journal-import-preview-list">
+            {importPreview.entries.map((preview, index) => (
+              <article className={`journal-import-preview-row ${signedTone(preview.input.pnl)}`} key={index}>
+                <div>
+                  <strong>
+                    {preview.input.symbol}
+                    <em className={`journal-card-direction ${preview.input.direction}`}>
+                      {findOptionLabel(directionOptions, preview.input.direction)}
+                    </em>
+                  </strong>
+                  <small>{preview.input.date}</small>
+                </div>
+                <strong className={signedTone(preview.input.pnl)}>{formatMoney(preview.input.pnl, currency)}</strong>
+              </article>
+            ))}
+          </div>
+
+          {importMessage && <p className={`mutation-message ${importMessage.type}`}>{importMessage.text}</p>}
+
+          <div className="form-action-row">
+            <button className="ghost-action" disabled={importing} onClick={() => setImportPreview(null)} type="button">
+              {t("journal.import.back")}
+            </button>
+            <button className="primary-action" disabled={importing || !canWrite} onClick={() => void handleImportConfirm()} type="button">
+              <Plus size={17} strokeWidth={2.2} />
+              {importing
+                ? t("common.saving")
+                : `${t("journal.import.createEntriesPrefix")} ${importPreview.entries.length} ${t("journal.import.createEntriesSuffix")}`}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {journalMode === "entryForm" && (
       <Modal
         onClose={closeEntryForm}
         title={editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}
-        subtitle={t("journal.entryForm.subtitle")}
         width="wide"
       >
-          <div className="modal-inline-actions">
-            <label
-              aria-disabled={!canWrite || mutating || importing}
-              className={`ghost-action file-action ${!canWrite || mutating || importing ? "disabled" : ""}`}
-            >
-              <FileUp size={16} strokeWidth={2.2} />
-              {importing ? t("journal.entryForm.importing") : t("journal.entryForm.importCsv")}
-              <input
-                accept=".csv,text/csv"
-                disabled={!canWrite || mutating || importing}
-                hidden
-                type="file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void handleCsvImport(file);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-            <label
-              aria-disabled={!canWrite || mutating || importing}
-              className={`ghost-action file-action ${!canWrite || mutating || importing ? "disabled" : ""}`}
-              title={t("journal.entryForm.importTradovateTitle")}
-            >
-              <FileUp size={16} strokeWidth={2.2} />
-              {importing ? t("journal.entryForm.importing") : t("journal.entryForm.importTradovate")}
-              <input
-                accept=".csv,text/csv"
-                disabled={!canWrite || mutating || importing}
-                hidden
-                type="file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void handleTradovateImport(file);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-          </div>
-
         <form
-          className="entity-form resource-form-grid modal-form-grid"
+          className="entity-form resource-form-grid modal-form-grid journal-entry-form"
           onSubmit={async (event) => {
             event.preventDefault();
             const saved = await onSaveEntry(draft, editingId);
@@ -1121,6 +1261,13 @@ export function JournalEntriesView({
               value={draft.accountId || ""}
             />
           </label>
+          <SelectField
+            disabled={!canWrite || mutating}
+            label={t("journal.filter.emotion")}
+            onChange={(value) => setDraft((current) => ({ ...current, emotion: value as JournalEmotion }))}
+            options={emotionOptions}
+            value={draft.emotion}
+          />
           <label>
             <span>{t("journal.entryForm.symbol")}</span>
             <input
@@ -1142,85 +1289,33 @@ export function JournalEntriesView({
           />
           <SelectField
             disabled={!canWrite || mutating}
+            label={t("journal.entryForm.discipline")}
+            onChange={(value) => setDraft((current) => ({ ...current, discipline: Number(value) }))}
+            options={disciplineOptions}
+            value={String(draft.discipline)}
+          />
+          <SelectField
+            disabled={!canWrite || mutating}
             label={t("journal.filter.session")}
             onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
             options={sessionOptions}
             value={draft.tradingSession}
           />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.detail.type")}
-            onChange={(value) => setDraft((current) => ({ ...current, sessionType: value as JournalSessionType }))}
-            options={sessionTypeOptions}
-            value={draft.sessionType}
-          />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.result")}
-            onChange={(value) => setDraft((current) => ({ ...current, result: value as JournalResult }))}
-            options={resultOptions}
-            value={draft.result}
-          />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.emotion")}
-            onChange={(value) => setDraft((current) => ({ ...current, emotion: value as JournalEmotion }))}
-            options={emotionOptions}
-            value={draft.emotion}
-          />
-          <label>
-            <span>{t("journal.entryForm.discipline")}</span>
-            <input
-              disabled={!canWrite || mutating}
-              max={5}
-              min={1}
-              onChange={(event) => setDraft((current) => ({ ...current, discipline: Number(event.target.value) }))}
-              required
-              type="number"
-              value={draft.discipline}
-            />
-          </label>
-          <label>
+          <label className="wide-field">
             <span>{t("journal.entryForm.pnl")}</span>
-            <input
-              disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, pnl: Number(event.target.value) }))}
-              step="0.01"
-              type="number"
-              value={draft.pnl}
-            />
+            <span className="journal-money-input">
+              <span>{currency === "USD" ? "$" : "€"}</span>
+              <input
+                disabled={!canWrite || mutating}
+                inputMode="decimal"
+                onChange={(event) => setDraft((current) => ({ ...current, pnl: Number(event.target.value) }))}
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={draft.pnl}
+              />
+            </span>
           </label>
-          <div className="wide-field journal-error-picker">
-            <div className="journal-operation-media-toolbar">
-              <span>{t("journal.entryForm.errors")}</span>
-              <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
-                <Settings2 size={15} strokeWidth={2.2} />
-                {t("journal.errorManager.configure")}
-              </button>
-            </div>
-            <div className="journal-error-options">
-              {activeErrorTypes.map((type) => {
-                const selected = draft.errors.includes(type.id);
-                return (
-                  <label className={selected ? "is-selected" : ""} key={type.id} style={{ "--error-color": type.color } as CSSProperties}>
-                    <input
-                      checked={selected}
-                      disabled={!canWrite || mutating}
-                      onChange={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          errors: toggleString(current.errors, type.id),
-                        }))
-                      }
-                      type="checkbox"
-                    />
-                    <i aria-hidden="true" />
-                    <span>{type.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
           <div className="wide-field journal-operation-media-field">
             <div className="journal-operation-media-toolbar">
               <span>{t("journal.entryForm.mediaTitle")}</span>
@@ -1299,24 +1394,46 @@ export function JournalEntriesView({
             />
             {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
           </div>
+          <fieldset className="wide-field journal-errors-field">
+            <legend>{t("journal.entryForm.errorsLegend")}</legend>
+            <div className="journal-operation-media-toolbar">
+              <span>{t("journal.entryForm.errorsHint")}</span>
+              <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
+                <Settings2 size={15} strokeWidth={2.2} />
+                {t("journal.errorManager.configure")}
+              </button>
+            </div>
+            <div className="journal-error-options">
+              {activeErrorTypes.map((type) => {
+                const selected = draft.errors.includes(type.id);
+                return (
+                  <label className={selected ? "is-selected" : ""} key={type.id} style={{ "--error-color": type.color } as CSSProperties}>
+                    <input
+                      checked={selected}
+                      disabled={!canWrite || mutating}
+                      onChange={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          errors: toggleString(current.errors, type.id),
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    <i aria-hidden="true" />
+                    <span>{type.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
           <label className="wide-field">
             <span>{t("journal.entryForm.notes")}</span>
-            <input
+            <textarea
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
               placeholder={t("journal.entryForm.notesPlaceholder")}
-              type="text"
+              rows={4}
               value={draft.notes || ""}
-            />
-          </label>
-          <label className="wide-field">
-            <span>{t("journal.entryForm.lesson")}</span>
-            <input
-              disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, lesson: event.target.value }))}
-              placeholder={t("journal.entryForm.lessonPlaceholder")}
-              type="text"
-              value={draft.lesson || ""}
             />
           </label>
 
@@ -1391,7 +1508,7 @@ export function JournalEntriesView({
           llenaban la galeria de botones, y son acciones que se deciden despues de mirar
           la operacion, no antes. */}
       {detailEntry && (
-        <Modal onClose={() => setDetailEntryId(undefined)} title={`${detailEntry.symbol} - ${detailEntry.date}`}>
+        <Modal hideTitle onClose={() => setDetailEntryId(undefined)} title={`${detailEntry.symbol} - ${detailEntry.date}`}>
           {renderEntryDetail(detailEntry)}
           <div className="form-action-row">
             <button

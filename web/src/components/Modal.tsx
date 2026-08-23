@@ -5,13 +5,17 @@ import { useT } from "../lib/i18n/context";
 
 type ModalProps = {
   children: ReactNode;
+  /** Oculta el titulo visualmente (sigue usandose como nombre accesible del dialogo)
+   * para cuando el contenido ya lo repite justo debajo, como el simbolo y la fecha en
+   * el detalle de una entrada de journal. */
+  hideTitle?: boolean;
   onClose: () => void;
   subtitle?: string;
   title: string;
   width?: "default" | "wide";
 };
 
-export function Modal({ children, onClose, subtitle, title, width = "default" }: ModalProps) {
+export function Modal({ children, hideTitle = false, onClose, subtitle, title, width = "default" }: ModalProps) {
   const t = useT();
 
   useEffect(() => {
@@ -34,12 +38,20 @@ export function Modal({ children, onClose, subtitle, title, width = "default" }:
   return createPortal(
     <div className="modal-layer" role="presentation">
       <button className="modal-backdrop" aria-label={t("common.closeModal")} onClick={onClose} type="button" />
-      <section className={`modal-card ${width === "wide" ? "is-wide" : ""}`} aria-modal="true" role="dialog" aria-labelledby="modal-title">
+      <section
+        className={`modal-card ${width === "wide" ? "is-wide" : ""}`}
+        aria-modal="true"
+        role="dialog"
+        aria-label={hideTitle ? title : undefined}
+        aria-labelledby={hideTitle ? undefined : "modal-title"}
+      >
         <header className="modal-header">
-          <div>
-            <h2 id="modal-title">{title}</h2>
-            {subtitle && <p>{subtitle}</p>}
-          </div>
+          {!hideTitle && (
+            <div>
+              <h2 id="modal-title">{title}</h2>
+              {subtitle && <p>{subtitle}</p>}
+            </div>
+          )}
           <button className="icon-control compact-icon" onClick={onClose} type="button">
             <X size={17} strokeWidth={2.2} />
           </button>
