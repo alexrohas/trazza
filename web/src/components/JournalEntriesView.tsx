@@ -280,6 +280,8 @@ export function JournalEntriesView({
   const [importSession, setImportSession] = useState<JournalTradingSession | "">("");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<TradovateImportResult | null>(null);
+  /* Texto crudo del campo de P&L. Ver el comentario del propio input. */
+  const [pnlText, setPnlText] = useState("");
   const canWrite = dataMode === "cloud";
   const dashboardLayout = useJournalDashboardLayout();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -406,6 +408,7 @@ export function JournalEntriesView({
 
   const resetForm = () => {
     setDraft(createEmptyJournalInput());
+    setPnlText("");
     setEditingId(undefined);
     setDraggingOperationMedia(false);
     setMediaMessage(null);
@@ -461,6 +464,7 @@ export function JournalEntriesView({
       if (result.entries.length === 1) {
         const preview = result.entries[0];
         setDraft((current) => ({ ...current, ...preview.input }));
+        setPnlText(String(preview.input.pnl));
         const commissionText =
           preview.commissionAmount > 0
             ? ` ${t("journal.import.netPnlPrefix")} ${formatMoney(preview.input.pnl, currency)} ${t("journal.import.afterCommissionSuffix")} ${formatMoney(preview.commissionAmount, currency)} ${t("journal.import.commissionSuffix")}`
@@ -1278,14 +1282,26 @@ export function JournalEntriesView({
             <span>{t("journal.entryForm.pnl")}</span>
             <span className="journal-money-input">
               <span>{currency === "USD" ? "$" : "€"}</span>
+              {/* Lo que se ve es este texto, no draft.pnl: con el numero suelto, el 0
+                  inicial se quedaba delante de lo que escribias ("0200"), y al teclear
+                  el "-" de una perdida Number("-") daba NaN y borraba el signo antes de
+                  poder seguir. El texto deja escribir estados intermedios ("-", "1.")
+                  y draft.pnl solo se actualiza cuando ya son un numero. */}
               <input
                 disabled={!canWrite || mutating}
                 inputMode="decimal"
-                onChange={(event) => setDraft((current) => ({ ...current, pnl: Number(event.target.value) }))}
+                onChange={(event) => {
+                  const raw = event.target.value.replace(",", ".");
+                  /* Se descarta la pulsacion que no deje un numero a medio escribir en
+                     vez de recortarla, para no reordenar lo que el usuario ve. */
+                  if (raw !== "" && !/^-?\d*\.?\d*$/.test(raw)) return;
+                  setPnlText(raw);
+                  const parsed = Number(raw);
+                  setDraft((current) => ({ ...current, pnl: raw && Number.isFinite(parsed) ? parsed : 0 }));
+                }}
                 placeholder="0.00"
-                step="0.01"
-                type="number"
-                value={draft.pnl}
+                type="text"
+                value={pnlText}
               />
             </span>
           </label>
@@ -1504,6 +1520,7 @@ export function JournalEntriesView({
               disabled={!canWrite || mutating}
               onClick={() => {
                 setEditingId(detailEntry.id);
+                setPnlText(String(detailEntry.pnl));
                 setDraft({
                   date: detailEntry.date,
                   firmId: detailEntry.firmId || "",
