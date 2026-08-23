@@ -1191,11 +1191,7 @@ export function JournalEntriesView({
       )}
 
       {journalMode === "entryForm" && (
-      <Modal
-        onClose={closeEntryForm}
-        title={editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}
-        width="wide"
-      >
+      <Modal onClose={closeEntryForm} title={editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}>
         <form
           className="entity-form resource-form-grid modal-form-grid journal-entry-form"
           onSubmit={async (event) => {
@@ -1409,7 +1405,7 @@ export function JournalEntriesView({
               disabled={!canWrite || mutating}
               onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
               placeholder={t("journal.entryForm.notesPlaceholder")}
-              rows={4}
+              rows={3}
               value={draft.notes || ""}
             />
           </label>

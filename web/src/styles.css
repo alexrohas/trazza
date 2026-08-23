@@ -2647,8 +2647,8 @@ button {
   position: relative;
   z-index: 1;
   animation: enter-pop var(--dur) var(--ease-overshoot) backwards;
-  width: min(100%, 760px);
-  max-height: min(88vh, 840px);
+  width: min(100%, 600px);
+  max-height: min(92vh, 880px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
@@ -2660,7 +2660,7 @@ button {
 }
 
 .modal-card.is-wide {
-  width: min(100%, 980px);
+  width: min(100%, 780px);
 }
 
 /* El modal de planes es mas estrecho que el resto de modales anchos: dos tarjetas
@@ -5291,8 +5291,11 @@ tbody tr:last-child td {
   align-items: end;
 }
 
+/* Se reparte segun el ancho que haya, en vez de exigir cuatro columnas siempre: con
+   los modales mas estrechos, cuatro columnas fijas dejaban ~100px por campo y
+   truncaban el contenido ("Selecciona empr..."). Asi caen a dos o tres solas. */
 .entity-form {
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
 .firm-form label,
@@ -5443,6 +5446,66 @@ tbody tr:last-child td {
    dos y asi .wide-field (1 / span 2) ocupa la fila entera en vez de media. */
 .journal-entry-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* COMPACTADO DEL ALTA MANUAL. Medido: el formulario pedia 1555px contra los ~620px
+   utiles del modal, casi todo repartido entre la zona de captura y la rejilla de
+   errores. Se recorta solo aqui, no en .entity-form, para no encoger de rebote los
+   formularios de empresas, cuentas y movimientos. */
+.journal-entry-form {
+  gap: var(--space-sm);
+}
+
+.journal-entry-form label {
+  gap: var(--space-3xs);
+}
+
+.journal-entry-form input,
+.journal-entry-form select,
+.journal-entry-form .custom-select-trigger {
+  min-height: 38px;
+}
+
+.journal-entry-form input[type="file"] {
+  padding: var(--space-sm) var(--space-base);
+}
+
+/* 210px era casi un tercio del alto util del modal para una zona que casi siempre se
+   rellena pegando una imagen, no mirandola. */
+.journal-entry-form .journal-operation-dropzone {
+  min-height: 104px;
+}
+
+/* Captura y errores en la misma fila, una columna cada uno, en vez de a fila entera:
+   apilados sumaban sus dos alturas (~370px) y son los dos bloques mas altos del
+   formulario. Lado a lado solo cuenta el mas alto de los dos. Debajo del punto en el
+   que la rejilla cae a una columna vuelven a apilarse solos. */
+.journal-entry-form .journal-operation-media-field,
+.journal-entry-form .journal-errors-field {
+  grid-column: auto;
+}
+
+.journal-entry-form .journal-errors-field {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+/* Pastillas mas bajas y estrechas: son quince y el alto salia de cuantas filas
+   ocupaban, no del tamano de cada una.
+   Con scroll propio y tope de alto porque los tipos de error los define el usuario:
+   sin tope, cada tipo nuevo estiraba el formulario entero y el alto del modal
+   dependia de cuantos tuviera cada uno. */
+.journal-entry-form .journal-error-options {
+  gap: var(--space-xs);
+  /* Tres filas justas de pastilla (28px) con sus dos huecos (6px): asi el recorte cae
+     entre filas y no por la mitad de una pastilla. */
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.journal-entry-form .journal-error-options label {
+  min-height: 28px;
+  padding: 0 var(--space-sm);
+  font-size: var(--text-xs);
 }
 
 /* P&L con el simbolo de moneda pegado al campo, como el legado: es el unico numero
