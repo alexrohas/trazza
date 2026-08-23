@@ -4278,6 +4278,20 @@ button {
   flex: 0 0 auto;
   border-radius: 999px;
   background: var(--error-color, var(--accent));
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+/* El punto se enciende al marcar el error: es el unico elemento con el color puro, asi
+   que es donde mejor se lee que la pastilla esta activa. */
+.journal-error-options label.is-selected i,
+.journal-error-options label:hover i {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, var(--accent)) 20%, transparent);
+}
+
+.journal-error-options label.is-selected i {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--error-color, var(--accent)) 24%, transparent),
+    0 0 12px color-mix(in srgb, var(--error-color, var(--accent)) 45%, transparent);
 }
 
 .journal-errors-empty-inline {
@@ -5751,7 +5765,11 @@ tbody tr:last-child td {
   gap: var(--space-sm);
 }
 
+/* Cada pastilla se tine con el color de su propio error (--error-color, que pone el
+   componente por fila) en vez de con el acento global: son quince y asi se distinguen
+   entre si de un vistazo, no solo por el punto. */
 .journal-error-options label {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
@@ -5763,12 +5781,46 @@ tbody tr:last-child td {
   color: var(--strong-muted);
   font-size: var(--text-sm);
   font-weight: var(--weight-bold);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.journal-error-options label:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--error-color, var(--accent)) 40%, var(--line));
+  background: color-mix(in srgb, var(--error-color, var(--accent)) 7%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, var(--accent)) 12%, transparent);
+}
+
+/* Sin desplazamiento al pulsar: da la sensacion de que la pastilla se hunde y confirma
+   el clic antes de que cambie el estado. */
+.journal-error-options label:active {
+  transform: translateY(0);
+}
+
+/* El checkbox real esta oculto, asi que el foco de teclado tiene que verse en la
+   pastilla o no se sabe donde se esta al tabular. */
+.journal-error-options label:has(input:focus-visible) {
+  border-color: color-mix(in srgb, var(--error-color, var(--accent)) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, var(--accent)) 22%, transparent);
 }
 
 .journal-error-options label.is-selected {
-  border-color: color-mix(in srgb, var(--error-color, var(--accent)) 45%, var(--line));
-  background: color-mix(in srgb, var(--error-color, var(--accent)) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--error-color, var(--accent)) 55%, var(--line));
+  background: color-mix(in srgb, var(--error-color, var(--accent)) 14%, var(--surface));
   color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--error-color, var(--accent)) 22%, transparent);
+}
+
+.journal-error-options label.is-selected:hover {
+  background: color-mix(in srgb, var(--error-color, var(--accent)) 18%, var(--surface));
 }
 
 .journal-error-options input {
