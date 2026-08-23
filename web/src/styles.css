@@ -5576,9 +5576,21 @@ tbody tr:last-child td {
 /* Sin borde: el boton va dentro del recuadro de errores, que ya tiene el suyo, y dos
    contornos encajados uno dentro de otro no quedaban bien. Se apoya en el icono y en
    el hover, no en la caja. */
+/* Fuera del flujo y alineado con la leyenda: ocupando fila propia dejaba una banda
+   vacia de casi 40px entre "Errores cometidos" y la primera pastilla. */
+.journal-entry-form .journal-errors-field {
+  position: relative;
+}
+
 .journal-errors-toolbar {
+  position: absolute;
+  /* El desplazamiento es el propio padding superior del recuadro: la leyenda se apoya
+     en el borde y top:0 arranca ya por dentro de ese relleno. */
+  top: calc(var(--space-sm) * -1);
+  right: var(--space-md);
   display: flex;
   justify-content: flex-end;
+  transform: translateY(-50%);
 }
 
 .journal-errors-toolbar .ghost-action {
