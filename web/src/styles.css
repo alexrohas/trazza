@@ -2945,16 +2945,11 @@ button {
 /* Tooltip propio, no el `title` nativo del navegador: ese no admite estilos. Mismo
    patron que .journal-entry-mode-help del legado: borde simple, sombra del token
    compartido (no una sombra inventada), sin blur de fondo. */
+/* Cuelga de <body> por portal y lo posiciona InfoHint.tsx con position:fixed, asi que
+   aqui no van ni top/left ni el lado: solo el aspecto. El z-index tiene que pasar por
+   encima de .modal-layer (120), que es desde donde se abre en el journal. */
 .info-hint-tooltip {
-  position: absolute;
-  z-index: 20;
-  bottom: calc(100% + 8px);
-  /* Anclado por la izquierda, no centrado: el icono suele quedar cerca del borde
-     izquierdo de tarjetas estrechas (.metric-card-topline lo deja ahi con
-     justify-content:space-between, el icono grande de estado se va al otro extremo).
-     Centrar el tooltip lo obligaba a invadir ese borde izquierdo, donde no hay sitio,
-     en vez de crecer hacia la derecha, que es donde sobra espacio. */
-  left: -6px;
+  z-index: 140;
   width: max-content;
   max-width: 220px;
   border: 1px solid var(--line);
@@ -2968,16 +2963,11 @@ button {
   line-height: var(--leading-normal);
   text-align: left;
   white-space: normal;
-  opacity: 0;
   pointer-events: none;
-  transform: translateY(4px);
-  transition: opacity 140ms ease, transform 140ms ease;
-}
-
-.info-hint-wrap:hover .info-hint-tooltip,
-.info-hint-wrap:focus-within .info-hint-tooltip {
-  opacity: 1;
-  transform: translateY(0);
+  /* Ya no se muestra/oculta con :hover del padre: al colgar del body deja de ser
+     descendiente suyo. Lo monta y desmonta InfoHint.tsx, y aqui solo entra la
+     animacion de aparicion. */
+  animation: fade-in 140ms ease backwards;
 }
 
 .metric-card-label {
@@ -5517,21 +5507,6 @@ tbody tr:last-child td {
   justify-content: flex-start;
 }
 
-/* Solo aqui hacia abajo: .info-hint-tooltip crece por defecto sobre el icono
-   (bottom: 100%), y en este modal la "i" va arriba del todo, sin hueco por encima, asi
-   que .modal-card (overflow:hidden) lo recortaba entero. Debajo si hay sitio.
-   El de .journal-import-note se queda con el defecto: alli la "i" esta al final del
-   formulario y es al reves, abajo no cabe y arriba si. */
-.journal-entry-mode-help .info-hint-tooltip {
-  top: calc(100% + 8px);
-  bottom: auto;
-  transform: translateY(-4px);
-}
-
-.journal-entry-mode-help .info-hint-wrap:hover .info-hint-tooltip,
-.journal-entry-mode-help .info-hint-wrap:focus-within .info-hint-tooltip {
-  transform: translateY(0);
-}
 
 .journal-entry-mode-grid {
   display: grid;
