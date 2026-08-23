@@ -5573,6 +5573,25 @@ tbody tr:last-child td {
   padding: var(--space-sm) var(--space-md) var(--space-md);
 }
 
+/* Sin borde: el boton va dentro del recuadro de errores, que ya tiene el suyo, y dos
+   contornos encajados uno dentro de otro no quedaban bien. Se apoya en el icono y en
+   el hover, no en la caja. */
+.journal-errors-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.journal-errors-toolbar .ghost-action {
+  border-color: transparent;
+  background: transparent;
+}
+
+.journal-errors-toolbar .ghost-action:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
 /* Las pastillas del legado dentro del alta: fluyen a lo ancho (no rejilla fija) con
    8px de hueco, 31px de alto y texto de 12px. La lista plana de dos columnas del
    legado es la del gestor de errores, no la del formulario. */

@@ -442,7 +442,6 @@ export const es = {
   "journal.entryForm.discipline": "Disciplina",
   "journal.entryForm.pnl": "P&L",
   "journal.entryForm.errorsLegend": "Errores cometidos",
-  "journal.entryForm.errorsHint": "Marca solo los errores de esta entrada.",
   "journal.entryForm.mediaTitle": "Captura de la operacion",
   "journal.entryForm.mediaRemove": "Quitar",
   "journal.entryForm.mediaReplace": "Click para reemplazar",

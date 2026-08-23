@@ -444,7 +444,6 @@ export const en: Record<TranslationKey, string> = {
   "journal.entryForm.discipline": "Discipline",
   "journal.entryForm.pnl": "P&L",
   "journal.entryForm.errorsLegend": "Mistakes made",
-  "journal.entryForm.errorsHint": "Check only the mistakes for this entry.",
   "journal.entryForm.mediaTitle": "Trade capture",
   "journal.entryForm.mediaRemove": "Remove",
   "journal.entryForm.mediaReplace": "Click to replace",

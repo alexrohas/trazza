@@ -1390,8 +1390,7 @@ export function JournalEntriesView({
           </div>
           <fieldset className="wide-field journal-errors-field">
             <legend>{t("journal.entryForm.errorsLegend")}</legend>
-            <div className="journal-operation-media-toolbar">
-              <span>{t("journal.entryForm.errorsHint")}</span>
+            <div className="journal-errors-toolbar">
               <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
                 <Settings2 size={15} strokeWidth={2.2} />
                 {t("journal.errorManager.configure")}
