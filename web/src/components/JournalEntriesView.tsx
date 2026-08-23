@@ -1005,15 +1005,20 @@ export function JournalEntriesView({
                 <article className={`journal-error-type-row ${type.active ? "" : "is-archived"}`} key={type.id}>
                   <i aria-hidden="true" style={{ "--error-color": type.color } as CSSProperties} />
                   <div>
-                    <strong>{type.label}</strong>
+                    <strong>
+                      {type.label}
+                      {!type.active && <em>{t("journal.errorManager.hiddenBadge")}</em>}
+                    </strong>
                     <span>
                       {usage} {usage === 1 ? t("journal.errorManager.entrySuffix") : t("journal.errorManager.entriesSuffix")}
-                      {!type.active ? ` ${t("journal.errorManager.hiddenSuffix")}` : ""}
                     </span>
                   </div>
+                  {/* Solo iconos: con dos botones rotulados por fila, quince tipos
+                      convertian la lista en un muro de texto repetido. El nombre del
+                      error, que es lo que se busca, quedaba en segundo plano. */}
                   <div className="row-actions">
                     <button
-                      className="secondary-action"
+                      className="icon-control compact-icon"
                       disabled={!canWrite || mutating}
                       onClick={() => {
                         setEditingErrorTypeId(type.id);
@@ -1024,19 +1029,19 @@ export function JournalEntriesView({
                           position: type.position,
                         });
                       }}
+                      title={t("common.edit")}
                       type="button"
                     >
-                      <Pencil size={16} strokeWidth={2.2} />
-                      {t("common.edit")}
+                      <Pencil size={15} strokeWidth={2.2} />
                     </button>
                     <button
-                      className="secondary-action"
+                      className="icon-control compact-icon"
                       disabled={!canWrite || mutating}
                       onClick={() => void handleToggleErrorType(type)}
+                      title={type.active ? t("journal.errorManager.hide") : t("journal.errorManager.restore")}
                       type="button"
                     >
-                      {type.active ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
-                      {type.active ? t("journal.errorManager.hide") : t("journal.errorManager.restore")}
+                      {type.active ? <EyeOff size={15} strokeWidth={2.2} /> : <Eye size={15} strokeWidth={2.2} />}
                     </button>
                   </div>
                 </article>

@@ -427,7 +427,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.errorManager.create": "Create error",
   "journal.errorManager.entrySuffix": "entry",
   "journal.errorManager.entriesSuffix": "entries",
-  "journal.errorManager.hiddenSuffix": "- hidden",
+  "journal.errorManager.hiddenBadge": "Hidden",
   "journal.errorManager.hide": "Hide",
   "journal.errorManager.restore": "Restore",
 

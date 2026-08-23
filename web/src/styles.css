@@ -335,7 +335,6 @@
 :root[data-theme="dark"] .journal-detail-copy,
 :root[data-theme="dark"] .journal-detail-grid div,
 :root[data-theme="dark"] .journal-error-options label,
-:root[data-theme="dark"] .journal-error-type-row,
 :root[data-theme="dark"] .journal-errors-field,
 :root[data-theme="dark"] .journal-money-input,
 :root[data-theme="dark"] .journal-import-preview-row,
@@ -3912,11 +3911,18 @@ button {
   font-weight: var(--weight-bold);
 }
 
+/* Linea entre las dos mitades: a la izquierda se crea un tipo nuevo y a la derecha se
+   gestionan los que ya hay. Sin separacion parecian un unico formulario largo. */
 .journal-error-manager-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
-  gap: var(--space-xl);
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+  gap: var(--space-2xl);
   align-items: start;
+}
+
+.journal-error-manager-grid > .journal-error-type-list {
+  border-left: 1px solid var(--line);
+  padding-left: var(--space-2xl);
 }
 
 .journal-error-type-form {
@@ -3950,60 +3956,141 @@ button {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* Circulos y no cuadrados de 34px: una muestra de color se lee mejor redonda, y al
+   bajar de tamano las siete caben en una fila en vez de dejar una huerfana debajo. */
 .journal-error-color-options {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-sm);
 }
 
 .journal-error-color-options button,
 .journal-error-color-options input {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
   padding: 0;
   background: var(--error-color, var(--surface-muted));
+  cursor: pointer;
+  /* El anillo va por dentro para que el circulo no cambie de tamano al elegirlo. */
+  box-shadow: inset 0 0 0 1px rgba(9, 9, 11, 0.12);
+  transition:
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.journal-error-color-options button:hover {
+  transform: scale(1.08);
 }
 
 .journal-error-color-options button.active {
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(9, 9, 11, 0.12),
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--error-color, var(--accent));
 }
 
 .journal-error-color-options input {
   background: transparent;
-  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
+/* El selector nativo pinta su propia muestra con relleno: sin esto el circulo sale
+   con un cuadrado dentro. */
+.journal-error-color-options input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.journal-error-color-options input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 999px;
+}
+
+/* Con tope y scroll propio: la lista crece con cada tipo que se crea y sin el, el
+   modal se estiraba hasta no caber en pantalla. */
 .journal-error-type-list {
   display: grid;
-  gap: var(--space-md);
+  align-content: start;
+  gap: var(--space-xs);
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: var(--space-2xs);
 }
 
 .journal-error-type-row {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   gap: var(--space-base);
   align-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: var(--space-base);
+  padding: var(--space-sm) var(--space-base);
+  background: transparent;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+/* Sin caja permanente: quince filas con borde y fondo propios convertian la lista en
+   una rejilla de tarjetas. El contorno aparece solo al pasar por encima, que es cuando
+   importa saber sobre cual estas actuando. */
+.journal-error-type-row:hover,
+.journal-error-type-row:focus-within {
+  border-color: var(--line);
   background: #fbfcfd;
 }
 
-.journal-error-type-row.is-archived {
-  opacity: 0.68;
+:root[data-theme="dark"] .journal-error-type-row:hover,
+:root[data-theme="dark"] .journal-error-type-row:focus-within {
+  background: #111519;
+}
+
+.journal-error-type-row.is-archived > i,
+.journal-error-type-row.is-archived strong {
+  opacity: 0.55;
 }
 
 .journal-error-type-row > i {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   background: var(--error-color, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error-color, var(--accent)) 16%, transparent);
 }
 
-.journal-error-type-row strong,
+/* Los iconos de accion solo se tinen al pasar por la fila: siempre visibles y en
+   negro competian con el nombre del error, que es lo que se busca al leer la lista. */
+.journal-error-type-row .row-actions {
+  display: flex;
+  gap: var(--space-2xs);
+  opacity: 0.45;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.journal-error-type-row:hover .row-actions,
+.journal-error-type-row:focus-within .row-actions {
+  opacity: 1;
+}
+
+/* Distintivo en vez de texto pegado al contador: se ve de un vistazo cual esta fuera
+   de circulacion sin tener que leer la linea entera. */
+.journal-error-type-row strong em {
+  margin-left: var(--space-sm);
+  border-radius: 999px;
+  padding: 2px var(--space-sm);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-style: normal;
+  font-weight: var(--weight-black);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .journal-error-type-row span {
   display: block;
   min-width: 0;
@@ -4012,9 +4099,22 @@ button {
   white-space: nowrap;
 }
 
+/* Flex y no block: el nombre largo recorta con puntos suspensivos pero la insignia
+   "Oculto" se queda entera al lado en vez de recortarse con el. */
 .journal-error-type-row strong {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--text);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
+}
+
+/* El nombre es lo unico que recorta; la insignia se queda fuera de ese recorte. */
+.journal-error-type-row strong > :not(em) {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .journal-error-type-row span {

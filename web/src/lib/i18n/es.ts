@@ -425,7 +425,7 @@ export const es = {
   "journal.errorManager.create": "Crear error",
   "journal.errorManager.entrySuffix": "entrada",
   "journal.errorManager.entriesSuffix": "entradas",
-  "journal.errorManager.hiddenSuffix": "- oculto",
+  "journal.errorManager.hiddenBadge": "Oculto",
   "journal.errorManager.hide": "Ocultar",
   "journal.errorManager.restore": "Restaurar",
 
