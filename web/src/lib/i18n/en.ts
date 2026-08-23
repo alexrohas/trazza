@@ -566,12 +566,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.media.captureAlt": "Trade capture",
   "journal.gallery.noCapture": "No capture",
 
-  "journal.import.importing": "Importing CSV...",
-  "journal.import.rowsImportedSuffix": "rows imported",
   "journal.import.failedSuffix": "Failed:",
-  "journal.import.skippedSuffix": "Skipped:",
-  "journal.import.genericError": "Could not import the CSV.",
-  "journal.import.selectAccountFirst": "Select the account these trades belong to first.",
   "journal.import.readingTradovate": "Reading Tradovate CSV...",
   "journal.import.detectedSingle": "CSV detected: 1 entry filled in. Review and save.",
   "journal.import.netPnlPrefix": "Net P&L:",

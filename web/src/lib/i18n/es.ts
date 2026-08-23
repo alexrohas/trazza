@@ -564,12 +564,7 @@ export const es = {
   "journal.media.captureAlt": "Captura de la operacion",
   "journal.gallery.noCapture": "Sin captura",
 
-  "journal.import.importing": "Importando CSV...",
-  "journal.import.rowsImportedSuffix": "filas importadas",
   "journal.import.failedSuffix": "Fallidas:",
-  "journal.import.skippedSuffix": "Omitidas:",
-  "journal.import.genericError": "No se pudo importar el CSV.",
-  "journal.import.selectAccountFirst": "Selecciona primero la cuenta a la que pertenecen estas operaciones.",
   "journal.import.readingTradovate": "Leyendo CSV de Tradovate...",
   "journal.import.detectedSingle": "CSV detectado: 1 entrada rellenada. Revisa y guarda.",
   "journal.import.netPnlPrefix": "P&L neto:",
