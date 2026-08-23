@@ -5416,13 +5416,13 @@ tbody tr:last-child td {
   padding: 0 var(--space-base);
 }
 
-/* El contenido de un input de archivo (boton + nombre) no se centra solo dentro de los
-   44px del campo: con padding vertical 0 se pega arriba y deja el hueco debajo. Se
-   centra con flex, que si le aplica al contenido nativo. */
+/* El contenido de un input de archivo (boton + nombre) lo dibuja el navegador dentro
+   del propio campo y se pega arriba: con el padding vertical 0 que comparten el resto
+   de inputs deja todo el hueco debajo. No vale centrarlo con flex (se aplica a la
+   caja, no a ese contenido nativo, y se queda igual); hay que abrir padding vertical
+   para que los 44px de min-height queden repartidos arriba y abajo. */
 .entity-form input[type="file"] {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-base);
 }
 
 .firm-form textarea,
