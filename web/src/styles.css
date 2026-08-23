@@ -5517,6 +5517,22 @@ tbody tr:last-child td {
   justify-content: flex-start;
 }
 
+/* Solo aqui hacia abajo: .info-hint-tooltip crece por defecto sobre el icono
+   (bottom: 100%), y en este modal la "i" va arriba del todo, sin hueco por encima, asi
+   que .modal-card (overflow:hidden) lo recortaba entero. Debajo si hay sitio.
+   El de .journal-import-note se queda con el defecto: alli la "i" esta al final del
+   formulario y es al reves, abajo no cabe y arriba si. */
+.journal-entry-mode-help .info-hint-tooltip {
+  top: calc(100% + 8px);
+  bottom: auto;
+  transform: translateY(-4px);
+}
+
+.journal-entry-mode-help .info-hint-wrap:hover .info-hint-tooltip,
+.journal-entry-mode-help .info-hint-wrap:focus-within .info-hint-tooltip {
+  transform: translateY(0);
+}
+
 .journal-entry-mode-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
