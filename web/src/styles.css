@@ -5576,29 +5576,26 @@ tbody tr:last-child td {
 /* Sin borde: el boton va dentro del recuadro de errores, que ya tiene el suyo, y dos
    contornos encajados uno dentro de otro no quedaban bien. Se apoya en el icono y en
    el hover, no en la caja. */
-/* Fuera del flujo y alineado con la leyenda: ocupando fila propia dejaba una banda
-   vacia de casi 40px entre "Errores cometidos" y la primera pastilla. */
-.journal-entry-form .journal-errors-field {
-  position: relative;
-}
-
-.journal-errors-toolbar {
-  position: absolute;
-  /* El desplazamiento es el propio padding superior del recuadro: la leyenda se apoya
-     en el borde y top:0 arranca ya por dentro de ese relleno. */
-  top: calc(var(--space-sm) * -1);
-  right: var(--space-md);
+/* La leyenda ocupa el ancho completo y se lleva dentro el boton: en vez de un titulo
+   corto partiendo el borde y una accion suelta debajo (o flotando encima de la linea),
+   queda una cabecera de una sola linea, titulo a la izquierda y accion a la derecha. */
+.journal-entry-form .journal-errors-field > legend {
   display: flex;
-  justify-content: flex-end;
-  transform: translateY(-50%);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 0;
 }
 
-.journal-errors-toolbar .ghost-action {
+/* Sin borde ni fondo propios: esta dentro del recuadro de errores, que ya tiene el
+   suyo, y dos contornos encajados no quedaban bien. */
+.journal-entry-form .journal-errors-field > legend .ghost-action {
   border-color: transparent;
   background: transparent;
 }
 
-.journal-errors-toolbar .ghost-action:hover:not(:disabled) {
+.journal-entry-form .journal-errors-field > legend .ghost-action:hover:not(:disabled) {
   border-color: transparent;
   background: var(--surface-muted);
   color: var(--text);

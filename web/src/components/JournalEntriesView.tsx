@@ -1389,13 +1389,16 @@ export function JournalEntriesView({
             {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
           </div>
           <fieldset className="wide-field journal-errors-field">
-            <legend>{t("journal.entryForm.errorsLegend")}</legend>
-            <div className="journal-errors-toolbar">
+            {/* El boton va dentro de la leyenda, no debajo: asi la cabecera del recuadro
+                es una sola linea con el titulo a un lado y la accion al otro, en vez de
+                un boton suelto flotando sobre el borde. */}
+            <legend>
+              <span>{t("journal.entryForm.errorsLegend")}</span>
               <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
                 <Settings2 size={15} strokeWidth={2.2} />
                 {t("journal.errorManager.configure")}
               </button>
-            </div>
+            </legend>
             <div className="journal-error-options">
               {activeErrorTypes.map((type) => {
                 const selected = draft.errors.includes(type.id);
