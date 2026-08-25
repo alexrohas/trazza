@@ -1724,14 +1724,29 @@ button {
 
 }
 
+/* ESCALERA DE PROXIMIDAD. El ojo agrupa por distancia: decide que va junto midiendo
+   separaciones. Cuando dos niveles distintos de la jerarquia usan el mismo hueco, no
+   hay nada que agrupar y la pantalla se lee plana aunque cada pieza este bien. Pasaba
+   en dos sitios a la vez: .view-stack (separar bloques) y .dashboard-grid (separar
+   paneles dentro de un bloque) valian los dos 24, y .metric-grid (entre tarjetas)
+   valia 12 igual que el gap interno de .metric-card (etiqueta y cifra de una misma
+   tarjeta). La escalera es 32 / 24 / 16 / 8: entre secciones, entre paneles, dentro de
+   un panel, dentro de un componente. Cada nivel a un paso distinto del de al lado. */
 .view-stack {
   display: grid;
-  gap: var(--space-3xl);
+  gap: var(--space-5xl);
 }
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Estaba en repeat(7, ...) porque la tarjeta destacada ocupa dos columnas y asi las
+     7 celdas entraban en una fila. El precio era que a 1280px cada tarjeta se quedaba
+     en 131px con 99 de caja util, y 4 de los 6 importes no cabian: "1.085,54 US$" pide
+     130 y se salia 31px por encima del padding (no se veia roto porque overflow es
+     visible, pero invadia el borde y partia las etiquetas en dos lineas). Con auto-fit
+     el numero de columnas lo decide el ancho disponible y no un numero fijo, con 180px
+     como suelo: la caja util nunca baja de lo que mide el importe mas largo. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-base);
 }
 
@@ -1754,7 +1769,11 @@ button {
 
 .metric-card {
   display: grid;
-  gap: var(--space-md);
+  /* 8 y no 12: el hueco entre etiqueta y cifra tiene que ser claramente menor que el
+     que separa dos tarjetas (.metric-grid, 12), o las dos distancias se leen igual y
+     la fila parece una sola masa. El padding se queda en 16 a proposito: la rejilla es
+     de 7 columnas y 4 de los 6 importes ya desbordan su caja: subirlo lo empeora. */
+  gap: var(--space-sm);
   min-height: 120px;
   padding: var(--space-lg);
 }
@@ -2598,7 +2617,7 @@ button {
 
 .panel {
   min-width: 0;
-  padding: var(--space-xl);
+  padding: var(--space-4xl);
 }
 
 .panel-heading {
@@ -2606,7 +2625,7 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-xl);
-  margin-bottom: 14px;
+  margin-bottom: var(--space-xl);
 }
 
 .resource-form-heading {
