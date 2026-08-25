@@ -78,15 +78,21 @@ Journal es la más grande y compleja, dejarla para el final). Ojo: el sistema de
 sí está aplicado en toda la app, esas dos incluidas, así que no se parte de cero — lo
 que falta es la iteración pantalla a pantalla contra capturas reales.
 
-Cabos sueltos de bajo impacto, arrástralos si tocas esos archivos pero no merece una
-sesión aparte (verificados el 26 de agosto de 2026): `AccountHealth.tsx` y
-`JournalPanel.tsx` no se importan en ningún sitio; en `styles.css` hay tres reglas
-`.workspace` duplicadas —gana la última— y un bloque `.workspace-header` entero que no
-usa ningún `.tsx`.
+Cabos sueltos: **ninguno pendiente** a 26 de agosto de 2026. Los que había aquí se
+cerraron todos — las tres reglas `.workspace` duplicadas se consolidaron en una (con
+cuidado: el `min-width: 0` solo lo declaraban dos de las tres), y las clases muertas
+`.workspace-header`, `.workspace-controls` y `.workspace-section` se borraron enteras.
 
-Y una decisión de gusto pendiente: la rejilla del Panel es `auto-fit` con suelo de
-180px, que a 1280px da 5 columnas y deja la segunda fila con tres huecos vacíos; subir
-el suelo a 220px daría filas de 4 y 3, con tarjetas más anchas.
+Aviso de método, que costó una confusión real: `AccountHealth.tsx` y `JournalPanel.tsx`
+salieron listados aquí como código muerto durante bastante tiempo **cuando ya no
+existían** — se habían borrado en `69f2482`, el mismo commit que arregló los textos de
+`metrics.ts`. Contar referencias excluyendo el propio fichero da cero igual si nadie lo
+usa que si no está: comprueba que el fichero existe antes de dar por bueno un cabo.
+
+La rejilla del Panel es `auto-fit` con suelo de **220px**: a 1280px da 4 columnas, o sea
+filas de 4 y 3 con un solo hueco vacío. **Pero hay un `@media (max-width: 1180px)` que
+la fuerza a 3 columnas fijas y anula el `auto-fit`**, así que tocar ese suelo no tiene
+ningún efecto por debajo de 1180. Está comentado en el propio override.
 
 ## Trampas ya pisadas — no las repitas
 
