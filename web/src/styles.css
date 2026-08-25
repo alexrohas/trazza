@@ -38,21 +38,25 @@
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
-  /* ESCALA TIPOGRAFICA. Derivada de los 184 font-size que ya habia, no inventada:
-     eran 46 tamanos distintos con saltos de 0,3px (0,78 / 0,82 / 0,84rem) que nadie
-     percibe como jerarquia pero impiden que nada alinee entre pantallas. Estos 10
-     pasos absorben todos con un desplazamiento medio de 0,35px, y solo 2 de los 184
-     usos se mueven mas de 1px. En px y no en rem a proposito: el escalado del
-     navegador ya lo cubre :root, y en rem los valores volvian a ser ilegibles. */
-  --text-2xs: 11px;
+  /* ESCALA TIPOGRAFICA. Segunda pasada, igual que con el espaciado: la primera
+     consolido 46 tamanos en 10 optimizando para que nada se moviera (0,35px de media),
+     pero no se pregunto si el reparto servia. Medido sobre el Panel pintado: el 78% de
+     los nodos con texto caia entre 11 y 14px. Cuatro tamanos en un rango de 3px no son
+     cuatro niveles de jerarquia, son un solo tamano con ruido — a efectos practicos la
+     app tenia una sola letra, y por eso la jerarquia se acababa haciendo con negrita
+     (el 70% del texto iba a 700 o mas). Diez nombres apuntando a seis cifras reales,
+     12/14/16/20/24/32, con saltos que se ven: 11 y 12 pasan a ser el mismo registro de
+     etiqueta, 13 y 14 el mismo de texto corrido, y ahi si hay dos niveles distintos
+     donde antes habia cuatro indistinguibles. */
+  --text-2xs: 12px;
   --text-xs: 12px;
-  --text-sm: 13px;
+  --text-sm: 14px;
   --text-base: 14px;
   --text-md: 16px;
-  --text-lg: 18px;
-  --text-xl: 21px;
+  --text-lg: 20px;
+  --text-xl: 20px;
   --text-2xl: 24px;
-  --text-3xl: 28px;
+  --text-3xl: 32px;
   --text-4xl: 32px;
   /* ESCALA DE INTERLINEADO. El 99% del texto no lo declaraba y caia en el "normal" del
      navegador, que en DM Sans aprieta bastante y ademas varia con las metricas de cada
@@ -64,16 +68,21 @@
   --leading-tight: 1.15;
   --leading-snug: 1.3;
   --leading-normal: 1.45;
-  /* ESCALA DE PESO. La app no tenia ni un texto por debajo de 600 y declaraba 800 o mas
-     en 92 sitios: cuando todo va en negrita no hay jerarquia, porque destacar algo exige
-     un contraste que ya no queda disponible. Cada peso baja un registro respecto a lo
-     que habia (600->500, 800->700...), que es la distancia medida contra la referencia,
-     donde el peso de trabajo es 400/500 y 700 se reserva para enfasis. */
+  /* ESCALA DE PESO. La pasada anterior bajo un registro los sitios de llamada, pero el
+     resultado medido seguia siendo el mismo problema: sobre el Panel pintado, 80 de los
+     114 nodos con texto iban a 700 o mas, y 72 de ellos exactamente a 700. La negrita no
+     era el enfasis de la app, era su peso por defecto — y cuando casi todo va en negrita
+     no queda contraste disponible para destacar nada.
+     La causa de fondo era tipografica: con el 78% del texto entre 11 y 14px no habia
+     jerarquia posible por tamano, asi que se hacia engordando. Arreglada la escala de
+     letra, el peso puede soltarse sin perder nada, y se baja aqui —en los cinco
+     valores— en vez de en los ~150 sitios que los usan. Cada registro cae uno: el peso
+     de trabajo pasa a 500/600 y el 700 queda reservado para enfasis de verdad. */
   --weight-normal: 400;
   --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
-  --weight-black: 800;
+  --weight-semibold: 500;
+  --weight-bold: 600;
+  --weight-black: 700;
   /* ESCALA DE ESPACIADO. Segunda pasada, y esta vez sobre el reparto y no sobre las
      cifras. La anterior consolido 22 valores en 13 optimizando para que nada se
      moviera (desplazamiento medio 0,27px), pero dejo intacto el problema de fondo:
@@ -1815,7 +1824,13 @@ button {
 }
 
 .metric-card.is-featured strong {
-  font-size: clamp(1.8rem, 2.2vw, 2.35rem);
+  /* Unica cifra fluida de la app, y a proposito: es el numero titular del Panel y
+     acompana al ancho de su tarjeta, que con auto-fit ya no es fijo. Los topes van
+     atados a la escala en vez de a rem sueltos (eran 1.8rem-2.35rem, o sea 28,8-37,6px,
+     fuera de los seis valores). El techo baja de 37,6 a 32 para que en monitores anchos
+     no se coma su caja, y el suelo de 28,8 a 24 para que al estrechar encoja en vez de
+     desbordar. A los anchos normales se ve igual que antes. */
+  font-size: clamp(var(--text-2xl), 2.2vw, var(--text-3xl));
   letter-spacing: 0;
 }
 
