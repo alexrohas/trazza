@@ -1708,8 +1708,12 @@ button {
      130 y se salia 31px por encima del padding (no se veia roto porque overflow es
      visible, pero invadia el borde y partia las etiquetas en dos lineas). Con auto-fit
      el numero de columnas lo decide el ancho disponible y no un numero fijo, con 180px
-     como suelo: la caja util nunca baja de lo que mide el importe mas largo. */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+     como suelo: la caja util nunca baja de lo que mide el importe mas largo.
+     El suelo sube de 180 a 220 para repartir mejor las filas: son 7 celdas (la
+     destacada ocupa dos), y con 180 caian 5 columnas dejando la segunda fila con dos
+     tarjetas y tres huecos. Con 220 caen 4, o sea filas de 4 y 3, y las tarjetas pasan
+     de 189 a 239px. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-base);
 }
 
@@ -6632,6 +6636,13 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 1180px) {
+  /* OJO: esto anula el auto-fit de .metric-grid, asi que tocar su suelo (220px) no
+     tiene ningun efecto por debajo de 1180. El override viene de cuando la base eran 7
+     columnas fijas y hacia falta un escalon manual al estrechar; hoy es redundante en
+     casi todo el rango —a 1100px auto-fit ya da 3 columnas por su cuenta— y solo
+     diverge por debajo de ~950, donde deja las tarjetas en 196px, por debajo del suelo.
+     Medido: aun asi ningun importe desborda, por eso se queda. Si algun dia se quita,
+     a 900px pasarian a ser 2 columnas de 300px y la rejilla creceria una fila. */
   .metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
