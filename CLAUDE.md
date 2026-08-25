@@ -55,6 +55,12 @@ Empresas, Cuentas. Cada una se llevó varias iteraciones de feedback visual real
 capturas; no son cambios cosméticos superficiales, resuelven cosas concretas (ver
 "Trampas ya pisadas" abajo).
 
+**El sistema de diseño**, cerrado el **25 de agosto de 2026** en seis commits: las
+escalas de espaciado, letra y peso podadas a seis valores cada una, y una escalera de
+proximidad que da a cada nivel de la jerarquía su propia distancia. Aplica a la app
+entera, no a pantallas sueltas. Tiene sección propia más abajo — léela antes de tocar
+`styles.css`.
+
 ## Qué queda
 
 Del plan original, lo único abierto de peso: **Cuentas — enlazar evaluación con
@@ -67,13 +73,20 @@ en sí es lo que falta y **toca el esquema de Supabase con producción debajo**,
 antes de tocarlo: mirar bien qué migración hace falta, probarla contra una cuenta de
 prueba primero.
 
-Pantallas de React sin pulir todavía: **Movimientos** y **Journal** (el Journal es la más
-grande y compleja, dejarla para el final).
+Pantallas de React sin su pasada de pulido dedicada: **Movimientos** y **Journal** (el
+Journal es la más grande y compleja, dejarla para el final). Ojo: el sistema de diseño
+sí está aplicado en toda la app, esas dos incluidas, así que no se parte de cero — lo
+que falta es la iteración pantalla a pantalla contra capturas reales.
 
 Cabos sueltos de bajo impacto, arrástralos si tocas esos archivos pero no merece una
-sesión aparte: `AccountHealth.tsx` y `JournalPanel.tsx` no se importan en ningún sitio
-(código muerto); `lib/metrics.ts` tiene un par de fallbacks sin traducir ("Sin tamaño",
-"Sin cuenta").
+sesión aparte (verificados el 26 de agosto de 2026): `AccountHealth.tsx` y
+`JournalPanel.tsx` no se importan en ningún sitio; en `styles.css` hay tres reglas
+`.workspace` duplicadas —gana la última— y un bloque `.workspace-header` entero que no
+usa ningún `.tsx`.
+
+Y una decisión de gusto pendiente: la rejilla del Panel es `auto-fit` con suelo de
+180px, que a 1280px da 5 columnas y deja la segunda fila con tres huecos vacíos; subir
+el suelo a 220px daría filas de 4 y 3, con tarjetas más anchas.
 
 ## Trampas ya pisadas — no las repitas
 
@@ -112,6 +125,62 @@ sesión no vuelva a pisarlas.
   ```
 - **Al borrar un componente/prop, busca claves de i18n que se queden huérfanas** y
   bórralas de los dos idiomas a la vez — se han acumulado varias por descuido.
+- **Un número en píxeles escrito a mano puede estar acoplado en silencio a un token.**
+  `.topbar` llevaba `margin: 0 -18px 18px` para cancelar el padding de `.workspace`,
+  que valía `--space-2xl`. Al subir ese token a 24 la cabecera se quedó metida 6px por
+  lado y su fondo desenfocado dejó de llegar al borde, sin que nada lo delatara. Si un
+  número cancela a otro, exprésalo con el mismo token y no con su valor.
+- **Los breakpoints calculados midiendo caducan cuando cambia la medida.** El apilado
+  de la barra superior estaba en 960px porque ahí era donde dejaban de caber los seis
+  controles; al ensanchar el botón principal pasaron a pedir 5px más y la fila se
+  partía en dos líneas en toda una banda de anchos. Si tocas algo que se midió, revisa
+  el breakpoint que se derivó de ello — su comentario lleva los números originales.
+- **Un importe truncado con elipsis es peor que no mostrarlo**, porque parece un dato y
+  no lo es ("-425,00 US$" se leía "-425,00..."). Si un número no cabe, cambia el
+  formato y no el tamaño de letra. Hay tres: `formatMoney` (con divisa), `formatAmount`
+  (sin divisa) y `formatMoneyCompact` (sin divisa ni decimales, para cajas muy
+  estrechas como las celdas del calendario del Journal).
+
+## El sistema de diseño — léelo antes de tocar `styles.css`
+
+La idea de fondo, por si hay tentación de "mejorarlo": lo que hace que una interfaz se
+lea como cuidada no es tener buen ojo cada vez, es **tener pocos valores donde elegir**.
+Todo esto son tokens en `:root`, y cada bloque lleva encima un comentario largo con el
+porqué y las mediciones que lo justifican. Léelos antes de cambiar un número.
+
+- **Espaciado: seis valores, `4 / 8 / 12 / 16 / 24 / 32`.** Los trece nombres
+  (`--space-3xs` … `--space-6xl`) siguen existiendo, pero apuntan a esos seis. No añadas
+  un paso intermedio: con 10, 12 y 14 disponibles a la vez se vuelve a decidir elemento
+  por elemento, que es justo lo que la escala existe para impedir.
+- **Letra: seis tamaños, `12 / 14 / 16 / 20 / 24 / 32`.** Mismo criterio con los diez
+  nombres `--text-*`. 12 es el registro de etiqueta y 14 el de texto corrido; que sean
+  dos y no cuatro indistinguibles es el punto entero.
+- **Peso: `400 / 500 / 500 / 600 / 700`** para normal/medium/semibold/bold/black. El
+  peso de trabajo es 500-600 y el 700 queda para énfasis de verdad. Si te ves poniendo
+  negrita para destacar algo, casi siempre lo que falta es tamaño, no grosor.
+- **Escalera de proximidad**, de fuera hacia dentro:
+
+  | separa | regla | valor |
+  |---|---|---|
+  | secciones de la vista | `.view-stack` gap | 32 |
+  | paneles entre sí, y el borde del panel de su contenido | `.dashboard-grid` gap, `.panel` padding | 24 |
+  | la cabecera de un panel de su contenido | `.panel-heading` gap y margin-bottom | 16 |
+  | tarjetas entre sí | `.metric-grid` gap | 12 |
+  | etiqueta y cifra dentro de una tarjeta | `.metric-card` gap | 8 |
+
+  **Ningún nivel puede valer lo mismo que su vecino.** El ojo agrupa por
+  distancia: si separar dos tarjetas cuesta lo mismo que separar una etiqueta de su
+  cifra, no hay nada que agrupar y la pantalla se lee plana aunque cada pieza esté bien.
+  Ese era el defecto real de la app, más que la falta de aire.
+
+Quedan 19 valores de espaciado escritos a mano y son **deliberados**: ajustes ópticos de
+1-3px, márgenes negativos que cancelan el padding de su contenedor, tres `padding-right`
+que reservan sitio para un control absoluto y un `gap: 1px` que es una línea divisoria.
+No los "arregles" en masa.
+
+La única letra fluida de la app es la cifra titular del Panel
+(`.metric-card.is-featured strong`), un `clamp()` con los topes atados a la escala. Es
+una excepción a propósito y está comentada como tal.
 
 ## Componentes propios que sustituyen a nativos
 
@@ -135,7 +204,14 @@ inventes sombras nuevas) y viven en `web/src/components/`.
 - El usuario da feedback visual mirando capturas reales, no descripciones — cuando algo
   "no se ve bien", conviene verificarlo con medición real (inyección de DOM contra la
   hoja de estilos viva, `getBoundingClientRect`) antes de decir que está arreglado, no
-  fiarse de que el CSS "debería" funcionar.
+  fiarse de que el CSS "debería" funcionar. **Pero esa técnica tiene una trampa cara**:
+  si el script que escribe en `document.documentElement.style` caduca a mitad, la línea
+  de limpieza del final no llega a correr y el `<html>` se queda clavado con el último
+  valor. A partir de ahí todas las mediciones y capturas mienten en silencio e inventan
+  roturas que no existen. Antes de fiarte de una tanda, comprueba que el ancho del
+  `<html>` coincide con `innerWidth`. Para comparar dos estados usa variables CSS
+  (`setProperty`/`removeProperty` sobre `:root`), nunca geometría del `<html>`, y no
+  metas `await` dentro del inyector — son justo los que caducan.
 - Los commits van agrupados por qué cuentan, no por orden cronológico — cuando el
   trabajo mezcla features distintas en los mismos archivos, merece la pena separar por
   parche antes de comitear (`git apply --cached` con un patch recortado a mano) en vez
