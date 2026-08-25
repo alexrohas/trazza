@@ -137,6 +137,20 @@ export function formatAmount(value: number) {
   }).format(value);
 }
 
+/* Tercer formato de importe, un escalon por debajo de formatAmount, para cajas donde
+   tampoco cabe ese: las celdas del calendario del Journal dan 49px de texto util y
+   "-41,00 US$" pide 75, asi que las 10 celdas con P&L se truncaban con elipsis
+   ("-425,00 US$" se leia "-425,00..."). Un importe cortado es peor que ninguno, porque
+   parece un dato y no lo es.
+   Sin divisa ni decimales "-425" son 4 caracteres en vez de 11. El dato exacto no se
+   pierde: sigue completo en el aria-label de la celda y en el panel de detalle. */
+export function formatMoneyCompact(value: number) {
+  return new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 0,
+    useGrouping: true,
+  }).format(value);
+}
+
 export function formatPercent(value: number) {
   return new Intl.NumberFormat("es-ES", {
     style: "percent",

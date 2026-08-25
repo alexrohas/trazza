@@ -41,6 +41,7 @@ import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
 import {
   formatMoney,
+  formatMoneyCompact,
   formatPercent,
   getAccountName,
   getDisciplineScale,
@@ -713,12 +714,12 @@ export function JournalEntriesView({
               >
                 <span>{Number(day.date.slice(-2))}</span>
                 <strong>
-                  {day.count ? formatMoney(day.pnl, currency) : day.payoutCount ? `-${formatMoney(day.payoutGross, currency)}` : "-"}
+                  {day.count ? formatMoneyCompact(day.pnl) : day.payoutCount ? `-${formatMoneyCompact(day.payoutGross)}` : "-"}
                 </strong>
                 <small>
                   {day.count ? `${day.count} ${t("journal.calendar.opsSuffix")}` : ""}
                   {day.count && day.payoutCount ? " · " : ""}
-                  {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoney(day.payoutGross, currency)}` : ""}
+                  {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoneyCompact(day.payoutGross)}` : ""}
                 </small>
               </button>
             ))}
