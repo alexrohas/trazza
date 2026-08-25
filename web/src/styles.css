@@ -5386,6 +5386,15 @@ td {
   font-weight: var(--weight-medium);
 }
 
+/* La primera columna de las dos tablas de la app es la fecha (MovementsTable y
+   MovementsView), y en formato ISO nunca tiene un punto de corte natural: sin esto
+   las 25 filas partian "2026-01-06" en "2026-01-" y "06", que ademas descuadra la
+   altura de unas filas respecto a otras. Es una unidad, no una frase. */
+th:first-child,
+td:first-child {
+  white-space: nowrap;
+}
+
 tbody tr:last-child td {
   border-bottom: 0;
 }
