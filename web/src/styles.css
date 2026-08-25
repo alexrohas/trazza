@@ -74,23 +74,28 @@
   --weight-semibold: 600;
   --weight-bold: 700;
   --weight-black: 800;
-  /* ESCALA DE ESPACIADO. Mismo criterio: 396 valores de padding/gap/margin repartidos
-     en 22 cifras distintas, con impares sueltos (3, 5, 7, 9, 11px) que solo aportaban
-     ruido. Base de 2px y no de 4px porque el ritmo real de esta app ya era par: 10, 14,
-     18 y 22px suman 128 usos y forzarlos a una rejilla de 4 los movia 2px a todos.
-     Desplazamiento medio 0,27px; solo 11 de 396 se mueven mas de 1px. */
-  --space-3xs: 2px;
+  /* ESCALA DE ESPACIADO. Segunda pasada, y esta vez sobre el reparto y no sobre las
+     cifras. La anterior consolido 22 valores en 13 optimizando para que nada se
+     moviera (desplazamiento medio 0,27px), pero dejo intacto el problema de fondo:
+     medido sobre el Panel ya pintado, el 81% de los 579 espaciados eran de 12px o
+     menos y no habia ni un solo 24px ni 32px en toda la pagina. Con pasos de 2px
+     disponibles se vuelve a decidir elemento por elemento, que es justo lo que una
+     escala existe para impedir: nadie percibe 10 frente a 12 como intencion, solo
+     percibe que nada acaba de cuadrar. Trece nombres apuntando a seis valores reales,
+     4/8/12/16/24/32. Los remapeos suben a proposito — la compresion era el problema,
+     asi que podar la escala y meter aire son aqui el mismo gesto. */
+  --space-3xs: 4px;
   --space-2xs: 4px;
-  --space-xs: 6px;
+  --space-xs: 8px;
   --space-sm: 8px;
-  --space-md: 10px;
+  --space-md: 12px;
   --space-base: 12px;
-  --space-lg: 14px;
+  --space-lg: 16px;
   --space-xl: 16px;
-  --space-2xl: 18px;
-  --space-3xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 24px;
   --space-4xl: 24px;
-  --space-5xl: 28px;
+  --space-5xl: 32px;
   --space-6xl: 32px;
   /* Curva desacelerada: arranca rapido y frena al llegar, que es lo que hace que algo
      parezca que "aterriza" en vez de aparecer. Portada del legado (--ease), donde ya
@@ -626,7 +631,12 @@ button {
   justify-content: space-between;
   gap: var(--space-2xl);
   min-height: 78px;
-  margin: 0 -18px 18px;
+  /* El margen lateral negativo cancela el padding de .workspace para que la barra
+     sangre hasta los bordes del area de contenido. Iba a fuego en -18px, acoplado
+     en silencio a un token: al subir --space-2xl de 18 a 24 la cabecera se quedo
+     metida 6px por lado y su fondo desenfocado dejo de llegar al borde. Atado al
+     mismo token que el padding que cancela, que es lo que era desde el principio. */
+  margin: 0 calc(-1 * var(--space-2xl)) var(--space-2xl);
   border-bottom: 0;
   padding: var(--space-base) var(--space-2xl);
   background: color-mix(in srgb, var(--bg) 90%, transparent);
@@ -6690,11 +6700,14 @@ tbody tr:last-child td {
 }
 
 /* La barra superior se queda sin sitio bastante antes de llegar a movil, y no por el
-   boton principal: el titulo con su fecha pide ~180px y los seis controles ~473px, o
-   sea ~670px de contenido, y por debajo de ~940px de ventana el area util ya no da.
-   Medido: a 960px la fila entra justa (942px utiles), a 900 ya no. Se apila con margen
-   sobre ese cruce para que la fila de acciones tenga el ancho entero para ella. */
-@media (max-width: 960px) {
+   boton principal: el titulo con su fecha pide ~180px y los seis controles ~478px, o
+   sea ~682px de contenido. Descontando el padding de la barra (24 por lado) y la barra
+   lateral (240), el area util es ventana-288, asi que el cruce cae en ~970px.
+   El cruce estaba en 960 cuando los controles median 473px; subieron a 478 al pasar el
+   padding de .topbar-primary de 18 a 24 con la poda de la escala de espaciado, y a 976px
+   de ventana la fila se partia en dos lineas. Se apila con margen sobre el cruce nuevo
+   para que la fila de acciones tenga el ancho entero para ella. */
+@media (max-width: 1000px) {
   .topbar {
     flex-direction: column;
     align-items: stretch;
