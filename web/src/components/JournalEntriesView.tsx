@@ -843,6 +843,7 @@ export function JournalEntriesView({
       </section>
     ),
     pnl: <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />,
+    discipline: <JournalDisciplinePanel entries={filteredEntries} />,
     recent: (
       <JournalRecentTradesPanel
         accounts={accounts}
@@ -875,6 +876,7 @@ export function JournalEntriesView({
 
   const journalWidgetLabels: Record<JournalWidgetId, string> = {
     calendar: t("journal.widgetLabel.calendar"),
+    discipline: t("journal.widgetLabel.discipline"),
     emotion: t("journal.widgetLabel.emotion"),
     errors: t("journal.widgetLabel.errors"),
     kpis: t("journal.widgetLabel.kpis"),
@@ -886,6 +888,9 @@ export function JournalEntriesView({
 
   const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "third"> = {
     calendar: "full",
+    /* "wide" y no "full": en el legado Disciplina comparte fila con Errores, asi que
+       ocupa el mismo hueco ancho que la curva de P&L en vez de una fila entera. */
+    discipline: "wide",
     emotion: "third",
     errors: "third",
     kpis: "full",
@@ -1720,6 +1725,86 @@ type JournalDateRange = {
   from: string;
   to: string;
 };
+
+/* Disciplina a lo largo del tiempo, como en el legado. Mismo armazon que la curva de
+   P&L (misma caja, misma rejilla, buildSmoothPath) para que las dos graficas del
+   cockpit se lean como la misma familia; lo que cambia es el eje Y, que aqui no arranca
+   en cero sino en 1, porque la escala de disciplina es 1-5 (o 1-10 si alguna entrada
+   viene de un import con esa escala, que es lo que resuelve getDisciplineScale). Un
+   suelo en 0 aplastaria todo el recorrido util contra la mitad de arriba. */
+function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
+  const t = useT();
+  const width = 760;
+  const height = 260;
+  const padding = { bottom: 42, left: 48, right: 26, top: 32 };
+  const escala = getDisciplineScale(entries);
+  const points = useMemo(
+    () =>
+      [...entries]
+        .filter((entry) => Number.isFinite(entry.discipline) && entry.discipline > 0)
+        .sort((left, right) => left.date.localeCompare(right.date))
+        .map((entry) => ({ date: entry.date, value: entry.discipline })),
+    [entries],
+  );
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const step = points.length > 1 ? chartWidth / (points.length - 1) : 0;
+  const rango = escala - 1 || 1;
+  const scaledPoints = points.map((point, index) => ({
+    date: point.date,
+    value: point.value,
+    x: padding.left + index * step,
+    y: height - padding.bottom - ((point.value - 1) / rango) * chartHeight,
+  }));
+  const path = buildSmoothPath(scaledPoints);
+  const media = points.length ? points.reduce((total, point) => total + point.value, 0) / points.length : null;
+
+  return (
+    <section className="panel journal-discipline-panel">
+      <div className="panel-heading">
+        <div>
+          <h2>{t("journal.discipline.title")}</h2>
+          <p>{points.length ? t("journal.discipline.subtitle") : t("journal.discipline.subtitleEmpty")}</p>
+        </div>
+        {media === null ? null : (
+          <strong className="chart-delta neutral">{`${media.toFixed(1)}/${escala}`}</strong>
+        )}
+      </div>
+      {points.length > 0 ? (
+        <>
+          <div className="journal-pnl-chart-frame" role="img" aria-label={t("journal.discipline.ariaLabel")}>
+            <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+              {[0, 0.25, 0.5, 0.75, 1].map((position) => {
+                const y = padding.top + chartHeight * position;
+                return (
+                  <line className="chart-axis muted" key={`disc-h-${position}`} x1={padding.left} x2={width - padding.right} y1={y} y2={y} />
+                );
+              })}
+              <path className="journal-discipline-chart-line" d={path} />
+              {/* El legado marca cada operacion con su punto y se dejan aunque haya muchas:
+                  con 87 entradas caen a ~8px unas de otras, que es justo lo que hace
+                  legible que la linea sube y baja operacion a operacion y no por tramos.
+                  El radio baja a 2 para que a esa densidad no se toquen entre si. El tope
+                  alto corta solo el caso patologico de miles de entradas. */}
+              {scaledPoints.length <= 400 &&
+                scaledPoints.map((point, index) => (
+                  <circle className="journal-discipline-chart-point" key={`${point.date}-${index}`} cx={point.x} cy={point.y} r="2" />
+                ))}
+            </svg>
+            <span className="journal-chart-axis-top">{`${escala}/${escala}`}</span>
+            <span className="journal-chart-axis-bottom">{`1/${escala}`}</span>
+          </div>
+          <div className="journal-chart-footer">
+            <span>{points[0].date}</span>
+            <span>{points.at(-1)?.date}</span>
+          </div>
+        </>
+      ) : (
+        <div className="chart-empty">{t("journal.discipline.subtitleEmpty")}</div>
+      )}
+    </section>
+  );
+}
 
 function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entries: JournalEntry[] }) {
   const t = useT();

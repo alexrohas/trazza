@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { safeLocalSet } from "../lib/storage";
 
-export type JournalWidgetId = "kpis" | "pnl" | "recent" | "session" | "emotion" | "errors" | "weekday" | "calendar";
+export type JournalWidgetId = "kpis" | "pnl" | "discipline" | "recent" | "session" | "emotion" | "errors" | "weekday" | "calendar";
 
 type JournalDashboardLayoutState = {
   hidden: JournalWidgetId[];
@@ -13,6 +13,7 @@ const storageKey = "trazza:journal-dashboard-layout";
 export const journalDashboardWidgetIds: JournalWidgetId[] = [
   "kpis",
   "pnl",
+  "discipline",
   "recent",
   "session",
   "emotion",

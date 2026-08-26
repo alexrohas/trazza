@@ -497,6 +497,10 @@ export const es = {
   "journal.detail.otherEntriesSameDay": "Otras entradas del dia",
   "journal.detail.noEntrySelected": "Sin entrada seleccionada",
 
+  "journal.discipline.title": "Disciplina",
+  "journal.discipline.subtitle": "Puntuacion de disciplina a lo largo del tiempo.",
+  "journal.discipline.subtitleEmpty": "Sin operaciones en el filtro actual.",
+  "journal.discipline.ariaLabel": "Evolucion de la puntuacion de disciplina",
   "journal.pnlCurve.title": "P&L acumulado",
   "journal.pnlCurve.subtitleSuffix": "operaciones en el subconjunto activo.",
   "journal.pnlCurve.subtitleEmpty": "Sin operaciones en el filtro actual.",
@@ -602,6 +606,7 @@ export const es = {
   "journal.entryMode.csvBlocked": "Crea una cuenta antes de importar CSV",
   "journal.session.none": "Sin sesion",
   "journal.widgetLabel.calendar": "Calendario y detalle",
+  "journal.widgetLabel.discipline": "Disciplina",
   "journal.widgetLabel.emotion": "Emocion y resultado",
   "journal.widgetLabel.errors": "Errores de ejecucion",
   "journal.widgetLabel.kpis": "Metricas (winrate, profit factor)",

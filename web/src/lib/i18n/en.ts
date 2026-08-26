@@ -499,6 +499,10 @@ export const en: Record<TranslationKey, string> = {
   "journal.detail.otherEntriesSameDay": "Other entries that day",
   "journal.detail.noEntrySelected": "No entry selected",
 
+  "journal.discipline.title": "Discipline",
+  "journal.discipline.subtitle": "Discipline score over time.",
+  "journal.discipline.subtitleEmpty": "No trades in the current filter.",
+  "journal.discipline.ariaLabel": "Discipline score over time",
   "journal.pnlCurve.title": "Cumulative P&L",
   "journal.pnlCurve.subtitleSuffix": "trades in the active subset.",
   "journal.pnlCurve.subtitleEmpty": "No trades in the current filter.",
@@ -604,6 +608,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.entryMode.csvBlocked": "Create an account before importing a CSV",
   "journal.session.none": "No session",
   "journal.widgetLabel.calendar": "Calendar and detail",
+  "journal.widgetLabel.discipline": "Discipline",
   "journal.widgetLabel.emotion": "Emotion and result",
   "journal.widgetLabel.errors": "Execution errors",
   "journal.widgetLabel.kpis": "Metrics (winrate, profit factor)",
