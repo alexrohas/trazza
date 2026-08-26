@@ -91,6 +91,13 @@ tenían las gráficas de Finanzas:
   direcciones (arco ↔ leyenda), hover en barras y filas, y calendario que enciende la
   semana entera al señalar un día.
 
+La mecánica de zoom y recorrido vive en **`useChartZoomHover`** y la usan las **tres**
+gráficas de la app: `CapitalCurve` del Panel y las dos del Journal. Salió de
+`CapitalCurve` y volvió a ella, así que no hay copia duplicada que mantener. El hook no
+sabe nada de la geometría de cada gráfica porque recibe los puntos ya escalados — es lo
+que permite que `CapitalCurve` cruce su línea guía hasta la franja de movimientos
+mientras las del Journal la paran en la curva.
+
 **Movimientos** cerró su pasada el mismo día: hover de fila con revelado de acciones
 (mismo patrón que `.journal-error-type-row`), altura de fila uniforme, y paginación (20
 por página) donde antes se pintaban todas las filas de golpe.
@@ -98,12 +105,8 @@ por página) donde antes se pintaban todas las filas de golpe.
 ## Qué queda
 
 **Del plan original no queda nada abierto.** Las siete pantallas de React están pulidas y
-Cuentas quedó cerrada. Lo que hay son cabos concretos, ninguno bloqueante:
+Cuentas quedó cerrada. Queda un solo cabo, y no es bloqueante:
 
-- **`CapitalCurve` conserva su copia de la lógica de zoom** en vez de usar
-  `useChartZoomHover`, el hook que se extrajo de ella para las gráficas del Journal. Es
-  un gráfico muy ajustado (franja de movimientos, ejes, insignia final) y migrarlo pide
-  reverificarlo entero. Está anotado dentro del propio hook.
 - **La severidad de los tipos de error no se guarda**: se deduce del color (ver la
   trampa de más abajo). Consecuencia práctica: cambiar el color de un tipo en el gestor
   le cambia la severidad sin querer. Pasa igual en el legado. Hacerlo explícito significa
