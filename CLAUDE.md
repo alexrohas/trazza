@@ -110,10 +110,10 @@ Cuentas quedó cerrada. Lo que hay son cabos concretos, ninguno bloqueante:
   añadir la columna a `journal_error_types`, y eso **toca esquema con producción
   debajo**.
 
-Cabos sueltos: **ninguno pendiente** a 26 de agosto de 2026. Los que había aquí se
-cerraron todos — las tres reglas `.workspace` duplicadas se consolidaron en una (con
-cuidado: el `min-width: 0` solo lo declaraban dos de las tres), y las clases muertas
-`.workspace-header`, `.workspace-controls` y `.workspace-section` se borraron enteras.
+Los cabos de CSS que hubo aquí sí están todos cerrados a 26 de agosto de 2026: las tres
+reglas `.workspace` duplicadas se consolidaron en una (con cuidado: el `min-width: 0`
+solo lo declaraban dos de las tres), y las clases muertas `.workspace-header`,
+`.workspace-controls` y `.workspace-section` se borraron enteras.
 
 Aviso de método, que costó una confusión real: `AccountHealth.tsx` y `JournalPanel.tsx`
 salieron listados aquí como código muerto durante bastante tiempo **cuando ya no
