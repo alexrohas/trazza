@@ -1702,18 +1702,23 @@ button {
 
 .metric-grid {
   display: grid;
-  /* Estaba en repeat(7, ...) porque la tarjeta destacada ocupa dos columnas y asi las
-     7 celdas entraban en una fila. El precio era que a 1280px cada tarjeta se quedaba
-     en 131px con 99 de caja util, y 4 de los 6 importes no cabian: "1.085,54 US$" pide
-     130 y se salia 31px por encima del padding (no se veia roto porque overflow es
-     visible, pero invadia el borde y partia las etiquetas en dos lineas). Con auto-fit
-     el numero de columnas lo decide el ancho disponible y no un numero fijo, con 180px
-     como suelo: la caja util nunca baja de lo que mide el importe mas largo.
-     El suelo sube de 180 a 220 para repartir mejor las filas: son 7 celdas (la
-     destacada ocupa dos), y con 180 caian 5 columnas dejando la segunda fila con dos
-     tarjetas y tres huecos. Con 220 caen 4, o sea filas de 4 y 3, y las tarjetas pasan
-     de 189 a 239px. */
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* Cuatro columnas fijas, y NO auto-fit. Historia corta, porque no es obvio:
+     empezo en repeat(7, ...) para que las 7 celdas (la destacada ocupa dos) entraran en
+     una fila, pero a 1280px eso dejaba cada tarjeta en 131px y 4 de los 6 importes se
+     salian de su caja. Se paso a auto-fit para que el ancho mandara, y ahi aparecio el
+     problema real: 7 celdas no se reparten bien en casi ningun numero de columnas. Con
+     5 —lo que elige auto-fit a 1440px, la anchura tipica de un portatil— la segunda
+     fila se queda con dos tarjetas y tres huecos, que es justo lo que se veia mal.
+     Huecos por numero de columnas con 7 celdas: 3->2, 4->1, 5->3, 6->5.
+     La solucion no es el numero de columnas sino el de celdas: si la ultima tarjeta
+     tambien ocupa dos, son 8, y 8 entra exacto en 4 columnas. Dos filas de cuatro sin
+     un solo hueco, con una tarjeta ancha al principio de la primera y al final de la
+     segunda — se lee como simetria y no como sobra. Fijas y no auto-fit porque el
+     reparto solo cuadra con 4: dejar que el ancho elija es lo que rompia esto.
+     Espacio de sobra: a 1440px la caja util queda en 247px y el importe mas ancho de
+     una tarjeta normal mide 124 (medido con Range sobre el texto, no con scrollWidth,
+     que devuelve la caja y hace creer que todo va justo). */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-base);
 }
 
@@ -1743,6 +1748,13 @@ button {
   gap: var(--space-sm);
   min-height: 120px;
   padding: var(--space-lg);
+}
+
+/* La destacada y la ultima ocupan dos columnas cada una: es lo que convierte 7 celdas
+   en 8 y hace que las dos filas de 4 salgan exactas. Van juntas a proposito — si algun
+   dia se anade o quita una tarjeta del Panel, este par hay que recalcularlo. */
+.metric-grid .metric-card:last-child {
+  grid-column: span 2;
 }
 
 .metric-card.is-featured {
@@ -6647,6 +6659,13 @@ tbody tr:last-child td {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  /* A 3 columnas ninguna tarjeta puede ocupar doble: con 8 celdas quedarian tres filas
+     y un hueco, y con 7 tres filas y dos. Las 6 sueltas entran en dos filas exactas. */
+  .metric-grid .metric-card:last-child,
+  .metric-card.is-featured {
+    grid-column: auto;
+  }
+
   .dashboard-grid,
   .dashboard-insights,
   .directory-grid,
@@ -6885,6 +6904,7 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
+  .metric-grid .metric-card:last-child,
   .metric-card.is-featured {
     grid-column: auto;
   }
