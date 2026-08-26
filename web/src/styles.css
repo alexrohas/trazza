@@ -4557,6 +4557,30 @@ button {
   color: var(--accent);
 }
 
+/* Al senalar un dia se enciende su semana entera, resumen incluido: el total semanal
+   esta a siete columnas de distancia del dia que estas mirando, y sin esto no hay forma
+   de saber cual le corresponde salvo contando celdas. El realce es de fondo y no de
+   borde porque las celdas ya usan el borde para su propio estado (seleccionada, con
+   entradas), y dos bordes compitiendo se leen peor que uno. */
+.journal-day,
+.journal-week-summary {
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.journal-day.in-hovered-week,
+.journal-week-summary.in-hovered-week {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* El par de tema oscuro no es opcional aqui: ":root[data-theme=dark] .journal-day" tiene
+   especificidad (0,3,0) y se comia el realce de arriba, que es (0,2,0). Medido: el dia
+   señalado se quedaba en #111519 en vez de tenirse. El tinte sube al 14% porque sobre
+   fondo oscuro el mismo 10% no se distingue. */
+:root[data-theme="dark"] .journal-day.in-hovered-week,
+:root[data-theme="dark"] .journal-week-summary.in-hovered-week {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
 .journal-week-summary {
   display: grid;
   align-content: center;

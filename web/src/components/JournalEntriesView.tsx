@@ -273,6 +273,10 @@ export function JournalEntriesView({
      la tarjeta pulsada en la galeria. Compartirlos hacia que abrir una entrada desde la
      galeria moviera tambien la seleccion del calendario. */
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
+  /* Dia sobre el que esta el cursor en el calendario. Se guarda el indice de celda y no
+     la fecha porque de el sale tambien la semana (indice / 7), que es lo que permite
+     encender la fila entera y su resumen a la vez. */
+  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [zoomImage, setZoomImage] = useState<string | undefined>();
   /* Alta en tres pasos como el legado: se elige modo, y si es CSV se pide cuenta,
@@ -764,15 +768,19 @@ export function JournalEntriesView({
               </span>
             ))}
             <span className="journal-weekday is-week">{t("journal.calendar.weekColumn")}</span>
-            {calendarWeeks.map((week) => (
+            {calendarWeeks.map((week, weekIndex) => (
               <Fragment key={week.key}>
-                {week.days.map((day) => (
+                {week.days.map((day, dayIndex) => (
               <button
                 aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
-                className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
+                className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""} ${
+                  hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
+                }`}
                 disabled={!day.firstEntryId}
                 key={day.date}
                 onClick={() => setSelectedEntryId(day.firstEntryId)}
+                onPointerEnter={() => setHoveredDayIndex(weekIndex * 7 + dayIndex)}
+                onPointerLeave={() => setHoveredDayIndex(null)}
                 type="button"
               >
                 <span>{Number(day.date.slice(-2))}</span>
@@ -786,7 +794,13 @@ export function JournalEntriesView({
                 </small>
               </button>
                 ))}
-                <div className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"}`}>
+                <div
+                  className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"} ${
+                    hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
+                  }`}
+                  onPointerEnter={() => setHoveredDayIndex(weekIndex * 7)}
+                  onPointerLeave={() => setHoveredDayIndex(null)}
+                >
                   <span>{t("journal.calendar.weekPrefix")}</span>
                   <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
                   <small>{`${week.entries} ${t("journal.calendar.entriesSuffix")}`}</small>
