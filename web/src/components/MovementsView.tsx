@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
@@ -93,6 +93,7 @@ export function MovementsView({
   const [firmFilter, setFirmFilter] = useState("all");
   const [fromFilter, setFromFilter] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | MovementKind>("all");
+  const [page, setPage] = useState(0);
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [toFilter, setToFilter] = useState("");
   const t = useT();
@@ -171,6 +172,20 @@ export function MovementsView({
         ]);
       }),
     [accountNameById, categoryFilter, firmFilter, firmNameById, fromFilter, kindFilter, movements, searchQuery, toFilter],
+  );
+
+  /* pageSize fijo y no configurable: la tabla no tenia paginacion y pintaba todas las
+     filas de golpe, que hoy son 25 pero solo va a crecer con el uso. currentPage se
+     recalcula acotando "page" al numero de paginas real en cada render, en vez de
+     resetearlo con un efecto cuando cambian los filtros: si un filtro deja menos
+     paginas de las que habia, la pagina se ajusta sola sin dejar una pantalla vacia
+     un instante hasta que corra el efecto. */
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredMovements.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pagedMovements = useMemo(
+    () => filteredMovements.slice(currentPage * pageSize, currentPage * pageSize + pageSize),
+    [currentPage, filteredMovements],
   );
 
   const resetForm = () => {
@@ -491,7 +506,7 @@ export function MovementsView({
               </tr>
             </thead>
             <tbody>
-              {filteredMovements.map((movement) => (
+              {pagedMovements.map((movement) => (
                 <tr key={movement.id}>
                   <td data-label={t("movement.table.date")}>{movement.date}</td>
                   <td data-label={t("movement.table.firm")}>{firmNameById.get(movement.firmId) || t("movement.table.generalFirm")}</td>
@@ -549,6 +564,38 @@ export function MovementsView({
             </tbody>
           </table>
         </div>
+        {filteredMovements.length > 0 && (
+          <div className="table-pagination">
+            <span>
+              {t("movement.pagination.showing")} {currentPage * pageSize + 1}
+              {"\u2013"}
+              {Math.min((currentPage + 1) * pageSize, filteredMovements.length)} {t("movement.pagination.of")}{" "}
+              {filteredMovements.length}
+            </span>
+            {totalPages > 1 && (
+              <div className="table-pagination-nav">
+                <button
+                  aria-label={t("movement.pagination.prev")}
+                  className="icon-control compact-icon"
+                  disabled={currentPage === 0}
+                  onClick={() => setPage(currentPage - 1)}
+                  type="button"
+                >
+                  <ChevronLeft size={15} strokeWidth={2.4} />
+                </button>
+                <button
+                  aria-label={t("movement.pagination.next")}
+                  className="icon-control compact-icon"
+                  disabled={currentPage >= totalPages - 1}
+                  onClick={() => setPage(currentPage + 1)}
+                  type="button"
+                >
+                  <ChevronRight size={15} strokeWidth={2.4} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {filteredMovements.length === 0 && (
           <article className="empty-panel inline-empty">
             <Plus size={22} strokeWidth={2.2} />

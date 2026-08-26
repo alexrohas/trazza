@@ -5506,9 +5506,14 @@ tbody tr:last-child td {
   color: var(--negative);
 }
 
+/* min-height reserva sitio para el subtitulo del payout aunque la fila no lo tenga
+   (solo challenge/reset/etc. van sin el): sin esto las filas con subtitulo medían 67px
+   y las demas 63, y la tabla se veia con un vaiven de 4px fila a fila. Medido: 42px es
+   lo que ocupa con las dos lineas. */
 .movement-category-copy {
   display: grid;
   gap: var(--space-3xs);
+  min-height: 42px;
 }
 
 .movement-category-copy strong {
@@ -6088,10 +6093,54 @@ tbody tr:last-child td {
   gap: var(--space-sm);
 }
 
+/* Mismo patron que .journal-error-type-row: la fila se ilumina y sus acciones pasan de
+   semitransparentes a opacas solo al pasar por encima o enfocarla. Sin esto, Editar y
+   Eliminar competian a plena opacidad en las 25 filas a la vez y no habia forma de ver
+   sobre cual estabas actuando. Solo afecta a .table-panel: las tarjetas que tambien usan
+   .row-actions (Empresas, Cuentas) tienen pocas acciones y les vale estar siempre a la
+   vista. */
+.table-panel tbody tr {
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.table-panel tbody tr:hover,
+.table-panel tbody tr:focus-within {
+  background: var(--surface-muted);
+}
+
+.table-panel tbody tr .row-actions {
+  opacity: 0.45;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.table-panel tbody tr:hover .row-actions,
+.table-panel tbody tr:focus-within .row-actions {
+  opacity: 1;
+}
+
 /* Hueco de una celda sin dato. Se atenua para que la raya no se lea como contenido:
    en la tabla de movimientos 8 de 25 notas estan vacias. */
 .cell-empty {
   color: var(--muted);
+}
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-base);
+  margin-top: var(--space-xl);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-xl);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.table-pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .editable-journal-row {
