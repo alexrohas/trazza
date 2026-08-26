@@ -615,6 +615,10 @@ export const es = {
   "journal.kpi.avgWPrefix": "Avg W",
   "journal.kpi.avgLPrefix": "Avg L",
   "journal.kpi.filteredAriaLabel": "Metricas del journal filtrado",
+  "journal.kpi.profit": "Profit",
+  "journal.kpi.loss": "Loss",
+  "journal.kpi.avgWin": "Avg win",
+  "journal.kpi.avgLoss": "Avg loss",
   "journal.kpi.tradesClosedSuffix": "trades cerrados",
 
   "capitalCurve.title": "Evolucion de capital",

@@ -617,6 +617,10 @@ export const en: Record<TranslationKey, string> = {
   "journal.kpi.avgWPrefix": "Avg W",
   "journal.kpi.avgLPrefix": "Avg L",
   "journal.kpi.filteredAriaLabel": "Filtered journal metrics",
+  "journal.kpi.profit": "Profit",
+  "journal.kpi.loss": "Loss",
+  "journal.kpi.avgWin": "Avg win",
+  "journal.kpi.avgLoss": "Avg loss",
   "journal.kpi.tradesClosedSuffix": "closed trades",
 
   "capitalCurve.title": "Capital evolution",

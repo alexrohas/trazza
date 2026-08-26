@@ -407,6 +407,38 @@ export function JournalEntriesView({
   );
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
 
+  /* Repartos de las dos barras divididas del cockpit y R medio de ganadoras y
+     perdedoras. Van juntos porque los tres salen del mismo recorrido de entradas y solo
+     los usa el widget de KPIs. Cuando no hay nada cerrado se reparte al 50% en vez de
+     dejar la barra vacia: una barra a cero se lee como "todo perdidas", que es un dato
+     falso, y media y media se lee como lo que es, que no hay dato. */
+  const { avgLossR, avgShare, avgWinR, grossShare } = useMemo(() => {
+    const { avgLoss, avgWin, grossLoss, grossProfit } = analytics.stats;
+    const brutoTotal = grossProfit + grossLoss;
+    const mediaTotal = (avgWin || 0) + (avgLoss || 0);
+    /* R se deriva, no se lee: entry.rMultiple llega siempre a 0 desde db.ts (la columna
+       no existe en Supabase) y usarlo daba 0,00R en las dos medias. Se calcula igual que
+       en el panel de detalle — el riesgo es el 1% del tamano de la cuenta — y se saltan
+       las entradas cuya cuenta no se encuentra o no tiene tamano, que no dan un R real. */
+    const rDe = (signo: 1 | -1) => {
+      const valores = filteredEntries
+        .filter((entry) => (signo === 1 ? entry.pnl > 0 : entry.pnl < 0))
+        .map((entry) => {
+          const account = accountById.get(entry.accountId);
+          const riesgo = account && account.size > 0 ? account.size * 0.01 : 0;
+          return riesgo > 0 ? entry.pnl / riesgo : null;
+        })
+        .filter((value): value is number => value !== null && Number.isFinite(value));
+      return valores.length ? valores.reduce((total, value) => total + value, 0) / valores.length : null;
+    };
+    return {
+      avgLossR: rDe(-1),
+      avgShare: mediaTotal > 0 ? ((avgWin || 0) / mediaTotal) * 100 : 50,
+      avgWinR: rDe(1),
+      grossShare: brutoTotal > 0 ? (grossProfit / brutoTotal) * 100 : 50,
+    };
+  }, [accountById, analytics.stats, filteredEntries]);
+
   const resetForm = () => {
     setDraft(createEmptyJournalInput());
     setPnlText("");
@@ -777,30 +809,37 @@ export function JournalEntriesView({
     ),
     kpis: (
       <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
-        <MetricCard
-          hint={`${analytics.stats.wins}W / ${analytics.stats.losses}L / ${analytics.stats.breakEven} BE`}
-          icon={<Percent size={16} strokeWidth={2.2} />}
-          label={t("journal.kpi.winrate")}
-          tone={analytics.stats.winRate === null ? "neutral" : analytics.stats.winRate >= 0.5 ? "positive" : "negative"}
-          value={formatRatioPercent(analytics.stats.winRate)}
+        <JournalWinrateGaugePanel
+          breakEven={analytics.stats.breakEven}
+          losses={analytics.stats.losses}
+          winRate={analytics.stats.winRate}
+          wins={analytics.stats.wins}
         />
-        <MetricCard
-          hint={`${t("journal.kpi.avgWPrefix")} ${formatNullableMoney(analytics.stats.avgWin, currency)} / ${t("journal.kpi.avgLPrefix")} ${formatNullableMoney(
-            analytics.stats.avgLoss,
-            currency,
-          )}`}
-          icon={<Gauge size={16} strokeWidth={2.2} />}
-          label={t("journal.kpi.profitFactor")}
-          tone={profitFactorTone(analytics.stats.profitFactor)}
+        <JournalSplitBarPanel
+          leftLabel={t("journal.kpi.profit")}
+          positiveShare={grossShare}
+          rightLabel={t("journal.kpi.loss")}
+          title={t("journal.kpi.profitFactor")}
           value={formatProfitFactor(analytics.stats.profitFactor)}
+          valueTone={profitFactorTone(analytics.stats.profitFactor)}
         />
-        <MetricCard
-          hint={`${analytics.stats.closed} ${t("journal.kpi.tradesClosedSuffix")}`}
-          icon={<TrendingUp size={16} strokeWidth={2.2} />}
-          label={t("journal.kpi.avgWinLoss")}
-          tone="neutral"
-          value={`${formatNullableMoney(analytics.stats.avgWin, currency)} / ${formatNullableMoney(analytics.stats.avgLoss, currency)}`}
-        />
+        <JournalSplitBarPanel
+          leftLabel={t("journal.kpi.avgWin")}
+          positiveShare={avgShare}
+          rightLabel={t("journal.kpi.avgLoss")}
+          title={t("journal.kpi.avgWinLoss")}
+        >
+          <div className="journal-split-figures">
+            <span className="positive">
+              <strong>{formatNullableMoney(analytics.stats.avgWin, currency)}</strong>
+              <small>{formatSignedR(avgWinR)}</small>
+            </span>
+            <span className="negative">
+              <strong>{analytics.stats.avgLoss === null ? "-" : `-${formatNullableMoney(analytics.stats.avgLoss, currency)}`}</strong>
+              <small>{formatSignedR(avgLossR)}</small>
+            </span>
+          </div>
+        </JournalSplitBarPanel>
       </section>
     ),
     pnl: <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />,
@@ -1884,6 +1923,106 @@ function JournalBreakdownPanel({
   );
 }
 
+/* Gauge semicircular de winrate, como el del legado. El arco se dibuja con un solo
+   path y stroke-dasharray: la longitud del semicirculo es PI*r, asi que el tramo verde
+   mide winRate*PI*r y el resto queda en rojo por debajo. Se usa SVG y no canvas (que es
+   lo que hace app.js) porque el resto de graficos de React ya son SVG y asi hereda los
+   tokens de color sin tener que releerlos en JS. */
+function JournalWinrateGaugePanel({
+  breakEven,
+  losses,
+  winRate,
+  wins,
+}: {
+  breakEven: number;
+  losses: number;
+  winRate: number | null;
+  wins: number;
+}) {
+  const t = useT();
+  const radius = 52;
+  const arco = Math.PI * radius;
+  const proporcion = winRate === null ? 0 : Math.min(1, Math.max(0, winRate));
+
+  return (
+    <section className="panel journal-gauge-panel">
+      <div className="panel-heading compact-heading">
+        <div>
+          <h2>{t("journal.kpi.winrate")}</h2>
+        </div>
+      </div>
+      <strong className={`journal-gauge-value ${winRate === null ? "neutral" : winRate >= 0.5 ? "positive" : "negative"}`}>
+        {formatRatioPercent(winRate)}
+      </strong>
+      <div className="journal-gauge-arc">
+        <svg viewBox="0 0 128 72" aria-hidden="true">
+          <path
+            className="gauge-track"
+            d={`M 12 64 A ${radius} ${radius} 0 0 1 116 64`}
+            fill="none"
+            strokeLinecap="round"
+            strokeWidth="10"
+          />
+          <path
+            className="gauge-fill"
+            d={`M 12 64 A ${radius} ${radius} 0 0 1 116 64`}
+            fill="none"
+            strokeDasharray={`${arco * proporcion} ${arco}`}
+            strokeLinecap="round"
+            strokeWidth="10"
+          />
+        </svg>
+      </div>
+      <div className="journal-gauge-counts">
+        <span className="positive">{wins}</span>
+        <span className="neutral">{breakEven}</span>
+        <span className="negative">{losses}</span>
+      </div>
+    </section>
+  );
+}
+
+/* Barra dividida verde/rojo con una etiqueta a cada extremo. La usan Profit factor
+   (reparto bruto ganado vs bruto perdido) y Avg win/loss (media de ganancia vs media de
+   perdida), que en el legado se ven igual salvo por lo que cuelga debajo. */
+function JournalSplitBarPanel({
+  children,
+  leftLabel,
+  positiveShare,
+  rightLabel,
+  title,
+  value,
+  valueTone,
+}: {
+  children?: ReactElement | null;
+  leftLabel: string;
+  positiveShare: number;
+  rightLabel: string;
+  title: string;
+  value?: string;
+  valueTone?: string;
+}) {
+  return (
+    <section className="panel journal-split-panel">
+      <div className="panel-heading compact-heading">
+        <div>
+          <h2>{title}</h2>
+        </div>
+      </div>
+      {value ? <strong className={`journal-split-value ${valueTone || "neutral"}`}>{value}</strong> : null}
+      <div className="journal-split-bar" aria-hidden="true">
+        <i className="positive" style={{ width: `${positiveShare}%` }} />
+        <i className="negative" style={{ width: `${100 - positiveShare}%` }} />
+      </div>
+      <div className="journal-split-labels">
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: JournalSummaryRow[] }) {
   const t = useT();
   const hasData = rows.some((row) => row.count > 0);
@@ -2467,6 +2606,16 @@ function formatSignedMoney(value: number, currency: Currency) {
 
 function formatSignedPercent(value: number) {
   return value > 0 ? `+${formatPercent(value)}` : formatPercent(value);
+}
+
+/* R con signo explicito y dos decimales, como en el legado ("+1,10R" / "-0,69R"). El
+   signo positivo se escribe a mano porque toLocaleString solo pone el negativo, y aqui
+   el "+" es informacion: separa de un vistazo la media de ganadoras de la de perdedoras
+   cuando las dos van una al lado de la otra. */
+function formatSignedR(value: number | null) {
+  if (value === null) return "-";
+  const texto = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(value);
+  return `${value > 0 ? "+" : ""}${texto}R`;
 }
 
 function formatProfitFactor(value: number | null) {
