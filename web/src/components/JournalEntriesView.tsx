@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent, type ReactElement } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent, type ReactElement } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
@@ -397,6 +397,28 @@ export function JournalEntriesView({
     () => buildCalendarDays(visibleMonth, filteredEntries, movements),
     [filteredEntries, movements, visibleMonth],
   );
+  /* Las 42 celdas se parten en las seis semanas que ya forman, para poder pintar el
+     resumen semanal del legado en una octava columna. El total de la semana suma el P&L
+     de las entradas y resta el bruto de los payouts, igual que hace cada celda de dia.
+     El total del mes cuenta solo los dias del mes visible (inMonth), no las celdas de
+     relleno de los meses vecinos, que si entran en su semana pero no en el mes. */
+  const { calendarWeeks, monthTotal, monthEntries } = useMemo(() => {
+    const weeks = Array.from({ length: 6 }, (_, index) => {
+      const days = calendarDays.slice(index * 7, index * 7 + 7);
+      return {
+        days,
+        entries: days.reduce((total, day) => total + day.count, 0),
+        key: days[0]?.date ?? `semana-${index}`,
+        pnl: days.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
+      };
+    });
+    const delMes = calendarDays.filter((day) => day.inMonth);
+    return {
+      calendarWeeks: weeks,
+      monthEntries: delMes.reduce((total, day) => total + day.count, 0),
+      monthTotal: delMes.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
+    };
+  }, [calendarDays]);
   const selectedDayEntries = useMemo(
     () => (selectedEntry ? filteredEntries.filter((entry) => entry.date === selectedEntry.date) : []),
     [filteredEntries, selectedEntry],
@@ -710,6 +732,10 @@ export function JournalEntriesView({
               <p>{visibleMonthLabel} - {t("journal.calendar.subtitleSuffix")}</p>
             </div>
             <div className="calendar-actions">
+              <span className="journal-calendar-total">
+                {t("journal.calendar.monthTotal")}
+                <strong className={signedTone(monthTotal)}>{formatMoney(monthTotal, currency)}</strong>
+              </span>
               <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
                 <ChevronLeft size={16} strokeWidth={2.2} />
               </button>
@@ -735,7 +761,10 @@ export function JournalEntriesView({
                 {day}
               </span>
             ))}
-            {calendarDays.map((day) => (
+            <span className="journal-weekday is-week">{t("journal.calendar.weekColumn")}</span>
+            {calendarWeeks.map((week) => (
+              <Fragment key={week.key}>
+                {week.days.map((day) => (
               <button
                 aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
                 className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
@@ -754,6 +783,13 @@ export function JournalEntriesView({
                   {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoneyCompact(day.payoutGross)}` : ""}
                 </small>
               </button>
+                ))}
+                <div className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"}`}>
+                  <span>{t("journal.calendar.weekPrefix")}</span>
+                  <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
+                  <small>{`${week.entries} ${t("journal.calendar.entriesSuffix")}`}</small>
+                </div>
+              </Fragment>
             ))}
           </div>
         </section>

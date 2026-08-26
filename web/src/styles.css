@@ -4347,10 +4347,74 @@ button {
   width: 148px;
 }
 
+/* Ocho columnas y no siete: la ultima es el resumen semanal del legado. Va algo mas
+   ancha que un dia porque lleva importe con divisa, que no cabe en el ancho de una
+   celda de dia (ahi los importes van compactados justo por eso). */
 .journal-calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.25fr);
   gap: var(--space-sm);
+}
+
+.journal-weekday.is-week {
+  color: var(--accent);
+}
+
+.journal-week-summary {
+  display: grid;
+  align-content: center;
+  gap: var(--space-3xs);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-base);
+  background: var(--surface-muted);
+}
+
+.journal-week-summary span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.journal-week-summary strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.journal-week-summary small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.journal-week-summary.positive strong {
+  color: var(--positive);
+}
+
+.journal-week-summary.negative strong {
+  color: var(--negative);
+}
+
+/* Una semana sin entradas no se tine: en el legado el cero se lee neutro, no como
+   perdida, que es lo que pasaria dejandolo caer en el tono negativo. */
+.journal-week-summary.is-empty strong {
+  color: var(--muted);
+}
+
+.journal-calendar-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.journal-calendar-total strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
 }
 
 .journal-weekday {
