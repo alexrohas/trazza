@@ -6647,6 +6647,30 @@ tbody tr:last-child td {
   border-color: transparent !important;
 }
 
+/* Por encima de 1560px las 6 tarjetas caben en una sola fila sin apretar: es el
+   umbral donde el importe mas ancho de una tarjeta normal (124px, medido con Range
+   sobre el texto) tiene sitio de sobra dentro de su caja, con margen equivalente a un
+   --space-lg entero y no al pelo. Por debajo de 1560 se queda en las dos filas de 4 de
+   arriba: a 1440px una sola fila dejaba la caja util en 122px, por debajo de los 124
+   que necesita.
+   Aqui la ultima tarjeta NO ocupa doble columna (al reves que en la base): en una fila
+   son 7 columnas y solo la destacada ocupa dos, asi que las celdas sueltas ya suman 7
+   exactas (2+1+1+1+1+1). Si la ultima tambien ocupara dos serian 8 celdas en 7 columnas
+   y no cuadraria.
+   Va aqui abajo y no junto a la regla base a proposito: mismo selector y misma
+   especificidad que ".metric-grid .metric-card:last-child { grid-column: span 2; }",
+   asi que en un empate gana quien aparece despues en el archivo. Puesta antes, la
+   regla incondicional de mas arriba la pisaba sin que el min-width llegara a importar. */
+@media (min-width: 1560px) {
+  .metric-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .metric-grid .metric-card:last-child {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 1180px) {
   /* OJO: esto anula el auto-fit de .metric-grid, asi que tocar su suelo (220px) no
      tiene ningun efecto por debajo de 1180. El override viene de cuando la base eran 7
