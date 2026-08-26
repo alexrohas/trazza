@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 
-/* Zoom de rueda y recorrido con el cursor para los graficos de linea, extraido de
-   CapitalCurve para poder darselo tambien a los del Journal sin repetir la mecanica.
-   CapitalCurve sigue con su copia propia a proposito: es un grafico muy ajustado (franja
-   de movimientos, ejes, insignia final) y migrarlo pedia reverificarlo entero, que es
-   trabajo aparte del de esta tanda.
+/* Zoom de rueda y recorrido con el cursor para los graficos de linea. Lo usan los tres:
+   CapitalCurve (Panel) y las curvas de P&L y Disciplina del Journal. Salio de
+   CapitalCurve y volvio a ella, asi que la mecanica esta en un solo sitio y las tres
+   graficas se tocan igual por construccion, no por acuerdo.
 
    Los factores son los mismos que los del legado, que es la referencia de tacto que se
-   quiere replicar: cada muesca encoge la ventana a 0.78 o la agranda a 1.28. */
+   quiere replicar: cada muesca encoge la ventana a 0.78 o la agranda a 1.28.
+
+   El hook no sabe nada de la geometria de cada grafico —alto, padding, franjas— porque
+   recibe los puntos ya escalados en onPointerMove. Es lo que permite que CapitalCurve
+   siga cruzando su linea guia hasta la franja de movimientos mientras las del Journal
+   la paran en la curva. */
 const ZOOM_IN_FACTOR = 0.78;
 const ZOOM_OUT_FACTOR = 1.28;
 const MIN_VISIBLE_POINTS = 4;

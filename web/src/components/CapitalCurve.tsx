@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useMemo } from "react";
 import { RotateCcw } from "lucide-react";
 import type { CapitalPoint, Currency, Movement } from "../types";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { InfoHint } from "./InfoHint";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
@@ -13,21 +14,9 @@ type CapitalCurveProps = {
   movements?: Movement[];
 };
 
-/* Mismos factores que el grafico del legado, que es la referencia de tacto que se quiere
-   replicar: cada muesca de rueda encoge la ventana a 0.78 o la agranda a 1.28. */
-const ZOOM_IN_FACTOR = 0.78;
-const ZOOM_OUT_FACTOR = 1.28;
-const MIN_VISIBLE_POINTS = 4;
-
 export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveProps) {
   const t = useT();
   const { language } = useI18n();
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  /* Ventana visible como {inicio, cantidad} en vez de niveles discretos de zoom: la rueda
-     necesita anclar el punto que hay bajo el cursor, y para eso hace falta poder mover el
-     inicio libremente, no solo recortar por el final como hacia el zoom por niveles. */
-  const [view, setView] = useState<{ count: number; start: number } | null>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
   const width = 760;
   /* Mas alto que ancho de lo que pedia la proporcion original: con 320 la curva se
      aplastaba y las variaciones pequenas no se distinguian. El alto del marco en CSS
@@ -38,8 +27,8 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   /* left algo mas ancho que el resto: ahi viven las etiquetas de precio del eje. */
   const padding = { bottom: 42, left: 62, right: 26, top: 32 };
   const totalPoints = points.length;
-  const visibleCount = view ? clamp(view.count, Math.min(MIN_VISIBLE_POINTS, totalPoints), totalPoints) : totalPoints;
-  const visibleStart = view ? clamp(view.start, 0, Math.max(0, totalPoints - visibleCount)) : 0;
+  const { activeIndex, frameRef, isZoomed, onPointerMove, reset, setActiveIndex, visibleCount, visibleStart } =
+    useChartZoomHover({ chartWidth: width - padding.left - padding.right, paddingLeft: padding.left, totalPoints, width });
   const visiblePoints = points.slice(visibleStart, visibleStart + visibleCount);
   const sortedMovements = [...movements].sort((left, right) => left.date.localeCompare(right.date));
   const visibleMovements = sortedMovements.slice(visibleStart, visibleStart + visiblePoints.length);
@@ -101,52 +90,12 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
   const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
   const activePoint = safeActiveIndex === null ? null : visiblePoints[safeActiveIndex];
   const activeMovement = safeActiveIndex === null ? null : visibleMovements[safeActiveIndex];
-  const isZoomed = visibleCount < totalPoints;
   const activeTooltipPosition = activeScaledPoint
     ? {
         left: `${(clamp(activeScaledPoint.x, padding.left + 74, width - padding.right - 74) / width) * 100}%`,
         top: `${(Math.max(padding.top + 72, activeScaledPoint.y - 12) / height) * 100}%`,
       }
     : undefined;
-
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!scaledPoints.length) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const pointerX = ((event.clientX - rect.left) / rect.width) * width;
-    const nearestIndex = scaledPoints.reduce((nearest, point, index) => {
-      const currentDistance = Math.abs(point.x - pointerX);
-      const nearestDistance = Math.abs(scaledPoints[nearest].x - pointerX);
-      return currentDistance < nearestDistance ? index : nearest;
-    }, 0);
-    setActiveIndex(nearestIndex);
-  };
-
-  /* Listener nativo y no pasivo: React registra `wheel` en la raiz como pasivo, asi que un
-     onWheel de JSX no puede llamar a preventDefault() y la pagina scrollearia al hacer zoom.
-     Mismo motivo por el que el legado lo registra con { passive: false }. */
-  useEffect(() => {
-    const frame = frameRef.current;
-    if (!frame || totalPoints < MIN_VISIBLE_POINTS) return undefined;
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const rect = frame.getBoundingClientRect();
-      // Proporcion dentro del area dibujable, descontando el padding lateral del viewBox.
-      const localX = ((event.clientX - rect.left) / rect.width) * width;
-      const ratio = clamp((localX - padding.left) / Math.max(1, chartWidth), 0, 1);
-      const factor = event.deltaY < 0 ? ZOOM_IN_FACTOR : ZOOM_OUT_FACTOR;
-      const nextCount = clamp(Math.round(visibleCount * factor), Math.min(MIN_VISIBLE_POINTS, totalPoints), totalPoints);
-      if (nextCount === visibleCount) return;
-
-      // El punto bajo el cursor se queda donde esta: se despeja el inicio que lo mantiene.
-      const anchor = visibleStart + ratio * Math.max(visibleCount - 1, 1);
-      const nextStart = clamp(Math.round(anchor - ratio * Math.max(nextCount - 1, 1)), 0, totalPoints - nextCount);
-      setView(nextCount >= totalPoints ? null : { count: nextCount, start: nextStart });
-    };
-
-    frame.addEventListener("wheel", handleWheel, { passive: false });
-    return () => frame.removeEventListener("wheel", handleWheel);
-  }, [chartWidth, padding.left, totalPoints, visibleCount, visibleStart, width]);
 
   if (points.length === 0) {
     return (
@@ -189,14 +138,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
           {/* Sin lupas: el zoom es con la rueda. Este boton solo aparece con zoom puesto,
               para no dejar sin salida a quien no descubra la rueda. */}
           {isZoomed && (
-            <button
-              className="chart-reset-zoom"
-              onClick={() => {
-                setActiveIndex(null);
-                setView(null);
-              }}
-              type="button"
-            >
+            <button className="chart-reset-zoom" onClick={reset} type="button">
               <RotateCcw size={13} strokeWidth={2.4} />
               {t("capitalCurve.viewAll")}
             </button>
@@ -207,12 +149,9 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
         className="chart-frame is-interactive"
         role="img"
         aria-label={t("capitalCurve.chartAriaLabel")}
-        onDoubleClick={() => {
-          setActiveIndex(null);
-          setView(null);
-        }}
+        onDoubleClick={reset}
         onPointerLeave={() => setActiveIndex(null)}
-        onPointerMove={handlePointerMove}
+        onPointerMove={(event) => onPointerMove(event, scaledPoints)}
         ref={frameRef}
       >
         <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
