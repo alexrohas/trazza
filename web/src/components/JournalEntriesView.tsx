@@ -21,13 +21,14 @@ import {
   Pencil,
   Percent,
   Plus,
+  RotateCcw,
   Settings2,
   ShieldAlert,
   Target,
   Trash2,
   TrendingUp,
-  ZoomIn,
   X,
+  ZoomIn,
 } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
@@ -36,6 +37,7 @@ import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
@@ -1838,8 +1840,9 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
   const width = 760;
   const height = 260;
   const padding = { bottom: 42, left: 48, right: 26, top: 32 };
+  const { language } = useI18n();
   const escala = getDisciplineScale(entries);
-  const points = useMemo(
+  const allPoints = useMemo(
     () =>
       [...entries]
         .filter((entry) => Number.isFinite(entry.discipline) && entry.discipline > 0)
@@ -1849,7 +1852,13 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
   );
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
+  const { activeIndex, frameRef, isZoomed, onPointerMove, reset, setActiveIndex, visibleCount, visibleStart } =
+    useChartZoomHover({ chartWidth, paddingLeft: padding.left, totalPoints: allPoints.length, width });
+  const points = allPoints.slice(visibleStart, visibleStart + visibleCount);
   const step = points.length > 1 ? chartWidth / (points.length - 1) : 0;
+  /* El eje se queda anclado a la escala completa (1..escala) incluso con zoom: aqui el
+     rango no es libre como en P&L, son los cinco niveles de disciplina, y reescalarlos a
+     la ventana haria que un 3 pareciera un maximo. */
   const rango = escala - 1 || 1;
   const scaledPoints = points.map((point, index) => ({
     date: point.date,
@@ -1859,6 +1868,17 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
   }));
   const path = buildSmoothPath(scaledPoints);
   const media = points.length ? points.reduce((total, point) => total + point.value, 0) / points.length : null;
+  const safeActiveIndex = activeIndex !== null && activeIndex < scaledPoints.length ? activeIndex : null;
+  const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
+  const activePoint = safeActiveIndex === null ? null : points[safeActiveIndex];
+  /* Mismo motivo que en la curva de P&L, con una fila menos: aqui el tooltip son fecha y
+     valor. Marco de 220px reales y viewBox de 260, asi que el suelo va algo mas bajo. */
+  const tooltipPosition = activeScaledPoint
+    ? {
+        left: `${(clamp(activeScaledPoint.x, padding.left + 66, width - padding.right - 66) / width) * 100}%`,
+        top: `${(Math.max(112, activeScaledPoint.y - 12) / height) * 100}%`,
+      }
+    : undefined;
 
   return (
     <section className="panel journal-discipline-panel">
@@ -1867,13 +1887,29 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
           <h2>{t("journal.discipline.title")}</h2>
           <p>{points.length ? t("journal.discipline.subtitle") : t("journal.discipline.subtitleEmpty")}</p>
         </div>
-        {media === null ? null : (
-          <strong className="chart-delta neutral">{`${media.toFixed(1)}/${escala}`}</strong>
-        )}
+        <div className="chart-heading-side">
+          {media === null ? null : (
+            <strong className="chart-delta neutral">{`${media.toFixed(1)}/${escala}`}</strong>
+          )}
+          {isZoomed && (
+            <button className="chart-reset-zoom" onClick={reset} type="button">
+              <RotateCcw size={13} strokeWidth={2.4} />
+              {t("capitalCurve.viewAll")}
+            </button>
+          )}
+        </div>
       </div>
       {points.length > 0 ? (
         <>
-          <div className="journal-pnl-chart-frame" role="img" aria-label={t("journal.discipline.ariaLabel")}>
+          <div
+            className="journal-pnl-chart-frame is-interactive"
+            ref={frameRef}
+            role="img"
+            aria-label={t("journal.discipline.ariaLabel")}
+            onDoubleClick={reset}
+            onPointerLeave={() => setActiveIndex(null)}
+            onPointerMove={(event) => onPointerMove(event, scaledPoints)}
+          >
             <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
               {[0, 0.25, 0.5, 0.75, 1].map((position) => {
                 const y = padding.top + chartHeight * position;
@@ -1891,9 +1927,33 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
                 scaledPoints.map((point, index) => (
                   <circle className="journal-discipline-chart-point" key={`${point.date}-${index}`} cx={point.x} cy={point.y} r="2" />
                 ))}
+              {activeScaledPoint && (
+                <line
+                  className="chart-hover-line"
+                  x1={activeScaledPoint.x}
+                  x2={activeScaledPoint.x}
+                  y1={padding.top}
+                  y2={height - padding.bottom}
+                />
+              )}
             </svg>
             <span className="journal-chart-axis-top">{`${escala}/${escala}`}</span>
             <span className="journal-chart-axis-bottom">{`1/${escala}`}</span>
+            {activeScaledPoint && (
+              <span
+                className="chart-dot is-active"
+                style={{ left: `${(activeScaledPoint.x / width) * 100}%`, top: `${(activeScaledPoint.y / height) * 100}%` }}
+              />
+            )}
+            {activeScaledPoint && activePoint && tooltipPosition && (
+              <div className="chart-hover-card" style={tooltipPosition}>
+                <span>{formatFullDate(activePoint.date, language)}</span>
+                <em>
+                  <i>{t("journal.discipline.title")}</i>
+                  <strong>{`${activePoint.value}/${escala}`}</strong>
+                </em>
+              </div>
+            )}
           </div>
           <div className="journal-chart-footer">
             <span>{points[0].date}</span>
@@ -1909,16 +1969,23 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
 
 function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entries: JournalEntry[] }) {
   const t = useT();
+  const { language } = useI18n();
   const width = 760;
   const height = 320;
   const padding = { bottom: 42, left: 48, right: 26, top: 32 };
-  const points = useMemo(() => buildJournalPnlPoints(entries), [entries]);
+  const allPoints = useMemo(() => buildJournalPnlPoints(entries), [entries]);
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const { activeIndex, frameRef, isZoomed, onPointerMove, reset, setActiveIndex, visibleCount, visibleStart } =
+    useChartZoomHover({ chartWidth, paddingLeft: padding.left, totalPoints: allPoints.length, width });
+  /* La escala se recalcula sobre la ventana visible y no sobre el total: con zoom puesto,
+     escalar contra el maximo global dejaria el tramo ampliado aplastado en una franja
+     estrecha, que es justo lo contrario de lo que se pide al hacer zoom. */
+  const points = allPoints.slice(visibleStart, visibleStart + visibleCount);
   const values = points.map((point) => point.value);
   const min = Math.min(0, ...values);
   const max = Math.max(1, ...values);
   const range = max - min || 1;
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
   const step = points.length > 1 ? chartWidth / (points.length - 1) : 0;
   const scaledPoints = points.map((point, index) => ({
     date: point.date,
@@ -1932,6 +1999,25 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
   const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
   const verticalLines = [0, 0.25, 0.5, 0.75, 1];
+  const safeActiveIndex = activeIndex !== null && activeIndex < scaledPoints.length ? activeIndex : null;
+  const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
+  const activePoint = safeActiveIndex === null ? null : points[safeActiveIndex];
+  /* P&L del dia: la curva es acumulada, asi que la variacion de un punto es su valor
+     menos el del anterior. Es el segundo dato del tooltip del legado. */
+  const activeDelta =
+    safeActiveIndex === null
+      ? null
+      : (points[safeActiveIndex]?.value ?? 0) - (safeActiveIndex > 0 ? points[safeActiveIndex - 1].value : 0);
+  /* El tooltip se ancla con translate(-50%, -100%), o sea que crece hacia arriba desde el
+     punto, y el marco recorta (overflow: hidden). Con tres filas mide 121px reales sobre
+     un marco de 286, que en unidades del viewBox (alto 320) son ~135: ese es el suelo que
+     hay que reservar o la fecha se queda fuera. Medido: con 60 se cortaban 38px. */
+  const tooltipPosition = activeScaledPoint
+    ? {
+        left: `${(clamp(activeScaledPoint.x, padding.left + 74, width - padding.right - 74) / width) * 100}%`,
+        top: `${(Math.max(140, activeScaledPoint.y - 12) / height) * 100}%`,
+      }
+    : undefined;
 
   return (
     <section className="panel journal-pnl-curve-panel">
@@ -1940,11 +2026,29 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
           <h2>{t("journal.pnlCurve.title")}</h2>
           <p>{entries.length ? `${entries.length} ${t("journal.pnlCurve.subtitleSuffix")}` : t("journal.pnlCurve.subtitleEmpty")}</p>
         </div>
-        <strong className={`chart-delta ${signedTone(finalValue)}`}>{formatMoney(finalValue, currency)}</strong>
+        <div className="chart-heading-side">
+          <strong className={`chart-delta ${signedTone(finalValue)}`}>{formatMoney(finalValue, currency)}</strong>
+          {/* Sin lupas: el zoom es con la rueda. El boton solo sale con zoom puesto, para
+              no dejar sin salida a quien no descubra la rueda. Igual que en CapitalCurve. */}
+          {isZoomed && (
+            <button className="chart-reset-zoom" onClick={reset} type="button">
+              <RotateCcw size={13} strokeWidth={2.4} />
+              {t("capitalCurve.viewAll")}
+            </button>
+          )}
+        </div>
       </div>
       {points.length > 0 ? (
         <>
-          <div className="journal-pnl-chart-frame" role="img" aria-label={t("journal.pnlCurve.ariaLabel")}>
+          <div
+            className="journal-pnl-chart-frame is-interactive"
+            ref={frameRef}
+            role="img"
+            aria-label={t("journal.pnlCurve.ariaLabel")}
+            onDoubleClick={reset}
+            onPointerLeave={() => setActiveIndex(null)}
+            onPointerMove={(event) => onPointerMove(event, scaledPoints)}
+          >
             <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
               <defs>
                 <linearGradient id="journal-pnl-fill" x1="0" x2="0" y1="0" y2="1">
@@ -1972,6 +2076,15 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                   <circle className="journal-pnl-chart-point is-muted" key={`${point.date}-${index}`} cx={point.x} cy={point.y} r="3.5" />
                 ))}
               {lastScaledPoint && <circle className="journal-pnl-chart-point is-last" cx={lastScaledPoint.x} cy={lastScaledPoint.y} r="5.2" />}
+              {activeScaledPoint && (
+                <line
+                  className="chart-hover-line"
+                  x1={activeScaledPoint.x}
+                  x2={activeScaledPoint.x}
+                  y1={padding.top}
+                  y2={height - padding.bottom}
+                />
+              )}
             </svg>
             {lastScaledPoint && (
               <span
@@ -1980,6 +2093,27 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
               >
                 {formatMoney(finalValue, currency)}
               </span>
+            )}
+            {/* El punto activo va en HTML y no como <circle>: con preserveAspectRatio
+                "none" las escalas X e Y difieren y un circulo saldria ovalado. */}
+            {activeScaledPoint && (
+              <span
+                className="chart-dot is-active"
+                style={{ left: `${(activeScaledPoint.x / width) * 100}%`, top: `${(activeScaledPoint.y / height) * 100}%` }}
+              />
+            )}
+            {activeScaledPoint && activePoint && tooltipPosition && (
+              <div className="chart-hover-card" style={tooltipPosition}>
+                <span>{formatFullDate(activePoint.date, language)}</span>
+                <em>
+                  <i>{t("journal.pnlCurve.tooltipTotal")}</i>
+                  <strong className={signedTone(activePoint.value)}>{formatMoney(activePoint.value, currency)}</strong>
+                </em>
+                <em>
+                  <i>{t("journal.pnlCurve.tooltipDay")}</i>
+                  <strong className={signedTone(activeDelta ?? 0)}>{formatMoney(activeDelta ?? 0, currency)}</strong>
+                </em>
+              </div>
             )}
           </div>
           <div className="chart-footer">
@@ -2982,6 +3116,20 @@ function shiftMonth(month: string, offset: number) {
   const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
   const date = new Date(year, monthNumber - 1 + offset, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/* Fecha larga para el tooltip ("27 jul 2026" en el legado). Mismo criterio que
+   formatMonthLabel de aqui abajo; el mediodia evita que la zona horaria corra el dia. */
+function formatFullDate(date: string, language: Language) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${date}T12:00:00`));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function formatMonthLabel(month: string, language: Language) {

@@ -3243,6 +3243,44 @@ button {
   font-weight: var(--weight-bold);
 }
 
+/* Filas etiqueta/valor del tooltip, como en el legado ("P&L total" a la izquierda con su
+   punto de color y el importe a la derecha). Solo las usan los graficos del Journal;
+   CapitalCurve sigue con su tooltip de una linea, que le basta. */
+.chart-hover-card em {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  font-style: normal;
+}
+
+.chart-hover-card em i {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-weight: var(--weight-medium);
+}
+
+.chart-hover-card em strong {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+/* El marco del Journal necesita lo mismo que .chart-frame.is-interactive: cursor de
+   punteria y contexto de apilado para que el tooltip y el punto activo se coloquen
+   contra el, no contra el panel. */
+.journal-pnl-chart-frame.is-interactive {
+  cursor: crosshair;
+}
+
+/* La cabecera del panel pasa a tener dos cosas a la derecha —la cifra y el boton de
+   reset— asi que se agrupan en vez de que el boton empuje a la cifra fuera de sitio. */
+.chart-heading-side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-base);
+}
+
 .chart-value-badge {
   position: absolute;
   z-index: 2;

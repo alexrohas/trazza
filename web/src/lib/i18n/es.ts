@@ -505,6 +505,8 @@ export const es = {
   "journal.discipline.subtitle": "Puntuacion de disciplina a lo largo del tiempo.",
   "journal.discipline.subtitleEmpty": "Sin operaciones en el filtro actual.",
   "journal.discipline.ariaLabel": "Evolucion de la puntuacion de disciplina",
+  "journal.pnlCurve.tooltipTotal": "P&L total",
+  "journal.pnlCurve.tooltipDay": "P&L dia",
   "journal.pnlCurve.title": "P&L acumulado",
   "journal.pnlCurve.subtitleSuffix": "operaciones en el subconjunto activo.",
   "journal.pnlCurve.subtitleEmpty": "Sin operaciones en el filtro actual.",

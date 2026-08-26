@@ -507,6 +507,8 @@ export const en: Record<TranslationKey, string> = {
   "journal.discipline.subtitle": "Discipline score over time.",
   "journal.discipline.subtitleEmpty": "No trades in the current filter.",
   "journal.discipline.ariaLabel": "Discipline score over time",
+  "journal.pnlCurve.tooltipTotal": "Total P&L",
+  "journal.pnlCurve.tooltipDay": "Day P&L",
   "journal.pnlCurve.title": "Cumulative P&L",
   "journal.pnlCurve.subtitleSuffix": "trades in the active subset.",
   "journal.pnlCurve.subtitleEmpty": "No trades in the current filter.",
