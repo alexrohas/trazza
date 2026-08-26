@@ -3633,6 +3633,38 @@ button {
   border-radius: 999px;
 }
 
+/* El tramo senalado engorda y los demas se apagan, para que el anillo conteste "cual es
+   este" sin tener que comparar dos rojos parecidos a ojo. La transicion es de opacidad y
+   grosor: mover el tramo lo desalinearia del acumulado y el anillo dejaria de cerrar. */
+.journal-errors-arc {
+  cursor: pointer;
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    stroke-width var(--dur-fast) var(--ease);
+}
+
+.journal-errors-arc.is-dimmed {
+  opacity: 0.3;
+}
+
+.journal-errors-legend li {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  margin: calc(var(--space-2xs) * -1) calc(var(--space-sm) * -1);
+  transition:
+    background var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+
+.journal-errors-legend li.is-active {
+  background: var(--surface-muted);
+}
+
+.journal-errors-legend li.is-dimmed {
+  opacity: 0.45;
+}
+
 .journal-errors-legend span {
   overflow: hidden;
   color: var(--text);
@@ -3777,7 +3809,9 @@ button {
   text-align: left;
 }
 
-.journal-recent-row:hover {
+.journal-recent-row:hover,
+.journal-weekday-bar:hover,
+.journal-breakdown-row:hover {
   border-color: rgba(124, 58, 237, 0.28);
   background: #ffffff;
 }
@@ -4127,6 +4161,9 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-base);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
   background: #fbfcfd;
 }
 
@@ -4207,6 +4244,10 @@ button {
   align-items: end;
 }
 
+/* Estas tarjetas ya enseñan todos sus datos (winrate, ops y P&L), asi que el hover no
+   revela nada nuevo: solo marca sobre cual estas, que en una fila de siete columnas
+   iguales es justo lo que falta para no perder el sitio. Mismo lenguaje que
+   .journal-recent-row: el borde se tine de acento y el fondo sube un punto. */
 .journal-weekday-bar {
   display: grid;
   min-width: 0;
@@ -4214,6 +4255,9 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-md) var(--space-sm);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
   background: #fbfcfd;
   text-align: center;
 }

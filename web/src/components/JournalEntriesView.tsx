@@ -1759,6 +1759,10 @@ type JournalDateRange = {
    frecuencia), que es el mismo del legado. */
 function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
   const t = useT();
+  /* Que tramo del anillo es cada error solo se puede saber por el color, y comparar dos
+     rojos parecidos a ojo no es leer un dato. Al senalar un tramo o su fila de la leyenda
+     se resaltan los dos a la vez y el centro pasa a mostrar ese error en vez del total. */
+  const [activeId, setActiveId] = useState<string | null>(null);
   const total = rows.reduce((suma, row) => suma + row.count, 0);
   const radio = 52;
   const circunferencia = 2 * Math.PI * radio;
@@ -1777,6 +1781,7 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
       acumulado += largo;
       return tramo;
     });
+  const activeRow = activeId === null ? null : rows.find((row) => row.id === activeId) || null;
 
   return (
     <section className="panel journal-errors-panel">
@@ -1795,27 +1800,41 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
               <g transform="rotate(-90 64 64)">
                 {tramos.map((tramo) => (
                   <circle
+                    className={`journal-errors-arc ${activeId === null || activeId === tramo.id ? "" : "is-dimmed"}`}
                     key={tramo.id}
                     cx="64"
                     cy="64"
                     r={radio}
                     fill="none"
+                    onPointerEnter={() => setActiveId(tramo.id)}
+                    onPointerLeave={() => setActiveId(null)}
                     stroke={tramo.color}
                     strokeDasharray={`${tramo.largo} ${circunferencia - tramo.largo}`}
                     strokeDashoffset={tramo.offset}
-                    strokeWidth="20"
+                    strokeWidth={activeId === tramo.id ? 26 : 20}
                   />
                 ))}
               </g>
             </svg>
             <div className="journal-errors-donut-center">
-              <strong>{total}</strong>
-              <small>{total === 1 ? t("journal.errors.totalSuffixOne") : t("journal.errors.totalSuffix")}</small>
+              <strong>{activeRow ? activeRow.count : total}</strong>
+              <small>
+                {activeRow
+                  ? activeRow.label
+                  : total === 1
+                    ? t("journal.errors.totalSuffixOne")
+                    : t("journal.errors.totalSuffix")}
+              </small>
             </div>
           </div>
           <ul className="journal-errors-legend">
             {rows.map((row) => (
-              <li key={row.id}>
+              <li
+                className={`${activeId === row.id ? "is-active" : ""} ${activeId !== null && activeId !== row.id ? "is-dimmed" : ""}`}
+                key={row.id}
+                onPointerEnter={() => setActiveId(row.id)}
+                onPointerLeave={() => setActiveId(null)}
+              >
                 <i style={{ background: row.color }} />
                 <span>{row.label}</span>
                 <em className={`severity-${row.severity}`}>{severityLabel[row.severity]}</em>
