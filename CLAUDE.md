@@ -51,9 +51,9 @@ suscripción que colgaba del 6,99 era de prueba, así que no hubo que migrar a n
 no queda ningún suscriptor en precios antiguos.
 
 **React, pulido visual — hecho pantalla a pantalla**: Login, Ajustes, Panel (dashboard),
-Empresas, Cuentas. Cada una se llevó varias iteraciones de feedback visual real contra
-capturas; no son cambios cosméticos superficiales, resuelven cosas concretas (ver
-"Trampas ya pisadas" abajo).
+Empresas, Cuentas, Movimientos. Cada una se llevó varias iteraciones de feedback visual
+real contra capturas; no son cambios cosméticos superficiales, resuelven cosas concretas
+(ver "Trampas ya pisadas" abajo).
 
 **El sistema de diseño**, cerrado el **25 de agosto de 2026** en seis commits: las
 escalas de espaciado, letra y peso podadas a seis valores cada una, y una escalera de
@@ -61,22 +61,30 @@ proximidad que da a cada nivel de la jerarquía su propia distancia. Aplica a la
 entera, no a pantallas sueltas. Tiene sección propia más abajo — léela antes de tocar
 `styles.css`.
 
+**Cuentas — enlazar evaluación con fondeada.** Este archivo lo listó como pendiente
+hasta que el usuario avisó, el 26 de agosto de 2026, de que ya estaba hecho — otra
+sesión lo cerró sin que quedara anotado aquí. Verificado contra producción antes de dar
+el aviso por bueno, no solo contra el código: `supabase-accounts-kind.sql` (aditivo, no
+toca `status` ni la app legada) añade `kind`, `drawdown_type` y `parent_account_id` a
+`accounts`, y en Supabase hoy hay 85 cuentas, 0 sin `kind`, 0 sin `drawdown_type`, y una
+cuenta enlazada de verdad: "Alpha Futures 25K" (`passed`) → "Alpha Futures 25K #2"
+(`funded`) vía `parent_account_id`, exactamente el ejemplo que el propio SQL preveía a
+mano. En React, `AccountsView.tsx` tiene el botón de promoción sobre la tarjeta del
+challenge (`openPromoteAccount`), abre el alta de la fondeada precargada con
+`parentAccountId`, y no se ofrece si la evaluación ya tiene una fondeada enlazada
+(`hasFundedChild`).
+
 ## Qué queda
 
-Del plan original, lo único abierto de peso: **Cuentas — enlazar evaluación con
-fondeada**. Hoy una cuenta que pasa de evaluación a fondeada es una fila nueva sin
-relación con la anterior en el modelo de datos, y eso obliga a nombrarlas a mano para
-compensar ("[ALPHA] 25K FUNDED" mete la empresa y el estado en el texto libre porque no
-hay dónde más ponerlos). Ya se resolvieron el nombre automático y que las cuentas
-terminadas muestren su desenlace en vez de límites que ya no rigen; enlazar la sucesión
-en sí es lo que falta y **toca el esquema de Supabase con producción debajo**, así que
-antes de tocarlo: mirar bien qué migración hace falta, probarla contra una cuenta de
-prueba primero.
+Del plan original, lo único abierto de peso: **Journal**, la pantalla de React sin su
+pasada de pulido dedicada. Es la más grande y compleja de la app — el sistema de diseño
+ya está aplicado en ella, así que no se parte de cero, pero le falta la iteración
+pantalla a pantalla contra capturas reales que ya tuvieron Login, Ajustes, Panel,
+Empresas, Cuentas y Movimientos.
 
-Pantallas de React sin su pasada de pulido dedicada: **Movimientos** y **Journal** (el
-Journal es la más grande y compleja, dejarla para el final). Ojo: el sistema de diseño
-sí está aplicado en toda la app, esas dos incluidas, así que no se parte de cero — lo
-que falta es la iteración pantalla a pantalla contra capturas reales.
+**Movimientos** cerró su pasada el 26 de agosto de 2026: hover de fila con revelado de
+acciones (mismo patrón que `.journal-error-type-row`), altura de fila uniforme, y
+paginación (20 por página) donde antes se pintaban todas las filas de golpe.
 
 Cabos sueltos: **ninguno pendiente** a 26 de agosto de 2026. Los que había aquí se
 cerraron todos — las tres reglas `.workspace` duplicadas se consolidaron en una (con
@@ -89,10 +97,16 @@ existían** — se habían borrado en `69f2482`, el mismo commit que arregló lo
 `metrics.ts`. Contar referencias excluyendo el propio fichero da cero igual si nadie lo
 usa que si no está: comprueba que el fichero existe antes de dar por bueno un cabo.
 
-La rejilla del Panel es `auto-fit` con suelo de **220px**: a 1280px da 4 columnas, o sea
-filas de 4 y 3 con un solo hueco vacío. **Pero hay un `@media (max-width: 1180px)` que
-la fuerza a 3 columnas fijas y anula el `auto-fit`**, así que tocar ese suelo no tiene
-ningún efecto por debajo de 1180. Está comentado en el propio override.
+La rejilla de tarjetas del Panel (`.metric-grid`) **no es `auto-fit`, es fija a
+propósito**: son 7 celdas (la destacada ocupa dos columnas) y 7 no se reparte limpio en
+casi ningún número de columnas fijo por el ancho — con `auto-fit` un portátil típico
+(1440-1512px) elegía 5 columnas y la segunda fila se quedaba con 3 huecos vacíos. La
+solución fue hacer que la última tarjeta también ocupe dos columnas (8 celdas, que sí
+cuadra en 4) y fijar la rejilla en `repeat(4, minmax(0,1fr))`: dos filas de 4 completas
+hasta los 1560px. Por encima de **1560px** un `@media (min-width: 1560px)` cambia a 7
+columnas de una sola fila, con solo la destacada a `span 2` (ahí sí cuadra: 2+1×5=7). Si
+tocas esto, ojo con la trampa de cascada de más abajo — el override de una fila vive al
+final del archivo, no junto a la regla base, y hay una razón concreta para eso.
 
 ## Trampas ya pisadas — no las repitas
 
@@ -146,6 +160,14 @@ sesión no vuelva a pisarlas.
   formato y no el tamaño de letra. Hay tres: `formatMoney` (con divisa), `formatAmount`
   (sin divisa) y `formatMoneyCompact` (sin divisa ni decimales, para cajas muy
   estrechas como las celdas del calendario del Journal).
+- **Un empate de especificidad CSS lo gana quien aparece después en el archivo, no
+  quien "debería" mandar por el `@media`.** Una regla `@media (min-width: 1560px)`
+  con el mismo selector y especificidad que una regla base incondicional, puesta
+  *antes* que esa base en el archivo, perdía el empate y no hacía nada — sin error,
+  sin warning, el `min-width` nunca llegaba a decidir. Se arregla moviéndola *después*
+  de la regla que compite con ella, no subiéndole la especificidad. Pasó con
+  `.metric-grid .metric-card:last-child`, que definía `span 2` en la base y
+  `auto` en el breakpoint ancho.
 
 ## El sistema de diseño — léelo antes de tocar `styles.css`
 
