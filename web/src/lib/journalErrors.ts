@@ -116,12 +116,40 @@ export function severityRank(severity: JournalErrorSeverity) {
   return 1;
 }
 
+/* Paletas del legado (app.js, journalErrorSeverityPalettes). La severidad no se guarda
+   en Supabase —journal_error_types no tiene esa columna— asi que las dos apps la deducen,
+   y el legado lo hace ante todo por el color: al crear un tipo se le asigna un color de
+   la paleta de su severidad, asi que el color ES el dato guardado. Sin esto React
+   deducia por etiqueta y no coincidia con lo que el legado enseña de los mismos datos. */
+const journalErrorSeverityPalettes: Record<JournalErrorSeverity, string[]> = {
+  minor: ["#888780", "#71717a", "#5f5e5a", "#64748b", "#78716c", "#a1a1aa"],
+  moderate: ["#ef9f27", "#e8593c", "#ba7517", "#d85a30", "#854f0b", "#c47a1c"],
+  severe: ["#e24b4a", "#d64646", "#c9343e", "#b8292f", "#d4537e", "#a32d2d"],
+};
+
+const journalErrorSeverityOrder: JournalErrorSeverity[] = ["severe", "moderate", "minor"];
+
 function inferJournalErrorSeverity(type: JournalErrorType, fallback: JournalErrorSeverity = "moderate"): JournalErrorSeverity {
+  /* Mismo orden que inferJournalErrorSeverity en app.js: primero el color, y solo si no
+     cae en ninguna paleta se mira la etiqueta. */
+  const color = normalizeHexColor(type.color).toLowerCase();
+  if (color) {
+    const porColor = journalErrorSeverityOrder.find((severity) =>
+      journalErrorSeverityPalettes[severity].some((item) => item.toLowerCase() === color),
+    );
+    if (porColor) return porColor;
+  }
+
+  /* Reglas de etiqueta del legado, con el matiz que a React le faltaba: "riesgo" solo es
+     grave si NO lleva "poco". Sin esa exclusion "Poco riesgo" salia Grave cuando el
+     legado lo enseña como Leve, que es lo contrario. */
+  const label = normalizeTextKey(type.label);
+  if (label.includes("riesgo") && !label.includes("poco")) return "severe";
+  if (label.includes("sl") || label.includes("stop")) return "severe";
+  if (label.includes("poco")) return "minor";
+
   const defaultMatch = defaultJournalErrorTypes.find((item) => item.id === type.id);
   if (defaultMatch) return defaultMatch.severity;
 
-  const label = normalizeTextKey(type.label);
-  if (label.includes("riesgo") || label.includes("stop") || label.includes("revenge")) return "severe";
-  if (label.includes("salida") || label.includes("temprana")) return "minor";
   return fallback;
 }

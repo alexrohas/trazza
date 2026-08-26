@@ -3531,6 +3531,121 @@ button {
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 32%, transparent));
 }
 
+.journal-errors-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4xl);
+}
+
+.journal-errors-donut {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 168px;
+  height: 168px;
+}
+
+.journal-errors-donut svg {
+  width: 100%;
+  height: 100%;
+}
+
+.journal-errors-donut-center {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3xs);
+  text-align: center;
+}
+
+.journal-errors-donut-center strong {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.journal-errors-donut-center small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.journal-errors-legend {
+  display: grid;
+  gap: var(--space-base);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* El punto y la severidad se quedan en su ancho y el nombre absorbe lo que sobre, para
+   que la cifra de la derecha quede en columna aunque los nombres midan distinto. */
+.journal-errors-legend li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-base);
+}
+
+.journal-errors-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.journal-errors-legend span {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-errors-legend em {
+  border-radius: 999px;
+  padding: var(--space-3xs) var(--space-sm);
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-weight: var(--weight-medium);
+}
+
+.journal-errors-legend em.severity-severe {
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.journal-errors-legend em.severity-moderate {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+
+.journal-errors-legend em.severity-minor {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+.journal-errors-legend strong {
+  min-width: 32px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  text-align: right;
+}
+
+/* Por debajo de 900px el anillo y la lista dejan de caber en dos columnas: el anillo
+   pasa arriba y centrado, y la lista debajo a lo ancho. */
+@media (max-width: 900px) {
+  .journal-errors-body {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .journal-errors-legend {
+    width: 100%;
+  }
+}
+
 /* Disciplina reutiliza .journal-pnl-chart-frame (y con el su par de tema oscuro), asi
    que aqui solo va lo propio: el marco algo mas bajo porque la grafica no necesita
    tanto alto para leerse, y la linea en su color. */

@@ -826,23 +826,7 @@ export function JournalEntriesView({
         title={t("journal.breakdown.emotion.title")}
       />
     ),
-    errors: (
-      <JournalBreakdownPanel
-        emptyText={t("journal.breakdown.errors.empty")}
-        rows={analytics.errorRows.map((row) => ({
-          color: row.color,
-          id: row.id,
-          detail: `${row.count} ${row.count === 1 ? t("journal.breakdown.entrySuffix") : t("journal.breakdown.entriesSuffix")}`,
-          label: row.label,
-          meter: shareMeter(row.count, analytics.maxErrorCount),
-          note: `${formatPercent(row.share)} ${t("journal.breakdown.markedShareSuffix")}`,
-          tone: row.severity === "severe" ? "negative" : "neutral",
-          value: String(row.count),
-        }))}
-        subtitle={t("journal.breakdown.errors.subtitle")}
-        title={t("journal.breakdown.errors.title")}
-      />
-    ),
+    errors: <JournalErrorsPanel rows={analytics.errorRows} />,
     kpis: (
       <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
         <JournalWinrateGaugePanel
@@ -928,7 +912,9 @@ export function JournalEntriesView({
        ocupa el mismo hueco ancho que la curva de P&L en vez de una fila entera. */
     discipline: "wide",
     emotion: "third",
-    errors: "third",
+    /* "wide" desde que lleva anillo: con "third" el donut y su leyenda se pisaban en
+       una columna estrecha. En el legado tambien va ancho, compartiendo fila. */
+    errors: "wide",
     kpis: "full",
     pnl: "wide",
     recent: "narrow",
@@ -1761,6 +1747,85 @@ type JournalDateRange = {
   from: string;
   to: string;
 };
+
+/* Errores con el anillo del legado: el total en el centro y la lista al lado con su
+   severidad. El anillo se dibuja con un solo circle por tramo y stroke-dasharray sobre
+   la misma circunferencia, desplazando cada uno con stroke-dashoffset acumulado — es lo
+   que evita tener que calcular arcos con trigonometria. Va rotado -90 grados para que
+   el primer tramo arranque arriba y no a las tres en punto.
+   La lista conserva el orden que ya trae errorRows (por severidad y despues por
+   frecuencia), que es el mismo del legado. */
+function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
+  const t = useT();
+  const total = rows.reduce((suma, row) => suma + row.count, 0);
+  const radio = 52;
+  const circunferencia = 2 * Math.PI * radio;
+  const severityLabel: Record<JournalErrorSeverity, string> = {
+    minor: t("journal.errors.severity.minor"),
+    moderate: t("journal.errors.severity.moderate"),
+    severe: t("journal.errors.severity.severe"),
+  };
+
+  let acumulado = 0;
+  const tramos = rows
+    .filter((row) => row.count > 0)
+    .map((row) => {
+      const largo = total > 0 ? (row.count / total) * circunferencia : 0;
+      const tramo = { color: row.color, id: row.id, largo, offset: -acumulado };
+      acumulado += largo;
+      return tramo;
+    });
+
+  return (
+    <section className="panel journal-errors-panel">
+      <div className="panel-heading">
+        <div>
+          <h2>{t("journal.breakdown.errors.title")}</h2>
+          <p>{t("journal.breakdown.errors.subtitle")}</p>
+        </div>
+      </div>
+      {total === 0 ? (
+        <div className="chart-empty">{t("journal.breakdown.errors.empty")}</div>
+      ) : (
+        <div className="journal-errors-body">
+          <div className="journal-errors-donut" role="img" aria-label={`${total} ${t("journal.errors.totalSuffix")}`}>
+            <svg viewBox="0 0 128 128">
+              <g transform="rotate(-90 64 64)">
+                {tramos.map((tramo) => (
+                  <circle
+                    key={tramo.id}
+                    cx="64"
+                    cy="64"
+                    r={radio}
+                    fill="none"
+                    stroke={tramo.color}
+                    strokeDasharray={`${tramo.largo} ${circunferencia - tramo.largo}`}
+                    strokeDashoffset={tramo.offset}
+                    strokeWidth="20"
+                  />
+                ))}
+              </g>
+            </svg>
+            <div className="journal-errors-donut-center">
+              <strong>{total}</strong>
+              <small>{total === 1 ? t("journal.errors.totalSuffixOne") : t("journal.errors.totalSuffix")}</small>
+            </div>
+          </div>
+          <ul className="journal-errors-legend">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <i style={{ background: row.color }} />
+                <span>{row.label}</span>
+                <em className={`severity-${row.severity}`}>{severityLabel[row.severity]}</em>
+                <strong>{row.count}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
 
 /* Disciplina a lo largo del tiempo, como en el legado. Mismo armazon que la curva de
    P&L (misma caja, misma rejilla, buildSmoothPath) para que las dos graficas del
