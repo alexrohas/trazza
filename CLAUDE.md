@@ -51,9 +51,9 @@ suscripción que colgaba del 6,99 era de prueba, así que no hubo que migrar a n
 no queda ningún suscriptor en precios antiguos.
 
 **React, pulido visual — hecho pantalla a pantalla**: Login, Ajustes, Panel (dashboard),
-Empresas, Cuentas, Movimientos. Cada una se llevó varias iteraciones de feedback visual
-real contra capturas; no son cambios cosméticos superficiales, resuelven cosas concretas
-(ver "Trampas ya pisadas" abajo).
+Empresas, Cuentas, Movimientos y Journal. Cada una se llevó varias iteraciones de
+feedback visual real contra capturas; no son cambios cosméticos superficiales, resuelven
+cosas concretas (ver "Trampas ya pisadas" abajo).
 
 **El sistema de diseño**, cerrado el **25 de agosto de 2026** en seis commits: las
 escalas de espaciado, letra y peso podadas a seis valores cada una, y una escalera de
@@ -74,17 +74,41 @@ challenge (`openPromoteAccount`), abre el alta de la fondeada precargada con
 `parentAccountId`, y no se ofrece si la evaluación ya tiene una fondeada enlazada
 (`hasFundedChild`).
 
+**Journal**, cerrado el **26 de agosto de 2026** en siete commits. El criterio lo fijó el
+usuario y conviene mantenerlo si se toca algo: *copiar la estructura y la información del
+legado tal cual —qué widgets, qué datos, qué disposición— y respetar las decisiones de
+React donde el legado no cabría* (formatos compactos, escalas de espaciado y letra,
+paginación). Se cerraron cuatro huecos de contenido y se le dio el dinamismo que ya
+tenían las gráficas de Finanzas:
+
+- Los tres KPIs del cockpit eran `MetricCard` planas: ahora son el gauge semicircular de
+  winrate y las dos barras divididas de Profit factor y Avg win/loss.
+- **Disciplina no existía en React**: el dato estaba pero no había dónde verlo salvo
+  entrada a entrada. Widget nuevo con el mismo armazón que la curva de P&L.
+- El calendario recupera la columna de semana y el total del mes.
+- El panel de errores recupera el anillo con el total en el centro y la severidad.
+- Zoom de rueda y tooltip en las dos gráficas, anillo que responde en las dos
+  direcciones (arco ↔ leyenda), hover en barras y filas, y calendario que enciende la
+  semana entera al señalar un día.
+
+**Movimientos** cerró su pasada el mismo día: hover de fila con revelado de acciones
+(mismo patrón que `.journal-error-type-row`), altura de fila uniforme, y paginación (20
+por página) donde antes se pintaban todas las filas de golpe.
+
 ## Qué queda
 
-Del plan original, lo único abierto de peso: **Journal**, la pantalla de React sin su
-pasada de pulido dedicada. Es la más grande y compleja de la app — el sistema de diseño
-ya está aplicado en ella, así que no se parte de cero, pero le falta la iteración
-pantalla a pantalla contra capturas reales que ya tuvieron Login, Ajustes, Panel,
-Empresas, Cuentas y Movimientos.
+**Del plan original no queda nada abierto.** Las siete pantallas de React están pulidas y
+Cuentas quedó cerrada. Lo que hay son cabos concretos, ninguno bloqueante:
 
-**Movimientos** cerró su pasada el 26 de agosto de 2026: hover de fila con revelado de
-acciones (mismo patrón que `.journal-error-type-row`), altura de fila uniforme, y
-paginación (20 por página) donde antes se pintaban todas las filas de golpe.
+- **`CapitalCurve` conserva su copia de la lógica de zoom** en vez de usar
+  `useChartZoomHover`, el hook que se extrajo de ella para las gráficas del Journal. Es
+  un gráfico muy ajustado (franja de movimientos, ejes, insignia final) y migrarlo pide
+  reverificarlo entero. Está anotado dentro del propio hook.
+- **La severidad de los tipos de error no se guarda**: se deduce del color (ver la
+  trampa de más abajo). Consecuencia práctica: cambiar el color de un tipo en el gestor
+  le cambia la severidad sin querer. Pasa igual en el legado. Hacerlo explícito significa
+  añadir la columna a `journal_error_types`, y eso **toca esquema con producción
+  debajo**.
 
 Cabos sueltos: **ninguno pendiente** a 26 de agosto de 2026. Los que había aquí se
 cerraron todos — las tres reglas `.workspace` duplicadas se consolidaron en una (con
@@ -134,6 +158,11 @@ sesión no vuelva a pisarlas.
 - **El español omite el separador de miles en números de 4 cifras** (`5000,00`, no
   `5.000,00`). Correcto al escribir, malo en una columna de importes. `formatMoney` ya
   fuerza `useGrouping: true` para evitarlo — no lo quites.
+- **Un tooltip anclado con `translate(-50%, -100%)` crece hacia arriba, y el marco lo
+  recorta.** Los marcos de gráfico llevan `overflow: hidden`, así que el suelo del
+  posicionamiento tiene que reservar el **alto real de la tarjeta**, no un margen a ojo.
+  Con tres filas medía 121px sobre un marco de 286 y se comía 38px de la fecha. Y ojo con
+  las unidades: el `top` va en el sistema del `viewBox`, no en píxeles de pantalla.
 - **`i18n/es.ts` y `en.ts` tienen que tener las mismas claves siempre.** Verificación
   rápida antes de cualquier commit que toque textos:
   ```bash
@@ -155,6 +184,15 @@ sesión no vuelva a pisarlas.
   controles; al ensanchar el botón principal pasaron a pedir 5px más y la fila se
   partía en dos líneas en toda una banda de anchos. Si tocas algo que se midió, revisa
   el breakpoint que se derivó de ello — su comentario lleva los números originales.
+- **La severidad de un tipo de error no se guarda en ningún sitio: se deduce del
+  color.** `journal_error_types` no tiene columna `severity` (comprobado contra la base
+  de datos), así que las dos apps la infieren, y durante un tiempo lo hicieron distinto:
+  el legado mira ante todo a qué paleta pertenece el color —al crear un tipo se le asigna
+  uno de la paleta de su severidad, así que el color **es** el dato persistido— y React
+  se saltaba el color y usaba solo la etiqueta, con una regla además equivocada
+  (`riesgo` → grave sin excluir `poco`, que volvía "Poco riesgo" en Grave cuando el
+  legado lo enseña como Leve). Ya está portado en `journalErrors.ts`. Si tocas esto,
+  el orden importa: **primero paletas, luego etiqueta**.
 - **Un importe truncado con elipsis es peor que no mostrarlo**, porque parece un dato y
   no lo es ("-425,00 US$" se leía "-425,00..."). Si un número no cabe, cambia el
   formato y no el tamaño de letra. Hay tres: `formatMoney` (con divisa), `formatAmount`
@@ -168,6 +206,13 @@ sesión no vuelva a pisarlas.
   de la regla que compite con ella, no subiéndole la especificidad. Pasó con
   `.metric-grid .metric-card:last-child`, que definía `span 2` en la base y
   `auto` en el breakpoint ancho.
+  **Volvió a aparecer dos veces en la tanda del Journal**, en su otra forma: un
+  `:root[data-theme="dark"] .journal-day` es **(0,3,0)** y se come cualquier
+  `.journal-day.algo` **(0,2,0)**, aunque el segundo describa un estado más
+  específico. Un realce de hover se quedaba sin aplicar sin dar error. Si añades un
+  estado a algo que ya tiene regla de tema oscuro, **el estado necesita su propio par
+  de tema** o no se verá en oscuro. Y compruébalo midiendo el color computado: leer el
+  CSS no lo delata.
 
 ## El sistema de diseño — léelo antes de tocar `styles.css`
 
