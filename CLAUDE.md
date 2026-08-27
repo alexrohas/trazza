@@ -91,6 +91,27 @@ tenían las gráficas de Finanzas:
   direcciones (arco ↔ leyenda), hover en barras y filas, y calendario que enciende la
   semana entera al señalar un día.
 
+**Gestor de tipos de error**, cerrado el **26 de agosto de 2026**. La severidad pasa a
+guardarse en vez de deducirse, y los tipos se pueden borrar:
+
+- `supabase-journal-error-severity.sql` (aditivo, columna anulable con check a
+  `minor`/`moderate`/`severe`) — **ya ejecutado en producción**.
+- El formulario pide nombre y **gravedad**; el color sale de ella. Al invertirse la
+  relación desaparece de raíz el problema de que cambiar el color cambiara la severidad.
+- **El legado recoge la columna solo**: hace `.select("*")` y su
+  `inferJournalErrorSeverity` arranca comprobando `row.severity` antes que el color.
+  **Pero al escribir no la incluye** (`journalErrorTypeToDb`), así que editar un tipo
+  desde el legado la deja en `NULL` y vuelve a deducirse del color. Por eso
+  `colorForSeverity` sigue tirando de las paletas del legado: esa vuelta atrás tiene que
+  seguir dando la misma respuesta. Es el motivo de usar la escala cálida (gris → naranja
+  → rojo) y no una de rojos, que al perder la severidad marcaría todo como Grave.
+- Las filas antiguas llegan sin severidad y siguen deduciéndola. `undefined` significa
+  "dedúcela", no "moderado": poner un defecto congelaría una deducción como si fuera un
+  dato.
+- **Borrado bloqueado si el tipo está en uso.** Las entradas guardan el id del tipo, así
+  que borrar uno usado dejaría esas entradas mostrando un UUID donde va el nombre. Para
+  esos está ocultar.
+
 La mecánica de zoom y recorrido vive en **`useChartZoomHover`** y la usan las **tres**
 gráficas de la app: `CapitalCurve` del Panel y las dos del Journal. Salió de
 `CapitalCurve` y volvió a ella, así que no hay copia duplicada que mantener. El hook no
@@ -104,14 +125,9 @@ por página) donde antes se pintaban todas las filas de golpe.
 
 ## Qué queda
 
-**Del plan original no queda nada abierto.** Las siete pantallas de React están pulidas y
-Cuentas quedó cerrada. Queda un solo cabo, y no es bloqueante:
-
-- **La severidad de los tipos de error no se guarda**: se deduce del color (ver la
-  trampa de más abajo). Consecuencia práctica: cambiar el color de un tipo en el gestor
-  le cambia la severidad sin querer. Pasa igual en el legado. Hacerlo explícito significa
-  añadir la columna a `journal_error_types`, y eso **toca esquema con producción
-  debajo**.
+**Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
+cabos: las siete pantallas de React están pulidas, Cuentas quedó cerrada y la severidad
+de los errores dejó de ser una deducción (ver abajo).
 
 Los cabos de CSS que hubo aquí sí están todos cerrados a 26 de agosto de 2026: las tres
 reglas `.workspace` duplicadas se consolidaron en una (con cuidado: el `min-width: 0`
@@ -187,15 +203,14 @@ sesión no vuelva a pisarlas.
   controles; al ensanchar el botón principal pasaron a pedir 5px más y la fila se
   partía en dos líneas en toda una banda de anchos. Si tocas algo que se midió, revisa
   el breakpoint que se derivó de ello — su comentario lleva los números originales.
-- **La severidad de un tipo de error no se guarda en ningún sitio: se deduce del
-  color.** `journal_error_types` no tiene columna `severity` (comprobado contra la base
-  de datos), así que las dos apps la infieren, y durante un tiempo lo hicieron distinto:
-  el legado mira ante todo a qué paleta pertenece el color —al crear un tipo se le asigna
-  uno de la paleta de su severidad, así que el color **es** el dato persistido— y React
-  se saltaba el color y usaba solo la etiqueta, con una regla además equivocada
-  (`riesgo` → grave sin excluir `poco`, que volvía "Poco riesgo" en Grave cuando el
-  legado lo enseña como Leve). Ya está portado en `journalErrors.ts`. Si tocas esto,
-  el orden importa: **primero paletas, luego etiqueta**.
+- **El color de un tipo de error no es decorativo: es el respaldo de su severidad.**
+  Desde que existe la columna `severity` la fuente de verdad es esa, pero las filas
+  antiguas y cualquiera que se edite desde el legado llegan sin ella y caen en la
+  deducción por color. El orden en `journalErrors.ts` importa y es: **severidad
+  guardada → paletas → etiqueta**. Si alguna vez cambias los colores que asigna
+  `colorForSeverity`, sácalos de las paletas del legado o romperás ese respaldo. (La
+  regla de etiqueta ya tuvo su fallo propio: React hacía `riesgo` → grave sin excluir
+  `poco`, y volvía "Poco riesgo" en Grave cuando el legado lo enseña como Leve.)
 - **Un importe truncado con elipsis es peor que no mostrarlo**, porque parece un dato y
   no lo es ("-425,00 US$" se leía "-425,00..."). Si un número no cabe, cambia el
   formato y no el tamaño de letra. Hay tres: `formatMoney` (con divisa), `formatAmount`
