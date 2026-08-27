@@ -697,10 +697,88 @@
       box-shadow: 0 0 0 4px rgba(157, 130, 253, 0.12);
     }
 
-    .pricing-grid {
+    /* Un solo plan con selector, en vez de dos tarjetas. Las dos listaban exactamente
+       las mismas tres ventajas, asi que la unica diferencia real era el precio: es un
+       producto con dos formas de pagarlo, no dos productos, y se presenta como tal. */
+    .pricing-switch {
+      display: inline-flex;
+      /* justify-self y no align-self: .section es una rejilla, y ahi align-self manda en
+         el eje de bloque (vertical). Con align-self la pastilla se estiraba a todo el
+         ancho de la seccion. */
+      justify-self: center;
+      align-items: center;
+      gap: 4px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+    }
+
+    .pricing-switch-option {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      /* 44 de alto: es el minimo para un objetivo tactil comodo, y este control decide
+         que precio se ve. */
+      min-height: 44px;
+      padding: 0 22px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font: 600 14px var(--font-body);
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease;
+    }
+
+    .pricing-switch-option:hover {
+      color: var(--text-soft);
+    }
+
+    .pricing-switch-option.is-active {
+      background: var(--accent-strong);
+      color: #fff;
+    }
+
+    .pricing-switch-save {
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.2);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .pricing-switch-option:not(.is-active) .pricing-switch-save {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+    }
+
+    /* La medida va en la columna y no en la tarjeta: con la columna en automatico, el
+       100% del min() se resolvia contra el ancho del contenido y la tarjeta colapsaba a
+       315px en vez de los 520 pedidos. */
+    .pricing-solo {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 24px;
+      grid-template-columns: min(520px, 100%);
+      justify-content: center;
+    }
+
+    .pricing-solo .pricing-card {
+      gap: 20px;
+      padding: 34px;
+    }
+
+    .pricing-equivalence {
+      margin: -8px 0 0;
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .pricing-fineprint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
     }
 
     .pricing-card {
@@ -1178,33 +1256,27 @@
           </p>
         </div>
 
-        <div class="pricing-grid">
-          <article class="pricing-card">
-            <span class="pricing-name">Mensual</span>
-            <div class="pricing-price">
-              <strong>4,99&euro;</strong>
-              <span>/mes</span>
-            </div>
-            <ul class="finance-list">
-              <li>Cuentas y movimientos sin límite</li>
-              <li>Journal completo con métricas</li>
-              <li>Cancelas cuando quieras</li>
-            </ul>
-            <a class="secondary-link pricing-cta" href="./app.html?mode=signup">Empezar prueba gratis</a>
-          </article>
+        <div class="pricing-switch" role="group" aria-label="Periodo de facturación">
+          <button aria-pressed="false" class="pricing-switch-option" data-cycle="monthly" type="button">Mensual</button>
+          <button aria-pressed="true" class="pricing-switch-option is-active" data-cycle="annual" type="button">
+            Anual <span class="pricing-switch-save">Ahorra 30%</span>
+          </button>
+        </div>
+        <div class="pricing-solo">
           <article class="pricing-card featured">
-            <span class="pricing-badge">Ahorra 30%</span>
-            <span class="pricing-name">Anual</span>
+            <span class="pricing-name">Trazza completo</span>
             <div class="pricing-price">
-              <strong>42&euro;</strong>
-              <span>/año</span>
+              <strong data-pricing-amount>42&euro;</strong>
+              <span data-pricing-cycle>/año</span>
             </div>
+            <p class="pricing-equivalence" data-pricing-note>Equivale a 3,50 &euro; al mes</p>
             <ul class="finance-list">
               <li>Cuentas y movimientos sin límite</li>
               <li>Journal completo con métricas</li>
               <li>Cancelas cuando quieras</li>
             </ul>
             <a class="primary-link pricing-cta" href="./app.html?mode=signup">Empezar prueba gratis</a>
+            <p class="pricing-fineprint">14 días gratis, sin tarjeta</p>
           </article>
         </div>
       </section>
@@ -1267,6 +1339,42 @@
 
     window.addEventListener("trazza:language-change", updateThemeButton);
     updateThemeButton();
+
+    /* Selector de periodo de la seccion de precios. Los textos se escriben en castellano
+       y el traductor de i18n.js los recoge despues, igual que con el resto de la pagina:
+       por eso se dispara trazza:language-change al final de cada cambio, para que
+       retraduzca lo que se acaba de reescribir. Sin eso, cambiar de periodo estando en
+       ingles devolvia esos nodos al castellano. */
+    const pricingPlans = {
+      annual: { amount: "42\u20ac", cycle: "/año", note: "Equivale a 3,50 \u20ac al mes" },
+      monthly: { amount: "4,99\u20ac", cycle: "/mes", note: "Facturado cada mes" },
+    };
+
+    const pricingOptions = [...document.querySelectorAll(".pricing-switch-option")];
+    const pricingAmount = document.querySelector("[data-pricing-amount]");
+    const pricingCycle = document.querySelector("[data-pricing-cycle]");
+    const pricingNote = document.querySelector("[data-pricing-note]");
+
+    function setPricingCycle(cycle) {
+      const plan = pricingPlans[cycle];
+      if (!plan || !pricingAmount || !pricingCycle || !pricingNote) return;
+
+      pricingAmount.textContent = plan.amount;
+      pricingCycle.textContent = plan.cycle;
+      pricingNote.textContent = plan.note;
+
+      pricingOptions.forEach((option) => {
+        const active = option.dataset.cycle === cycle;
+        option.classList.toggle("is-active", active);
+        option.setAttribute("aria-pressed", String(active));
+      });
+
+      window.dispatchEvent(new CustomEvent("trazza:language-change"));
+    }
+
+    pricingOptions.forEach((option) => {
+      option.addEventListener("click", () => setPricingCycle(option.dataset.cycle));
+    });
   </script>
 </body>
 </html>

@@ -75,6 +75,25 @@
       "Payouts, refunds, comisiones y gastos generales.": "Payouts, refunds, commissions and general expenses.",
       "Filtros por empresa, cuenta, periodo y tipo de movimiento.": "Filters by firm, account, period and movement type.",
       "Panel financiero de Trazza": "Trazza finance dashboard",
+      /* Seccion de precios. Faltaba entera: con el idioma en ingles se quedaba en
+         castellano justo donde alguien decide si paga. */
+      "Un plan simple, sin sorpresas.": "One simple plan, no surprises.",
+      "14 días de prueba gratis, sin tarjeta. Después, un único plan con acceso completo a Trazza.":
+        "14-day free trial, no card. After that, a single plan with full access to Trazza.",
+      "Mensual": "Monthly",
+      "Anual": "Annual",
+      "Ahorra 30%": "Save 30%",
+      "Trazza completo": "Trazza complete",
+      "/mes": "/month",
+      "/año": "/year",
+      "Equivale a 3,50 € al mes": "Works out to €3.50 a month",
+      "Facturado cada mes": "Billed every month",
+      "Cuentas y movimientos sin límite": "Unlimited accounts and movements",
+      "Journal completo con métricas": "Full journal with metrics",
+      "Cancelas cuando quieras": "Cancel whenever you want",
+      "Empezar prueba gratis": "Start free trial",
+      "14 días gratis, sin tarjeta": "14 days free, no card",
+      "Periodo de facturación": "Billing period",
       "Empieza a registrar tu trading con más claridad.": "Start tracking your trading with more clarity.",
       "Crea tu cuenta gratis y usa Trazza como centro de control para tus operaciones, finanzas y revisión diaria.":
         "Create your free account and use Trazza as the control center for your trades, finances and daily review.",

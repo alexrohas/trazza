@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 800, "title": "1 · Anual gana" },
+    { "file": "UnPlan.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 800, "title": "2 · Un plan con selector" },
+    { "file": "Comparativa.dc.html", "x": 3120, "y": 0, "w": 1440, "h": 800, "title": "3 · Comparativa" }
+  ],
+  "annotations": [
+    { "id": "nota-problema", "x": 0, "y": -300, "w": 460, "text": "EL PROBLEMA DE LO QUE HAY HOY\nLas dos tarjetas listan EXACTAMENTE las mismas tres ventajas. Si ambas dicen lo mismo, la única diferencia es el precio, y el anual no tiene con qué defenderse más allá de la insignia.\n\nLas tres direcciones resuelven eso de formas distintas." },
+    { "id": "nota-anual", "x": 0, "y": -150, "w": 460, "text": "1 · ANUAL GANA\nSiguen siendo dos tarjetas, pero la anual es más ancha, con el precio a 60px y el equivalente mensual destacado en verde. La mensual se queda en tono neutro.\n\nA favor: el cambio más pequeño sobre lo que ya tienes.\nEn contra: la duplicación de ventajas sigue ahí." },
+    { "id": "nota-unplan", "x": 1560, "y": -150, "w": 460, "text": "2 · UN PLAN CON SELECTOR\nUna sola tarjeta centrada y un selector Mensual/Anual arriba. Es un único producto con dos formas de pagarlo, así que se presenta como tal.\n\nA favor: quita la duplicación de raíz y el precio manda de verdad (72px).\nEn contra: el precio mensual deja de verse de golpe, hay que cambiar el selector." },
+    { "id": "nota-comparativa", "x": 3120, "y": -150, "w": 460, "text": "3 · COMPARATIVA\nUn solo panel: las ventajas listadas UNA vez a la izquierda, y las dos formas de pago como columnas a la derecha.\n\nA favor: la más honesta con lo que realmente vendes, y la que menos repite.\nEn contra: se parece más a una tabla que a una oferta; menos emocional." },
+    { "id": "nota-aviso", "x": 3120, "y": -300, "w": 460, "text": "OJO — DECISIÓN TUYA\nLas tres añaden «Equivale a 3,50 € al mes», que sale de dividir 42/12. Es aritmética de tus propios números, no un dato inventado, pero es una afirmación nueva en una página de precios.\n\nSi prefieres no añadirla, se quita y ya." }
+  ],
+  "launch": { "view": "canvas" }
+}
