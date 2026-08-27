@@ -13,3 +13,7 @@ dist/
 tmp/
 # Permisos de Claude Code especificos de cada maquina
 .claude/settings.local.json
+
+# Lienzo de diseno generado: lleva el editor embebido (2,5 MB) y se regenera
+# desde los .dc.html y canvas.json de al lado.
+design/hero-trazza.html

@@ -286,14 +286,19 @@
     .hero {
       display: grid;
       grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
-      gap: clamp(28px, 4vw, 52px);
+      gap: clamp(32px, 4.4vw, 56px);
       align-items: center;
-      padding: clamp(22px, 4vh, 40px) 0 clamp(24px, 4vh, 42px);
+      /* min-height y no solo padding: lo que hace que un hero se sienta amplio no es el
+         relleno sino que ocupe la pantalla. Se descuenta la barra (76px) para que el
+         alto sea el del hueco real y no sobresalga. El clamp de padding se queda como
+         suelo en ventanas bajas, donde forzar la altura apretaria el contenido. */
+      min-height: min(760px, calc(100vh - 76px));
+      padding: clamp(28px, 6vh, 64px) 0 clamp(32px, 6vh, 68px);
     }
 
     .hero-copy {
       display: grid;
-      gap: 22px;
+      gap: 30px;
       min-width: 0;
     }
 
@@ -345,23 +350,28 @@
 
     .hero-actions .primary-link,
     .hero-actions .secondary-link {
-      min-height: 50px;
-      padding-inline: 22px;
+      /* 56/15 en vez de 50/14: una caja de 50px con letra de 14 es mucho hueco para
+         poco texto, y el boton se leia mas vacio de lo que es. */
+      min-height: 56px;
+      padding-inline: 26px;
       border-radius: 14px;
-      font-size: 14px;
+      font-size: 15px;
     }
 
     .hero-proof {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      width: min(600px, 100%);
-      padding-top: 4px;
+      /* 24 y no 10: a 10px la separacion entre dos tarjetas distintas quedaba en el
+         mismo registro que el espaciado de dentro de una, asi que no agrupaban y las
+         tres se leian como un bloque. El ojo agrupa por distancia. */
+      gap: 24px;
+      width: min(620px, 100%);
+      padding-top: 10px;
     }
 
     .hero-proof div {
       min-width: 0;
-      padding: 10px 11px;
+      padding: 18px 18px;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: rgba(255, 255, 255, 0.045);
