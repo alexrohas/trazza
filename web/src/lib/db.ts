@@ -251,6 +251,19 @@ export async function upsertCloudJournalErrorType(
   return fromSingleRow(result, fromDbJournalErrorType, "No se pudo guardar el tipo de error.");
 }
 
+/* Borrado de verdad, no archivado: el archivado ya existe (setCloudJournalErrorTypeActive)
+   y responde a otra necesidad. Quien llama es responsable de comprobar antes que ninguna
+   entrada lo use — la app lo bloquea en ese caso, porque las entradas guardan el id del
+   tipo y borrarlo dejaria referencias huerfanas que se pintarian como un UUID. */
+export async function deleteCloudJournalErrorType(
+  client: SupabaseClient,
+  userId: string,
+  typeId: string,
+): Promise<void> {
+  const result = await client.from("journal_error_types").delete().eq("user_id", userId).eq("id", typeId);
+  if (result.error) throw new Error("No se pudo borrar el tipo de error.");
+}
+
 export async function setCloudJournalErrorTypeActive(
   client: SupabaseClient,
   userId: string,
@@ -405,12 +418,17 @@ function fromDbJournalEntry(row: DbRow): JournalEntry {
 }
 
 function fromDbJournalErrorType(row: DbRow): JournalErrorType {
+  const severity = text(row.severity);
   return {
     active: row.active === undefined ? true : Boolean(row.active),
     color: normalizeHexColor(text(row.color)) || "#64748b",
     id: text(row.id),
     label: text(row.label) || "Error sin nombre",
     position: numberOrZero(row.position),
+    /* Se deja sin definir si la fila no la trae, en vez de poner un valor por defecto:
+       undefined significa "deducela del color", que es lo que hacen las dos apps con las
+       filas antiguas. Un defecto aqui congelaria una deduccion como si fuera un dato. */
+    severity: severity === "minor" || severity === "moderate" || severity === "severe" ? severity : undefined,
   };
 }
 
@@ -476,6 +494,7 @@ function journalErrorTypeInputToDb(userId: string, input: JournalErrorTypeInput,
     color: normalizeHexColor(input.color) || "#64748b",
     position: nullableNumber(input.position) ?? 1000,
     active: input.active ?? true,
+    severity: input.severity ?? null,
   };
 }
 

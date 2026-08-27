@@ -37,6 +37,7 @@ import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
+import { colorForSeverity } from "../lib/journalErrors";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
 import { useI18n, useT } from "../lib/i18n/context";
@@ -95,6 +96,7 @@ type JournalEntriesViewProps = {
   onNewEntryRequestHandled?: () => void;
   onSaveEntry: (input: JournalEntryInput, entryId?: string) => Promise<boolean>;
   onSaveErrorType: (input: JournalErrorTypeInput, typeId?: string) => Promise<boolean>;
+  onDeleteErrorType: (typeId: string) => Promise<boolean>;
   onSetErrorTypeActive: (typeId: string, active: boolean) => Promise<boolean>;
 };
 
@@ -250,6 +252,7 @@ export function JournalEntriesView({
   onNewEntryRequestHandled,
   onSaveErrorType,
   onSaveEntry,
+  onDeleteErrorType,
   onSetErrorTypeActive,
 }: JournalEntriesViewProps) {
   const operationFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -299,6 +302,16 @@ export function JournalEntriesView({
   const resultOptions = useMemo(() => getResultOptions(t), [t]);
   const emotionOptions = useMemo(() => getEmotionOptions(t), [t]);
   const disciplineOptions = useMemo(() => getDisciplineOptions(t), [t]);
+  /* De menos a mas grave, que es como se lee la escala de color que las acompana. */
+  const severityChoices = useMemo(
+    () =>
+      [
+        { label: t("journal.errors.severity.minor"), value: "minor" },
+        { label: t("journal.errors.severity.moderate"), value: "moderate" },
+        { label: t("journal.errors.severity.severe"), value: "severe" },
+      ] as Array<{ label: string; value: JournalErrorSeverity }>,
+    [t],
+  );
   const weekdayLabels = useMemo(() => getWeekdayLabels(t), [t]);
   const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
   const accountFilterOptions = useMemo(
@@ -1024,12 +1037,21 @@ export function JournalEntriesView({
               const label = errorTypeDraft.label.trim();
               if (label.length < 2) return;
               const fallbackPosition = Math.max(0, ...effectiveErrorTypes.map((type) => type.position)) + 10;
+              const position = Number.isFinite(errorTypeDraft.position) ? errorTypeDraft.position : fallbackPosition;
+              const severity = errorTypeDraft.severity ?? "moderate";
               const saved = await onSaveErrorType(
                 {
                   active: errorTypeDraft.active ?? true,
-                  color: normalizeHexColor(errorTypeDraft.color) || "#64748b",
+                  /* El color ya no se elige: sale de la gravedad. Ademas de simplificar el
+                     formulario, arregla de raiz que cambiar el color cambiara la gravedad
+                     sin querer, porque ahora la relacion va en el otro sentido. Y como el
+                     color sigue perteneciendo a las paletas del legado, si alguna vez se
+                     edita el tipo desde alli —que no escribe severity y la deja en NULL—
+                     la deduccion por color sigue dando la misma respuesta. */
+                  color: colorForSeverity(severity, position),
                   label,
-                  position: Number.isFinite(errorTypeDraft.position) ? errorTypeDraft.position : fallbackPosition,
+                  position,
+                  severity,
                 },
                 editingErrorTypeId,
               );
@@ -1048,27 +1070,27 @@ export function JournalEntriesView({
               />
             </label>
             <div className="journal-error-color-field">
-              <span>{t("journal.errorManager.color")}</span>
-              <div className="journal-error-color-options">
-                {errorColorOptions.map((color) => (
-                  <button
-                    aria-label={`${t("journal.errorManager.color")} ${color}`}
-                    className={normalizeHexColor(errorTypeDraft.color) === color ? "active" : ""}
-                    disabled={!canWrite || mutating}
-                    key={color}
-                    onClick={() => setErrorTypeDraft((current) => ({ ...current, color }))}
-                    style={{ "--error-color": color } as CSSProperties}
-                    type="button"
-                  />
-                ))}
-                <input
-                  aria-label={t("journal.errorManager.colorCustom")}
-                  disabled={!canWrite || mutating}
-                  onChange={(event) => setErrorTypeDraft((current) => ({ ...current, color: event.target.value }))}
-                  type="color"
-                  value={normalizeHexColor(errorTypeDraft.color) || "#64748b"}
-                />
+              <span>{t("journal.errorManager.severity")}</span>
+              <div className="journal-error-severity-options">
+                {severityChoices.map((choice) => {
+                  const activa = (errorTypeDraft.severity ?? "moderate") === choice.value;
+                  const muestra = colorForSeverity(choice.value, errorTypeDraft.position ?? 0);
+                  return (
+                    <button
+                      className={activa ? "active" : ""}
+                      disabled={!canWrite || mutating}
+                      key={choice.value}
+                      onClick={() => setErrorTypeDraft((current) => ({ ...current, severity: choice.value }))}
+                      style={{ "--error-color": muestra } as CSSProperties}
+                      type="button"
+                    >
+                      <i />
+                      {choice.label}
+                    </button>
+                  );
+                })}
               </div>
+              <small className="journal-error-severity-hint">{t("journal.errorManager.severityHint")}</small>
             </div>
             <button className="primary-action" disabled={!canWrite || mutating || errorTypeDraft.label.trim().length < 2} type="submit">
               <Check size={17} strokeWidth={2.2} />
@@ -1110,6 +1132,11 @@ export function JournalEntriesView({
                           color: type.color,
                           label: type.label,
                           position: type.position,
+                          /* getJournalErrorDefinition ya resuelve la severidad: usa la
+                             guardada si la hay y si no la deduce, asi que al editar un tipo
+                             antiguo el selector aparece marcado donde toca en vez de caer
+                             siempre en "moderado". */
+                          severity: getJournalErrorDefinitionFor(effectiveErrorTypes, type.id).severity,
                         });
                       }}
                       title={t("common.edit")}
@@ -1125,6 +1152,27 @@ export function JournalEntriesView({
                       type="button"
                     >
                       {type.active ? <EyeOff size={15} strokeWidth={2.2} /> : <Eye size={15} strokeWidth={2.2} />}
+                    </button>
+                    {/* Borrar solo si no lo usa ninguna entrada: las entradas guardan el id
+                        del tipo, asi que borrar uno en uso dejaria esas entradas mostrando
+                        un UUID donde deberia ir el nombre del error. Para esos esta ocultar,
+                        que es el boton de al lado. El title explica el porque en vez de
+                        dejar un boton apagado sin motivo. */}
+                    <button
+                      className="card-delete"
+                      disabled={!canWrite || mutating || usage > 0}
+                      onClick={() => {
+                        if (!window.confirm(t("journal.errorManager.deleteConfirm"))) return;
+                        void onDeleteErrorType(type.id);
+                      }}
+                      title={
+                        usage > 0
+                          ? `${t("journal.errorManager.inUsePrefix")} ${usage} ${usage === 1 ? t("journal.errorManager.inUseEntry") : t("journal.errorManager.inUseEntries")}. ${t("journal.errorManager.archiveInstead")}`
+                          : t("journal.errorManager.delete")
+                      }
+                      type="button"
+                    >
+                      <Trash2 size={15} strokeWidth={2.2} />
                     </button>
                   </div>
                 </article>

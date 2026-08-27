@@ -11,6 +11,7 @@ import {
   deleteCloudMovement,
   loadCloudData,
   replaceCloudData,
+  deleteCloudJournalErrorType,
   setCloudJournalErrorTypeActive,
   updateCloudAccount,
   updateCloudFirm,
@@ -299,6 +300,31 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     [enabled, reload, userId],
   );
 
+  const deleteJournalErrorType = useCallback(
+    async (typeId: string) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para borrar tipos de error reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        await deleteCloudJournalErrorType(supabaseClient, userId, typeId);
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo borrar el tipo de error.";
+        setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
   const setJournalErrorTypeActive = useCallback(
     async (typeId: string, active: boolean) => {
       if (!enabled || !userId || !supabaseClient) {
@@ -370,6 +396,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     saveJournalErrorType,
     saveJournalEntry,
     saveMovement,
+    deleteJournalErrorType,
     setJournalErrorTypeActive,
     status,
   };

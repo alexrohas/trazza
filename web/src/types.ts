@@ -102,6 +102,9 @@ export type JournalErrorType = {
   color: string;
   position: number;
   active: boolean;
+  /* Opcional porque la columna es anulable: una fila sin severidad cae en la deduccion
+     por color, que es lo que hacian las dos apps antes de que existiera la columna. */
+  severity?: JournalErrorSeverity;
 };
 
 export type JournalErrorTypeInput = {
@@ -109,6 +112,7 @@ export type JournalErrorTypeInput = {
   color: string;
   active?: boolean;
   position?: number;
+  severity?: JournalErrorSeverity;
 };
 
 export type JournalEntry = {

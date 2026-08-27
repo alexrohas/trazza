@@ -72,6 +72,7 @@ export default function App() {
       saveJournalEntry: guard(dataState.saveJournalEntry),
       saveJournalErrorType: guard(dataState.saveJournalErrorType),
       saveMovement: guard(dataState.saveMovement),
+      deleteJournalErrorType: guard(dataState.deleteJournalErrorType),
       setJournalErrorTypeActive: guard(dataState.setJournalErrorTypeActive),
     }),
     [dataState, guard],
@@ -279,6 +280,7 @@ export default function App() {
           onNewEntryRequestHandled={() => setCreateRequest(null)}
           onSaveErrorType={guarded.saveJournalErrorType}
           onSaveEntry={guarded.saveJournalEntry}
+          onDeleteErrorType={guarded.deleteJournalErrorType}
           onSetErrorTypeActive={guarded.setJournalErrorTypeActive}
         />
       )}

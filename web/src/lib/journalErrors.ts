@@ -129,9 +129,30 @@ const journalErrorSeverityPalettes: Record<JournalErrorSeverity, string[]> = {
 
 const journalErrorSeverityOrder: JournalErrorSeverity[] = ["severe", "moderate", "minor"];
 
+/* Color que le toca a una severidad. La posicion solo sirve para repartir tonos dentro
+   de la misma paleta y que dos errores igual de graves no salgan del mismo color. */
+export function colorForSeverity(severity: JournalErrorSeverity, position = 0): string {
+  const paleta = journalErrorSeverityPalettes[severity];
+  return paleta[Math.abs(Math.round(position)) % paleta.length];
+}
+
+export function severityFromColor(color: string): JournalErrorSeverity | undefined {
+  const normalizado = normalizeHexColor(color).toLowerCase();
+  if (!normalizado) return undefined;
+  return journalErrorSeverityOrder.find((severity) =>
+    journalErrorSeverityPalettes[severity].some((item) => item.toLowerCase() === normalizado),
+  );
+}
+
 function inferJournalErrorSeverity(type: JournalErrorType, fallback: JournalErrorSeverity = "moderate"): JournalErrorSeverity {
-  /* Mismo orden que inferJournalErrorSeverity en app.js: primero el color, y solo si no
-     cae en ninguna paleta se mira la etiqueta. */
+  /* La severidad guardada manda sobre todo lo demas: desde que existe la columna, elegirla
+     es una decision explicita del usuario y no algo que se deduzca. Mismo orden que el
+     legado, que tambien arranca por la explicita. Las filas antiguas llegan sin ella y
+     caen en la deduccion de siempre. */
+  if (type.severity) return type.severity;
+
+  /* Sin severidad guardada, el color: al crear un tipo se le asigna uno de la paleta de
+     su severidad, asi que el color es el dato que quedo persistido. */
   const color = normalizeHexColor(type.color).toLowerCase();
   if (color) {
     const porColor = journalErrorSeverityOrder.find((severity) =>

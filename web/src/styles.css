@@ -4360,6 +4360,61 @@ button {
 
 /* Circulos y no cuadrados de 34px: una muestra de color se lee mejor redonda, y al
    bajar de tamano las siete caben en una fila en vez de dejar una huerfana debajo. */
+/* Selector de gravedad: tres opciones rotuladas, cada una con la muestra del color que
+   le corresponde. Sustituye a la paleta de colores sueltos — el color ya no se elige, se
+   deriva — asi que estas van con texto y no como pastillas mudas: lo que se esta
+   eligiendo es "cuanto de grave", no "que color me gusta". */
+.journal-error-severity-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.journal-error-severity-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: var(--space-2xs) var(--space-base);
+  background: var(--surface);
+  color: var(--strong-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.journal-error-severity-options button i {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--error-color);
+}
+
+.journal-error-severity-options button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.journal-error-severity-options button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.journal-error-severity-hint {
+  display: block;
+  margin-top: var(--space-sm);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
 .journal-error-color-options {
   display: flex;
   flex-wrap: wrap;
