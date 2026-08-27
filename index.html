@@ -272,8 +272,12 @@
 
     main {
       display: grid;
-      gap: clamp(44px, 5vw, 64px);
-      padding-bottom: 70px;
+      /* Separar dos secciones es el nivel mas alto de la jerarquia de la pagina y
+         estaba en 64, apenas el doble del gap interno de una seccion (28). Sube a 104
+         para que el salto de una seccion a otra se lea como tal, sobre todo ahora que
+         el hero ocupa casi la pantalla entera y marca el liston de amplitud. */
+      gap: clamp(64px, 7vw, 104px);
+      padding-bottom: 96px;
     }
 
     .hero,
@@ -501,7 +505,10 @@
 
     .section {
       display: grid;
-      gap: 28px;
+      /* Un escalon por debajo de la separacion entre secciones (104) y otro por encima
+         del hueco entre tarjetas (24): cabecera, contenido y tarjetas quedan en tres
+         registros distintos y se leen como tres niveles. */
+      gap: 40px;
     }
 
     .section-head {
@@ -535,7 +542,10 @@
     .metrics-band,
     .finance-grid {
       display: grid;
-      gap: 14px;
+      /* 24, igual que las tres tarjetas del hero: a 14 la distancia entre dos tarjetas
+         distintas competia con el espaciado de dentro de una y la fila se leia como un
+         bloque unico en vez de como piezas separadas. */
+      gap: 24px;
     }
 
     .pillar-card,
@@ -690,7 +700,7 @@
     .pricing-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
+      gap: 24px;
     }
 
     .pricing-card {
@@ -746,6 +756,19 @@
     .pricing-price span {
       color: var(--muted);
       font-size: 14px;
+    }
+
+    /* Los CTA que estan dentro del contenido —los de los dos planes y el de cierre—
+       suben a la misma medida que los del hero (56/15). Se quedaban en 42/13, que es la
+       medida de la barra de navegacion: correcta ahi, pero pequena para el boton en el
+       que se decide la conversion. Los de la barra no se tocan a proposito: ahi son
+       cromo y competirian con el titular si crecieran. */
+    .pricing-cta,
+    .cta-band .primary-link {
+      min-height: 56px;
+      padding-inline: 26px;
+      border-radius: 14px;
+      font-size: 15px;
     }
 
     .pricing-cta {
