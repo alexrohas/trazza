@@ -3087,10 +3087,16 @@ button {
 }
 
 
+/* Sin borde a proposito, en las tres graficas de la app (esta y .journal-pnl-chart-frame,
+   que lo usan P&L acumulado y Disciplina). La linea encajaba un recuadro dentro del
+   borde del panel, que ya delimita la pieza: dos contornos a 24px uno de otro compiten y
+   el de dentro no separa nada que no estuviera ya separado. El area del grafico se sigue
+   distinguiendo por su fondo, que es lo que hace el trabajo de verdad.
+   El overflow: hidden se queda: es de lo que depende que el tooltip no se salga del
+   marco, y el radio, de que el relleno bajo la curva no pise las esquinas. */
 .chart-frame {
   position: relative;
   height: 500px;
-  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
   border-radius: 12px;
   overflow: hidden;
   background:
@@ -3546,10 +3552,10 @@ button {
   min-height: 392px;
 }
 
+/* Sin borde, igual que .chart-frame: ver el porque alli. */
 .journal-pnl-chart-frame {
   position: relative;
   height: 286px;
-  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
   border-radius: 12px;
   overflow: hidden;
   background:
