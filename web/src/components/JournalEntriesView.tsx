@@ -453,7 +453,7 @@ export function JournalEntriesView({
      los usa el widget de KPIs. Cuando no hay nada cerrado se reparte al 50% en vez de
      dejar la barra vacia: una barra a cero se lee como "todo perdidas", que es un dato
      falso, y media y media se lee como lo que es, que no hay dato. */
-  const { avgLossR, avgShare, avgWinR, grossShare } = useMemo(() => {
+  const { avgLossR, avgRatio, avgShare, avgWinR, grossShare } = useMemo(() => {
     const { avgLoss, avgWin, grossLoss, grossProfit } = analytics.stats;
     const brutoTotal = grossProfit + grossLoss;
     const mediaTotal = (avgWin || 0) + (avgLoss || 0);
@@ -474,6 +474,9 @@ export function JournalEntriesView({
     };
     return {
       avgLossR: rDe(-1),
+      /* avgLoss llega como magnitud positiva (grossLoss ya es el valor absoluto), asi
+         que la ratio es la division directa y no hay que darle la vuelta al signo. */
+      avgRatio: avgLoss && avgLoss > 0 && avgWin !== null ? avgWin / avgLoss : null,
       avgShare: mediaTotal > 0 ? ((avgWin || 0) / mediaTotal) * 100 : 50,
       avgWinR: rDe(1),
       grossShare: brutoTotal > 0 ? (grossProfit / brutoTotal) * 100 : 50,
@@ -864,6 +867,14 @@ export function JournalEntriesView({
           winRate={analytics.stats.winRate}
           wins={analytics.stats.wins}
         />
+        {/* Las dos llevan cifra titular y pie con los dos operandos de esa cifra. Antes
+            Profit factor no tenia pie y Avg win / loss no tenia cifra, asi que de las
+            tres tarjetas ninguna se parecia a otra: la cifra grande caia a una altura
+            distinta en cada una y la tercera arrancaba directamente con la barra.
+            Profit factor ensena su bruto ganador y perdedor, que es de donde sale el
+            1,72, igual que la de al lado ensena las dos medias de las que sale su
+            ratio. Es la misma relacion —una division y sus dos terminos— contada dos
+            veces del mismo modo. */}
         <JournalSplitBarPanel
           leftLabel={t("journal.kpi.profit")}
           positiveShare={grossShare}
@@ -871,12 +882,23 @@ export function JournalEntriesView({
           title={t("journal.kpi.profitFactor")}
           value={formatProfitFactor(analytics.stats.profitFactor)}
           valueTone={profitFactorTone(analytics.stats.profitFactor)}
-        />
+        >
+          <div className="journal-split-figures">
+            <span className="positive">
+              <strong>{formatMoney(analytics.stats.grossProfit, currency)}</strong>
+            </span>
+            <span className="negative">
+              <strong>{analytics.stats.grossLoss > 0 ? `-${formatMoney(analytics.stats.grossLoss, currency)}` : formatMoney(0, currency)}</strong>
+            </span>
+          </div>
+        </JournalSplitBarPanel>
         <JournalSplitBarPanel
           leftLabel={t("journal.kpi.avgWin")}
           positiveShare={avgShare}
           rightLabel={t("journal.kpi.avgLoss")}
           title={t("journal.kpi.avgWinLoss")}
+          value={formatProfitFactor(avgRatio)}
+          valueTone={profitFactorTone(avgRatio)}
         >
           <div className="journal-split-figures">
             <span className="positive">
