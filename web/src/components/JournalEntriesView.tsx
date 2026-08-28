@@ -46,6 +46,7 @@ import {
   formatMoney,
   formatMoneyCompact,
   formatPercent,
+  formatPercentCompact,
   getAccountName,
   getDisciplineScale,
   getPayoutGrossAmount,
@@ -211,6 +212,19 @@ function getWeekdayLabels(t: ReturnType<typeof useT>) {
   ];
 }
 
+/* Solo para el widget de barras "Dias de semana", no para las cabeceras del calendario
+   (que si necesitan los 7 dias). El legado limita ese widget a Lun-Vie de forma fija,
+   en cualquier contexto (renderJournalWeekdayWinrate en app.js ni siquiera itera sabado
+   y domingo) — no es una adaptacion al ancho, es la propia informacion que enseña: casi
+   nadie opera fin de semana, asi que dos barras vacias con "Sin datos" eran ruido
+   incluso cuando el widget tenia toda la fila para el solo. Ademas de fiel al legado,
+   es lo que hace que cada barra tenga sitio real ahora que comparte fila con Balance y
+   Winrate por sesion (span 3 de 12): a 7 columnas cada barra media 30px y el texto
+   salia cortado; a 5 sube a ~50px. */
+function getWeekdayBarLabels(t: ReturnType<typeof useT>) {
+  return [t("journal.weekday.mon"), t("journal.weekday.tue"), t("journal.weekday.wed"), t("journal.weekday.thu"), t("journal.weekday.fri")];
+}
+
 const errorColorOptions = ["#dc2626", "#f59e0b", "#7c3aed", "#0e8f8d", "#2563eb", "#64748b"];
 const operationImageMaxSize = 1600;
 const operationImageQuality = 0.82;
@@ -313,6 +327,7 @@ export function JournalEntriesView({
     [t],
   );
   const weekdayLabels = useMemo(() => getWeekdayLabels(t), [t]);
+  const weekdayBarLabels = useMemo(() => getWeekdayBarLabels(t), [t]);
   const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
   const accountFilterOptions = useMemo(
     () => [{ label: t("common.all"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
@@ -443,8 +458,8 @@ export function JournalEntriesView({
     [filteredEntries, selectedEntry],
   );
   const analytics = useMemo(
-    () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, emotionOptions, weekdayLabels),
-    [effectiveErrorTypes, emotionOptions, filteredEntries, sessionOptions, weekdayLabels],
+    () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, weekdayBarLabels),
+    [effectiveErrorTypes, filteredEntries, sessionOptions, weekdayBarLabels],
   );
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
 
@@ -842,22 +857,6 @@ export function JournalEntriesView({
         </section>
       </section>
     ),
-    emotion: (
-      <JournalBreakdownPanel
-        emptyText={t("journal.breakdown.emotion.empty")}
-        rows={analytics.emotionRows.map((row) => ({
-          id: row.id,
-          detail: `${row.count} ${t("journal.breakdown.entriesSuffix")} - ${formatRatioPercent(row.winRate)}`,
-          label: row.label,
-          meter: shareMeter(row.count, analytics.maxEmotionCount),
-          note: `${t("journal.breakdown.avgPrefix")} ${formatMoney(row.averagePnl, currency)}`,
-          tone: signedTone(row.pnl),
-          value: formatMoney(row.pnl, currency),
-        }))}
-        subtitle={t("journal.breakdown.emotion.subtitle")}
-        title={t("journal.breakdown.emotion.title")}
-      />
-    ),
     errors: <JournalErrorsPanel rows={analytics.errorRows} />,
     kpis: (
       <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
@@ -948,7 +947,6 @@ export function JournalEntriesView({
   const journalWidgetLabels: Record<JournalWidgetId, string> = {
     calendar: t("journal.widgetLabel.calendar"),
     discipline: t("journal.widgetLabel.discipline"),
-    emotion: t("journal.widgetLabel.emotion"),
     errors: t("journal.widgetLabel.errors"),
     kpis: t("journal.widgetLabel.kpis"),
     pnl: t("journal.widgetLabel.pnl"),
@@ -957,20 +955,23 @@ export function JournalEntriesView({
     weekday: t("journal.widgetLabel.weekday"),
   };
 
-  const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "third"> = {
+  const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "half" | "quarter"> = {
     calendar: "full",
-    /* "wide" y no "full": en el legado Disciplina comparte fila con Errores, asi que
-       ocupa el mismo hueco ancho que la curva de P&L en vez de una fila entera. */
-    discipline: "wide",
-    emotion: "third",
-    /* "wide" desde que lleva anillo: con "third" el donut y su leyenda se pisaban en
-       una columna estrecha. En el legado tambien va ancho, compartiendo fila. */
+    /* "full" y no "wide": ya no comparte fila con Winrate por sesion (ver mas abajo,
+       ahora va con P&L y Winrate por dia), asi que se queda sin pareja de columna
+       estrecha y pasa a ocupar la fila entera, igual que P&L antes de este cambio. */
+    discipline: "full",
+    /* "wide" desde que lleva anillo: con una columna estrecha el donut y su leyenda se
+       pisaban. En el legado tambien va ancho, compartiendo fila con Ultimas
+       operaciones. */
     errors: "wide",
     kpis: "full",
-    pnl: "wide",
+    /* La misma fila que en el legado: Balance a la mitad y las otras dos a un cuarto
+       cada una (half + quarter + quarter = 12). Ver journalDashboardWidgetIds. */
+    pnl: "half",
     recent: "narrow",
-    session: "third",
-    weekday: "full",
+    session: "quarter",
+    weekday: "quarter",
   };
 
   return (
@@ -1818,11 +1819,8 @@ type JournalErrorRow = {
 
 type JournalAnalytics = {
   bestSession: JournalSummaryRow | null;
-  emotionRows: JournalSummaryRow[];
   errorRows: JournalErrorRow[];
   maxErrorCount: number;
-  maxEmotionCount: number;
-  riskEmotion: JournalSummaryRow | null;
   sessionRows: JournalSummaryRow[];
   stats: JournalStats;
   weekdayRows: JournalSummaryRow[];
@@ -2461,18 +2459,34 @@ function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: Jou
       </div>
       {hasData ? (
         <div className="journal-weekday-bars">
-          {rows.map((row) => (
-            <div className={`journal-weekday-bar ${signedTone(row.pnl)}`} key={row.id}>
-              <div className="weekday-track" aria-hidden="true">
-                <i style={{ height: `${winRateMeter(row.winRate)}%` }} />
+          {/* Sin el detalle (operaciones y dinero) como texto visible: en el legado
+              tampoco lo lleva aqui, solo cifra y dia — ese detalle va en el "title"
+              (tooltip nativo), igual que journalWeekdayWinrateBarHtml en app.js.
+              Comparte fila con Balance y Winrate por sesion (span 3 de 12, ~45px por
+              barra), y ahi ni el formato con decimales cabe: "55,56 %" seguia
+              desbordando incluso en la letra mas pequeña de la escala. La cifra
+              visible pasa a formatPercentCompact (sin decimales); el dato completo, con
+              decimales, se queda en el title. */}
+          {rows.map((row) => {
+            const winRateLabel = row.winRate === null ? "-" : formatPercent(row.winRate);
+            const winRateLabelCompact = row.winRate === null ? "-" : formatPercentCompact(row.winRate);
+            const detail = row.count
+              ? `${row.count} ${t("journal.weekday.opsSuffix")} - ${formatMoney(row.pnl, currency)}`
+              : t("journal.weekday.noData");
+            return (
+              <div
+                className={`journal-weekday-bar ${signedTone(row.pnl)}`}
+                key={row.id}
+                title={`${row.label}: ${winRateLabel} - ${detail}`}
+              >
+                <div className="weekday-track" aria-hidden="true">
+                  <i style={{ height: `${winRateMeter(row.winRate)}%` }} />
+                </div>
+                <span>{row.label}</span>
+                <strong>{winRateLabelCompact}</strong>
               </div>
-              <span>{row.label}</span>
-              <strong>{row.winRate === null ? "-" : formatPercent(row.winRate)}</strong>
-              <small>
-                {row.count ? `${row.count} ${t("journal.weekday.opsSuffix")} - ${formatMoney(row.pnl, currency)}` : t("journal.weekday.noData")}
-              </small>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="journal-breakdown-empty">{t("journal.weekday.empty")}</div>
@@ -2485,7 +2499,6 @@ function buildJournalAnalytics(
   entries: JournalEntry[],
   errorTypes: JournalErrorType[],
   sessionOptions: Array<{ label: string; value: JournalTradingSession }>,
-  emotionOptions: Array<{ label: string; value: JournalEmotion }>,
   weekdayLabels: string[],
 ): JournalAnalytics {
   const stats = getJournalStats(entries);
@@ -2496,14 +2509,6 @@ function buildJournalAnalytics(
       ...summarizeJournalEntries(entries.filter((entry) => getEntryTradingSession(entry) === option.value)),
     }))
     .filter((row) => row.count > 0);
-  const emotionRows = emotionOptions
-    .map((option) => ({
-      id: option.value,
-      label: option.label,
-      ...summarizeJournalEntries(entries.filter((entry) => entry.emotion === option.value)),
-    }))
-    .filter((row) => row.count > 0)
-    .sort((left, right) => right.count - left.count || left.averagePnl - right.averagePnl);
   const weekdayRows = weekdayLabels.map((label, index) => ({
     id: String(index),
     label,
@@ -2513,16 +2518,11 @@ function buildJournalAnalytics(
   const bestSession =
     [...sessionRows].sort((left, right) => right.pnl - left.pnl || (right.winRate ?? -1) - (left.winRate ?? -1))[0] ??
     null;
-  const riskEmotion =
-    [...emotionRows].sort((left, right) => left.averagePnl - right.averagePnl || right.count - left.count)[0] ?? null;
 
   return {
     bestSession,
-    emotionRows,
     errorRows,
     maxErrorCount: errorRows.reduce((max, row) => Math.max(max, row.count), 0),
-    maxEmotionCount: emotionRows.reduce((max, row) => Math.max(max, row.count), 0),
-    riskEmotion,
     sessionRows,
     stats,
     weekdayRows,
@@ -3057,11 +3057,6 @@ function winRateMeter(value: number | null) {
   if (value === null) return 0;
   const percent = value * 100;
   return percent > 0 ? Math.max(4, Math.min(100, percent)) : 0;
-}
-
-function shareMeter(count: number, maxCount: number) {
-  if (!count || !maxCount) return 0;
-  return Math.max(6, Math.min(100, (count / maxCount) * 100));
 }
 
 function clampPercent(value: number) {

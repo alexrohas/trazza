@@ -3469,6 +3469,13 @@ button {
 .journal-dashboard-widgets {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  /* dense es la red de seguridad del orden por defecto, no un sustituto. El orden de
+     journalDashboardWidgetIds ya cierra las seis filas a 12 columnas exactas, asi que
+     aqui dense no mueve nada; existe para cuando el usuario reordena desde "Personalizar
+     panel" u OCULTA un widget, que es un solo clic y descuadra la fila entera: sin esto,
+     ocultar Ultimas operaciones dejaba a Errores con 438px de vacio al lado. Con dense,
+     un widget estrecho posterior sube a rellenar ese hueco en vez de dejarlo abierto. */
+  grid-auto-flow: row dense;
   gap: var(--space-2xl);
   align-items: start;
 }
@@ -3485,12 +3492,18 @@ button {
   grid-column: span 8;
 }
 
+/* La mitad, para la fila que copia al legado: Balance a "half" y Winrate por dia /
+   Winrate por sesion a "quarter" cada uno (span 6 + span 3 + span 3 = 12). */
+.journal-dashboard-widget[data-widget-size="half"] {
+  grid-column: span 6;
+}
+
 .journal-dashboard-widget[data-widget-size="narrow"] {
   grid-column: span 4;
 }
 
-.journal-dashboard-widget[data-widget-size="third"] {
-  grid-column: span 4;
+.journal-dashboard-widget[data-widget-size="quarter"] {
+  grid-column: span 3;
 }
 
 .journal-widget-customize-list {
@@ -4268,9 +4281,12 @@ button {
   text-align: center;
 }
 
+/* 5 columnas y no 7: el widget solo pinta Lun-Vie (getWeekdayBarLabels), igual que el
+   legado. Con 7 pistas fijas y solo 5 hijos sobraban dos columnas vacias al final en
+   vez de repartir ese ancho entre las cinco reales. */
 .journal-weekday-bars {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-sm);
   align-items: end;
 }
@@ -4285,7 +4301,11 @@ button {
   gap: var(--space-xs);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: var(--space-md) var(--space-sm);
+  /* Lateral a --space-2xs y no --space-sm: en las ~45px que le tocan ahora (comparte
+     fila con Balance y Winrate por sesion) esos 4px de diferencia por lado eran
+     literalmente el margen que le faltaba a "56 %" para no desbordar ni con la cifra
+     ya en formato compacto. */
+  padding: var(--space-md) var(--space-2xs);
   transition:
     border-color var(--dur-fast) var(--ease),
     background var(--dur-fast) var(--ease);
@@ -4320,8 +4340,7 @@ button {
 }
 
 .journal-weekday-bar span,
-.journal-weekday-bar strong,
-.journal-weekday-bar small {
+.journal-weekday-bar strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4334,14 +4353,12 @@ button {
   font-weight: var(--weight-black);
 }
 
+/* --text-2xs y no --text-sm: esta tarjeta ahora vive fija en una columna de ~45px
+   (comparte fila con Balance y Winrate por sesion), y a 14px "55,56 %" desbordaba su
+   caja y el navegador lo recortaba con elipsis — la misma trampa de importes truncados
+   que ya evitamos en el resto de la app, aplicada aqui a un porcentaje. */
 .journal-weekday-bar strong {
-  font-size: var(--text-sm);
-}
-
-.journal-weekday-bar small {
-  color: var(--muted);
   font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
 }
 
 /* Linea entre las dos mitades: a la izquierda se crea un tipo nuevo y a la derecha se
@@ -7318,7 +7335,15 @@ tbody tr:last-child td {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 
-  .journal-dashboard-widget[data-widget-size="third"] {
+  /* Por debajo de 1180 la fila de tres (Balance/Winrate por dia/Winrate por sesion) ya
+     no cabe a 6+3+3: un "quarter" de 3 columnas mide demasiado poco para una barra con
+     su cifra y su detalle. Balance pasa a fila propia (span 12) y las otras dos se
+     reparten la siguiente fila a mitad cada una (span 6 + span 6 = 12), sin hueco. */
+  .journal-dashboard-widget[data-widget-size="half"] {
+    grid-column: span 12;
+  }
+
+  .journal-dashboard-widget[data-widget-size="quarter"] {
     grid-column: span 6;
   }
 

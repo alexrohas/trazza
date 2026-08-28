@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { safeLocalSet } from "../lib/storage";
 
-export type JournalWidgetId = "kpis" | "pnl" | "discipline" | "recent" | "session" | "emotion" | "errors" | "weekday" | "calendar";
+export type JournalWidgetId = "kpis" | "pnl" | "discipline" | "recent" | "session" | "errors" | "weekday" | "calendar";
 
 type JournalDashboardLayoutState = {
   hidden: JournalWidgetId[];
@@ -10,15 +10,27 @@ type JournalDashboardLayoutState = {
 
 const storageKey = "trazza:journal-dashboard-layout";
 
+/* El orden NO es arbitrario: la rejilla del cockpit es de 12 columnas y cada widget
+   ocupa 12 (full), 8 (wide), 6 (half) o 4/3 (narrow/quarter), asi que el orden decide si
+   las filas cierran o dejan hueco.
+   La primera fila tras los KPIs copia la del legado tal cual, que es donde iban juntas
+   Balance, Winrate por dia y Winrate por sesion: P&L a la mitad y las otras dos a un
+   cuarto cada una (half + quarter + quarter = 12). Winrate por sesion sale de su pareja
+   anterior con Disciplina, que pasa a "full" y ocupa su propia fila (mismo caso que P&L
+   cuando se le fue "emotion" como pareja). Errores y Ultimas operaciones se quedan
+   emparejadas como estaban: son las mejor emparejadas por sentido (errores con las
+   operaciones donde se cometieron) y wide(8)+narrow(4) sigue sumando 12.
+   Los ocho widgets suman 12+6+3+3+12+8+4+12 = 60 = 5 filas de 12 exactas (una menos que
+   antes: P&L, Winrate por dia y Winrate por sesion comparten una sola fila en vez de dos).
+   Si tocas esto, la cuenta que tiene que salir es 12 por fila. */
 export const journalDashboardWidgetIds: JournalWidgetId[] = [
   "kpis",
   "pnl",
-  "discipline",
-  "recent",
-  "session",
-  "emotion",
-  "errors",
   "weekday",
+  "session",
+  "discipline",
+  "errors",
+  "recent",
   "calendar",
 ];
 

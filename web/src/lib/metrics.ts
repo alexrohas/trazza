@@ -158,6 +158,18 @@ export function formatPercent(value: number) {
   }).format(value);
 }
 
+/* Sin decimales, para cajas muy estrechas donde "55,56 %" no cabe — mismo criterio que
+   formatMoneyCompact con el dinero: si un numero no cabe, se cambia el formato y no el
+   tamaño de letra (encoger la letra solo mueve el problema a la siguiente cifra larga).
+   Usado en las barras de "Dias de semana" cuando comparten fila con Balance y Winrate
+   por sesion. */
+export function formatPercentCompact(value: number) {
+  return new Intl.NumberFormat("es-ES", {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 /* El texto de respaldo se recibe traducido en vez de estar escrito aqui: esta funcion
    la llaman pantallas de los dos idiomas, y un literal en castellano se colaba tal cual
    en la interfaz en ingles. */
