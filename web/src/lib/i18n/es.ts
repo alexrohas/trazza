@@ -413,8 +413,6 @@ export const es = {
   "journal.filter.direction": "Direccion",
   "journal.filter.reset": "Reset filtros",
 
-  "journal.cockpit.title": "Cockpit",
-  "journal.cockpit.subtitle": "Resumen visual del journal filtrado. Personaliza que ves y en que orden.",
   "journal.cockpit.customize": "Personalizar panel",
   "journal.cockpit.panelLabel": "Panel del journal",
 

@@ -3458,23 +3458,12 @@ button {
   gap: var(--space-lg);
 }
 
+/* Ya no lleva titulo ni subtitulo (solo el boton de "Personalizar panel"), asi que
+   flex-end y no space-between: con un solo hijo, space-between lo dejaba pegado a la
+   izquierda en vez de a la derecha, donde va el resto de acciones de cabecera. */
 .journal-cockpit-toolbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-xl);
-}
-
-.journal-cockpit-toolbar h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--text-md);
-}
-
-.journal-cockpit-toolbar p {
-  margin: var(--space-2xs) 0 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
+  justify-content: flex-end;
 }
 
 .journal-dashboard-widgets {
@@ -7399,11 +7388,6 @@ tbody tr:last-child td {
 
   .journal-dashboard-widget {
     grid-column: span 12 !important;
-  }
-
-  .journal-cockpit-toolbar {
-    flex-direction: column;
-    align-items: stretch;
   }
 
   .app-shell {

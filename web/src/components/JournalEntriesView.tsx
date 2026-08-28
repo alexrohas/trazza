@@ -1024,11 +1024,10 @@ export function JournalEntriesView({
 
       {journalMode === "cockpit" && (
         <>
+          {/* Sin titulo "Cockpit" ni subtitulo: repetian lo que ya dice el h1 de la
+              pagina ("Journal - Dashboard") y el item activo del sidebar. El boton se
+              queda solo, alineado a la derecha como el resto de acciones de cabecera. */}
           <div className="journal-cockpit-toolbar">
-            <div>
-              <h2>{t("journal.cockpit.title")}</h2>
-              <p>{t("journal.cockpit.subtitle")}</p>
-            </div>
             <button className="secondary-action" onClick={() => setCustomizeOpen(true)} type="button">
               <LayoutGrid size={16} strokeWidth={2.2} />
               {t("journal.cockpit.customize")}
@@ -2219,9 +2218,11 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
               </div>
             )}
           </div>
+          {/* Solo las dos fechas: el importe central repetia el mismo dato que ya lleva
+              la insignia de la esquina superior derecha de la curva (chart-value-badge),
+              y encima en el eje de fechas se leia como una tercera fecha. */}
           <div className="chart-footer">
             <span>{points[0]?.date}</span>
-            <span>{formatMoney(finalValue, currency)}</span>
             <span>{points.at(-1)?.date}</span>
           </div>
         </>
