@@ -90,6 +90,17 @@
       "Facturado cada mes": "Billed every month",
       "Cuentas y movimientos sin límite": "Unlimited accounts and movements",
       "Journal completo con métricas": "Full journal with metrics",
+      /* Mismas frases SIN tilde: asi las escribe el paywall de app.html (plansDialog), y
+         el traductor compara texto exacto sin normalizar acentos. Sin estas dos, esa
+         pantalla quedaba a medias —plan, precio e insignia en ingles y las ventajas en
+         castellano—, que se ve peor que estar entera en un idioma. Es la convencion que
+         ya sigue este archivo con "Activacion"/"Activación". */
+      "Cuentas y movimientos sin limite": "Unlimited accounts and movements",
+      "Journal completo con metricas": "Full journal with metrics",
+      "Elegir mensual": "Choose monthly",
+      "Elegir anual": "Choose annual",
+      "Elige tu plan": "Choose your plan",
+      "Acceso completo a Trazza. Cancela cuando quieras.": "Full access to Trazza. Cancel whenever you want.",
       "Cancelas cuando quieras": "Cancel whenever you want",
       "Empezar prueba gratis": "Start free trial",
       "14 días gratis, sin tarjeta": "14 days free, no card",
