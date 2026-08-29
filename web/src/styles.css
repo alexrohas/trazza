@@ -366,7 +366,6 @@
 :root[data-theme="dark"] .journal-pnl-chart-frame,
 :root[data-theme="dark"] .journal-recent-row,
 :root[data-theme="dark"] .journal-row,
-:root[data-theme="dark"] .journal-weekday-bar,
 :root[data-theme="dark"] .account-row {
   background: #111519;
 }
@@ -3831,7 +3830,6 @@ button {
 }
 
 .journal-recent-row:hover,
-.journal-weekday-bar:hover,
 .journal-breakdown-row:hover {
   border-color: rgba(124, 58, 237, 0.28);
   background: #ffffff;
@@ -4283,82 +4281,87 @@ button {
 
 /* 5 columnas y no 7: el widget solo pinta Lun-Vie (getWeekdayBarLabels), igual que el
    legado. Con 7 pistas fijas y solo 5 hijos sobraban dos columnas vacias al final en
-   vez de repartir ese ancho entre las cinco reales. */
+   vez de repartir ese ancho entre las cinco reales.
+   El padding-top es el hueco para la cifra que flota encima de la barra (ver
+   .weekday-track strong): con una barra al 100% pegada al techo del contenedor, la
+   cifra se saldria por encima del panel si no se le reserva sitio de antemano. */
 .journal-weekday-bars {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-sm);
   align-items: end;
+  padding-top: var(--space-xl);
 }
 
-/* Estas tarjetas ya enseñan todos sus datos (winrate, ops y P&L), asi que el hover no
-   revela nada nuevo: solo marca sobre cual estas, que en una fila de siete columnas
-   iguales es justo lo que falta para no perder el sitio. Mismo lenguaje que
-   .journal-recent-row: el borde se tine de acento y el fondo sube un punto. */
+/* Calcado del legado (journalWeekdayWinrateBarHtml): sin caja propia por dia —ni
+   borde, ni fondo, ni tile que resaltar al pasar el cursor—, la barra vive suelta
+   sobre el fondo del panel y la cifra flota encima en vez de venir debajo de una
+   pista. minmax(92px, 1fr) reparte el alto disponible entre la pista (fila elastica)
+   y la etiqueta del dia (fila automatica). */
 .journal-weekday-bar {
   display: grid;
   min-width: 0;
+  grid-template-rows: minmax(92px, 1fr) auto;
+  align-items: end;
+  justify-items: center;
   gap: var(--space-xs);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  /* Lateral a --space-2xs y no --space-sm: en las ~45px que le tocan ahora (comparte
-     fila con Balance y Winrate por sesion) esos 4px de diferencia por lado eran
-     literalmente el margen que le faltaba a "56 %" para no desbordar ni con la cifra
-     ya en formato compacto. */
-  padding: var(--space-md) var(--space-2xs);
-  transition:
-    border-color var(--dur-fast) var(--ease),
-    background var(--dur-fast) var(--ease);
-  background: #fbfcfd;
-  text-align: center;
 }
 
 .weekday-track {
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  height: 92px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-muted);
-  overflow: hidden;
-}
-
-.weekday-track i {
-  display: block;
+  position: relative;
   width: 100%;
+  height: 100%;
+  /* visible y no hidden: la cifra flotante y el resplandor de la barra tienen que
+     poder salirse del alto de la pista hacia arriba. */
+  overflow: visible;
+}
+
+/* Degradado y resplandor identicos al legado: mas claro arriba y mas oscuro abajo
+   —la luz cae desde la cifra que flota encima—, con un brillo que sale del propio
+   color de acento y no de un violeta fijo, asi que responde al tema sin par oscuro
+   propio. Ya no se tine por resultado (antes verde/rojo con signedTone): el legado
+   tampoco lo hace aqui, es la misma barra de acento para cualquier dia. */
+.weekday-track i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
   min-height: 0;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: var(--accent);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 68%, white 14%),
+    color-mix(in srgb, var(--accent) 92%, black 8%)
+  );
+  box-shadow: 0 -8px 16px color-mix(in srgb, var(--accent) 22%, transparent);
+  transition: height var(--dur) var(--ease);
 }
 
-.journal-weekday-bar.positive .weekday-track i {
-  background: var(--positive);
+/* Ancla en "bottom" y no en "top": crece con la barra (ver el calc inline en el
+   componente, mismo patron que --winrate en el legado) para quedarse siempre justo
+   encima de su remate, suba o baje. */
+.weekday-track strong {
+  position: absolute;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  color: var(--text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-black);
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: bottom var(--dur) var(--ease);
 }
 
-.journal-weekday-bar.negative .weekday-track i {
-  background: var(--negative);
-}
-
-.journal-weekday-bar span,
-.journal-weekday-bar strong {
+.journal-weekday-bar span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.journal-weekday-bar span {
-  color: var(--text);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-black);
-}
-
-/* --text-2xs y no --text-sm: esta tarjeta ahora vive fija en una columna de ~45px
-   (comparte fila con Balance y Winrate por sesion), y a 14px "55,56 %" desbordaba su
-   caja y el navegador lo recortaba con elipsis — la misma trampa de importes truncados
-   que ya evitamos en el resto de la app, aplicada aqui a un porcentaje. */
-.journal-weekday-bar strong {
+  color: var(--muted);
   font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
 }
 
 /* Linea entre las dos mitades: a la izquierda se crea un tipo nuevo y a la derecha se

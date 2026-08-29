@@ -2466,24 +2466,25 @@ function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: Jou
               barra), y ahi ni el formato con decimales cabe: "55,56 %" seguia
               desbordando incluso en la letra mas pequeña de la escala. La cifra
               visible pasa a formatPercentCompact (sin decimales); el dato completo, con
-              decimales, se queda en el title. */}
+              decimales, se queda en el title.
+              La cifra flota sobre su barra (position: absolute en .weekday-track strong)
+              en vez de venir debajo en una tarjeta propia, igual que el legado: el mismo
+              barHeight fija la altura de la barra y el "bottom" de la cifra, asi que la
+              una sigue a la otra sin duplicar el calculo. */}
           {rows.map((row) => {
             const winRateLabel = row.winRate === null ? "-" : formatPercent(row.winRate);
             const winRateLabelCompact = row.winRate === null ? "-" : formatPercentCompact(row.winRate);
+            const barHeight = winRateMeter(row.winRate);
             const detail = row.count
               ? `${row.count} ${t("journal.weekday.opsSuffix")} - ${formatMoney(row.pnl, currency)}`
               : t("journal.weekday.noData");
             return (
-              <div
-                className={`journal-weekday-bar ${signedTone(row.pnl)}`}
-                key={row.id}
-                title={`${row.label}: ${winRateLabel} - ${detail}`}
-              >
-                <div className="weekday-track" aria-hidden="true">
-                  <i style={{ height: `${winRateMeter(row.winRate)}%` }} />
+              <div className="journal-weekday-bar" key={row.id} title={`${row.label}: ${winRateLabel} - ${detail}`}>
+                <div className="weekday-track">
+                  <strong style={{ bottom: `calc(${barHeight}% + 7px)` }}>{winRateLabelCompact}</strong>
+                  <i aria-hidden="true" style={{ height: `${barHeight}%` }} />
                 </div>
                 <span>{row.label}</span>
-                <strong>{winRateLabelCompact}</strong>
               </div>
             );
           })}
