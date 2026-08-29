@@ -3501,8 +3501,19 @@ button {
   grid-column: span 4;
 }
 
+/* display: grid + align-self: stretch: los "quarter" de esta fila (Dias de semana y
+   Winrate por sesion) se quedaban a su altura de contenido mientras Balance, su vecino
+   "half", mide 427px de curva — Dias de semana se veia aplastado a 262px, con las
+   barras cortas y un hueco enorme debajo. align-self: stretch hace que el propio
+   .journal-dashboard-widget ocupe el alto de la fila (lo decide el mas alto, aqui
+   Balance); display: grid hace que su unico hijo (.panel) se estire para llenarlo,
+   que es el comportamiento por defecto de un contenedor grid con un solo hijo. Lo que
+   pasa DENTRO del panel para que las barras crezcan de verdad, y no solo el hueco en
+   blanco, esta en .journal-breakdown-panel y .journal-weekday-bars. */
 .journal-dashboard-widget[data-widget-size="quarter"] {
   grid-column: span 3;
+  display: grid;
+  align-self: stretch;
 }
 
 .journal-widget-customize-list {
@@ -4186,8 +4197,16 @@ button {
   font-weight: var(--weight-medium);
 }
 
+/* fila explicita "auto 1fr": la cabecera se queda a su alto natural y el contenido
+   (la lista de sesiones, o las barras de dias) se lleva el resto cuando el panel mide
+   mas que su contenido —el caso de "quarter" estirado a la altura de Balance—. Sin el
+   1fr, align-content: start dejaba el hueco sobrante como banda vacia al final en vez
+   de repartirlo, que es justo el aplastamiento que se queria arreglar. Cuando el panel
+   NO esta estirado (mide lo que su contenido pide) el 1fr no tiene nada que repartir y
+   el resultado es identico al de antes. */
 .journal-breakdown-panel {
   display: grid;
+  grid-template-rows: auto 1fr;
   align-content: start;
 }
 
@@ -4284,12 +4303,19 @@ button {
    vez de repartir ese ancho entre las cinco reales.
    El padding-top es el hueco para la cifra que flota encima de la barra (ver
    .weekday-track strong): con una barra al 100% pegada al techo del contenedor, la
-   cifra se saldria por encima del panel si no se le reserva sitio de antemano. */
+   cifra se saldria por encima del panel si no se le reserva sitio de antemano.
+   align-items: stretch y no end: con "end" cada columna se quedaba a su alto de
+   contenido (92px) aunque el propio .journal-weekday-bars fuera mas alto por el 1fr de
+   .journal-breakdown-panel, así que crecia el hueco vacio y no las barras. Con
+   stretch cada .journal-weekday-bar ocupa el alto real disponible, y su propio
+   grid-template-rows: minmax(92px, 1fr) auto (ver mas abajo) reparte ese alto entre la
+   pista y la etiqueta del dia — la pista crece, y con ella el porcentaje de cada barra
+   (la altura de <i> es un % de esa pista, no un px fijo). */
 .journal-weekday-bars {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-sm);
-  align-items: end;
+  align-items: stretch;
   padding-top: var(--space-xl);
 }
 
