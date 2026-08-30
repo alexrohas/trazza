@@ -1854,12 +1854,27 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
   const tramos = rows
     .filter((row) => row.count > 0)
     .map((row) => {
+      const inicio = acumulado;
       const largo = total > 0 ? (row.count / total) * circunferencia : 0;
-      const tramo = { color: row.color, id: row.id, largo, offset: -acumulado };
       acumulado += largo;
-      return tramo;
+      return { color: row.color, fin: acumulado, id: row.id, inicio };
     });
   const activeRow = activeId === null ? null : rows.find((row) => row.id === activeId) || null;
+  /* Cada tramo se dibuja como su propio arco (<path>, comando A) con los dos extremos
+     calculados en punto exacto, no como un <circle> completo enmascarado con
+     stroke-dasharray. Eso ultimo se probo primero y dejaba una muesca real: un
+     circulo entero es basicamente un anillo transparente salvo su porcion, apilados
+     los siete unos encima de otros, y el reparto del "sobrante" en la frontera entre
+     dos colores dependia de mas cosas de las que un simple mask deberia depender (el
+     orden de pintado, el grosor al pasar el cursor). Con un arco independiente por
+     tramo esa clase entera de problema desaparece: cada segmento es una forma
+     autocontenida con sus propios dos extremos, sin nada que enmascarar ni que un
+     vecino pueda recortar. El angulo se calcula directamente aqui (posicion/radio -
+     90°) en vez de con el <g transform="rotate(-90 64 64)"> de antes, que ya no hace
+     falta. El tramo activo se sigue pintando el ultimo por si acaso, pero ya no es la
+     pieza que sostiene la correccion. */
+  const tramosPintado =
+    activeId === null ? tramos : [...tramos.filter((tramo) => tramo.id !== activeId), ...tramos.filter((tramo) => tramo.id === activeId)];
 
   return (
     <section className="panel journal-errors-panel">
@@ -1875,24 +1890,18 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
         <div className="journal-errors-body">
           <div className="journal-errors-donut" role="img" aria-label={`${total} ${t("journal.errors.totalSuffix")}`}>
             <svg viewBox="0 0 128 128">
-              <g transform="rotate(-90 64 64)">
-                {tramos.map((tramo) => (
-                  <circle
-                    className={`journal-errors-arc ${activeId === null || activeId === tramo.id ? "" : "is-dimmed"}`}
-                    key={tramo.id}
-                    cx="64"
-                    cy="64"
-                    r={radio}
-                    fill="none"
-                    onPointerEnter={() => setActiveId(tramo.id)}
-                    onPointerLeave={() => setActiveId(null)}
-                    stroke={tramo.color}
-                    strokeDasharray={`${tramo.largo} ${circunferencia - tramo.largo}`}
-                    strokeDashoffset={tramo.offset}
-                    strokeWidth={activeId === tramo.id ? 26 : 20}
-                  />
-                ))}
-              </g>
+              {tramosPintado.map((tramo) => (
+                <path
+                  className={`journal-errors-arc ${activeId === null || activeId === tramo.id ? "" : "is-dimmed"}`}
+                  key={tramo.id}
+                  d={arcoDonut(64, 64, radio, tramo.inicio, tramo.fin)}
+                  fill="none"
+                  onPointerEnter={() => setActiveId(tramo.id)}
+                  onPointerLeave={() => setActiveId(null)}
+                  stroke={tramo.color}
+                  strokeWidth={activeId === tramo.id ? 26 : 20}
+                />
+              ))}
             </svg>
             <div className="journal-errors-donut-center">
               <strong>{activeRow ? activeRow.count : total}</strong>
@@ -3055,6 +3064,28 @@ function winRateMeter(value: number | null) {
   if (value === null) return 0;
   const percent = value * 100;
   return percent > 0 ? Math.max(4, Math.min(100, percent)) : 0;
+}
+
+/* "posicion" es la distancia recorrida sobre la circunferencia (mismas unidades que
+   "circunferencia" en JournalErrorsPanel), no un angulo. El -Math.PI/2 hace que
+   posicion 0 caiga en las 12, igual que hacia antes el <g transform="rotate(-90 64
+   64)"> del circulo enmascarado; el resto avanza en sentido horario porque en SVG el
+   eje Y crece hacia abajo, asi que un angulo creciente con cos/sin gira a la derecha
+   en pantalla. */
+function puntoEnAnillo(cx: number, cy: number, radio: number, posicion: number) {
+  const angulo = posicion / radio - Math.PI / 2;
+  return { x: cx + radio * Math.cos(angulo), y: cy + radio * Math.sin(angulo) };
+}
+
+/* El arco de cada tramo del donut de errores, como su propio <path> con dos extremos
+   exactos (comando A), no como un circulo entero enmascarado con stroke-dasharray.
+   Ver el comentario grande en JournalErrorsPanel para el porque del cambio. */
+function arcoDonut(cx: number, cy: number, radio: number, inicio: number, fin: number) {
+  const p1 = puntoEnAnillo(cx, cy, radio, inicio);
+  const p2 = puntoEnAnillo(cx, cy, radio, fin);
+  const anguloGrados = ((fin - inicio) / (2 * Math.PI * radio)) * 360;
+  const arcoGrande = anguloGrados > 180 ? 1 : 0;
+  return `M ${p1.x} ${p1.y} A ${radio} ${radio} 0 ${arcoGrande} 1 ${p2.x} ${p2.y}`;
 }
 
 function clampPercent(value: number) {
