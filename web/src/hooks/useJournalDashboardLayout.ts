@@ -12,26 +12,24 @@ const storageKey = "trazza:journal-dashboard-layout";
 
 /* El orden NO es arbitrario: la rejilla del cockpit es de 12 columnas y cada widget
    ocupa 12 (full), 8 (wide), 6 (half) o 4/3 (narrow/quarter), asi que el orden decide si
-   las filas cierran o dejan hueco.
-   La primera fila tras los KPIs copia la del legado tal cual, que es donde iban juntas
-   Balance, Winrate por dia y Winrate por sesion: P&L a la mitad y las otras dos a un
-   cuarto cada una (half + quarter + quarter = 12). Winrate por sesion sale de su pareja
-   anterior con Disciplina, que pasa a "full" y ocupa su propia fila (mismo caso que P&L
-   cuando se le fue "emotion" como pareja). Errores y Ultimas operaciones se quedan
-   emparejadas como estaban: son las mejor emparejadas por sentido (errores con las
-   operaciones donde se cometieron) y wide(8)+narrow(4) sigue sumando 12.
-   Los ocho widgets suman 12+6+3+3+12+8+4+12 = 60 = 5 filas de 12 exactas (una menos que
-   antes: P&L, Winrate por dia y Winrate por sesion comparten una sola fila en vez de dos).
+   las filas cierran o dejan hueco. Las tres filas que siguen a los KPIs son exactamente
+   las del legado (DASHBOARD_WIDGETS en app.js), fila a fila:
+   - Balance a la mitad y Winrate por dia / Winrate por sesion a un cuarto cada uno
+     (half + quarter + quarter = 12).
+   - Errores y Disciplina, mitad y mitad (half + half = 12) — la pareja que se pidio
+     explicitamente igualar al legado.
+   - Calendario y Ultimas operaciones, ancho y estrecho (wide(8) + narrow(4) = 12).
+   Los ocho widgets suman 12+6+3+3+6+6+8+4 = 48 = 4 filas de 12 exactas.
    Si tocas esto, la cuenta que tiene que salir es 12 por fila. */
 export const journalDashboardWidgetIds: JournalWidgetId[] = [
   "kpis",
   "pnl",
   "weekday",
   "session",
-  "discipline",
   "errors",
-  "recent",
+  "discipline",
   "calendar",
+  "recent",
 ];
 
 function isWidgetId(value: unknown): value is JournalWidgetId {

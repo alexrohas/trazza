@@ -956,15 +956,12 @@ export function JournalEntriesView({
   };
 
   const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "half" | "quarter"> = {
-    calendar: "full",
-    /* "full" y no "wide": ya no comparte fila con Winrate por sesion (ver mas abajo,
-       ahora va con P&L y Winrate por dia), asi que se queda sin pareja de columna
-       estrecha y pasa a ocupar la fila entera, igual que P&L antes de este cambio. */
-    discipline: "full",
-    /* "wide" desde que lleva anillo: con una columna estrecha el donut y su leyenda se
-       pisaban. En el legado tambien va ancho, compartiendo fila con Ultimas
-       operaciones. */
-    errors: "wide",
+    /* "wide" y no "full": vuelve a compartir fila, ahora con Ultimas operaciones en vez
+       de con Errores (ver journalDashboardWidgetIds). Misma pareja que en el legado. */
+    calendar: "wide",
+    /* La misma fila que en el legado: Errores y Disciplina a la mitad cada uno. */
+    discipline: "half",
+    errors: "half",
     kpis: "full",
     /* La misma fila que en el legado: Balance a la mitad y las otras dos a un cuarto
        cada una (half + quarter + quarter = 12). Ver journalDashboardWidgetIds. */

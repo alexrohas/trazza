@@ -3497,8 +3497,18 @@ button {
   grid-column: span 6;
 }
 
+/* align-self: stretch, mismo motivo que en "quarter" mas abajo: Ultimas operaciones
+   ahora comparte fila con Calendario (antes iba con Errores), que es bastante mas
+   alto. El legado hace lo mismo a proposito —.journal-recent-trades-block lleva
+   min-height: 100% en su propia fila de dos columnas (.journal-calendar-row,
+   align-items: stretch)—, y acepta el hueco en blanco bajo la lista de 5 operaciones
+   en vez de forzarla a repartirse: una lista corta no tiene una forma natural de
+   "crecer" como si tiene una barra (compara con .journal-weekday-bars, que sí reparte
+   el alto extra porque la altura de cada barra es proporcional). */
 .journal-dashboard-widget[data-widget-size="narrow"] {
   grid-column: span 4;
+  display: grid;
+  align-self: stretch;
 }
 
 /* display: grid + align-self: stretch: los "quarter" de esta fila (Dias de semana y
