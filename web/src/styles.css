@@ -3451,12 +3451,6 @@ button {
   white-space: nowrap;
 }
 
-.journal-top-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-  gap: var(--space-lg);
-}
-
 /* Ya no lleva titulo ni subtitulo (solo el boton de "Personalizar panel"), asi que
    flex-end y no space-between: con un solo hijo, space-between lo dejaba pegado a la
    izquierda en vez de a la derecha, donde va el resto de acciones de cabecera. */
@@ -4809,11 +4803,6 @@ button {
 .journal-day.has-entries {
   border-color: var(--line-strong);
   background: var(--surface);
-}
-
-.journal-day.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .journal-day.positive {
@@ -7362,7 +7351,6 @@ tbody tr:last-child td {
   .directory-grid,
   .journal-error-manager-grid,
   .journal-account-rules,
-  .journal-top-grid,
   .settings-grid {
     grid-template-columns: 1fr;
   }

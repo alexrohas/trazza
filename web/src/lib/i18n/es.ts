@@ -493,9 +493,6 @@ export const es = {
   "journal.calendar.entriesAriaSuffix": "entradas",
   "journal.calendar.payoutsAriaSuffix": "payouts por",
 
-  "journal.detail.title": "Detalle",
-  "journal.detail.selectEntry": "Selecciona una entrada.",
-  "journal.detail.close": "Cerrar detalle",
   "journal.detail.rMultiple": "R",
   "journal.detail.direction": "Direccion",
   "journal.detail.errors": "Errores",
@@ -505,7 +502,6 @@ export const es = {
   "journal.detail.enlargeCapture": "Ampliar captura",
   "journal.detail.openReference": "Abrir referencia",
   "journal.detail.otherEntriesSameDay": "Otras entradas del dia",
-  "journal.detail.noEntrySelected": "Sin entrada seleccionada",
 
   "journal.discipline.title": "Disciplina",
   "journal.discipline.subtitle": "Puntuacion de disciplina a lo largo del tiempo.",

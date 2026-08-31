@@ -495,9 +495,6 @@ export const en: Record<TranslationKey, string> = {
   "journal.calendar.entriesAriaSuffix": "entries",
   "journal.calendar.payoutsAriaSuffix": "payouts for",
 
-  "journal.detail.title": "Detail",
-  "journal.detail.selectEntry": "Select an entry.",
-  "journal.detail.close": "Close detail",
   "journal.detail.rMultiple": "R",
   "journal.detail.direction": "Direction",
   "journal.detail.errors": "Errors",
@@ -507,7 +504,6 @@ export const en: Record<TranslationKey, string> = {
   "journal.detail.enlargeCapture": "Enlarge capture",
   "journal.detail.openReference": "Open reference",
   "journal.detail.otherEntriesSameDay": "Other entries that day",
-  "journal.detail.noEntrySelected": "No entry selected",
 
   "journal.discipline.title": "Discipline",
   "journal.discipline.subtitle": "Discipline score over time.",

@@ -285,10 +285,8 @@ export function JournalEntriesView({
   const [periodFilter, setPeriodFilter] = useState<JournalPeriodFilter>("all");
   const [reviewPreset, setReviewPreset] = useState<JournalReviewPreset>("all");
   const [searchText, setSearchText] = useState("");
-  const [selectedEntryId, setSelectedEntryId] = useState<string | undefined>();
-  /* Independiente de selectedEntryId: ese lo gobierna el calendario del cockpit, y este
-     la tarjeta pulsada en la galeria. Compartirlos hacia que abrir una entrada desde la
-     galeria moviera tambien la seleccion del calendario. */
+  /* La tarjeta pulsada en la galeria (o en Ultimas operaciones, o en un dia del
+     calendario a traves de renderEntryDetail): todas abren el mismo modal. */
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
   /* Dia sobre el que esta el cursor en el calendario. Se guarda el indice de celda y no
      la fecha porque de el sale tambien la semana (indice / 7), que es lo que permite
@@ -425,7 +423,6 @@ export function JournalEntriesView({
       t,
     ],
   );
-  const selectedEntry = selectedEntryId ? filteredEntries.find((entry) => entry.id === selectedEntryId) : undefined;
   const detailEntry = detailEntryId ? filteredEntries.find((entry) => entry.id === detailEntryId) : undefined;
   const calendarDays = useMemo(
     () => buildCalendarDays(visibleMonth, filteredEntries, movements),
@@ -453,10 +450,6 @@ export function JournalEntriesView({
       monthTotal: delMes.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
     };
   }, [calendarDays]);
-  const selectedDayEntries = useMemo(
-    () => (selectedEntry ? filteredEntries.filter((entry) => entry.date === selectedEntry.date) : []),
-    [filteredEntries, selectedEntry],
-  );
   const analytics = useMemo(
     () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, weekdayBarLabels),
     [effectiveErrorTypes, filteredEntries, sessionOptions, weekdayBarLabels],
@@ -745,7 +738,7 @@ export function JournalEntriesView({
                 <button
                   className={item.id === entry.id ? "active" : ""}
                   key={item.id}
-                  onClick={() => (detailEntryId ? setDetailEntryId(item.id) : setSelectedEntryId(item.id))}
+                  onClick={() => setDetailEntryId(item.id)}
                   type="button"
                 >
                   {item.symbol}
@@ -761,100 +754,90 @@ export function JournalEntriesView({
 
   const journalWidgetContent: Record<JournalWidgetId, ReactElement> = {
     calendar: (
-      <section className="journal-top-grid">
-        <section className="panel journal-calendar-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>{t("journal.calendar.title")}</h2>
-              <p>{visibleMonthLabel} - {t("journal.calendar.subtitleSuffix")}</p>
-            </div>
-            <div className="calendar-actions">
-              <span className="journal-calendar-total">
-                {t("journal.calendar.monthTotal")}
-                <strong className={signedTone(monthTotal)}>{formatMoney(monthTotal, currency)}</strong>
-              </span>
-              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
-                <ChevronLeft size={16} strokeWidth={2.2} />
-              </button>
-              <input
-                className="month-input"
-                type="month"
-                value={visibleMonth}
-                onChange={(event) => {
-                  if (event.target.value) setVisibleMonth(event.target.value);
-                }}
-              />
-              <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
-                <ChevronRight size={16} strokeWidth={2.2} />
-              </button>
-              <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
-                {t("journal.calendar.today")}
-              </button>
-            </div>
+      <section className="panel journal-calendar-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>{t("journal.calendar.title")}</h2>
+            <p>{visibleMonthLabel} - {t("journal.calendar.subtitleSuffix")}</p>
           </div>
-          <div className="journal-calendar-grid">
-            {weekdayLabels.map((day) => (
-              <span className="journal-weekday" key={day}>
-                {day}
-              </span>
-            ))}
-            <span className="journal-weekday is-week">{t("journal.calendar.weekColumn")}</span>
-            {calendarWeeks.map((week, weekIndex) => (
-              <Fragment key={week.key}>
-                {week.days.map((day, dayIndex) => (
-              <button
-                aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
-                className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${selectedEntry?.date === day.date ? "selected" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""} ${
+          <div className="calendar-actions">
+            <span className="journal-calendar-total">
+              {t("journal.calendar.monthTotal")}
+              <strong className={signedTone(monthTotal)}>{formatMoney(monthTotal, currency)}</strong>
+            </span>
+            <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
+              <ChevronLeft size={16} strokeWidth={2.2} />
+            </button>
+            <input
+              className="month-input"
+              type="month"
+              value={visibleMonth}
+              onChange={(event) => {
+                if (event.target.value) setVisibleMonth(event.target.value);
+              }}
+            />
+            <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
+              <ChevronRight size={16} strokeWidth={2.2} />
+            </button>
+            <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
+              {t("journal.calendar.today")}
+            </button>
+          </div>
+        </div>
+        <div className="journal-calendar-grid">
+          {weekdayLabels.map((day) => (
+            <span className="journal-weekday" key={day}>
+              {day}
+            </span>
+          ))}
+          <span className="journal-weekday is-week">{t("journal.calendar.weekColumn")}</span>
+          {calendarWeeks.map((week, weekIndex) => (
+            <Fragment key={week.key}>
+              {week.days.map((day, dayIndex) => (
+            <button
+              aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
+              className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""} ${
+                hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
+              }`}
+              disabled={!day.firstEntryId}
+              key={day.date}
+              /* Ya no abre un detalle inline: lleva a Entradas con la busqueda puesta a
+                 la fecha del dia, que ya es uno de los campos que compara matchesSearch
+                 (ver filteredEntries) — reutiliza el filtro existente en vez de inventar
+                 un estado de "dia seleccionado" aparte. */
+              onClick={() => {
+                setSearchText(day.date);
+                setJournalMode("entries");
+              }}
+              onPointerEnter={() => setHoveredDayIndex(weekIndex * 7 + dayIndex)}
+              onPointerLeave={() => setHoveredDayIndex(null)}
+              type="button"
+            >
+              <span>{Number(day.date.slice(-2))}</span>
+              <strong>
+                {day.count ? formatMoneyCompact(day.pnl) : day.payoutCount ? `-${formatMoneyCompact(day.payoutGross)}` : "-"}
+              </strong>
+              <small>
+                {day.count ? `${day.count} ${t("journal.calendar.opsSuffix")}` : ""}
+                {day.count && day.payoutCount ? " · " : ""}
+                {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoneyCompact(day.payoutGross)}` : ""}
+              </small>
+            </button>
+              ))}
+              <div
+                className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"} ${
                   hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
                 }`}
-                disabled={!day.firstEntryId}
-                key={day.date}
-                onClick={() => setSelectedEntryId(day.firstEntryId)}
-                onPointerEnter={() => setHoveredDayIndex(weekIndex * 7 + dayIndex)}
+                onPointerEnter={() => setHoveredDayIndex(weekIndex * 7)}
                 onPointerLeave={() => setHoveredDayIndex(null)}
-                type="button"
               >
-                <span>{Number(day.date.slice(-2))}</span>
-                <strong>
-                  {day.count ? formatMoneyCompact(day.pnl) : day.payoutCount ? `-${formatMoneyCompact(day.payoutGross)}` : "-"}
-                </strong>
-                <small>
-                  {day.count ? `${day.count} ${t("journal.calendar.opsSuffix")}` : ""}
-                  {day.count && day.payoutCount ? " · " : ""}
-                  {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoneyCompact(day.payoutGross)}` : ""}
-                </small>
-              </button>
-                ))}
-                <div
-                  className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"} ${
-                    hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
-                  }`}
-                  onPointerEnter={() => setHoveredDayIndex(weekIndex * 7)}
-                  onPointerLeave={() => setHoveredDayIndex(null)}
-                >
-                  <span>{t("journal.calendar.weekPrefix")}</span>
-                  <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
-                  <small>{`${week.entries} ${t("journal.calendar.entriesSuffix")}`}</small>
-                </div>
-              </Fragment>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel journal-detail-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>{t("journal.detail.title")}</h2>
-              <p>{selectedEntry ? `${selectedEntry.symbol} - ${selectedEntry.date}` : t("journal.detail.selectEntry")}</p>
-            </div>
-            {selectedEntry && (
-              <button className="icon-control compact-icon" onClick={() => setSelectedEntryId(undefined)} title={t("journal.detail.close")} type="button">
-                <X size={16} strokeWidth={2.2} />
-              </button>
-            )}
-          </div>
-          {selectedEntry ? renderEntryDetail(selectedEntry) : <div className="chart-empty">{t("journal.detail.noEntrySelected")}</div>}
-        </section>
+                <span>{t("journal.calendar.weekPrefix")}</span>
+                <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
+                <small>{`${week.entries} ${t("journal.calendar.entriesSuffix")}`}</small>
+              </div>
+            </Fragment>
+          ))}
+        </div>
       </section>
     ),
     errors: <JournalErrorsPanel rows={analytics.errorRows} />,
@@ -922,7 +905,7 @@ export function JournalEntriesView({
         entries={filteredEntries.slice(0, 5)}
         errorTypes={effectiveErrorTypes}
         firmNameById={firmNameById}
-        onSelectEntry={setSelectedEntryId}
+        onSelectEntry={setDetailEntryId}
       />
     ),
     session: (
