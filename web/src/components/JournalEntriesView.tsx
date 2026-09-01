@@ -756,9 +756,9 @@ export function JournalEntriesView({
     calendar: (
       <section className="panel journal-calendar-panel">
         <div className="panel-heading">
-          <div>
+          <div className="panel-title-row">
             <h2>{t("journal.calendar.title")}</h2>
-            <p>{visibleMonthLabel} - {t("journal.calendar.subtitleSuffix")}</p>
+            <InfoHint text={`${visibleMonthLabel} - ${t("journal.calendar.subtitleSuffix")}`} />
           </div>
           <div className="calendar-actions">
             <span className="journal-calendar-total">
@@ -1862,9 +1862,9 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
   return (
     <section className="panel journal-errors-panel">
       <div className="panel-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("journal.breakdown.errors.title")}</h2>
-          <p>{t("journal.breakdown.errors.subtitle")}</p>
+          <InfoHint text={t("journal.breakdown.errors.subtitle")} />
         </div>
       </div>
       {total === 0 ? (
@@ -1972,9 +1972,9 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
   return (
     <section className="panel journal-discipline-panel">
       <div className="panel-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("journal.discipline.title")}</h2>
-          <p>{points.length ? t("journal.discipline.subtitle") : t("journal.discipline.subtitleEmpty")}</p>
+          <InfoHint text={points.length ? t("journal.discipline.subtitle") : t("journal.discipline.subtitleEmpty")} />
         </div>
         <div className="chart-heading-side">
           {media === null ? null : (
@@ -2111,9 +2111,9 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
   return (
     <section className="panel journal-pnl-curve-panel">
       <div className="panel-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("journal.pnlCurve.title")}</h2>
-          <p>{entries.length ? `${entries.length} ${t("journal.pnlCurve.subtitleSuffix")}` : t("journal.pnlCurve.subtitleEmpty")}</p>
+          <InfoHint text={entries.length ? `${entries.length} ${t("journal.pnlCurve.subtitleSuffix")}` : t("journal.pnlCurve.subtitleEmpty")} />
         </div>
         <div className="chart-heading-side">
           <strong className={`chart-delta ${signedTone(finalValue)}`}>{formatMoney(finalValue, currency)}</strong>
@@ -2244,9 +2244,9 @@ function JournalRecentTradesPanel({
   return (
     <section className="panel journal-recent-panel">
       <div className="panel-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("journal.recent.title")}</h2>
-          <p>{t("journal.recent.subtitle")}</p>
+          <InfoHint text={t("journal.recent.subtitle")} />
         </div>
       </div>
       <div className="journal-recent-list">
@@ -2304,9 +2304,9 @@ function JournalBreakdownPanel({
   return (
     <section className="panel journal-breakdown-panel">
       <div className="panel-heading compact-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{title}</h2>
-          <p>{subtitle}</p>
+          <InfoHint text={subtitle} />
         </div>
       </div>
       {rows.length ? (
@@ -2441,9 +2441,9 @@ function JournalWeekdayPanel({ currency, rows }: { currency: Currency; rows: Jou
   return (
     <section className="panel journal-breakdown-panel">
       <div className="panel-heading compact-heading">
-        <div>
+        <div className="panel-title-row">
           <h2>{t("journal.weekday.title")}</h2>
-          <p>{t("journal.weekday.subtitle")}</p>
+          <InfoHint text={t("journal.weekday.subtitle")} />
         </div>
       </div>
       {hasData ? (
