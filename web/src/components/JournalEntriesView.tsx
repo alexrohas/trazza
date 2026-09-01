@@ -47,7 +47,6 @@ import {
   formatMoneyCompact,
   formatPercent,
   formatPercentCompact,
-  getAccountName,
   getDisciplineScale,
   getPayoutGrossAmount,
   signedTone,
@@ -898,15 +897,7 @@ export function JournalEntriesView({
     pnl: <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />,
     discipline: <JournalDisciplinePanel entries={filteredEntries} />,
     recent: (
-      <JournalRecentTradesPanel
-        accounts={accounts}
-        accountById={accountById}
-        currency={currency}
-        entries={filteredEntries.slice(0, 5)}
-        errorTypes={effectiveErrorTypes}
-        firmNameById={firmNameById}
-        onSelectEntry={setDetailEntryId}
-      />
+      <JournalRecentTradesPanel currency={currency} entries={filteredEntries.slice(0, 5)} onSelectEntry={setDetailEntryId} />
     ),
     session: (
       <JournalBreakdownPanel
@@ -2221,25 +2212,17 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
 }
 
 function JournalRecentTradesPanel({
-  accounts,
-  accountById,
   currency,
   entries,
-  errorTypes,
-  firmNameById,
   onSelectEntry,
 }: {
-  accounts: TradingAccount[];
-  accountById: Map<string, TradingAccount>;
   currency: Currency;
   entries: JournalEntry[];
-  errorTypes: JournalErrorType[];
-  firmNameById: Map<string, string>;
   onSelectEntry: (entryId: string) => void;
 }) {
   const t = useT();
+  const { language } = useI18n();
   const directionOptions = useMemo(() => getDirectionOptions(t), [t]);
-  const sessionOptions = useMemo(() => getSessionOptions(t), [t]);
 
   return (
     <section className="panel journal-recent-panel">
@@ -2250,33 +2233,35 @@ function JournalRecentTradesPanel({
         </div>
       </div>
       <div className="journal-recent-list">
-        {entries.map((entry) => {
-          const entryErrors = getEntryErrors(entry, errorTypes);
-          return (
-            <button className="journal-recent-row" key={entry.id} onClick={() => onSelectEntry(entry.id)} type="button">
-              <span>
-                <strong>{entry.symbol}</strong>
-                <small>{entry.date}</small>
+        {entries.map((entry) => (
+          <button className="journal-recent-row" key={entry.id} onClick={() => onSelectEntry(entry.id)} type="button">
+            <span className="journal-recent-row-copy">
+              <span className="journal-recent-row-heading">
+                <span className="journal-recent-row-symbol">{entry.symbol}</span>
+                <em className={`journal-card-direction ${entry.direction}`}>{findOptionLabel(directionOptions, entry.direction)}</em>
               </span>
-              <span>
-                <strong>{findOptionLabel(directionOptions, entry.direction)}</strong>
-                <small>{formatTradingSessionLabel(entry, sessionOptions, t)}</small>
-              </span>
-              <span>
-                <strong>{getAccountName(accounts, entry.accountId, t("journal.entryForm.noAccount"))}</strong>
-                <small>{getEntryFirmName(entry, accountById, firmNameById, t)}</small>
-              </span>
-              <span>
-                <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
-                <small>{entryErrors.length ? `${entryErrors.length} ${t("journal.recent.errorsSuffix")}` : t("journal.recent.noErrors")}</small>
-              </span>
-            </button>
-          );
-        })}
+              <small className="journal-recent-row-date">{formatJournalRecentDate(entry.date, language)}</small>
+            </span>
+            <strong className={signedTone(entry.pnl)}>{formatMoney(entry.pnl, currency)}</strong>
+          </button>
+        ))}
         {entries.length === 0 && <div className="journal-breakdown-empty">{t("journal.recent.empty")}</div>}
       </div>
     </section>
   );
+}
+
+/* Mismo criterio que formatFullDate: "Martes, 01/09/2026", dia de la semana en letra y
+   fecha corta, para que cada trade reciente se lea sin tener que ir a la ficha. El orden
+   dia/mes solo cambia en ingles (mes/dia), igual que en el legado. */
+function formatJournalRecentDate(value: string, language: Language) {
+  const date = parseLocalDate(value);
+  if (!date) return value;
+  const weekday = new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { weekday: "long" }).format(date);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const dateLabel = language === "en" ? `${month}/${day}/${date.getFullYear()}` : `${day}/${month}/${date.getFullYear()}`;
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${dateLabel}`;
 }
 
 type BreakdownDisplayRow = {
@@ -2797,15 +2782,6 @@ function getEntryErrors(entry: JournalEntry, errorTypes: JournalErrorType[]) {
 
 function getJournalErrorLabel(errorTypes: JournalErrorType[], id: string) {
   return getJournalErrorDefinitionFor(errorTypes, id).label;
-}
-
-function getEntryFirmName(
-  entry: JournalEntry,
-  accountById: Map<string, TradingAccount>,
-  firmNameById: Map<string, string>,
-  t: ReturnType<typeof useT>,
-) {
-  return firmNameById.get(entry.firmId || "") || firmNameById.get(accountById.get(entry.accountId)?.firmId || "") || t("account.card.noFirm");
 }
 
 function formatTradingSessionLabel(entry: JournalEntry, sessionOptions: Array<{ label: string; value: JournalTradingSession }>, t: ReturnType<typeof useT>) {

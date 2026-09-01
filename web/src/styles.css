@@ -364,7 +364,6 @@
 :root[data-theme="dark"] .journal-error-type-form input[type="text"],
 :root[data-theme="dark"] .journal-operation-dropzone,
 :root[data-theme="dark"] .journal-pnl-chart-frame,
-:root[data-theme="dark"] .journal-recent-row,
 :root[data-theme="dark"] .journal-row,
 :root[data-theme="dark"] .account-row {
   background: #111519;
@@ -3879,51 +3878,91 @@ button {
   gap: var(--space-xs);
 }
 
+/* Una tarjeta por trade, no una fila de tabla de datos: mismo lenguaje visual que la
+   galeria (borde + var(--shadow), sin fondo fijo por tema) para que cada entrada se
+   distinga de un vistazo, y las mismas dos lineas que en el legado (simbolo+direccion
+   arriba, fecha debajo, importe a la derecha). La diferencia esta en como se coloca esa
+   primera linea: antes era flex, y en flex el pill de direccion sigue al simbolo pegado
+   a su ancho de texto, asi que "MNQ" y "NQ" dejaban el pill en una posicion distinta
+   segun la fila — un "tabulado" que se notaba roto. `.journal-recent-row-heading` es una
+   rejilla de dos columnas con la primera a ancho fijo (52px, de sobra para el simbolo
+   mas largo que se ve en la app), asi que el pill arranca siempre en el mismo punto sin
+   importar cuanto ocupe el simbolo. */
 .journal-recent-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-sm) var(--space-md);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: var(--space-sm) var(--space-md);
   width: 100%;
-  min-height: 58px;
+  min-height: 52px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
-  background: var(--surface-raised);
+  background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
   text-align: left;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .journal-recent-row:hover,
-.journal-breakdown-row:hover {
-  border-color: rgba(124, 58, 237, 0.28);
-  background: #ffffff;
+.journal-recent-row:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent);
+  outline: 0;
+  transform: translateY(-1px);
 }
 
-.journal-recent-row span {
+.journal-recent-row-copy {
   display: grid;
   gap: var(--space-3xs);
   min-width: 0;
 }
 
-.journal-recent-row strong,
-.journal-recent-row small {
+.journal-recent-row-heading {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2xs);
   min-width: 0;
+}
+
+/* Sin esto el pill (un <em>, hijo directo de la rejilla ahora) se estira a la columna
+   entera por el stretch por defecto de grid: la columna fija el punto de partida, pero
+   el pill conserva su forma ajustada al texto, como un badge de verdad. */
+.journal-recent-row .journal-card-direction {
+  justify-self: start;
+}
+
+.journal-recent-row-symbol {
   overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.journal-recent-row strong {
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-}
-
-.journal-recent-row small {
+.journal-recent-row-date {
+  overflow: hidden;
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-recent-row > strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.journal-breakdown-row:hover {
+  border-color: rgba(124, 58, 237, 0.28);
+  background: #ffffff;
 }
 
 .journal-account-overview-panel {
@@ -7340,7 +7379,6 @@ tbody tr:last-child td {
 .journal-account-overview-stats div,
 .journal-account-rule,
 .journal-day,
-.journal-recent-row,
 .journal-breakdown-row,
 .journal-breakdown-empty,
 .journal-error-type-row,
