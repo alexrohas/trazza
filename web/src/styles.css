@@ -1385,6 +1385,50 @@ button {
   z-index: 0;
 }
 
+/* Cinta de color de fondo, con la misma idea que el login de Stripe (un degradado grande
+   que se mueve muy despacio) pero discreta: acorde al resto de la app, minimalista.
+   Cuatro radial-gradient en vez de un conic-gradient: un conic desenfocado deja una
+   costura visible justo donde el angulo cierra el circulo (0/360), que con blur fuerte
+   se ve como una linea quebrada. Los radiales no tienen esa discontinuidad angular, asi
+   que se puede girar el conjunto (transform, no el propio degradado) sin costura y con
+   mas intensidad. Usa los tokens de color ya existentes (--accent/--positive/--warning/
+   --negative) en vez de colores nuevos: hereda el tema oscuro gratis, sin par que
+   mantener. z-index -2, por detras de la rejilla (-1) y sin competir con ella. */
+.auth-screen::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 22% 24%, color-mix(in srgb, var(--accent) 88%, transparent), transparent 36%),
+    radial-gradient(circle at 76% 20%, color-mix(in srgb, var(--positive) 82%, transparent), transparent 34%),
+    radial-gradient(circle at 80% 78%, color-mix(in srgb, var(--warning) 82%, transparent), transparent 36%),
+    radial-gradient(circle at 24% 80%, color-mix(in srgb, var(--negative) 78%, transparent), transparent 34%);
+  /* Menos blur que el primer intento (90px -> 55px): un desenfoque grande no solo
+     redondea el borde, tambien reparte el mismo "pigmento" sobre mucha mas superficie,
+     asi que cada frame del giro cambia poco de un instante a otro y el movimiento se
+     nota menos aunque el color de fondo sea visible. Con manchas mas definidas, el
+     mismo giro de 70s desplaza un borde de color reconocible, no solo una tinta plana. */
+  filter: blur(55px);
+  opacity: 0.62;
+  /* En claro, el fondo de detras es casi blanco: mezclar por transparencia (normal)
+     diluye el color hacia blanco y la animacion apenas se nota, aunque este girando.
+     `multiply` usa el blanco como elemento neutro (no lo oscurece) y deja el color a
+     maxima saturacion, que es justo lo que hace visible el giro. En oscuro estorba
+     (oscurece de mas contra un fondo ya oscuro), asi que ese tema vuelve a mezcla
+     normal mas abajo, junto a los demas pares de tema del login. */
+  mix-blend-mode: multiply;
+  animation: auth-ribbon-spin 70s linear infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes auth-ribbon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Textura de rejilla, la misma receta que ya usa el login del legado: lineas finas que
    se desvanecen arriba y abajo (mask-image) para no llegar duras al borde. z-index
    negativo para quedar por encima del fondo de .auth-screen pero detras del contenido. */
@@ -1653,6 +1697,12 @@ button {
 
 :root[data-theme="dark"] .auth-logo {
   filter: saturate(1.08) contrast(1.08) brightness(1.04);
+}
+
+:root[data-theme="dark"] .auth-screen::after {
+  filter: blur(90px);
+  opacity: 0.46;
+  mix-blend-mode: normal;
 }
 
 @media (max-width: 620px) {
