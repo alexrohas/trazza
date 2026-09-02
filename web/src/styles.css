@@ -4763,12 +4763,19 @@ button {
   font-weight: var(--weight-semibold);
 }
 
-.calendar-actions,
-.panel-actions {
+/* Fila propia para la navegacion (mes anterior/selector/siguiente/Hoy), separada del
+   titulo y del total del mes: compartir fila con el total (version anterior,
+   .calendar-actions) no dejaba sitio para agrandar la cifra sin partir la fila en dos
+   a 608px de panel. Con su propia fila el total es libre de crecer, y estos controles
+   vuelven al gap ajustado de antes (--space-sm): ya no compiten por protagonismo con
+   nada, son solo utilidad. */
+.calendar-nav-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 
 .compact-icon {
@@ -4781,41 +4788,36 @@ button {
   width: 148px;
 }
 
+/* El total del mes es el dato mas importante de esta fila y tiene que leerse como tal:
+   el chart-delta que comparte con "Variacion" en Evolucion de capital (16px) se perdia
+   junto a los controles de navegacion, todos de un tamaño de letra parecido. Sube aqui
+   y no en la regla compartida — subirla ahi tambien agrandaria la Variacion del Panel,
+   que no se ha pedido. Mismo tamaño que usa el resto de la app para "el numero mas
+   importante de la vista" (journal-detail-hero > strong, topbar h1). */
+.journal-calendar-panel .chart-delta {
+  font-size: var(--text-2xl);
+}
+
 /* Ocho columnas y no siete: la ultima es el resumen semanal del legado. Va algo mas
    ancha que un dia porque lleva importe con divisa, que no cabe en el ancho de una
    celda de dia (ahi los importes van compactados justo por eso). */
 .journal-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.25fr);
-  gap: var(--space-sm);
+  /* --space-md (12) y no --space-sm (8): con 8 empataba con el gap interno de cada dia
+     (fecha/importe/ops, tambien --space-xs = 8), asi que la rejilla se leia como una
+     masa continua en vez de celdas separadas — la trampa de "ningun nivel puede valer
+     lo mismo que su vecino" de la escalera de proximidad. */
+  gap: var(--space-md);
 }
 
 .journal-weekday.is-week {
   color: var(--accent);
 }
 
-/* Al senalar un dia se enciende su semana entera, resumen incluido: el total semanal
-   esta a siete columnas de distancia del dia que estas mirando, y sin esto no hay forma
-   de saber cual le corresponde salvo contando celdas. El realce es de fondo y no de
-   borde porque las celdas ya usan el borde para su propio estado (seleccionada, con
-   entradas), y dos bordes compitiendo se leen peor que uno. */
 .journal-day,
 .journal-week-summary {
   transition: background var(--dur-fast) var(--ease);
-}
-
-.journal-day.in-hovered-week,
-.journal-week-summary.in-hovered-week {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-/* El par de tema oscuro no es opcional aqui: ":root[data-theme=dark] .journal-day" tiene
-   especificidad (0,3,0) y se comia el realce de arriba, que es (0,2,0). Medido: el dia
-   señalado se quedaba en #111519 en vez de tenirse. El tinte sube al 14% porque sobre
-   fondo oscuro el mismo 10% no se distingue. */
-:root[data-theme="dark"] .journal-day.in-hovered-week,
-:root[data-theme="dark"] .journal-week-summary.in-hovered-week {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .journal-week-summary {
@@ -4860,21 +4862,6 @@ button {
   color: var(--muted);
 }
 
-.journal-calendar-total {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-sm);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-}
-
-.journal-calendar-total strong {
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-}
-
 .journal-weekday {
   color: var(--muted);
   font-size: var(--text-xs);
@@ -4891,7 +4878,14 @@ button {
   min-height: 88px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: var(--space-md);
+  /* --space-2xs (4) y no --space-md (12): al subir el gap de la rejilla (arriba) cada
+     celda perdio ancho, y en este panel las celdas ya eran estrechas de por si (57px
+     con el gap nuevo, en el layout de 2 columnas del dashboard). Con 8px de padding
+     "-129 $" (el importe compacto mas ancho medido) seguia desbordando por 3px exactos
+     (medido: scrollWidth 42 contra clientWidth 39). Bajar a 4 lo resuelve con margen
+     (39+8=47 contra 42 que hace falta) sin tocar formato ni letra. Encaja ademas con la
+     estetica que se pidio: celdas ajustadas por dentro, mas aire entre ellas. */
+  padding: var(--space-2xs);
   background: #fbfcfd;
   color: var(--strong-muted);
   text-align: left;
@@ -4945,6 +4939,21 @@ button {
 
 .journal-day.muted {
   opacity: 0.52;
+}
+
+/* Al senalar un dia se anima solo esa celda, no la semana entera: version anterior
+   encendia las siete columnas de la fila via JS (hoveredDayIndex + Math.floor(i/7)),
+   pero el usuario pidio explicitamente que el realce se quede en el dia bajo el cursor.
+   Un :hover nativo por celda hace esto solo, sin estado — no hace falta JS. Va despues
+   de .positive/.negative/.payout (y sus pares de tema oscuro) a proposito: mismo empate
+   de especificidad (0,2,0) que ya documenta este archivo — quien queda despues gana, y
+   sin ese orden el hover no se veria en ningun dia con color. */
+.journal-day:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+:root[data-theme="dark"] .journal-day:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .journal-day span,
@@ -7748,7 +7757,7 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .calendar-actions {
+  .calendar-nav-row {
     justify-content: flex-start;
   }
 

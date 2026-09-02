@@ -138,16 +138,25 @@ export function formatAmount(value: number) {
 }
 
 /* Tercer formato de importe, un escalon por debajo de formatAmount, para cajas donde
-   tampoco cabe ese: las celdas del calendario del Journal dan 49px de texto util y
-   "-41,00 US$" pide 75, asi que las 10 celdas con P&L se truncaban con elipsis
+   tampoco cabe ese: las celdas del calendario del Journal dan poco texto util y
+   "-41,00 US$" pide bastante mas, asi que las celdas con P&L se truncaban con elipsis
    ("-425,00 US$" se leia "-425,00..."). Un importe cortado es peor que ninguno, porque
    parece un dato y no lo es.
-   Sin divisa ni decimales "-425" son 4 caracteres en vez de 11. El dato exacto no se
-   pierde: sigue completo en el aria-label de la celda y en el panel de detalle. */
-export function formatMoneyCompact(value: number) {
+   Lleva divisa a proposito (a diferencia de un compacto sin ella): sin el simbolo no se
+   leia como dinero, y "US$" completo no cabe ni con el calendario a ancho completo
+   (measured: 60px de "-129 US$" contra ~55 utiles). currencyDisplay: "narrowSymbol" da
+   el simbolo estrecho de la divisa ("$", "€") en vez del largo ("US$"), que si entra
+   (42-54px). signDisplay: "exceptZero" añade el "+" explicito en positivos, como hace
+   formatSignedMoney en el legado — sin el, un dia ganador y un dia a cero se leian
+   igual de neutros. El dato exacto y sin recortar sigue completo en el aria-label de la
+   celda y en el panel de detalle. */
+export function formatMoneyCompactSigned(value: number, currency: Currency = "EUR") {
   return new Intl.NumberFormat("es-ES", {
+    currency,
+    currencyDisplay: "narrowSymbol",
     maximumFractionDigits: 0,
-    useGrouping: true,
+    signDisplay: "exceptZero",
+    style: "currency",
   }).format(value);
 }
 

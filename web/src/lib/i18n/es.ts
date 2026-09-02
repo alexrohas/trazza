@@ -486,7 +486,7 @@ export const es = {
   "journal.calendar.weekColumn": "Semana",
   "journal.calendar.weekPrefix": "SEMANA",
   "journal.calendar.monthTotal": "Total del mes",
-  "journal.calendar.entriesSuffix": "entradas",
+  "journal.calendar.tradedDaysSuffix": "días operados",
   "journal.calendar.today": "Hoy",
   "journal.calendar.opsSuffix": "ops",
   "journal.calendar.payoutPrefix": "Payout",

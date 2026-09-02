@@ -44,7 +44,7 @@ import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
 import {
   formatMoney,
-  formatMoneyCompact,
+  formatMoneyCompactSigned,
   formatPercent,
   formatPercentCompact,
   getDisciplineScale,
@@ -287,10 +287,6 @@ export function JournalEntriesView({
   /* La tarjeta pulsada en la galeria (o en Ultimas operaciones, o en un dia del
      calendario a traves de renderEntryDetail): todas abren el mismo modal. */
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
-  /* Dia sobre el que esta el cursor en el calendario. Se guarda el indice de celda y no
-     la fecha porque de el sale tambien la semana (indice / 7), que es lo que permite
-     encender la fila entera y su resumen a la vez. */
-  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [zoomImage, setZoomImage] = useState<string | undefined>();
   /* Alta en tres pasos como el legado: se elige modo, y si es CSV se pide cuenta,
@@ -440,6 +436,9 @@ export function JournalEntriesView({
         entries: days.reduce((total, day) => total + day.count, 0),
         key: days[0]?.date ?? `semana-${index}`,
         pnl: days.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
+        /* Dias con al menos una operacion, no dias con algun movimiento: un payout sin
+           trades ese dia no cuenta como "dia operado". */
+        tradedDays: days.filter((day) => day.count > 0).length,
       };
     });
     const delMes = calendarDays.filter((day) => day.inMonth);
@@ -759,29 +758,37 @@ export function JournalEntriesView({
             <h2>{t("journal.calendar.title")}</h2>
             <InfoHint text={`${visibleMonthLabel} - ${t("journal.calendar.subtitleSuffix")}`} />
           </div>
-          <div className="calendar-actions">
-            <span className="journal-calendar-total">
-              {t("journal.calendar.monthTotal")}
-              <strong className={signedTone(monthTotal)}>{formatMoney(monthTotal, currency)}</strong>
-            </span>
-            <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
-              <ChevronLeft size={16} strokeWidth={2.2} />
-            </button>
-            <input
-              className="month-input"
-              type="month"
-              value={visibleMonth}
-              onChange={(event) => {
-                if (event.target.value) setVisibleMonth(event.target.value);
-              }}
-            />
-            <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
-              <ChevronRight size={16} strokeWidth={2.2} />
-            </button>
-            <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
-              {t("journal.calendar.today")}
-            </button>
-          </div>
+          {/* Mismo bloque etiqueta-arriba/cifra-abajo que "VARIACION" en Evolucion de
+              capital (CapitalCurve, chart-delta-block/chart-delta), pero ya no comparte
+              fila con los controles de navegacion: emparejado con ellos no habia sitio
+              para agrandar la cifra sin que la fila partiera en dos (medido: a 608px de
+              panel, "Hoy" se caia a una segunda linea). Con su propia fila, junto al
+              titulo, tiene el ancho libre para ser tan grande como pide "protagonismo"
+              (--text-2xl, el tamaño que usa el resto de la app para el numero mas
+              importante de la vista — journal-detail-hero > strong, topbar h1). */}
+          <span className="chart-delta-block">
+            <small>{t("journal.calendar.monthTotal")}</small>
+            <strong className={`chart-delta ${signedTone(monthTotal)}`}>{formatMoney(monthTotal, currency)}</strong>
+          </span>
+        </div>
+        <div className="calendar-nav-row">
+          <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
+            <ChevronLeft size={16} strokeWidth={2.2} />
+          </button>
+          <input
+            className="month-input"
+            type="month"
+            value={visibleMonth}
+            onChange={(event) => {
+              if (event.target.value) setVisibleMonth(event.target.value);
+            }}
+          />
+          <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
+            <ChevronRight size={16} strokeWidth={2.2} />
+          </button>
+          <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
+            {t("journal.calendar.today")}
+          </button>
         </div>
         <div className="journal-calendar-grid">
           {weekdayLabels.map((day) => (
@@ -790,49 +797,41 @@ export function JournalEntriesView({
             </span>
           ))}
           <span className="journal-weekday is-week">{t("journal.calendar.weekColumn")}</span>
-          {calendarWeeks.map((week, weekIndex) => (
+          {calendarWeeks.map((week) => (
             <Fragment key={week.key}>
-              {week.days.map((day, dayIndex) => (
+              {week.days.map((day) => (
             <button
               aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
-              className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""} ${
-                hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
-              }`}
+              className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
               disabled={!day.firstEntryId}
               key={day.date}
-              /* Ya no abre un detalle inline: lleva a Entradas con la busqueda puesta a
-                 la fecha del dia, que ya es uno de los campos que compara matchesSearch
-                 (ver filteredEntries) — reutiliza el filtro existente en vez de inventar
-                 un estado de "dia seleccionado" aparte. */
-              onClick={() => {
-                setSearchText(day.date);
-                setJournalMode("entries");
-              }}
-              onPointerEnter={() => setHoveredDayIndex(weekIndex * 7 + dayIndex)}
-              onPointerLeave={() => setHoveredDayIndex(null)}
+              /* Abre la previsualizacion de la primera entrada de ese dia en el mismo
+                 modal que usan la galeria y Ultimas operaciones (ver detailEntryId) — no
+                 navega a Entradas, es justo lo contrario de b13f3f3: ese commit lo saco
+                 de aqui, este lo vuelve a meter porque el usuario pidio explicitamente
+                 poder pulsar un dia para ver un vistazo rapido sin salir del calendario. */
+              onClick={() => setDetailEntryId(day.firstEntryId)}
               type="button"
             >
               <span>{Number(day.date.slice(-2))}</span>
               <strong>
-                {day.count ? formatMoneyCompact(day.pnl) : day.payoutCount ? `-${formatMoneyCompact(day.payoutGross)}` : "-"}
+                {day.count
+                  ? formatMoneyCompactSigned(day.pnl, currency)
+                  : day.payoutCount
+                    ? formatMoneyCompactSigned(-day.payoutGross, currency)
+                    : "-"}
               </strong>
               <small>
                 {day.count ? `${day.count} ${t("journal.calendar.opsSuffix")}` : ""}
                 {day.count && day.payoutCount ? " · " : ""}
-                {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} -${formatMoneyCompact(day.payoutGross)}` : ""}
+                {day.payoutCount ? `${t("journal.calendar.payoutPrefix")} ${formatMoneyCompactSigned(-day.payoutGross, currency)}` : ""}
               </small>
             </button>
               ))}
-              <div
-                className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"} ${
-                  hoveredDayIndex !== null && Math.floor(hoveredDayIndex / 7) === weekIndex ? "in-hovered-week" : ""
-                }`}
-                onPointerEnter={() => setHoveredDayIndex(weekIndex * 7)}
-                onPointerLeave={() => setHoveredDayIndex(null)}
-              >
+              <div className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"}`}>
                 <span>{t("journal.calendar.weekPrefix")}</span>
                 <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
-                <small>{`${week.entries} ${t("journal.calendar.entriesSuffix")}`}</small>
+                <small>{`${week.tradedDays} ${t("journal.calendar.tradedDaysSuffix")}`}</small>
               </div>
             </Fragment>
           ))}
