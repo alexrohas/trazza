@@ -165,6 +165,18 @@
    ventana. `backwards` mantiene el estado inicial durante el retardo, que es lo que
    necesita el escalonado, y no deja residuo al terminar. */
 
+/* Se aplica un instante al cambiar de tema (useTheme), para cortar CUALQUIER transicion
+   en marcha. Sin esto, un elemento con "transition" en una propiedad de color cuyo valor
+   depende de un token (var(--positive-soft), etc.) puede quedarse congelado en el color
+   del tema anterior de forma indefinida en vez de solo animar lento — el cambio llega
+   por herencia de una custom property en :root, no por un cambio de clase en el propio
+   elemento, y el navegador no siempre lo detecta como "hay algo que transicionar".
+   Confirmado con los dias del calendario del Journal. */
+.theme-switching,
+.theme-switching * {
+  transition: none !important;
+}
+
 @keyframes enter-up {
   from {
     opacity: 0;
@@ -4899,6 +4911,19 @@ button {
 }
 
 .journal-day.negative {
+  background: var(--negative-soft);
+}
+
+/* El par de tema oscuro no es opcional aqui, mismo caso que el de mas arriba
+   (:root[data-theme=dark] .journal-day, (0,3,0)): sin el, ese selector le ganaba a
+   .journal-day.positive/.negative (0,2,0) y el dia se quedaba en el fondo casi negro
+   por defecto, sin tenirse. En claro si se veia porque .journal-day.positive/.negative
+   solo compiten ahi con la base .journal-day sin tema (0,1,0), que si pierden. */
+:root[data-theme="dark"] .journal-day.positive {
+  background: var(--positive-soft);
+}
+
+:root[data-theme="dark"] .journal-day.negative {
   background: var(--negative-soft);
 }
 
