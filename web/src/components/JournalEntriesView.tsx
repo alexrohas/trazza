@@ -754,41 +754,34 @@ export function JournalEntriesView({
     calendar: (
       <section className="panel journal-calendar-panel">
         <div className="panel-heading">
-          <div className="panel-title-row">
-            <h2>{t("journal.calendar.title")}</h2>
-            <InfoHint text={`${visibleMonthLabel} - ${t("journal.calendar.subtitleSuffix")}`} />
+          {/* El navegador de mes sustituye al titulo de toda la vida ("Calendario"): en
+              vez de un rotulo fijo con los controles apretados en una fila aparte
+              (calendar-nav-row, ya retirada), el propio mes es el titulo, grande y con
+              aire, con las flechas a los lados. "Cambiar de mes de izquierda a derecha"
+              pasa a ser lo primero que se ve del panel, no un control secundario. */}
+          <div className="calendar-nav-heading">
+            <button className="icon-control" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
+              <ChevronLeft size={15} strokeWidth={2.2} />
+            </button>
+            <div className="calendar-nav-label">
+              <h2>{visibleMonthLabel}</h2>
+              <InfoHint text={t("journal.calendar.subtitleSuffix")} />
+            </div>
+            <button className="icon-control" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
+              <ChevronRight size={15} strokeWidth={2.2} />
+            </button>
+            <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
+              {t("journal.calendar.today")}
+            </button>
           </div>
           {/* Mismo bloque etiqueta-arriba/cifra-abajo que "VARIACION" en Evolucion de
-              capital (CapitalCurve, chart-delta-block/chart-delta), pero ya no comparte
-              fila con los controles de navegacion: emparejado con ellos no habia sitio
-              para agrandar la cifra sin que la fila partiera en dos (medido: a 608px de
-              panel, "Hoy" se caia a una segunda linea). Con su propia fila, junto al
-              titulo, tiene el ancho libre para ser tan grande como pide "protagonismo"
-              (--text-2xl, el tamaño que usa el resto de la app para el numero mas
-              importante de la vista — journal-detail-hero > strong, topbar h1). */}
+              capital (CapitalCurve, chart-delta-block/chart-delta). --text-2xl, el
+              tamaño que usa el resto de la app para el numero mas importante de la
+              vista (journal-detail-hero > strong, topbar h1). */}
           <span className="chart-delta-block">
             <small>{t("journal.calendar.monthTotal")}</small>
             <strong className={`chart-delta ${signedTone(monthTotal)}`}>{formatMoney(monthTotal, currency)}</strong>
           </span>
-        </div>
-        <div className="calendar-nav-row">
-          <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
-            <ChevronLeft size={16} strokeWidth={2.2} />
-          </button>
-          <input
-            className="month-input"
-            type="month"
-            value={visibleMonth}
-            onChange={(event) => {
-              if (event.target.value) setVisibleMonth(event.target.value);
-            }}
-          />
-          <button className="icon-control compact-icon" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
-            <ChevronRight size={16} strokeWidth={2.2} />
-          </button>
-          <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
-            {t("journal.calendar.today")}
-          </button>
         </div>
         <div className="journal-calendar-grid">
           {weekdayLabels.map((day) => (

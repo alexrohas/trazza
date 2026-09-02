@@ -2236,8 +2236,7 @@ button {
 .view-filters .custom-select-trigger,
 .settings-form input,
 .settings-form select,
-.settings-form .custom-select-trigger,
-.month-input {
+.settings-form .custom-select-trigger {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -2256,7 +2255,6 @@ button {
 .view-filters select:focus,
 .settings-form input:focus,
 .settings-form select:focus,
-.month-input:focus,
 .dashboard-filters .custom-select-trigger:focus-visible,
 .view-filters .custom-select-trigger:focus-visible,
 .settings-form .custom-select-trigger:focus-visible {
@@ -4763,39 +4761,52 @@ button {
   font-weight: var(--weight-semibold);
 }
 
-/* Fila propia para la navegacion (mes anterior/selector/siguiente/Hoy), separada del
-   titulo y del total del mes: compartir fila con el total (version anterior,
-   .calendar-actions) no dejaba sitio para agrandar la cifra sin partir la fila en dos
-   a 608px de panel. Con su propia fila el total es libre de crecer, y estos controles
-   vuelven al gap ajustado de antes (--space-sm): ya no compiten por protagonismo con
-   nada, son solo utilidad. */
-.calendar-nav-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
-}
-
 .compact-icon {
   width: 38px;
   height: 38px;
   box-shadow: none;
 }
 
-.month-input {
-  width: 148px;
+/* El navegador de mes ocupa ahora el hueco del titulo (panel-heading), a juego con como
+   .chart-delta-block usa ese mismo sitio a la derecha para "Total del mes": mismo
+   align-items:flex-start del padre, mismo gap que separa titulo e info-hint en el resto
+   de paneles (--space-sm), asi las flechas y el mes quedan centrados entre si sin
+   heredar el "flex-start" vertical del panel-heading (que alinearia las flechas con la
+   PRIMERA linea del mes en vez de con su centro). */
+.calendar-nav-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
-/* El total del mes es el dato mas importante de esta fila y tiene que leerse como tal:
-   el chart-delta que comparte con "Variacion" en Evolucion de capital (16px) se perdia
-   junto a los controles de navegacion, todos de un tamaño de letra parecido. Sube aqui
-   y no en la regla compartida — subirla ahi tambien agrandaria la Variacion del Panel,
-   que no se ha pedido. Mismo tamaño que usa el resto de la app para "el numero mas
-   importante de la vista" (journal-detail-hero > strong, topbar h1). */
+/* A juego con el h2 mas pequeño: el .icon-control por defecto (40px) esta pensado para
+   ir solo en una barra de herramientas, no pegado a un titulo. 34px es el mismo paso
+   hacia abajo que el resto de la fila. */
+.calendar-nav-heading .icon-control {
+  width: 34px;
+  height: 34px;
+}
+
+.calendar-nav-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* Esta h2 llego a probarse en --text-xl (20px): quedaba demasiado pesada junto a las
+   flechas y "Hoy" (todas cosas de navegacion, no un titular). --text-md es el mismo
+   tamaño que llevaba "Calendario" antes de que el mes ocupara su sitio, asi que la fila
+   entera pesa lo que pesaba un titulo de panel normal. */
+.calendar-nav-label h2 {
+  font-size: var(--text-md);
+}
+
+/* Mismo ajuste que arriba: --text-2xl (24px) competia demasiado con el resto de la fila.
+   Un escalon por debajo, --text-xl, sigue siendo mas grande que el chart-delta base
+   (16px, el que usa "Variacion" en Evolucion de capital) para que el total del mes
+   conserve algo mas de peso que el resto de la fila sin dominarla entera. */
 .journal-calendar-panel .chart-delta {
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
 }
 
 /* Ocho columnas y no siete: la ultima es el resumen semanal del legado. Va algo mas
@@ -7757,13 +7768,11 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .calendar-nav-row {
-    justify-content: flex-start;
-  }
-
-  .month-input {
-    width: auto;
-    flex: 1 1 130px;
+  /* El navegador de mes (flechas + mes + Hoy) ahora comparte fila con "Total del mes"
+     dentro de panel-heading: en movil no caben los dos lado a lado, asi que esta fila
+     concreta pasa a envolver y el total cae a su propia linea debajo. */
+  .journal-calendar-panel .panel-heading {
+    flex-wrap: wrap;
   }
 
   .journal-calendar-grid {
