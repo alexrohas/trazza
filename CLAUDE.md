@@ -129,6 +129,17 @@ por página) donde antes se pintaban todas las filas de golpe.
 cabos: las siete pantallas de React están pulidas, Cuentas quedó cerrada y la severidad
 de los errores dejó de ser una deducción (ver abajo).
 
+**Calendario del Journal — la rejilla no funciona en móvil.** Detectado el 2 de
+septiembre de 2026 revisando visualmente el apretón al calendario de esa misma sesión,
+pero es un problema estructural previo, no algo que rompiera esa sesión ni la anterior:
+`@media (max-width: 560px)` ya ajusta gap y padding, pero la rejilla sigue siendo de 8
+columnas fijas (7 días + semana), y a 375px no hay sitio — los números de día, los
+importes y el conteo de operaciones se recortan con elipsis, y la columna SEMANA se sale
+de la pantalla. No es un ajuste de espaciado: `.journal-day span/strong/small` ya usan
+`text-overflow: ellipsis`, que es justo el patrón que este archivo marca como "peor que
+no mostrarlo" más abajo. Pide una disposición distinta para móvil (lista en vez de
+rejilla, o scroll horizontal deliberado en vez de recorte accidental).
+
 Los cabos de CSS que hubo aquí sí están todos cerrados a 26 de agosto de 2026: las tres
 reglas `.workspace` duplicadas se consolidaron en una (con cuidado: el `min-width: 0`
 solo lo declaraban dos de las tres), y las clases muertas `.workspace-header`,
@@ -214,8 +225,11 @@ sesión no vuelva a pisarlas.
 - **Un importe truncado con elipsis es peor que no mostrarlo**, porque parece un dato y
   no lo es ("-425,00 US$" se leía "-425,00..."). Si un número no cabe, cambia el
   formato y no el tamaño de letra. Hay tres: `formatMoney` (con divisa), `formatAmount`
-  (sin divisa) y `formatMoneyCompact` (sin divisa ni decimales, para cajas muy
-  estrechas como las celdas del calendario del Journal).
+  (sin divisa) y `formatMoneyCompactSigned` (con divisa estrecha —
+  `currencyDisplay:"narrowSymbol"`, "$" en vez de "US$"— y signo explícito, sin
+  decimales, para cajas muy estrechas como las celdas del calendario del Journal;
+  sustituyó a un `formatMoneyCompact` sin divisa el 2 de septiembre de 2026 porque el
+  usuario pidió ver también el importe con signo ahí, no solo la cifra).
 - **Un empate de especificidad CSS lo gana quien aparece después en el archivo, no
   quien "debería" mandar por el `@media`.** Una regla `@media (min-width: 1560px)`
   con el mismo selector y especificidad que una regla base incondicional, puesta
