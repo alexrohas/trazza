@@ -2069,8 +2069,6 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
   const finalValue = points.at(-1)?.value ?? 0;
   const lastScaledPoint = scaledPoints.at(-1);
   const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
-  const gridLines = [0, 0.25, 0.5, 0.75, 1];
-  const verticalLines = [0, 0.25, 0.5, 0.75, 1];
   const safeActiveIndex = activeIndex !== null && activeIndex < scaledPoints.length ? activeIndex : null;
   const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
   const activePoint = safeActiveIndex === null ? null : points[safeActiveIndex];
@@ -2129,14 +2127,11 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                   <stop offset="100%" stopColor="rgba(124, 58, 237, 0)" />
                 </linearGradient>
               </defs>
-              {gridLines.map((position) => {
-                const y = padding.top + chartHeight * position;
-                return <line className="chart-axis muted" key={`journal-h-${position}`} x1={padding.left} x2={width - padding.right} y1={y} y2={y} />;
-              })}
-              {verticalLines.map((position) => {
-                const x = padding.left + chartWidth * position;
-                return <line className="chart-axis vertical" key={`journal-v-${position}`} x1={x} x2={x} y1={padding.top} y2={height - padding.bottom} />;
-              })}
+              {/* Sin rejilla: ni lineas horizontales ni verticales, a peticion expresa
+                  (antes tenia las cinco de cada, igual que CapitalCurve antes de que se
+                  le quitaran las verticales). Solo queda la linea base (el cero real),
+                  que no es decorativa: separa visualmente lo que esta en positivo de lo
+                  que esta en negativo. */}
               <line className="chart-axis baseline" x1={padding.left} x2={width - padding.right} y1={baselineY} y2={baselineY} />
               <path
                 className="journal-pnl-chart-fill"
