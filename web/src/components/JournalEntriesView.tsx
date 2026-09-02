@@ -834,6 +834,19 @@ export function JournalEntriesView({
     errors: <JournalErrorsPanel rows={analytics.errorRows} />,
     kpis: (
       <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
+        {/* Antes era la cifra grande de la cabecera de "P&L acumulado" (el grafico, mas
+            abajo). Se traslada aqui como cuarta tarjeta, a la izquierda de Winrate, para
+            que el total este junto al resto de KPIs y no repetido en dos sitios. */}
+        <section className="panel journal-total-panel">
+          <div className="panel-heading compact-heading">
+            <div>
+              <h2>{t("journal.kpi.totalPnl")}</h2>
+            </div>
+          </div>
+          <strong className={`journal-total-value ${signedTone(analytics.stats.netPnl)}`}>
+            {formatMoney(analytics.stats.netPnl, currency)}
+          </strong>
+        </section>
         <JournalWinrateGaugePanel
           breakEven={analytics.stats.breakEven}
           losses={analytics.stats.losses}
@@ -2096,17 +2109,20 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
           <h2>{t("journal.pnlCurve.title")}</h2>
           <InfoHint text={entries.length ? `${entries.length} ${t("journal.pnlCurve.subtitleSuffix")}` : t("journal.pnlCurve.subtitleEmpty")} />
         </div>
-        <div className="chart-heading-side">
-          <strong className={`chart-delta ${signedTone(finalValue)}`}>{formatMoney(finalValue, currency)}</strong>
-          {/* Sin lupas: el zoom es con la rueda. El boton solo sale con zoom puesto, para
-              no dejar sin salida a quien no descubra la rueda. Igual que en CapitalCurve. */}
-          {isZoomed && (
+        {/* La cifra grande del total se fue a su propia tarjeta en la fila de KPIs
+            (journal-total-panel, a la izquierda de Winrate): mostrarla aqui tambien era
+            el mismo dato dos veces, una vez ya como tarjeta destacada. */}
+        {isZoomed && (
+          <div className="chart-heading-side">
+            {/* Sin lupas: el zoom es con la rueda. El boton solo sale con zoom puesto,
+                para no dejar sin salida a quien no descubra la rueda. Igual que en
+                CapitalCurve. */}
             <button className="chart-reset-zoom" onClick={reset} type="button">
               <RotateCcw size={13} strokeWidth={2.4} />
               {t("capitalCurve.viewAll")}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       {points.length > 0 ? (
         <>

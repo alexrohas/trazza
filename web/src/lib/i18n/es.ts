@@ -623,6 +623,7 @@ export const es = {
   "journal.widgetLabel.recent": "Operaciones recientes",
   "journal.widgetLabel.session": "Winrate por sesion",
   "journal.widgetLabel.weekday": "Resultado por dia de la semana",
+  "journal.kpi.totalPnl": "P&L total",
   "journal.kpi.winrate": "Winrate",
   "journal.kpi.profitFactor": "Profit factor",
   "journal.kpi.avgWinLoss": "Avg win / loss",

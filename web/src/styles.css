@@ -1797,16 +1797,27 @@ button {
    en cinco breakpoints (4 de base, 7 por encima de 1560, 3 por debajo de 1180, 2 por
    debajo de 820, 1 por debajo de 560) que viven todos MAS ABAJO en el archivo. Con
    ".journal-kpi-grid" a secas —misma especificidad (0,1,0)— esta regla solo le ganaba
-   a la base, y las cinco de @media se la comian: por encima de 1560 el Journal salia a
-   7 columnas con las tres tarjetas ocupando 810px de 1555 y el resto vacio, y por
-   debajo de 820 a 2 columnas, con la tercera huerfana en una segunda fila.
+   a la base, y las cinco de @media se la comian: por encima de 1560 el Journal saldria
+   a 7 columnas con las cuatro tarjetas apretadas en la mitad izquierda y el resto
+   vacio, y por debajo de 1180 a 3, con la cuarta huerfana en una segunda fila.
    Es un caso distinto al del empate documentado en CLAUDE.md: alli los dos selectores
    eran IDENTICOS y la unica salida era el orden. Aqui son selectores distintos sobre el
-   mismo elemento, y "este metric-grid concreto lleva 3 columnas" es justo lo que
+   mismo elemento, y "este metric-grid concreto lleva 4 columnas" es justo lo que
    describe (0,2,0). Resolverlo por orden funcionaria hoy y se romperia solo el dia que
-   alguien anada un sexto breakpoint mas abajo. */
+   alguien anada un sexto breakpoint mas abajo.
+   (Antes eran 3 columnas para 3 tarjetas; ahora 4 porque el total de P&L, que vivia
+   como cifra grande en la cabecera del grafico de abajo, se traslado aqui como cuarta
+   tarjeta — ver journal-total-panel.)
+   El gap tambien se pisa aqui, a peticion expresa: .metric-grid trae var(--space-base)
+   (12px, el paso de "tarjetas entre si" de la escalera de proximidad, pensado para
+   .metric-card, la ficha pequeña sin borde propio del Panel de Finanzas). Estas cuatro
+   son .panel de verdad (borde + sombra propios, el mismo peso visual que "P&L
+   acumulado" o "Dias de semana" en la fila de abajo), asi que separarlas a 12
+   quedaba mas apretado que el resto de filas del cockpit, que usan 24
+   (var(--space-2xl), el paso de "paneles entre si"). Aqui se iguala a esa fila. */
 .metric-grid.journal-kpi-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2xl);
 }
 
 .metric-card,
@@ -4144,16 +4155,17 @@ button {
   margin-bottom: var(--space-xl);
 }
 
-/* KPIs del cockpit del Journal: el gauge de winrate y las dos barras divididas del
-   legado. app.js los pinta en canvas; aqui van en SVG y flex para que hereden los
-   tokens de color y respondan al cambio de tema sin releer nada en JS.
-   Los tres son .panel dentro de .journal-kpi-grid, asi que borde, fondo y padding ya
-   vienen de ahi: aqui solo va lo propio de cada pieza. align-content: space-between
-   reparte las piezas dentro de la tarjeta, que en una rejilla ya salen todas de la
-   misma altura, para que los tres cierren alineados por abajo aunque una lleve
-   figuras extra y otra no. */
+/* KPIs del cockpit del Journal: el total de P&L, el gauge de winrate y las dos barras
+   divididas del legado. app.js los pinta en canvas; aqui van en SVG y flex para que
+   hereden los tokens de color y respondan al cambio de tema sin releer nada en JS.
+   Las cuatro son .panel dentro de .journal-kpi-grid, asi que borde, fondo y radio ya
+   vienen de ahi: aqui solo va lo propio de cada pieza (el padding se recorta mas abajo,
+   ver la nota de "mas pequeñas"). align-content: start reparte las piezas dentro de la
+   tarjeta, que en una rejilla ya salen todas de la misma altura, para que las cuatro
+   cierren alineados por abajo aunque una lleve figuras extra y otra no. */
 .journal-gauge-panel,
-.journal-split-panel {
+.journal-split-panel,
+.journal-total-panel {
   /* flex y no grid para poder anclar el pie abajo con margin-top: auto. En grid, con
      align-content: start las filas se empaquetan arriba y un margen automatico solo
      centra la pieza dentro de SU fila, sin empujarla al fondo de la tarjeta. */
@@ -4161,22 +4173,61 @@ button {
   flex-direction: column;
   /* start y no space-between, que es lo que hace el legado (.journal-performance-card,
      align-content: start, gap 9). space-between reparte las piezas a los extremos, y
-     como las tres tarjetas no tienen ni el mismo numero de piezas ni las mismas
+     como las cuatro tarjetas no tienen ni el mismo numero de piezas ni las mismas
      alturas, cada una las dejaba a una altura distinta: la cifra grande caia a 75px en
      Winrate y a 102 en Profit factor, y las dos barras —el MISMO componente— a 178 y a
      98. Alineadas arriba con un paso fijo, las piezas que si comparten (cabecera y
-     cifra) caen a la misma altura en las tres.
+     cifra) caen a la misma altura en las cuatro.
      El gap es el registro de dentro de una tarjeta (8), el mismo de .metric-card: por
      encima competiria con los 12 que separan una tarjeta de la siguiente. */
   align-content: start;
   gap: var(--space-sm);
+  /* Mas pequeñas a peticion expresa, y luego mas finas de altura en una segunda pasada:
+     el padding de .panel (24px, --space-4xl) esta pensado para paneles de contenido
+     normal, no para cuatro tarjetas de KPI apretadas en una fila. Dos escalones por
+     debajo (--space-md, 12px) las deja notablemente mas bajas sin que el contenido de
+     dentro se apelmace. */
+  padding: var(--space-md);
+}
+
+/* Unica de las cuatro sin una tercera pieza que anclar abajo (las otras tres tienen
+   arco+contadores o barra+figuras, que llenan el resto de la tarjeta): con solo
+   cabecera y cifra, quedaba un hueco vacio grande debajo. Centrar toda la columna
+   (justify-content en el padre) tambien bajaba el titulo, que en las otras tres tarjetas
+   se queda arriba — se probo y no encajaba. Con margenes automaticos arriba y abajo
+   solo en la cifra, es ella la que se reparte el hueco sobrante por igual arriba y
+   abajo (el truco clasico de centrar UN hijo flex sin mover a sus hermanos), y el
+   titulo se queda exactamente donde estaba, a juego con el resto de la fila. */
+.journal-total-value {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.journal-gauge-panel .compact-heading,
+.journal-split-panel .compact-heading,
+.journal-total-panel .compact-heading {
+  /* El compact-heading base (24px) es el mismo margen que usan paneles de contenido
+     normal; en una tarjeta ya recortada eso es mas espacio del que le toca a una
+     cabecera de una sola linea. */
+  margin-bottom: var(--space-sm);
 }
 
 .journal-gauge-value,
-.journal-split-value {
-  font-size: var(--text-3xl);
+.journal-split-value,
+.journal-total-value {
+  /* Un escalon por debajo de --text-3xl (32px): mismo motivo que el padding, la cifra
+     protagonista de una tarjeta de KPI no necesita ser tan grande como la de un panel
+     de contenido. */
+  font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
   line-height: 1;
+}
+
+/* El total de P&L es la unica cifra de las cuatro tarjetas que no comparte fila con
+   nada mas (ni arco, ni barra, ni segundo operando): vuelve a --text-3xl para que
+   destaque como la cifra protagonista que es, a peticion expresa. */
+.journal-total-value {
+  font-size: var(--text-3xl);
 }
 
 .journal-gauge-arc {
@@ -4186,7 +4237,11 @@ button {
 
 .journal-gauge-arc svg {
   width: 100%;
-  max-width: 180px;
+  /* Segunda pasada de "mas finas": el arco es lo que mas alto hace a la tarjeta de
+     Winrate (79px de los 213 totales), y como las cuatro tarjetas comparten fila con
+     la misma altura, es el que decide el alto de las cuatro. Bajarlo a 100px deja el
+     arco en ~56px de alto. */
+  max-width: 100px;
   height: auto;
 }
 
@@ -7719,10 +7774,11 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  /* Los tres KPIs del Journal se apilan aqui y no antes, igual que el legado, que
-     mantiene .journal-kpi-stack a tres columnas hasta 560 y solo entonces la pasa a
-     una. Hace falta declararlo con las dos clases porque .metric-grid.journal-kpi-grid
-     es (0,2,0) y ya no recoge lo que diga .metric-grid a secas en ningun breakpoint. */
+  /* Los cuatro KPIs del Journal se apilan aqui y no antes, igual que el legado, que
+     mantiene .journal-kpi-stack a tres columnas hasta 560 (el legado no tiene la
+     cuarta tarjeta de total, solo React) y solo entonces la pasa a una. Hace falta
+     declararlo con las dos clases porque .metric-grid.journal-kpi-grid es (0,2,0) y ya
+     no recoge lo que diga .metric-grid a secas en ningun breakpoint. */
   .metric-grid.journal-kpi-grid {
     grid-template-columns: 1fr;
   }
