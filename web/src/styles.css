@@ -4209,12 +4209,40 @@ button {
    cabecera y cifra, quedaba un hueco vacio grande debajo. Centrar toda la columna
    (justify-content en el padre) tambien bajaba el titulo, que en las otras tres tarjetas
    se queda arriba — se probo y no encajaba. Con margenes automaticos arriba y abajo
-   solo en la cifra, es ella la que se reparte el hueco sobrante por igual arriba y
+   solo en esta fila, es ella la que se reparte el hueco sobrante por igual arriba y
    abajo (el truco clasico de centrar UN hijo flex sin mover a sus hermanos), y el
-   titulo se queda exactamente donde estaba, a juego con el resto de la fila. */
-.journal-total-value {
+   titulo se queda exactamente donde estaba, a juego con el resto de la fila.
+   (Antes el margen automatico iba directo en .journal-total-value; paso a esta fila
+   cuando se le añadio al lado el numerito de dias operados.) */
+.journal-total-value-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   margin-top: auto;
   margin-bottom: auto;
+}
+
+/* Numerito de apoyo junto a la cifra: cuantos dias distintos hay detras de ese P&L. Pill
+   pequeña con los mismos tokens "suaves" que ya usa el resto de la app para un acento de
+   bajo contraste (accent-soft/accent), no un color inventado. */
+.journal-total-days-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Sin esto, dentro de un padre grid (journal-week-summary, no journal-total-value-row
+     que es flex) el stretch por defecto de CSS Grid estira la pill al ancho entero de
+     la columna en vez de dejarla del tamaño de su contenido. justify-self no hace nada
+     fuera de un grid, asi que es inofensivo tambien en la fila flex del P&L total. */
+  justify-self: start;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--space-2xs);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
 }
 
 .journal-gauge-panel .compact-heading,

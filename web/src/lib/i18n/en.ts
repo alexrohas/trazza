@@ -630,6 +630,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.widgetLabel.session": "Winrate by session",
   "journal.widgetLabel.weekday": "Result by weekday",
   "journal.kpi.totalPnl": "Total P&L",
+  "journal.kpi.totalPnlDaysTitle": "trading days",
   "journal.kpi.winrate": "Winrate",
   "journal.kpi.profitFactor": "Profit factor",
   "journal.kpi.avgWinLoss": "Avg win / loss",

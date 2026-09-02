@@ -476,6 +476,10 @@ export function JournalEntriesView({
     () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, weekdayBarLabels),
     [effectiveErrorTypes, filteredEntries, sessionOptions, weekdayBarLabels],
   );
+  /* Fechas distintas del mismo subconjunto que analytics.stats.netPnl (filteredEntries):
+     el numerito junto al P&L total dice sobre cuantos dias sale esa cifra, no cuantas
+     operaciones. Varios trades el mismo dia cuentan una vez. */
+  const tradedDaysCount = useMemo(() => new Set(filteredEntries.map((entry) => entry.date)).size, [filteredEntries]);
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
 
   /* Repartos de las dos barras divididas del cockpit y R medio de ganadoras y
@@ -857,7 +861,13 @@ export function JournalEntriesView({
               <div className={`journal-week-summary ${week.entries ? signedTone(week.pnl) : "is-empty"}`}>
                 <span>{t("journal.calendar.weekPrefix")}</span>
                 <strong>{week.entries ? formatMoney(week.pnl, currency) : formatMoney(0, currency)}</strong>
-                <small>{`${week.tradedDays} ${t("journal.calendar.tradedDaysSuffix")}`}</small>
+                {/* Mismo formato que el numerito de dias del P&L total: una pill en vez
+                    de texto plano. En una columna de 85px "N dias operados" no cabia
+                    inline junto al importe, asi que se queda en su propia fila, como
+                    antes tenia el texto. */}
+                <span className="journal-total-days-badge" title={`${week.tradedDays} ${t("journal.calendar.tradedDaysSuffix")}`}>
+                  {week.tradedDays}
+                </span>
               </div>
             </Fragment>
           ))}
@@ -876,9 +886,17 @@ export function JournalEntriesView({
               <h2>{t("journal.kpi.totalPnl")}</h2>
             </div>
           </div>
-          <strong className={`journal-total-value ${signedTone(analytics.stats.netPnl)}`}>
-            {formatMoney(analytics.stats.netPnl, currency)}
-          </strong>
+          <div className="journal-total-value-row">
+            <strong className={`journal-total-value ${signedTone(analytics.stats.netPnl)}`}>
+              {formatMoney(analytics.stats.netPnl, currency)}
+            </strong>
+            {/* Cuantos dias distintos hay detras de la cifra: el mismo P&L pesa distinto
+                si sale de 5 dias que de 50. title en vez de InfoHint a proposito: es un
+                dato de apoyo, no algo que necesite su propio tooltip con icono. */}
+            <span className="journal-total-days-badge" title={`${tradedDaysCount} ${t("journal.kpi.totalPnlDaysTitle")}`}>
+              {tradedDaysCount}
+            </span>
+          </div>
         </section>
         <JournalWinrateGaugePanel
           breakEven={analytics.stats.breakEven}
