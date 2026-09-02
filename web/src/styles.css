@@ -347,7 +347,6 @@
 }
 
 :root[data-theme="dark"] .auth-field,
-:root[data-theme="dark"] .chart-frame,
 :root[data-theme="dark"] .directory-card dl div,
 :root[data-theme="dark"] .empty-panel,
 :root[data-theme="dark"] .export-summary span,
@@ -375,16 +374,9 @@
    de cuenta cerrada. */
 :root[data-theme="dark"] .journal-error-type-form input[type="text"],
 :root[data-theme="dark"] .journal-operation-dropzone,
-:root[data-theme="dark"] .journal-pnl-chart-frame,
 :root[data-theme="dark"] .journal-row,
 :root[data-theme="dark"] .account-row {
   background: #111519;
-}
-
-:root[data-theme="dark"] .chart-frame {
-  background:
-    radial-gradient(circle at 75% 0%, rgba(167, 121, 255, 0.14), transparent 34%),
-    linear-gradient(180deg, #15151a 0%, #101014 100%);
 }
 
 :root[data-theme="dark"] .chart-axis {
@@ -3154,8 +3146,11 @@ button {
 /* Sin borde a proposito, en las tres graficas de la app (esta y .journal-pnl-chart-frame,
    que lo usan P&L acumulado y Disciplina). La linea encajaba un recuadro dentro del
    borde del panel, que ya delimita la pieza: dos contornos a 24px uno de otro compiten y
-   el de dentro no separa nada que no estuviera ya separado. El area del grafico se sigue
-   distinguiendo por su fondo, que es lo que hace el trabajo de verdad.
+   el de dentro no separa nada que no estuviera ya separado.
+   El fondo tambien es el mismo que el del panel (--surface) y no un degradado propio,
+   mismo motivo y mismo cambio que en .journal-pnl-chart-frame: un fondo distinto leia
+   como una tarjeta dentro de otra tarjeta, con dos tonos compitiendo. La pieza se
+   distingue por su contenido (la curva), no por un tono de fondo que ya no hace falta.
    El overflow: hidden se queda: es de lo que depende que el tooltip no se salga del
    marco, y el radio, de que el relleno bajo la curva no pise las esquinas. */
 .chart-frame {
@@ -3163,9 +3158,7 @@ button {
   height: 500px;
   border-radius: 12px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 75% 0%, rgba(139, 92, 246, 0.1), transparent 34%),
-    linear-gradient(180deg, var(--surface-raised) 0%, var(--surface-muted) 100%);
+  background: var(--surface);
 }
 
 .chart-frame.is-interactive {
@@ -3842,9 +3835,9 @@ button {
   }
 }
 
-/* Disciplina reutiliza .journal-pnl-chart-frame (y con el su par de tema oscuro), asi
-   que aqui solo va lo propio: el marco algo mas bajo porque la grafica no necesita
-   tanto alto para leerse, y la linea en su color. */
+/* Disciplina reutiliza .journal-pnl-chart-frame (fondo plano, sin par de tema oscuro
+   propio: --surface ya responde sola), asi que aqui solo va lo propio: el marco algo
+   mas bajo porque la grafica no necesita tanto alto para leerse, y la linea en su color. */
 .journal-discipline-panel .journal-pnl-chart-frame {
   height: 220px;
 }
