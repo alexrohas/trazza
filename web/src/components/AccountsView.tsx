@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
+import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Eye, EyeOff, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
@@ -44,6 +44,7 @@ type AccountsViewProps = {
   onDeleteAccount: (accountId: string) => Promise<boolean>;
   onNewAccountRequestHandled?: () => void;
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
+  onSetAccountVisible: (accountId: string, visible: boolean) => Promise<boolean>;
 };
 
 function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountStatus }> {
@@ -105,6 +106,7 @@ export function AccountsView({
   onDeleteAccount,
   onNewAccountRequestHandled,
   onSaveAccount,
+  onSetAccountVisible,
 }: AccountsViewProps) {
   const [draft, setDraft] = useState<AccountInput>(emptyAccountInput);
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -602,12 +604,14 @@ export function AccountsView({
           /* Si ya existe una fondeada enlazada a esta evaluacion, promocionar otra vez
              crearia una segunda por error. Una vez enlazada, el aviso ya no aporta nada. */
           const hasFundedChild = accounts.some((other) => other.parentAccountId === account.id);
+          const isHidden = account.visible === false;
 
           return (
-            <article className={`account-card ${account.status}`} key={account.id}>
+            <article className={`account-card ${account.status} ${isHidden ? "is-hidden" : ""}`} key={account.id}>
               <div className="account-card-head">
                 <div>
                   <span className={`account-status-pill ${account.status}`}>{accountStatusLabelByValue.get(account.status) || account.status}</span>
+                  {isHidden && <span className="account-status-pill is-hidden">{t("account.card.hiddenBadge")}</span>}
                   <h2>{account.name}</h2>
                   <p>
                     <Building2 size={14} strokeWidth={2.2} />
@@ -725,6 +729,22 @@ export function AccountsView({
                   <Pencil size={16} strokeWidth={2.2} />
                   {t("common.edit")}
                 </button>
+                {/* Ocultar no archiva ni borra: solo saca la cuenta de los desplegables
+                    (dashboard del Journal, formulario de entrada, movimientos...). Sigue
+                    aqui en la lista, atenuada, sigue sumando en todos los totales.
+                    El icono es la ACCION, no el estado actual: un ojo abierto significa
+                    "esto la hace visible" (se ve cuando esta oculta) y uno tachado
+                    significa "esto la oculta" (se ve cuando esta visible). */}
+                <button
+                  aria-label={`${isHidden ? t("account.card.show") : t("account.card.hide")} ${account.name}`}
+                  className="card-visibility"
+                  disabled={!canWrite || mutating}
+                  onClick={() => void onSetAccountVisible(account.id, isHidden)}
+                  title={isHidden ? t("account.card.show") : t("account.card.hide")}
+                  type="button"
+                >
+                  {isHidden ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
+                </button>
                 {/* Solo icono, igual que en Empresas: es la accion irreversible y ademas
                     esta bloqueada en casi todas las cuentas (las que tienen movimientos o
                     journal), asi que no merece media fila de acciones. */}
@@ -775,11 +795,15 @@ export function AccountsView({
                 mutating ||
                 movements.some((movement) => movement.accountId === account.id) ||
                 journalEntries.some((entry) => entry.accountId === account.id);
+              const isHidden = account.visible === false;
 
               return (
-                <li className="account-archive-row" key={account.id}>
-                  <span className={`account-status-pill ${account.status}`}>
-                    {accountStatusLabelByValue.get(account.status) || account.status}
+                <li className={`account-archive-row ${isHidden ? "is-hidden" : ""}`} key={account.id}>
+                  <span className="account-archive-status">
+                    <span className={`account-status-pill ${account.status}`}>
+                      {accountStatusLabelByValue.get(account.status) || account.status}
+                    </span>
+                    {isHidden && <span className="account-status-pill is-hidden">{t("account.card.hiddenBadge")}</span>}
                   </span>
                   <strong className="account-archive-name">{account.name}</strong>
                   <span className="account-archive-size">
@@ -806,6 +830,19 @@ export function AccountsView({
                       type="button"
                     >
                       <Pencil size={15} strokeWidth={2.2} />
+                    </button>
+                    {/* Aqui es donde de verdad se usa: las cuentas terminadas (falladas,
+                        cerradas) son justo las "decenas de cuentas muertas" que el boton
+                        existe para sacar de los desplegables. */}
+                    <button
+                      aria-label={`${isHidden ? t("account.card.show") : t("account.card.hide")} ${account.name}`}
+                      className="card-visibility"
+                      disabled={!canWrite || mutating}
+                      onClick={() => void onSetAccountVisible(account.id, isHidden)}
+                      title={isHidden ? t("account.card.show") : t("account.card.hide")}
+                      type="button"
+                    >
+                      {isHidden ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
                     </button>
                     <button
                       aria-label={`${t("common.delete")} ${account.name}`}

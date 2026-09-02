@@ -209,6 +209,17 @@ export function getAccountName(accounts: TradingAccount[], accountId: string | u
   return accounts.find((account) => account.id === accountId)?.name ?? fallback;
 }
 
+/* Cuentas que se ofrecen en un desplegable: las visibles, mas la que ya estuviera
+   elegida aunque se haya ocultado despues (isAccountSelectable en el legado). Sin esto,
+   ocultar una cuenta borraria de su propio desplegable el valor que una entrada o un
+   movimiento ya guardado tiene apuntado, y volver a guardarlos la perderia. selectedId
+   acepta "", "all" o undefined sin efecto: no coinciden con ningun id real.
+   Solo para desplegables de "que cuenta es esta" (formularios, filtros); las cuentas
+   ocultas siguen sumando en totales y desgloses, que no pasan por aqui. */
+export function getSelectableAccounts(accounts: TradingAccount[], selectedId: string | undefined) {
+  return accounts.filter((account) => account.visible !== false || account.id === selectedId);
+}
+
 export function calculatePayoutNetAmount(grossAmount: number, profitSplit: number) {
   const safeGross = Number.isFinite(grossAmount) ? Math.max(0, grossAmount) : 0;
   const safeSplit = Number.isFinite(profitSplit) ? Math.min(100, Math.max(0, profitSplit)) : 100;

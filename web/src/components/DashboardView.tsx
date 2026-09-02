@@ -11,6 +11,7 @@ import {
   calculateDashboardModel,
   formatMoney,
   formatPercent,
+  getSelectableAccounts,
   signedTone,
 } from "../lib/metrics";
 import { useI18n, useT } from "../lib/i18n/context";
@@ -106,11 +107,11 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
   const accountFilterOptions = useMemo(
     () => [
       { label: t("common.all"), value: "all" },
-      ...accounts
+      ...getSelectableAccounts(accounts, filters.accountId)
         .filter((account) => filters.firmId === "all" || account.firmId === filters.firmId)
         .map((account) => ({ label: account.name, value: account.id })),
     ],
-    [accounts, filters.firmId, t],
+    [accounts, filters.accountId, filters.firmId, t],
   );
   const summaryRangeOptions = useMemo(() => getSummaryRangeOptions(t), [t]);
   const periodOptions = useMemo(

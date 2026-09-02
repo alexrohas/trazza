@@ -4,7 +4,7 @@ import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
-import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAmount } from "../lib/metrics";
+import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAmount, getSelectableAccounts } from "../lib/metrics";
 import { useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
@@ -104,8 +104,11 @@ export function MovementsView({
   const payoutGrossAmount = draft.payoutGrossAmount || 0;
   const payoutProfitSplit = draft.payoutProfitSplit || 100;
   const accountsForFirm = useMemo(
-    () => (draft.firmId ? accounts.filter((account) => account.firmId === draft.firmId) : accounts),
-    [accounts, draft.firmId],
+    () =>
+      getSelectableAccounts(accounts, draft.accountId).filter(
+        (account) => !draft.firmId || account.firmId === draft.firmId,
+      ),
+    [accounts, draft.accountId, draft.firmId],
   );
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const accountNameById = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);

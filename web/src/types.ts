@@ -35,6 +35,11 @@ export type TradingAccount = {
   phaseTarget: number;
   maxDrawdown: number;
   dailyDrawdown: number;
+  /* Opcional (no obligatorio) a proposito: la columna es aditiva en Supabase y una fila
+     sin ella se lee como visible, igual que en el legado. No vive en AccountInput —
+     se escribe con un update propio (setAccountVisible), no con el alta/edicion normal,
+     para que guardar la cuenta desde el formulario no pueda resetear la visibilidad. */
+  visible?: boolean;
 };
 
 export type AccountInput = {

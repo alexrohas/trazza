@@ -73,6 +73,7 @@ export default function App() {
       saveJournalErrorType: guard(dataState.saveJournalErrorType),
       saveMovement: guard(dataState.saveMovement),
       deleteJournalErrorType: guard(dataState.deleteJournalErrorType),
+      setAccountVisible: guard(dataState.setAccountVisible),
       setJournalErrorTypeActive: guard(dataState.setJournalErrorTypeActive),
     }),
     [dataState, guard],
@@ -241,6 +242,7 @@ export default function App() {
           onDeleteAccount={guarded.deleteAccount}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
           onSaveAccount={saveAccountAndLinkPendingMovement}
+          onSetAccountVisible={guarded.setAccountVisible}
         />
       )}
       {activeView === "movements" && (

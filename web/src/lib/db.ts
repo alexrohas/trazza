@@ -165,6 +165,28 @@ export async function deleteCloudAccount(client: SupabaseClient, userId: string,
   if (result.error) throw new Error(result.error.message || "No se pudo eliminar la cuenta.");
 }
 
+/* Update propio y no un upsert de la fila entera (mismo criterio que
+   setCloudJournalErrorTypeActive): accountInputToDb no menciona visible, asi que
+   guardar la cuenta desde el formulario normal nunca la pisa. Si esta funcion se
+   despliega antes de ejecutar supabase-accounts-visibility.sql, la columna no existe y
+   Supabase devuelve error — no hay caida silenciosa a "no hizo nada". */
+export async function updateCloudAccountVisibility(
+  client: SupabaseClient,
+  userId: string,
+  accountId: string,
+  visible: boolean,
+): Promise<TradingAccount> {
+  const result = await client
+    .from("accounts")
+    .update({ visible })
+    .eq("id", accountId)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+
+  return fromSingleRow(result, fromDbAccount, "No se pudo actualizar la visibilidad de la cuenta.");
+}
+
 export async function createCloudMovement(client: SupabaseClient, userId: string, input: MovementInput): Promise<Movement> {
   const result = await client
     .from("transactions")
@@ -377,6 +399,10 @@ function fromDbAccount(row: DbRow): TradingAccount {
     phaseTarget,
     maxDrawdown: numberOrZero(row.max_drawdown),
     dailyDrawdown: numberOrZero(row.daily_drawdown),
+    /* Solo false cuenta como oculta: una fila sin la columna (antes de ejecutar
+       supabase-accounts-visibility.sql, o escrita por una version vieja de la app) o con
+       null se lee como visible, igual que hace el legado. */
+    visible: row.visible !== false,
   };
 }
 

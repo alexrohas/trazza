@@ -14,6 +14,7 @@ import {
   deleteCloudJournalErrorType,
   setCloudJournalErrorTypeActive,
   updateCloudAccount,
+  updateCloudAccountVisibility,
   updateCloudFirm,
   updateCloudJournalEntry,
   updateCloudMovement,
@@ -133,6 +134,31 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
         return account;
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "No se pudo guardar la cuenta.";
+        setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
+  const setAccountVisible = useCallback(
+    async (accountId: string, visible: boolean) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para actualizar cuentas reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        await updateCloudAccountVisibility(supabaseClient, userId, accountId, visible);
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo actualizar la visibilidad de la cuenta.";
         setMutationError(message);
         return false;
       } finally {
@@ -397,6 +423,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     saveJournalEntry,
     saveMovement,
     deleteJournalErrorType,
+    setAccountVisible,
     setJournalErrorTypeActive,
     status,
   };

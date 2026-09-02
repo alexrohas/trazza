@@ -5728,6 +5728,22 @@ button {
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-base);
   background: var(--surface);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+/* Mismo criterio que .account-card.is-hidden: atenuada, no archivada aparte (ya esta en
+   el archivo por su estado, esto es una segunda señal independiente). */
+.account-archive-row.is-hidden {
+  opacity: 0.6;
+}
+
+/* Envuelve la pastilla de estado y, si aplica, la de "Oculta": dos pastillas en la misma
+   columna del grid (auto), en vez de una columna nueva que descuadraria las seis fijas. */
+.account-archive-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
 }
 
 .account-archive-name {
@@ -5786,11 +5802,18 @@ button {
   gap: var(--space-xl);
   border-radius: var(--radius-sm);
   padding: var(--space-2xl);
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-muted) 28%, transparent), transparent 48%),
     var(--surface);
   box-shadow: var(--shadow-flat);
+}
+
+/* Oculta no es archivada ni borrada: la cuenta se queda en la lista tal cual, solo
+   atenuada, para que "esta fuera de los desplegables" se lea de un vistazo sin tener
+   que fijarse en la pastilla OCULTA. */
+.account-card.is-hidden {
+  opacity: 0.6;
 }
 
 .account-card-head {
@@ -6100,7 +6123,8 @@ button {
    quedaba en texto claro sobre fondo claro: contraste 1,29, ilegible. Las hermanas
    (failed, evaluation...) ya usaban token en ambos lados y por eso no fallaban. */
 .status-dot.closed,
-.account-status-pill.closed {
+.account-status-pill.closed,
+.account-status-pill.is-hidden {
   background: var(--surface-muted);
   color: var(--strong-muted);
 }
@@ -7342,7 +7366,8 @@ tbody tr:last-child td {
   flex: 1;
 }
 
-.card-delete {
+.card-delete,
+.card-visibility {
   display: inline-grid;
   place-items: center;
   width: 38px;
@@ -7362,7 +7387,16 @@ tbody tr:last-child td {
   color: var(--negative);
 }
 
-.card-delete:disabled {
+/* Acento y no rojo: a diferencia de borrar, ocultar no es destructivo ni irreversible —
+   el mismo boton la vuelve a mostrar. */
+.card-visibility:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.card-delete:disabled,
+.card-visibility:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }

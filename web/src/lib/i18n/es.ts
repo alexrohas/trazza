@@ -243,6 +243,9 @@ export const es = {
   "account.card.noActivity": "Sin actividad asociada",
   "account.card.deleteTitleBlocked": "La cuenta tiene movimientos o journal asociados",
   "account.card.deleteTitleAllowed": "Eliminar cuenta",
+  "account.card.hiddenBadge": "Oculta",
+  "account.card.hide": "Ocultar",
+  "account.card.show": "Mostrar",
   "account.empty.none": "No hay cuentas todavia",
   "account.empty.createFirst": "Crea la primera cuenta desde Nueva cuenta.",
 

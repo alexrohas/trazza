@@ -49,6 +49,7 @@ import {
   formatPercentCompact,
   getDisciplineScale,
   getPayoutGrossAmount,
+  getSelectableAccounts,
   signedTone,
 } from "../lib/metrics";
 import {
@@ -325,16 +326,22 @@ export function JournalEntriesView({
   const weekdayBarLabels = useMemo(() => getWeekdayBarLabels(t), [t]);
   const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
   const accountFilterOptions = useMemo(
-    () => [{ label: t("common.all"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
-    [accounts, t],
+    () => [
+      { label: t("common.all"), value: "all" },
+      ...getSelectableAccounts(accounts, accountFilter).map((account) => ({ label: account.name, value: account.id })),
+    ],
+    [accountFilter, accounts, t],
   );
   /* Mismas cuentas que accountFilterOptions, pero con la opcion "Todas las cuentas" en
      vez de "Todas": este selector vive suelto en la barra de herramientas del cockpit,
      sin la etiqueta "Cuenta" que lo acompaña en el panel de filtros de Entradas, asi
      que necesita bastarse solo para decir de que trata. */
   const cockpitAccountOptions = useMemo(
-    () => [{ label: t("journal.cockpit.allAccounts"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
-    [accounts, t],
+    () => [
+      { label: t("journal.cockpit.allAccounts"), value: "all" },
+      ...getSelectableAccounts(accounts, selectedAccountId).map((account) => ({ label: account.name, value: account.id })),
+    ],
+    [accounts, selectedAccountId, t],
   );
   const effectiveErrorTypes = useMemo(() => mergeJournalErrorTypes(journalErrorTypes), [journalErrorTypes]);
   const cloudErrorTypeIds = useMemo(() => new Set(journalErrorTypes.map((type) => type.id)), [journalErrorTypes]);
@@ -367,8 +374,11 @@ export function JournalEntriesView({
     [accountById, currency, entries, firmNameById, movements, selectedAccountId, t],
   );
   const accountsForFirm = useMemo(
-    () => (draft.firmId ? accounts.filter((account) => account.firmId === draft.firmId) : accounts),
-    [accounts, draft.firmId],
+    () =>
+      getSelectableAccounts(accounts, draft.accountId).filter(
+        (account) => !draft.firmId || account.firmId === draft.firmId,
+      ),
+    [accounts, draft.accountId, draft.firmId],
   );
   const entryFirmOptions = useMemo(
     () => [{ label: t("journal.entryForm.noFirm"), value: "" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
@@ -535,7 +545,7 @@ export function JournalEntriesView({
     setImportPreview(null);
     setImportFile(null);
     setImportMessage(null);
-    setImportAccountId((current) => current || accounts[0]?.id || "");
+    setImportAccountId((current) => current || getSelectableAccounts(accounts, undefined)[0]?.id || "");
     setImportOpen(true);
   };
 
@@ -1252,7 +1262,7 @@ export function JournalEntriesView({
               <Select
                 disabled={importing}
                 onChange={setImportAccountId}
-                options={accounts.map((account) => ({ label: account.name, value: account.id }))}
+                options={getSelectableAccounts(accounts, importAccountId).map((account) => ({ label: account.name, value: account.id }))}
                 value={importAccountId}
               />
             </label>

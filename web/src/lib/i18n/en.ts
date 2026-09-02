@@ -245,6 +245,9 @@ export const en: Record<TranslationKey, string> = {
   "account.card.noActivity": "No linked activity",
   "account.card.deleteTitleBlocked": "This account has linked movements or journal entries",
   "account.card.deleteTitleAllowed": "Delete account",
+  "account.card.hiddenBadge": "Hidden",
+  "account.card.hide": "Hide",
+  "account.card.show": "Show",
   "account.empty.none": "No accounts yet",
   "account.empty.createFirst": "Create the first account from New account.",
 
