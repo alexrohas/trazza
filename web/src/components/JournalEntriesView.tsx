@@ -439,6 +439,10 @@ export function JournalEntriesView({
     ],
   );
   const detailEntry = detailEntryId ? filteredEntries.find((entry) => entry.id === detailEntryId) : undefined;
+  /* Mismo formato que day.date (YYYY-MM-DD) para poder comparar directo. Sale del mes
+     visible, no memoizado: es una comparacion de string barata y solo se usa al pintar
+     la rejilla, no merece la pena arrastrar un valor que caducaria pasada medianoche. */
+  const todayDate = new Date().toISOString().slice(0, 10);
   const calendarDays = useMemo(
     () => buildCalendarDays(visibleMonth, filteredEntries, movements),
     [filteredEntries, movements, visibleMonth],
@@ -814,7 +818,7 @@ export function JournalEntriesView({
             <Fragment key={week.key}>
               {week.days.map((day) => (
             <button
-              aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}`}
+              aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}${day.date === todayDate ? `, ${t("journal.calendar.today")}` : ""}`}
               className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
               disabled={!day.firstEntryId}
               key={day.date}
@@ -826,7 +830,16 @@ export function JournalEntriesView({
               onClick={() => setDetailEntryId(day.firstEntryId)}
               type="button"
             >
-              <span>{Number(day.date.slice(-2))}</span>
+              <span>
+                {/* Tercer intento tras feedback: ni anillo en toda la celda ni punto
+                    suelto — un circulo relleno alrededor del propio numero, como en el
+                    ejemplo que paso el usuario. */}
+                {day.date === todayDate ? (
+                  <em className="journal-day-today-badge">{Number(day.date.slice(-2))}</em>
+                ) : (
+                  Number(day.date.slice(-2))
+                )}
+              </span>
               <strong>
                 {day.count
                   ? formatMoneyCompactSigned(day.pnl, currency)

@@ -5032,6 +5032,21 @@ button {
   opacity: 0.52;
 }
 
+/* Marca el dia de hoy: primero un anillo en toda la celda, luego un punto suelto junto
+   al numero, ninguno de los dos convencio. Un circulo relleno ALREDEDOR del numero,
+   como una insignia — el numero se lee dentro del circulo, no al lado. */
+.journal-day-today-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-style: normal;
+}
+
 /* Al senalar un dia se anima solo esa celda, no la semana entera: version anterior
    encendia las siete columnas de la fila via JS (hoveredDayIndex + Math.floor(i/7)),
    pero el usuario pidio explicitamente que el realce se quede en el dia bajo el cursor.
@@ -5064,6 +5079,7 @@ button {
 
 .journal-day strong {
   font-size: var(--text-sm);
+  text-align: right;
 }
 
 .journal-day small {
