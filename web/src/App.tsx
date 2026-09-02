@@ -277,6 +277,7 @@ export default function App() {
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
           onDeleteEntry={guarded.deleteJournalEntry}
+          onSelectedAccountIdChange={setSelectedAccountId}
           onNewEntryRequestHandled={() => setCreateRequest(null)}
           onSaveErrorType={guarded.saveJournalErrorType}
           onSaveEntry={guarded.saveJournalEntry}

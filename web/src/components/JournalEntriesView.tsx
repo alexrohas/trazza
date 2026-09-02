@@ -93,6 +93,7 @@ type JournalEntriesViewProps = {
   searchQuery: string;
   selectedAccountId: string;
   onDeleteEntry: (entryId: string) => Promise<boolean>;
+  onSelectedAccountIdChange: (accountId: string) => void;
   onNewEntryRequestHandled?: () => void;
   onSaveEntry: (input: JournalEntryInput, entryId?: string) => Promise<boolean>;
   onSaveErrorType: (input: JournalErrorTypeInput, typeId?: string) => Promise<boolean>;
@@ -262,6 +263,7 @@ export function JournalEntriesView({
   searchQuery,
   selectedAccountId,
   onDeleteEntry,
+  onSelectedAccountIdChange,
   onNewEntryRequestHandled,
   onSaveErrorType,
   onSaveEntry,
@@ -324,6 +326,14 @@ export function JournalEntriesView({
   const periodFilterOptions = useMemo(() => getPeriodFilterOptions(t), [t]);
   const accountFilterOptions = useMemo(
     () => [{ label: t("common.all"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
+    [accounts, t],
+  );
+  /* Mismas cuentas que accountFilterOptions, pero con la opcion "Todas las cuentas" en
+     vez de "Todas": este selector vive suelto en la barra de herramientas del cockpit,
+     sin la etiqueta "Cuenta" que lo acompaña en el panel de filtros de Entradas, asi
+     que necesita bastarse solo para decir de que trata. */
+  const cockpitAccountOptions = useMemo(
+    () => [{ label: t("journal.cockpit.allAccounts"), value: "all" }, ...accounts.map((account) => ({ label: account.name, value: account.id }))],
     [accounts, t],
   );
   const effectiveErrorTypes = useMemo(() => mergeJournalErrorTypes(journalErrorTypes), [journalErrorTypes]);
@@ -1002,9 +1012,19 @@ export function JournalEntriesView({
       {journalMode === "cockpit" && (
         <>
           {/* Sin titulo "Cockpit" ni subtitulo: repetian lo que ya dice el h1 de la
-              pagina ("Journal - Dashboard") y el item activo del sidebar. El boton se
-              queda solo, alineado a la derecha como el resto de acciones de cabecera. */}
+              pagina ("Journal - Dashboard") y el item activo del sidebar. Los controles
+              se quedan alineados a la derecha como el resto de acciones de cabecera. */}
           <div className="journal-cockpit-toolbar">
+            {/* selectedAccountId/onSelectedAccountIdChange son globales (ver App.tsx):
+                la misma cuenta activa que ya filtran Cuentas y Movimientos, asi que
+                elegir una aqui tambien la deja puesta al navegar a esas vistas — igual
+                que el legado, donde "Cuenta" en el dashboard del Journal es el mismo
+                selector que en Cuentas/Movimientos. Al elegir una cuenta aparece encima
+                JournalAccountOverviewPanel (balance, net P&L, reglas de la cuenta), que
+                ya estaba construido y solo le faltaba este disparador. */}
+            <div className="journal-cockpit-account-filter">
+              <Select onChange={onSelectedAccountIdChange} options={cockpitAccountOptions} value={selectedAccountId} />
+            </div>
             <button className="secondary-action" onClick={() => setCustomizeOpen(true)} type="button">
               <LayoutGrid size={16} strokeWidth={2.2} />
               {t("journal.cockpit.customize")}

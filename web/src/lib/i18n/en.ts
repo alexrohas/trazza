@@ -415,6 +415,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.filter.direction": "Direction",
   "journal.filter.reset": "Reset filters",
 
+  "journal.cockpit.allAccounts": "All accounts",
   "journal.cockpit.customize": "Customize panel",
   "journal.cockpit.panelLabel": "Journal panel",
 

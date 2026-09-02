@@ -2268,7 +2268,8 @@ button {
 .settings-form select:focus,
 .dashboard-filters .custom-select-trigger:focus-visible,
 .view-filters .custom-select-trigger:focus-visible,
-.settings-form .custom-select-trigger:focus-visible {
+.settings-form .custom-select-trigger:focus-visible,
+.journal-cockpit-account-filter .custom-select-trigger:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -3521,12 +3522,36 @@ button {
   white-space: nowrap;
 }
 
-/* Ya no lleva titulo ni subtitulo (solo el boton de "Personalizar panel"), asi que
-   flex-end y no space-between: con un solo hijo, space-between lo dejaba pegado a la
-   izquierda en vez de a la derecha, donde va el resto de acciones de cabecera. */
+/* Ya no lleva titulo ni subtitulo, asi que flex-end y no space-between: con
+   space-between el primer hijo se pegaria a la izquierda en vez de agruparse con el
+   resto de acciones de cabecera, a la derecha. */
 .journal-cockpit-toolbar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* El selector de cuenta no tiene ancestro que ya lo vista (a diferencia de
+   .dashboard-filters/.view-filters/.settings-form, ver Select.tsx), asi que el
+   contexto se lo da esta clase, con el mismo aspecto que .secondary-action al lado
+   para que ambos controles del toolbar lean como un mismo grupo. Ancho fijo y no
+   min-width: en una barra de herramientas, un nombre de cuenta largo no deberia poder
+   empujar "Personalizar panel" — para eso ya trunca con elipsis
+   (.custom-select-trigger span). */
+.journal-cockpit-account-filter {
+  width: 200px;
+}
+
+.journal-cockpit-account-filter .custom-select-trigger {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-base);
+  background: var(--surface);
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
 }
 
 .journal-dashboard-widgets {
