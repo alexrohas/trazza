@@ -404,12 +404,6 @@
   background: var(--accent-soft);
 }
 
-:root[data-theme="dark"] .journal-pnl-chart-frame {
-  background:
-    radial-gradient(circle at 75% 0%, rgba(167, 121, 255, 0.14), transparent 34%),
-    linear-gradient(180deg, #15151a 0%, #101014 100%);
-}
-
 :root[data-theme="dark"] .state-notice.error {
   background: rgba(255, 123, 98, 0.1);
 }
@@ -3663,15 +3657,17 @@ button {
   min-height: 392px;
 }
 
-/* Sin borde, igual que .chart-frame: ver el porque alli. */
+/* Sin borde, igual que .chart-frame: ver el porque alli.
+   El fondo es el mismo que el del panel (--surface), a peticion expresa: antes llevaba
+   un degradado propio (radial + vertical, distinto del panel que lo envuelve) y leia
+   como una tarjeta dentro de otra tarjeta, con dos tonos de fondo compitiendo. Afecta
+   tambien a Disciplina, que comparte esta clase — mismo armazon, mismo fondo. */
 .journal-pnl-chart-frame {
   position: relative;
   height: 286px;
   border-radius: 12px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 75% 0%, rgba(139, 92, 246, 0.1), transparent 34%),
-    linear-gradient(180deg, var(--surface-raised) 0%, var(--surface-muted) 100%);
+  background: var(--surface);
 }
 
 .journal-pnl-chart-frame svg {

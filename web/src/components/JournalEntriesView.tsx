@@ -2125,6 +2125,14 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
   const finalValue = points.at(-1)?.value ?? 0;
   const lastScaledPoint = scaledPoints.at(-1);
   const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1];
+  /* Etiquetas del eje de precios, mismo criterio que CapitalCurve: la posicion 0 es
+     arriba, asi que el valor baja de max a min segun se desciende. Dan una miniguia de
+     en que rango se mueve la curva sin tener que pasar el raton. */
+  const axisValues = gridLines.map((position) => ({
+    position,
+    value: max - position * range,
+  }));
   const safeActiveIndex = activeIndex !== null && activeIndex < scaledPoints.length ? activeIndex : null;
   const activeScaledPoint = safeActiveIndex === null ? null : scaledPoints[safeActiveIndex];
   const activePoint = safeActiveIndex === null ? null : points[safeActiveIndex];
@@ -2186,11 +2194,16 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                   <stop offset="100%" stopColor="rgba(124, 58, 237, 0)" />
                 </linearGradient>
               </defs>
-              {/* Sin rejilla: ni lineas horizontales ni verticales, a peticion expresa
-                  (antes tenia las cinco de cada, igual que CapitalCurve antes de que se
-                  le quitaran las verticales). Solo queda la linea base (el cero real),
-                  que no es decorativa: separa visualmente lo que esta en positivo de lo
-                  que esta en negativo. */}
+              {/* Sin verticales (esas si eran puro adorno, a peticion expresa), pero las
+                  horizontales vuelven como miniguia de precio: cada una lleva su valor en
+                  chart-value-axis, mas abajo, asi que ya no son rejilla decorativa sino
+                  una referencia legible. Mismo tratamiento suave que CapitalCurve. */}
+              {gridLines.map((position) => {
+                const y = padding.top + chartHeight * position;
+                return <line className="chart-axis muted" key={`journal-h-${position}`} x1={padding.left} x2={width - padding.right} y1={y} y2={y} />;
+              })}
+              {/* El cero real, que no es decorativo: separa visualmente lo que esta en
+                  positivo de lo que esta en negativo. */}
               <line className="chart-axis baseline" x1={padding.left} x2={width - padding.right} y1={baselineY} y2={baselineY} />
               <path
                 className="journal-pnl-chart-fill"
@@ -2212,6 +2225,13 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                 />
               )}
             </svg>
+            <div className="chart-value-axis" aria-hidden="true">
+              {axisValues.map((tick) => (
+                <span key={tick.position} style={{ top: `${((padding.top + chartHeight * tick.position) / height) * 100}%` }}>
+                  {formatCompactValue(tick.value, language)}
+                </span>
+              ))}
+            </div>
             {lastScaledPoint && (
               <span
                 className={`chart-value-badge ${signedTone(finalValue)}`}
@@ -3263,6 +3283,17 @@ function formatFullDate(date: string, language: Language) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+/** Formato corto para el eje de la curva de P&L: en los ~48px de margen no cabe
+ *  "1.085,54 US$", ahi solo hace falta el orden de magnitud. Mismo criterio que
+ *  formatCompactValue en CapitalCurve — el importe exacto lo dan el tooltip y la
+ *  insignia del ultimo punto, este eje es solo la miniguia. */
+function formatCompactValue(value: number, language: Language) {
+  return new Intl.NumberFormat(language === "en" ? "en-US" : "es-ES", {
+    maximumFractionDigits: Math.abs(value) >= 1000 ? 1 : 0,
+    notation: "compact",
+  }).format(value);
 }
 
 function formatMonthLabel(month: string, language: Language) {
