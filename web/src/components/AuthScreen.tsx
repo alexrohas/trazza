@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LockKeyhole, Languages, Mail, Moon, Sun, UserRound } from "lucide-react";
 import { useI18n, useT } from "../lib/i18n/context";
+import { Wordmark } from "./Wordmark";
 
 type AuthScreenProps = {
   busy: boolean;
@@ -28,7 +29,7 @@ export function AuthScreen({ busy, message, onForgotPassword, onSignIn, onSignUp
 
   return (
     <main className="auth-screen">
-      <img className="auth-logo" src="/trazza.png" alt="Trazza" />
+      <Wordmark className="auth-logo" />
 
       <div className="auth-top-actions">
         <button

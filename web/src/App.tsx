@@ -9,6 +9,7 @@ import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
 import { PlansModal } from "./components/PlansModal";
 import { SettingsView } from "./components/SettingsView";
+import { Wordmark } from "./components/Wordmark";
 import { useAuth } from "./hooks/useAuth";
 import { useSubscription } from "./hooks/useSubscription";
 import { useTheme } from "./hooks/useTheme";
@@ -342,7 +343,7 @@ function ResetPasswordScreen({
 
   return (
     <main className="auth-screen">
-      <img className="auth-logo" src="/trazza.png" alt="Trazza" />
+      <Wordmark className="auth-logo" />
 
       <div className="auth-top-actions">
         <button
@@ -423,7 +424,7 @@ function ResetPasswordScreen({
 function LoadingScreen({ label }: { label: string }) {
   return (
     <main className="loading-screen">
-      <img src="/trazza.png" alt="Trazza" />
+      <Wordmark />
       <strong>{label}</strong>
     </main>
   );

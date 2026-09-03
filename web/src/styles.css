@@ -515,18 +515,34 @@ button {
   border-bottom: 0;
 }
 
-/* El wordmark del sidebar es texto de verdad (componente Wordmark.tsx), no la imagen del
-   logo: sin recorte ni contenedor de tamano fijo que mantener, solo tipografia. El color
-   sale fijo en blanco porque el sidebar es siempre oscuro, tenga la app el tema que tenga
-   (ver --sidebar mas arriba, pareado mas por completitud que porque cambie de verdad). */
+/* El wordmark es texto de verdad (componente Wordmark.tsx), no la imagen del logo: sin
+   recorte ni contenedor de tamano fijo que mantener, solo tipografia. Vive en tres
+   sitios (sidebar, pantallas de acceso, pantalla de carga) sobre fondos distintos, asi
+   que el color no se fija aqui — hereda currentColor, como dice el propio comentario de
+   Wordmark.tsx — y cada contexto pone el suyo (.brand .wordmark, .auth-logo,
+   .loading-screen .wordmark) mas abajo. El tamano base es el del sidebar; los otros dos
+   contextos lo sobreescriben con el suyo. */
 .wordmark {
   display: block;
-  color: #ffffff;
   font-family: "Baloo 2", "Nunito", system-ui, sans-serif;
-  font-size: 22px;
+  /* 22px dejaba la marca de fondo (60px de tinta, medido con un Range sobre el nodo de
+     texto) muy por debajo de los 119px de columna que le da la rejilla de .brand antes
+     de tocar el boton de contraer: mucho hueco vacio a su derecha, que es justo lo que
+     se pidio corregir. 34px sube esa tinta a 93px, con margen de sobra (26px) antes de
+     esa columna — nunca medida por el propio ancho renderizado del span, que al ser
+     display:block se estira a la columna entera y no delata el tamaño real del texto. */
+  font-size: 34px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1;
+}
+
+/* El sidebar es siempre oscuro, tenga la app el tema que tenga (ver --sidebar mas
+   arriba), asi que aqui el blanco va fijo y no por var(--text) — pareado en tema oscuro
+   mas por completitud que porque vaya a cambiar de verdad. */
+.brand .wordmark,
+:root[data-theme="dark"] .brand .wordmark {
+  color: #ffffff;
 }
 
 .sidebar-toggle,
@@ -1013,20 +1029,36 @@ button {
 }
 
 /* Logo persistente en la esquina, fuera del flujo centrado: no ocupa espacio en el
-   calculo de si la tarjeta cabe en pantalla. */
+   calculo de si la tarjeta cabe en pantalla. Antes era una imagen (width clamp(200px,
+   16vw,320px) mas un filter de saturacion/contraste para que se leyera sobre el fondo
+   claro); con texto de verdad ya no hace falta corregir color de imagen — var(--accent)
+   es el mismo morado de marca, ya pareado en los dos temas — asi que el filter
+   desaparece entero, dark incluido. El tamano se expresa en font-size y no en width: el
+   PNG tenia relleno interno propio (la tinta real ocupaba ~52% del ancho del lienzo),
+   asi que clonar el numero antiguo tal cual habria dejado el texto enorme — se ajusta
+   al tamano de tinta equivalente. */
 .auth-logo {
   position: fixed;
-  top: 0;
-  left: 0;
+  /* Mismo inset que .auth-top-actions (esquina opuesta): quedaba literalmente pegado a
+     los dos bordes (top:0, left:0), sin aire — con texto de verdad eso se nota mucho
+     mas que con la imagen anterior, que llevaba su propio margen en blanco dentro del
+     PNG y disimulaba el problema. */
+  top: 18px;
+  left: 18px;
   z-index: 4;
-  /* position:fixed lo saca por completo del flujo: por grande que sea, no puede volver
-     a provocar scroll en la pantalla de acceso. Se ata al ANCHO de la ventana, no a la
-     altura, que era una cautela innecesaria aqui. */
-  width: clamp(200px, 16vw, 320px);
-  height: auto;
-  object-fit: contain;
-  object-position: left center;
-  filter: saturate(1.18) contrast(1.2) brightness(0.8);
+  font-size: clamp(38px, 4vw, 60px);
+  /* Mezclado con blanco y no con var(--text): un mestizaje texto(negro)/accent (probado
+     antes) daba un morado demasiado oscuro/indigo en claro. Blanco+accent da un morado
+     mas vivo y mas cercano al tono de marca, calibrado para no perder contraste contra
+     el fondo casi blanco de .auth-screen (--bg:#f6f6f7) — probado en vivo contra una
+     escalera de mezclas: a partir de ~65% blanco ya empezaba a transparentar. Se quedo
+     en 56% (no en 50%) tras un ultimo ajuste fino a peticion expresa de "un pelin mas
+     de blanco, pero poco". */
+  color: color-mix(in srgb, white 56%, var(--accent) 44%);
+}
+
+:root[data-theme="dark"] .auth-logo {
+  color: color-mix(in srgb, var(--text) 80%, var(--accent) 20%);
 }
 
 .auth-top-actions {
@@ -1230,24 +1262,31 @@ button {
 }
 
 .loading-screen {
+  /* Sin esto, los dos hijos (logo + etiqueta) son cada uno una fila implicita de grid
+     con align-content:normal (equivale a stretch en filas auto): el navegador repartia
+     el alto sobrante del 100svh a partes iguales entre ambas filas, asi que el logo
+     quedaba pegado arriba del todo y la etiqueta muy abajo, con un hueco enorme en
+     medio en vez de los 16px del gap. align-content:center agrupa las dos filas y
+     centra el bloque entero, que es lo que .auth-screen consigue gratis porque sus
+     otros hijos son position:fixed y no entran en el grid. */
+  align-content: center;
   gap: var(--space-lg);
   color: var(--strong-muted);
   font-weight: var(--weight-bold);
 }
 
-.loading-screen img {
-  width: 140px;
-  height: auto;
-  object-fit: contain;
+/* 140px de imagen (con su relleno interno de PNG) equivale a unos 28px de texto real:
+   mismo criterio de conversion que .auth-logo. El color va a --accent y no al
+   var(--strong-muted) que ya lleva .loading-screen para su etiqueta ("Cargando..."):
+   el logo es la marca, no parte del texto de estado. */
+.loading-screen .wordmark {
+  font-size: 28px;
+  color: var(--accent);
 }
 
 :root[data-theme="dark"] .auth-card {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
-}
-
-:root[data-theme="dark"] .auth-logo {
-  filter: saturate(1.08) contrast(1.08) brightness(1.04);
 }
 
 :root[data-theme="dark"] .auth-screen::after {
@@ -1264,7 +1303,7 @@ button {
   .auth-logo {
     top: 16px;
     left: 16px;
-    width: clamp(140px, 34vw, 200px);
+    font-size: clamp(26px, 7vw, 38px);
   }
 
   .auth-card {
