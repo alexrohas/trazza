@@ -364,11 +364,15 @@
   --shadow: var(--shadow-flat);
 }
 
-:root[data-theme="dark"] .auth-screen,
 :root[data-theme="dark"] .loading-screen {
   background:
     radial-gradient(circle at 30% 20%, var(--accent-soft), transparent 34%),
     var(--bg);
+}
+
+:root[data-theme="dark"] .auth-screen {
+  /* Negro puro, mismo criterio que el blanco puro de arriba. */
+  background: #000000;
 }
 
 :root[data-theme="dark"] .auth-field,
@@ -938,6 +942,9 @@ button {
   /* svh en vez de vh: en moviles la barra del navegador no provoca un salto de altura. */
   min-height: 100svh;
   padding: clamp(16px, 3vw, 44px);
+}
+
+.loading-screen {
   background:
     radial-gradient(circle at 18% 18%, rgba(139, 92, 246, 0.14), transparent 34%),
     radial-gradient(circle at 82% 18%, rgba(30, 217, 130, 0.08), transparent 30%),
@@ -950,49 +957,78 @@ button {
      pinta detras de todo .auth-screen, fondo incluido, quedando invisible. */
   position: relative;
   z-index: 0;
+  /* Blanco puro y no var(--bg) (#f6f6f7, casi blanco pero no del todo): a peticion
+     expresa, tras ver la cinta diagonal contra el fondo liso. var(--bg) se queda para
+     .loading-screen, que no cambio en este pase. */
+  background: #ffffff;
 }
 
-/* Cinta de color de fondo, con la misma idea que el login de Stripe (un degradado grande
-   que se mueve muy despacio) pero discreta: acorde al resto de la app, minimalista.
-   Cuatro radial-gradient en vez de un conic-gradient: un conic desenfocado deja una
-   costura visible justo donde el angulo cierra el circulo (0/360), que con blur fuerte
-   se ve como una linea quebrada. Los radiales no tienen esa discontinuidad angular, asi
-   que se puede girar el conjunto (transform, no el propio degradado) sin costura y con
-   mas intensidad. Usa los tokens de color ya existentes (--accent/--positive/--warning/
-   --negative) en vez de colores nuevos: hereda el tema oscuro gratis, sin par que
-   mantener. z-index -2, por detras de la rejilla (-1) y sin competir con ella. */
+/* Cinta diagonal de color, inspirada en el login de Stripe: una banda que cruza la
+   pantalla entera en diagonal (no un balanceo en el sitio, la primera version que se
+   probo aqui). Sustituye por completo al giro de 70s sobre manchas radiales que tenia
+   antes (auth-ribbon-spin) y tambien a un primer intento de banda mas grande y mas
+   desenfocada: a peticion expresa, mas nitida y solida, con bandas de color
+   reconocibles en vez de una mezcla continua.
+
+   La banda es un unico linear-gradient horizontal DENTRO de una caja mucho mas ancha
+   que alta, girada despues con transform — no un gradiente ya diagonal. Poner el angulo
+   en el propio gradient en vez de en el transform da un cono que se ensancha hacia un
+   lado (los bordes de la caja rotada cortan el degradado en un angulo distinto al de su
+   propio recorrido); con el gradiente horizontal y la caja/transform llevando el
+   angulo, el ancho de la banda se mantiene constante en todo su recorrido.
+
+   Cada color lleva DOS paradas seguidas (ej. accent 14%/26%) en vez de una sola: eso le
+   da a cada tramo un tramo "plano" antes de mezclarse con el siguiente, que es lo que
+   se lee como bandas solidas en vez de un degradado continuo tipo arcoiris. blur(30px)
+   y no los 55px de la version anterior: menos difuminado sin perder el borde suave
+   (los stops transparentes en 0%/100% siguen haciendo ese trabajo, el blur ya no tiene
+   que cargar con toda la suavidad el solo).
+
+   Reutiliza los tokens de color ya existentes (--accent/--negative/--warning/--positive)
+   en vez de clonar la paleta azul-naranja-rosa de Stripe — mismo criterio que la
+   version anterior. Sin mix-blend-mode: la transparencia ya esta en el propio
+   degradado, asi que el mismo resultado sirve en los dos temas sin overrides —
+   probado en vivo contra blanco y negro solidos. */
 .auth-screen::after {
   content: "";
   position: absolute;
-  inset: -30%;
+  top: -5%;
+  left: 5%;
+  width: 140%;
+  height: 40%;
   z-index: -2;
-  background:
-    radial-gradient(circle at 22% 24%, color-mix(in srgb, var(--accent) 88%, transparent), transparent 36%),
-    radial-gradient(circle at 76% 20%, color-mix(in srgb, var(--positive) 82%, transparent), transparent 34%),
-    radial-gradient(circle at 80% 78%, color-mix(in srgb, var(--warning) 82%, transparent), transparent 36%),
-    radial-gradient(circle at 24% 80%, color-mix(in srgb, var(--negative) 78%, transparent), transparent 34%);
-  /* Menos blur que el primer intento (90px -> 55px): un desenfoque grande no solo
-     redondea el borde, tambien reparte el mismo "pigmento" sobre mucha mas superficie,
-     asi que cada frame del giro cambia poco de un instante a otro y el movimiento se
-     nota menos aunque el color de fondo sea visible. Con manchas mas definidas, el
-     mismo giro de 70s desplaza un borde de color reconocible, no solo una tinta plana. */
-  filter: blur(55px);
-  opacity: 0.62;
-  /* En claro, el fondo de detras es casi blanco: mezclar por transparencia (normal)
-     diluye el color hacia blanco y la animacion apenas se nota, aunque este girando.
-     `multiply` usa el blanco como elemento neutro (no lo oscurece) y deja el color a
-     maxima saturacion, que es justo lo que hace visible el giro. En oscuro estorba
-     (oscurece de mas contra un fondo ya oscuro), asi que ese tema vuelve a mezcla
-     normal mas abajo, junto a los demas pares de tema del login. */
-  mix-blend-mode: multiply;
-  animation: auth-ribbon-spin 70s linear infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 14%,
+    var(--accent) 26%,
+    var(--negative) 40%,
+    var(--negative) 50%,
+    var(--warning) 62%,
+    var(--warning) 70%,
+    var(--positive) 84%,
+    transparent 100%
+  );
+  filter: blur(30px);
   transform-origin: center;
+  animation: auth-ribbon-cross 13s ease-in-out infinite;
   pointer-events: none;
 }
 
-@keyframes auth-ribbon-spin {
-  to {
-    transform: rotate(360deg);
+/* ±32vw (no %, que seria relativo al ancho enorme de la propia caja y apenas moveria
+   nada visible) es un recorrido real de lado a lado, no el balanceo casi imperceptible
+   de la version anterior — "que recorra la pantalla entera como cruzandola", a
+   peticion expresa. Se probo tambien con ±45vw: en los extremos la cinta salia casi
+   entera de pantalla y dejaba el fondo vacio un buen tramo del ciclo, que no encajaba
+   con pedir mas presencia/solidez a la vez. 13s y no 9: a ese recorrido mas largo, 9s
+   se notaba precipitado. */
+@keyframes auth-ribbon-cross {
+  0%,
+  100% {
+    transform: rotate(-22deg) translate(-32vw, -6vh);
+  }
+  50% {
+    transform: rotate(-22deg) translate(32vw, 6vh);
   }
 }
 
@@ -1287,12 +1323,6 @@ button {
 :root[data-theme="dark"] .auth-card {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
-}
-
-:root[data-theme="dark"] .auth-screen::after {
-  filter: blur(90px);
-  opacity: 0.46;
-  mix-blend-mode: normal;
 }
 
 @media (max-width: 620px) {
