@@ -515,26 +515,18 @@ button {
   border-bottom: 0;
 }
 
-/* El logo real trae mas aire lateral del que conviene aqui: en vez de encogerlo entero
-   (se veria diminuto), se pinta a tamano fijo y se recorta con un marco mas pequeno y
-   overflow:hidden, centrado. */
-.brand-logo-crop {
-  position: relative;
+/* El wordmark del sidebar es texto de verdad (componente Wordmark.tsx), no la imagen del
+   logo: sin recorte ni contenedor de tamano fijo que mantener, solo tipografia. El color
+   sale fijo en blanco porque el sidebar es siempre oscuro, tenga la app el tema que tenga
+   (ver --sidebar mas arriba, pareado mas por completitud que porque cambie de verdad). */
+.wordmark {
   display: block;
-  width: min(150px, 100%);
-  height: 40px;
-  overflow: hidden;
-}
-
-.brand-logo-crop img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: block;
-  width: 280px;
-  max-width: none;
-  height: auto;
-  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-family: "Baloo 2", "Nunito", system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .sidebar-toggle,
@@ -840,9 +832,9 @@ button {
   padding-inline: 0;
 }
 
-/* Oculta el marco recortado del logo entero — con el la img descendiente ya deja de
-   pintarse, asi que no hace falta una segunda regla para el img. */
-.app-shell[data-sidebar="collapsed"] .brand-logo-crop {
+/* En contraido no hay sitio para el wordmark completo (y no hay una version de una sola
+   letra pedida todavia): se oculta entero, igual que ocultaba antes el marco del logo. */
+.app-shell[data-sidebar="collapsed"] .wordmark {
   display: none;
 }
 

@@ -20,6 +20,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { DataMode, NavigationView, UserProfile } from "../types";
+import { Wordmark } from "./Wordmark";
 
 type AppShellProps = {
   activeView: NavigationView;
@@ -119,9 +120,7 @@ export function AppShell({
     <div className="app-shell" data-privacy={privacyHidden ? "hidden" : "visible"} data-sidebar={collapsed ? "collapsed" : "expanded"} data-view={activeView}>
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-logo-crop">
-            <img src="/trazza.png" alt="Trazza" />
-          </span>
+          <Wordmark />
           <button
             className="sidebar-toggle"
             onClick={() => setCollapsed((value) => !value)}
