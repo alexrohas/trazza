@@ -5,7 +5,6 @@ import {
   CircleDollarSign,
   Eye,
   EyeOff,
-  Landmark,
   LayoutDashboard,
   Languages,
   LogOut,
@@ -75,9 +74,6 @@ function getViewTitles(t: ReturnType<typeof useT>): Record<NavigationView, { eye
   };
 }
 
-const financeViews = new Set<NavigationView>(["overview", "firms", "accounts", "movements"]);
-const journalViews = new Set<NavigationView>(["journalDashboard", "journalEntries"]);
-
 export function AppShell({
   activeView,
   children,
@@ -101,7 +97,6 @@ export function AppShell({
   const journalItems = useMemo(() => getJournalItems(t), [t]);
   const viewTitles = useMemo(() => getViewTitles(t), [t]);
   const activeCopy = viewTitles[activeView] || viewTitles.overview;
-  const activePillar = journalViews.has(activeView) ? "journal" : "finance";
   const currentDate = useMemo(
     () =>
       new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", {
@@ -137,19 +132,14 @@ export function AppShell({
           </button>
         </div>
 
-        <div className="pillar-switch" aria-label={t("appShell.sidebar.areasLabel")}>
-          <button className={activePillar === "finance" ? "active" : ""} onClick={() => onViewChange("overview")} type="button">
-            <Landmark size={18} strokeWidth={2.2} />
-            <span>{t("appShell.nav.finance")}</span>
-          </button>
-          <button className={activePillar === "journal" ? "active" : ""} onClick={() => onViewChange("journalDashboard")} type="button">
-            <BookOpenText size={18} strokeWidth={2.2} />
-            <span>{t("appShell.nav.journal")}</span>
-          </button>
-        </div>
-
+        {/* El interruptor grande de arriba (Finanzas/Journal) y esta lista repetian el
+            mismo dato: al estar en Finanzas, el boton activo decia "Finanzas" y justo
+            debajo la seccion volvia a decir "FINANZAS". Se funden en uno: sin
+            interruptor, los dos grupos se ven siempre (antes cambiar de area escondia
+            el otro grupo entero), y el encabezado de cada grupo ya no es redundante
+            porque es la unica vez que aparece ese nombre. */}
         <nav className="nav-list" aria-label={t("appShell.sidebar.menuLabel")}>
-          <div className={`nav-group ${financeViews.has(activeView) ? "active" : ""}`}>
+          <div className="nav-group">
             <p>{t("appShell.nav.finance")}</p>
             {financeItems.map((item) => {
               const Icon = item.icon;
@@ -162,7 +152,12 @@ export function AppShell({
             })}
           </div>
 
-          <div className={`nav-group ${journalViews.has(activeView) ? "active" : ""}`}>
+          {/* Solo se ve en modo contraido (icono a icono, sin encabezado que separe los
+              dos grupos): una linea fina entre Finanzas y Journal para que la
+              agrupacion se note aunque no haya texto. */}
+          <hr className="nav-divider" aria-hidden="true" />
+
+          <div className="nav-group">
             <p>{t("appShell.nav.journal")}</p>
             {journalItems.map((item) => {
               const Icon = item.icon;
