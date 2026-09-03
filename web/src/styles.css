@@ -599,6 +599,11 @@ button {
   gap: var(--space-sm);
   width: 100%;
   min-height: 40px;
+  /* Vuelve a clavarse al fondo del riel, a peticion expresa (se habia quitado en
+     aec0b66 porque con pocos enlaces de menu dejaba un hueco enorme en medio; con los
+     dos grupos de navegacion actuales ese hueco ya no es tan grande, y el usuario
+     prefiere verla abajo). */
+  margin-top: auto;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 0 var(--space-sm);
@@ -1134,7 +1139,13 @@ button {
   border: 1px solid var(--line);
   border-radius: 22px;
   padding: clamp(28px, 4.5vh, 40px);
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  /* 96% -> 55%: a peticion expresa, para que la cinta de fondo se vea a traves de la
+     tarjeta (efecto cristal esmerilado) en vez de quedar tapada por una tarjeta casi
+     opaca. Los campos y el texto siguen legibles porque backdrop-filter (mas abajo) ya
+     desenfoca lo que hay detras antes de que la tarjeta lo deje pasar, y los inputs
+     (.auth-field) llevan su propio fondo solido — no dependen de la transparencia de la
+     tarjeta. Probado en vivo en los dos temas antes de fijar el numero. */
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.13);
   backdrop-filter: blur(20px);
 }
@@ -1315,7 +1326,7 @@ button {
 }
 
 :root[data-theme="dark"] .auth-card {
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
 }
 
