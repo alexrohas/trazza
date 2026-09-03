@@ -953,8 +953,9 @@ button {
 
 .auth-screen {
   /* position + z-index (no solo position) crea un contexto de apilamiento propio: sin el
-     z-index explicito, el ::before con z-index negativo se escapa al contenedor padre y
-     pinta detras de todo .auth-screen, fondo incluido, quedando invisible. */
+     z-index explicito, el ::after (la cinta) con z-index negativo se escapa al
+     contenedor padre y pinta detras de todo .auth-screen, fondo incluido, quedando
+     invisible. */
   position: relative;
   z-index: 0;
   /* Blanco puro y no var(--bg) (#f6f6f7, casi blanco pero no del todo): a peticion
@@ -963,91 +964,76 @@ button {
   background: #ffffff;
 }
 
-/* Cinta diagonal de color, inspirada en el login de Stripe: una banda que cruza la
-   pantalla entera en diagonal (no un balanceo en el sitio, la primera version que se
-   probo aqui). Sustituye por completo al giro de 70s sobre manchas radiales que tenia
-   antes (auth-ribbon-spin) y tambien a un primer intento de banda mas grande y mas
-   desenfocada: a peticion expresa, mas nitida y solida, con bandas de color
-   reconocibles en vez de una mezcla continua.
+/* Columna diagonal de color, calcada de una captura real del login de Stripe (el
+   usuario la mando: una cinta que entra por arriba y sale por abajo, pegada al lado
+   derecho, sin apenas desplazarse — flota en el sitio, no cruza la pantalla). La
+   version anterior (auth-ribbon-cross) era justo lo contrario: una caja ANCHA y CORTA
+   (140% x 40%) con degradado horizontal, rotada y desplazada ±32vw de lado a lado —
+   por construccion eso lee como un barrido diagonal grueso, no como una columna. Aqui
+   se invierte la caja (30% x 150%, alta y estrecha) y el degradado pasa a vertical
+   (180deg en vez de 90deg): el ancho de la caja es ahora el grosor real de la cinta, y
+   el alto es su recorrido de color, que es la forma de un poste/columna.
 
-   La banda es un unico linear-gradient horizontal DENTRO de una caja mucho mas ancha
-   que alta, girada despues con transform — no un gradiente ya diagonal. Poner el angulo
-   en el propio gradient en vez de en el transform da un cono que se ensancha hacia un
-   lado (los bordes de la caja rotada cortan el degradado en un angulo distinto al de su
-   propio recorrido); con el gradiente horizontal y la caja/transform llevando el
-   angulo, el ancho de la banda se mantiene constante en todo su recorrido.
+   Sigue siendo caja+transform y no un gradiente ya en diagonal, por el mismo motivo de
+   antes: el angulo en el propio gradient da un cono que se ensancha hacia un lado.
 
-   Cada color lleva DOS paradas seguidas (ej. accent 14%/26%) en vez de una sola: eso le
-   da a cada tramo un tramo "plano" antes de mezclarse con el siguiente, que es lo que
-   se lee como bandas solidas en vez de un degradado continuo tipo arcoiris. blur(30px)
-   y no los 55px de la version anterior: menos difuminado sin perder el borde suave
-   (los stops transparentes en 0%/100% siguen haciendo ese trabajo, el blur ya no tiene
-   que cargar con toda la suavidad el solo).
+   Las paradas dobles por color (ej. accent 10%/22%) se mantienen — es lo que da bandas
+   solidas en vez de un arcoiris continuo, y no era eso lo que fallaba.
+
+   El blur bajo dos pasadas: 30px -> 18px al enderezar la caja (una columna de 30vw de
+   grosor difumina una fraccion mayor de su propio ancho que la banda ancha de antes,
+   con el mismo numero) y 18px -> 10px a peticion expresa tras verla en vivo ("mas
+   nitida, parecido a lo de Stripe"), que ademas ya no compite con la rejilla de fondo
+   (retirada del todo, ver mas abajo) pintando lineas por encima suyo.
 
    Reutiliza los tokens de color ya existentes (--accent/--negative/--warning/--positive)
-   en vez de clonar la paleta azul-naranja-rosa de Stripe — mismo criterio que la
-   version anterior. Sin mix-blend-mode: la transparencia ya esta en el propio
-   degradado, asi que el mismo resultado sirve en los dos temas sin overrides —
-   probado en vivo contra blanco y negro solidos. */
+   en vez de clonar la paleta azul-naranja-rosa de Stripe, mismo criterio de siempre. Sin
+   mix-blend-mode ni override de tema oscuro: la transparencia ya esta en el degradado. */
 .auth-screen::after {
   content: "";
   position: absolute;
-  top: -5%;
-  left: 5%;
-  width: 140%;
-  height: 40%;
+  top: -25%;
+  left: 58%;
+  width: 30%;
+  height: 150%;
   z-index: -2;
   background: linear-gradient(
-    90deg,
+    180deg,
     transparent 0%,
-    var(--accent) 14%,
-    var(--accent) 26%,
-    var(--negative) 40%,
-    var(--negative) 50%,
+    var(--accent) 10%,
+    var(--accent) 22%,
+    var(--negative) 38%,
+    var(--negative) 48%,
     var(--warning) 62%,
-    var(--warning) 70%,
-    var(--positive) 84%,
+    var(--warning) 72%,
+    var(--positive) 88%,
     transparent 100%
   );
-  filter: blur(30px);
+  filter: blur(10px);
   transform-origin: center;
-  animation: auth-ribbon-cross 13s ease-in-out infinite;
+  animation: auth-ribbon-float 16s ease-in-out infinite;
   pointer-events: none;
 }
 
-/* ±32vw (no %, que seria relativo al ancho enorme de la propia caja y apenas moveria
-   nada visible) es un recorrido real de lado a lado, no el balanceo casi imperceptible
-   de la version anterior — "que recorra la pantalla entera como cruzandola", a
-   peticion expresa. Se probo tambien con ±45vw: en los extremos la cinta salia casi
-   entera de pantalla y dejaba el fondo vacio un buen tramo del ciclo, que no encajaba
-   con pedir mas presencia/solidez a la vez. 13s y no 9: a ese recorrido mas largo, 9s
-   se notaba precipitado. */
-@keyframes auth-ribbon-cross {
+/* "Como si estuviera flotando en el agua", a peticion expresa: desplazamientos
+   pequenos (1-2vw/vh) en cuatro fases en vez del barrido de ±32vw de la version
+   anterior, que se leia como un pendulo rigido cruzando de lado a lado. El angulo
+   tambien varia un par de grados de fase en fase — nada se mueve en linea recta ni
+   vuelve por el mismo camino, que es lo que distingue "flotar" de "balancearse". */
+@keyframes auth-ribbon-float {
   0%,
   100% {
-    transform: rotate(-22deg) translate(-32vw, -6vh);
+    transform: rotate(-14deg) translate(0, 0);
+  }
+  25% {
+    transform: rotate(-12deg) translate(1.4vw, -1.2vh);
   }
   50% {
-    transform: rotate(-22deg) translate(32vw, 6vh);
+    transform: rotate(-16deg) translate(-1vw, 1.4vh);
   }
-}
-
-/* Textura de rejilla, la misma receta que ya usa el login del legado: lineas finas que
-   se desvanecen arriba y abajo (mask-image) para no llegar duras al borde. z-index
-   negativo para quedar por encima del fondo de .auth-screen pero detras del contenido. */
-.auth-screen::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--line) 42%, transparent) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px);
-  background-size: 72px 72px;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
-  opacity: 0.42;
-  pointer-events: none;
+  75% {
+    transform: rotate(-13deg) translate(1vw, 0.6vh);
+  }
 }
 
 /* Es una vista de acceso: solo la tarjeta, centrada, sin columna de texto ni imagen de
