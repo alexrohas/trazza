@@ -541,12 +541,18 @@ button {
   line-height: 1;
 }
 
-/* El sidebar es siempre oscuro, tenga la app el tema que tenga (ver --sidebar mas
-   arriba), asi que aqui el blanco va fijo y no por var(--text) — pareado en tema oscuro
-   mas por completitud que porque vaya a cambiar de verdad. */
+/* Mismo tratamiento de color que .auth-logo (login), a peticion expresa. El sidebar es
+   siempre oscuro, tenga la app el tema que tenga (ver --sidebar mas arriba) — asi que
+   aqui va fija la proporcion calibrada para fondo oscuro (80% claro / 20% accent, la
+   misma que usa .auth-logo en tema oscuro) y no la de fondo claro (56/44), que se veria
+   sobrecargada de morado contra un fondo casi negro. Blanco literal como base y no
+   var(--text): el sidebar no usa tokens de tema para su texto (ver --sidebar arriba),
+   asi que var(--text) traeria el valor de tema claro por error si algun dia se
+   renderizara ahi. Pareado en tema oscuro mas por completitud que porque vaya a
+   cambiar de verdad. */
 .brand .wordmark,
 :root[data-theme="dark"] .brand .wordmark {
-  color: #ffffff;
+  color: color-mix(in srgb, white 80%, var(--accent) 20%);
 }
 
 .sidebar-toggle,
@@ -1064,11 +1070,13 @@ button {
   /* Mismo inset que .auth-top-actions (esquina opuesta): quedaba literalmente pegado a
      los dos bordes (top:0, left:0), sin aire — con texto de verdad eso se nota mucho
      mas que con la imagen anterior, que llevaba su propio margen en blanco dentro del
-     PNG y disimulaba el problema. */
-  top: 18px;
-  left: 18px;
+     PNG y disimulaba el problema. 28px y no los 18px originales, y el tamano un escalon
+     mas pequeno (clamp tope 60px -> 46px): a peticion expresa, tras verlo en vivo
+     quedaba demasiado grande y demasiado pegado a la esquina. */
+  top: 28px;
+  left: 28px;
   z-index: 4;
-  font-size: clamp(38px, 4vw, 60px);
+  font-size: clamp(30px, 3vw, 46px);
   /* Mezclado con blanco y no con var(--text): un mestizaje texto(negro)/accent (probado
      antes) daba un morado demasiado oscuro/indigo en claro. Blanco+accent da un morado
      mas vivo y mas cercano al tono de marca, calibrado para no perder contraste contra
@@ -1085,8 +1093,8 @@ button {
 
 .auth-top-actions {
   position: fixed;
-  top: 18px;
-  right: 18px;
+  top: 28px;
+  right: 28px;
   z-index: 4;
   display: flex;
   gap: var(--space-md);
@@ -1317,9 +1325,9 @@ button {
   }
 
   .auth-logo {
-    top: 16px;
-    left: 16px;
-    font-size: clamp(26px, 7vw, 38px);
+    top: 20px;
+    left: 20px;
+    font-size: clamp(22px, 6vw, 32px);
   }
 
   .auth-card {
