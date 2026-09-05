@@ -279,6 +279,7 @@ export function JournalEntriesView({
   const [errorTypeDraft, setErrorTypeDraft] = useState<JournalErrorTypeInput>(() => createEmptyErrorTypeInput());
   const [editingErrorTypeId, setEditingErrorTypeId] = useState<string | undefined>();
   const [errorManagerOpen, setErrorManagerOpen] = useState(false);
+  const [errorTypeMessage, setErrorTypeMessage] = useState<LocalMessage | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
   const [importing, setImporting] = useState(false);
@@ -1087,7 +1088,15 @@ export function JournalEntriesView({
           entre el resumen y la primera operacion: se entra aqui a mirar trades, no a
           configurar tipos de error, que se tocan de tarde en tarde. */}
       {errorManagerOpen && (
-      <Modal onClose={() => setErrorManagerOpen(false)} subtitle={t("journal.errorManager.subtitle")} title={t("journal.errorManager.title")} width="wide">
+      <Modal
+        onClose={() => {
+          setErrorManagerOpen(false);
+          setErrorTypeMessage(null);
+        }}
+        subtitle={t("journal.errorManager.subtitle")}
+        title={t("journal.errorManager.title")}
+        width="wide"
+      >
         <div className="journal-error-manager-grid">
           <form
             className="journal-error-type-form"
@@ -1163,6 +1172,7 @@ export function JournalEntriesView({
             )}
           </form>
           <div className="journal-error-type-list">
+            {errorTypeMessage && <p className={`mutation-message ${errorTypeMessage.type}`}>{errorTypeMessage.text}</p>}
             {effectiveErrorTypes.map((type) => {
               const usage = errorUsageById.get(type.id) || 0;
               return (
@@ -1215,20 +1225,52 @@ export function JournalEntriesView({
                     {/* Borrar solo si no lo usa ninguna entrada: las entradas guardan el id
                         del tipo, asi que borrar uno en uso dejaria esas entradas mostrando
                         un UUID donde deberia ir el nombre del error. Para esos esta ocultar,
-                        que es el boton de al lado. El title explica el porque en vez de
-                        dejar un boton apagado sin motivo. */}
+                        que es el boton de al lado. El boton se queda activo aunque este en
+                        uso (antes se desactivaba con disabled y el motivo solo se leia en
+                        el title nativo, que exige pasar el raton y esperar — facil de
+                        pasar por alto, como le paso a un usuario real). Al pulsar con uso
+                        > 0 se explica en un mensaje visible en vez de simplemente no hacer
+                        nada.
+
+                        Segundo caso, encontrado depurando el primero: los ocho tipos por
+                        defecto (defaultJournalErrorTypes, en journalErrors.ts) no son filas
+                        reales de Supabase hasta que se editan o se ocultan por primera vez
+                        — cloudErrorTypeIds (los ids que SI existen en journalErrorTypes,
+                        la prop que viene de la nube) lo delata. Borrar uno que no esta ahi
+                        manda un DELETE que no encuentra fila que tocar: Supabase no lo trata
+                        como error (borrar cero filas no lo es), asi que no habia ningun aviso
+                        — y en el siguiente reload() mergeJournalErrorTypes lo vuelve a
+                        sembrar desde el array por defecto, como si nunca se hubiera tocado.
+                        Verificado en vivo interceptando fetch: el DELETE se envia y responde
+                        bien, el tipo simplemente reaparece. No hay forma de que un borrado
+                        "se quede" para un tipo por defecto mientras el array por defecto se
+                        siga sembrando entero en cada merge — ocultar si funciona (crea la
+                        fila real la primera vez, via onSaveErrorType, ver
+                        handleToggleErrorType un poco mas arriba), asi que es el mismo
+                        mensaje que el caso de "en uso": explicar y redirigir a ocultar. */}
                     <button
                       className="card-delete"
-                      disabled={!canWrite || mutating || usage > 0}
+                      disabled={!canWrite || mutating}
                       onClick={() => {
+                        if (usage > 0) {
+                          setErrorTypeMessage({
+                            text: `${t("journal.errorManager.inUsePrefix")} ${usage} ${usage === 1 ? t("journal.errorManager.inUseEntry") : t("journal.errorManager.inUseEntries")}. ${t("journal.errorManager.archiveInstead")}`,
+                            type: "error",
+                          });
+                          return;
+                        }
+                        if (!cloudErrorTypeIds.has(type.id)) {
+                          setErrorTypeMessage({
+                            text: `${t("journal.errorManager.defaultTypePrefix")} ${t("journal.errorManager.archiveInstead")}`,
+                            type: "error",
+                          });
+                          return;
+                        }
+                        setErrorTypeMessage(null);
                         if (!window.confirm(t("journal.errorManager.deleteConfirm"))) return;
                         void onDeleteErrorType(type.id);
                       }}
-                      title={
-                        usage > 0
-                          ? `${t("journal.errorManager.inUsePrefix")} ${usage} ${usage === 1 ? t("journal.errorManager.inUseEntry") : t("journal.errorManager.inUseEntries")}. ${t("journal.errorManager.archiveInstead")}`
-                          : t("journal.errorManager.delete")
-                      }
+                      title={t("journal.errorManager.delete")}
                       type="button"
                     >
                       <Trash2 size={15} strokeWidth={2.2} />

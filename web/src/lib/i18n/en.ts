@@ -428,6 +428,7 @@ export const en: Record<TranslationKey, string> = {
   "journal.errorManager.severityHint": "The colour follows from the severity.",
   "journal.errorManager.delete": "Delete",
   "journal.errorManager.deleteConfirm": "Delete this error type?",
+  "journal.errorManager.defaultTypePrefix": "This is a default type, it can't be fully deleted.",
   "journal.errorManager.inUsePrefix": "Cannot delete: used in",
   "journal.errorManager.inUseEntries": "entries",
   "journal.errorManager.inUseEntry": "entry",
