@@ -5,13 +5,15 @@
       "name": "trazza-web-mac",
       "runtimeExecutable": "zsh",
       "runtimeArgs": ["-lc", "pnpm --dir web dev"],
-      "port": 5174
+      "port": 5174,
+      "autoPort": true
     },
     {
       "name": "trazza-web-windows",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "web", "dev"],
-      "port": 5174
+      "port": 5174,
+      "autoPort": true
     },
     {
       "name": "trazza-legacy-mac",
