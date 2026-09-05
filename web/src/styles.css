@@ -615,31 +615,20 @@ button {
 }
 
 .nav-group button {
-  position: relative;
   /* Sin esto heredaba el 16px de .body (registro de texto corrido): grande de mas para
      una etiqueta de menu. --text-sm es el mismo registro que ya usa .nav-group p y la
      tarjeta de usuario, asi que de paso queda consistente dentro del propio sidebar. */
   font-size: var(--text-sm);
 }
 
-/* Antes: borde propio + degradado de dos paradas + doble sombra (interior y de caida) +
-   una barra lateral que ademas brillaba con su propio box-shadow — cinco senales a la vez
-   para decir "este es". Un solo relleno plano (el mismo --accent-soft que usa el resto de
-   la app para marcar acento de bajo contraste) mas una barra lisa, sin brillo, dicen lo
-   mismo con una senal de color y una de posicion — y sin borde, que era la queja. */
+/* Historico: llego a tener borde propio + degradado de dos paradas + doble sombra +
+   una barra lateral con brillo propio — cinco senales a la vez para decir "este es". Se
+   podo a un relleno plano (--accent-soft, el mismo acento de bajo contraste que usa el
+   resto de la app) mas texto e icono en color de acento. La barra lateral se quito a
+   peticion del usuario: el relleno solo ya marca el activo sin ambiguedad. */
 .nav-group button.active {
   background: var(--accent-soft);
   color: #ffffff;
-}
-
-.nav-group button.active::before {
-  content: "";
-  position: absolute;
-  left: 6px;
-  width: 3px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--accent-strong);
 }
 
 .nav-group button svg {
