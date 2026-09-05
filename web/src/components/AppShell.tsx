@@ -119,17 +119,13 @@ export function AppShell({
 
   /* Los controles de segundo nivel de la barra superior. Antes eran cuatro iconos sueltos
      junto al boton principal y el de privacidad (seis en total, que no cabian bien);
-     ahora se pliegan en el menu de TopbarMenu. tema/idioma son toggles y dejan el menu
-     abierto; sincronizar y salir lo cierran al pulsarlos. */
+     ahora se pliegan en el menu de TopbarMenu. El tema se saca de aqui otra vez a
+     peticion expresa (boton propio junto al de privacidad, ver mas abajo) porque se usa
+     mucho mas a menudo que idioma/sincronizar/salir como para vivir a dos clics.
+     idioma es el unico toggle que queda aqui y deja el menu abierto; sincronizar y
+     salir lo cierran al pulsarlos. */
   const menuItems = useMemo<TopbarMenuItem[]>(() => {
     const items: TopbarMenuItem[] = [
-      {
-        id: "theme",
-        label: t("appShell.topbar.theme"),
-        icon: theme === "dark" ? Sun : Moon,
-        onSelect: onThemeToggle,
-        keepOpen: true,
-      },
       {
         id: "language",
         label: t("appShell.topbar.language"),
@@ -157,7 +153,7 @@ export function AppShell({
       });
     }
     return items;
-  }, [t, theme, language, setLanguage, onThemeToggle, onRefresh, onSignOut, isSyncing]);
+  }, [t, language, setLanguage, onRefresh, onSignOut, isSyncing]);
 
   return (
     <div className="app-shell" data-privacy={privacyHidden ? "hidden" : "visible"} data-sidebar={collapsed ? "collapsed" : "expanded"} data-view={activeView}>
@@ -247,6 +243,11 @@ export function AppShell({
             )}
             <button className="theme-toggle" onClick={onPrivacyToggle} title={privacyHidden ? t("appShell.topbar.showData") : t("appShell.topbar.hideData")} type="button">
               {privacyHidden ? <EyeOff size={17} strokeWidth={2.2} /> : <Eye size={17} strokeWidth={2.2} />}
+            </button>
+            {/* Fuera del menu de desbordamiento, a peticion expresa: se usa mas a menudo
+                que idioma/sincronizar/salir como para vivir a dos clics de distancia. */}
+            <button className="theme-toggle" onClick={onThemeToggle} title={t("appShell.topbar.theme")} type="button">
+              {theme === "dark" ? <Sun size={17} strokeWidth={2.2} /> : <Moon size={17} strokeWidth={2.2} />}
             </button>
             <TopbarMenu items={menuItems} label={t("appShell.topbar.more")} />
           </div>
