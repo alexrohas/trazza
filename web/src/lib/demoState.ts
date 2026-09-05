@@ -7,4 +7,5 @@ export const demoData: AppData = {
   movements,
   journalEntries,
   journalErrorTypes,
+  deletedDefaultErrorTypeIds: [],
 };

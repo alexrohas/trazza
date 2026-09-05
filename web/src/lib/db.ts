@@ -71,13 +71,15 @@ const journalEmotions = new Set<JournalEmotion>([
 ]);
 
 export async function loadCloudData(client: SupabaseClient, userId: string): Promise<AppData> {
-  const [firmsResult, accountsResult, movementsResult, journalEntriesResult, journalErrorTypesResult] = await Promise.all([
-    client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
-    client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-    client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
-    fetchOptionalTable(client, userId, "journal_entries", "date", false),
-    fetchOptionalTable(client, userId, "journal_error_types", "position", true),
-  ]);
+  const [firmsResult, accountsResult, movementsResult, journalEntriesResult, journalErrorTypesResult, deletedDefaultsResult] =
+    await Promise.all([
+      client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
+      client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
+      fetchOptionalTable(client, userId, "journal_entries", "date", false),
+      fetchOptionalTable(client, userId, "journal_error_types", "position", true),
+      fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true),
+    ]);
 
   return {
     firms: unwrapRows(firmsResult as QueryResult).map(fromDbFirm),
@@ -85,6 +87,7 @@ export async function loadCloudData(client: SupabaseClient, userId: string): Pro
     movements: unwrapRows(movementsResult as QueryResult).map(fromDbMovement),
     journalEntries: unwrapRows(journalEntriesResult).map(fromDbJournalEntry),
     journalErrorTypes: unwrapRows(journalErrorTypesResult).map(fromDbJournalErrorType),
+    deletedDefaultErrorTypeIds: unwrapRows(deletedDefaultsResult).map((row) => String(row.type_id)),
   };
 }
 
@@ -284,6 +287,25 @@ export async function deleteCloudJournalErrorType(
 ): Promise<void> {
   const result = await client.from("journal_error_types").delete().eq("user_id", userId).eq("id", typeId);
   if (result.error) throw new Error("No se pudo borrar el tipo de error.");
+}
+
+/* Los 8 tipos "por defecto" (defaultJournalErrorTypes, en journalErrors.ts) no son filas
+   reales hasta que se tocan por primera vez, y mergeJournalErrorTypes los siembra de
+   nuevo en cada carga si no encuentra fila con ese id — asi que borrar uno de verdad
+   (deleteCloudJournalErrorType, arriba) no basta: en el siguiente reload() reaparece
+   igual que si nunca se hubiera tocado. Este insert es el que hace que se quede borrado:
+   mergeJournalErrorTypes se filtra despues contra esta lista en JournalEntriesView. Con
+   upsert (ignoreDuplicates) para que sea idempotente si el usuario pulsa borrar dos
+   veces seguidas. Si la tabla todavia no existe (migracion sin ejecutar) no revienta:
+   el borrado real de journal_error_types ya habra funcionado, solo que sin este
+   registro reaparecera en el siguiente reload, igual que antes de esta migracion. */
+export async function markDefaultErrorTypeDeleted(client: SupabaseClient, userId: string, typeId: string): Promise<void> {
+  const result = await client
+    .from("journal_deleted_default_error_types")
+    .upsert({ type_id: typeId, user_id: userId }, { ignoreDuplicates: true, onConflict: "user_id,type_id" });
+  if (result.error && !isMissingTableError(result.error)) {
+    throw new Error("No se pudo registrar el tipo de error por defecto como borrado.");
+  }
 }
 
 export async function setCloudJournalErrorTypeActive(

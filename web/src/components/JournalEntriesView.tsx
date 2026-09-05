@@ -53,6 +53,7 @@ import {
   signedTone,
 } from "../lib/metrics";
 import {
+  defaultJournalErrorTypes,
   getJournalErrorDefinition as getJournalErrorDefinitionFor,
   mergeJournalErrorTypes,
   normalizeHexColor,
@@ -83,6 +84,7 @@ type JournalEntriesViewProps = {
   accounts: TradingAccount[];
   currency: Currency;
   dataMode: DataMode;
+  deletedDefaultErrorTypeIds: string[];
   entries: JournalEntry[];
   firms: Firm[];
   initialMode?: "cockpit" | "entries";
@@ -98,7 +100,7 @@ type JournalEntriesViewProps = {
   onNewEntryRequestHandled?: () => void;
   onSaveEntry: (input: JournalEntryInput, entryId?: string) => Promise<boolean>;
   onSaveErrorType: (input: JournalErrorTypeInput, typeId?: string) => Promise<boolean>;
-  onDeleteErrorType: (typeId: string) => Promise<boolean>;
+  onDeleteErrorType: (typeId: string, isDefaultType?: boolean) => Promise<boolean>;
   onSetErrorTypeActive: (typeId: string, active: boolean) => Promise<boolean>;
 };
 
@@ -253,6 +255,7 @@ export function JournalEntriesView({
   accounts,
   currency,
   dataMode,
+  deletedDefaultErrorTypeIds,
   entries,
   firms,
   initialMode = "cockpit",
@@ -280,6 +283,7 @@ export function JournalEntriesView({
   const [editingErrorTypeId, setEditingErrorTypeId] = useState<string | undefined>();
   const [errorManagerOpen, setErrorManagerOpen] = useState(false);
   const [errorTypeMessage, setErrorTypeMessage] = useState<LocalMessage | null>(null);
+  const errorTypeMessageRef = useRef<HTMLParagraphElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
   const [importing, setImporting] = useState(false);
@@ -344,7 +348,20 @@ export function JournalEntriesView({
     ],
     [accounts, selectedAccountId, t],
   );
-  const effectiveErrorTypes = useMemo(() => mergeJournalErrorTypes(journalErrorTypes), [journalErrorTypes]);
+  /* Los ids de los 8 tipos "por defecto" (constantes, no cambian) — sirve tanto para
+     filtrar effectiveErrorTypes como para decidir, al borrar, si hace falta el registro
+     extra de markDefaultErrorTypeDeleted (ver el boton de borrar mas abajo). */
+  const defaultErrorTypeIds = useMemo(() => new Set(defaultJournalErrorTypes.map((type) => type.id)), []);
+  const deletedDefaultErrorTypeIdSet = useMemo(() => new Set(deletedDefaultErrorTypeIds), [deletedDefaultErrorTypeIds]);
+  /* mergeJournalErrorTypes siempre siembra los 8 por defecto, existan o no como fila
+     real — es lo que permite que un usuario nuevo los vea sin haber creado nada. Pero
+     eso significa que uno borrado de verdad (via markDefaultErrorTypeDeleted, porque
+     nunca tuvo fila propia hasta ese borrado) reapareceria en cada reload si no se
+     filtra aqui explicitamente contra el registro de borrados. */
+  const effectiveErrorTypes = useMemo(
+    () => mergeJournalErrorTypes(journalErrorTypes).filter((type) => !deletedDefaultErrorTypeIdSet.has(type.id)),
+    [journalErrorTypes, deletedDefaultErrorTypeIdSet],
+  );
   const cloudErrorTypeIds = useMemo(() => new Set(journalErrorTypes.map((type) => type.id)), [journalErrorTypes]);
   const activeErrorTypes = useMemo(
     () => effectiveErrorTypes.filter((type) => type.active || draft.errors.includes(type.id)),
@@ -542,6 +559,16 @@ export function JournalEntriesView({
     setEntryModeOpen(true);
     onNewEntryRequestHandled?.();
   }, [newEntryToken, onNewEntryRequestHandled]);
+
+  /* El aviso de "no se puede borrar" (en uso / tipo por defecto) sale justo despues del
+     formulario, arriba del todo de la lista de tipos de error — pero el boton que lo
+     dispara puede estar mas abajo, fuera de la vista, si la lista tiene muchos tipos y
+     el modal esta scrolleado. Sin este scrollIntoView el aviso SI aparecia, solo que
+     fuera de pantalla: un usuario real lo reporto como "le doy a borrar y no hace nada"
+     porque nunca llego a verlo. */
+  useEffect(() => {
+    if (errorTypeMessage) errorTypeMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [errorTypeMessage]);
 
   const closeImportFlow = () => {
     setImportOpen(false);
@@ -1172,7 +1199,11 @@ export function JournalEntriesView({
             )}
           </form>
           <div className="journal-error-type-list">
-            {errorTypeMessage && <p className={`mutation-message ${errorTypeMessage.type}`}>{errorTypeMessage.text}</p>}
+            {errorTypeMessage && (
+              <p className={`mutation-message ${errorTypeMessage.type}`} ref={errorTypeMessageRef}>
+                {errorTypeMessage.text}
+              </p>
+            )}
             {effectiveErrorTypes.map((type) => {
               const usage = errorUsageById.get(type.id) || 0;
               return (
@@ -1232,22 +1263,20 @@ export function JournalEntriesView({
                         > 0 se explica en un mensaje visible en vez de simplemente no hacer
                         nada.
 
-                        Segundo caso, encontrado depurando el primero: los ocho tipos por
-                        defecto (defaultJournalErrorTypes, en journalErrors.ts) no son filas
-                        reales de Supabase hasta que se editan o se ocultan por primera vez
-                        — cloudErrorTypeIds (los ids que SI existen en journalErrorTypes,
-                        la prop que viene de la nube) lo delata. Borrar uno que no esta ahi
-                        manda un DELETE que no encuentra fila que tocar: Supabase no lo trata
-                        como error (borrar cero filas no lo es), asi que no habia ningun aviso
-                        — y en el siguiente reload() mergeJournalErrorTypes lo vuelve a
-                        sembrar desde el array por defecto, como si nunca se hubiera tocado.
-                        Verificado en vivo interceptando fetch: el DELETE se envia y responde
-                        bien, el tipo simplemente reaparece. No hay forma de que un borrado
-                        "se quede" para un tipo por defecto mientras el array por defecto se
-                        siga sembrando entero en cada merge — ocultar si funciona (crea la
-                        fila real la primera vez, via onSaveErrorType, ver
-                        handleToggleErrorType un poco mas arriba), asi que es el mismo
-                        mensaje que el caso de "en uso": explicar y redirigir a ocultar. */}
+                        Los 8 tipos "por defecto" (defaultJournalErrorTypes) SI se pueden
+                        borrar, a peticion expresa ("quiero que me deje borrar cualquier
+                        error, sea por defecto o no; los unicos que no deben poder
+                        borrarse son los que estan en uso") — no estan bloqueados como el
+                        primer intento de este arreglo. La dificultad tecnica que resolvio
+                        ese primer intento sigue existiendo: no son filas reales de
+                        Supabase hasta que se tocan por primera vez, asi que un DELETE
+                        contra un id que nunca tuvo fila no encuentra nada que borrar
+                        (Supabase no lo trata como error) y mergeJournalErrorTypes los
+                        vuelve a sembrar en cada reload. Por eso, si el tipo es uno de los
+                        8 (defaultErrorTypeIds), ademas del DELETE se llama a
+                        onDeleteErrorType con isDefaultType=true, que registra el id en
+                        journal_deleted_default_error_types — effectiveErrorTypes, mas
+                        arriba, filtra el resultado del merge contra ese registro. */}
                     <button
                       className="card-delete"
                       disabled={!canWrite || mutating}
@@ -1259,16 +1288,9 @@ export function JournalEntriesView({
                           });
                           return;
                         }
-                        if (!cloudErrorTypeIds.has(type.id)) {
-                          setErrorTypeMessage({
-                            text: `${t("journal.errorManager.defaultTypePrefix")} ${t("journal.errorManager.archiveInstead")}`,
-                            type: "error",
-                          });
-                          return;
-                        }
                         setErrorTypeMessage(null);
                         if (!window.confirm(t("journal.errorManager.deleteConfirm"))) return;
-                        void onDeleteErrorType(type.id);
+                        void onDeleteErrorType(type.id, defaultErrorTypeIds.has(type.id));
                       }}
                       title={t("journal.errorManager.delete")}
                       type="button"

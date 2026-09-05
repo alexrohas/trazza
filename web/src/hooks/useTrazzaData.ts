@@ -10,6 +10,7 @@ import {
   deleteCloudJournalEntry,
   deleteCloudMovement,
   loadCloudData,
+  markDefaultErrorTypeDeleted,
   replaceCloudData,
   deleteCloudJournalErrorType,
   setCloudJournalErrorTypeActive,
@@ -327,7 +328,11 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
   );
 
   const deleteJournalErrorType = useCallback(
-    async (typeId: string) => {
+    /* isDefaultType: los 8 tipos por defecto (defaultJournalErrorTypes) necesitan,
+       ademas del DELETE normal, quedar registrados en journal_deleted_default_error_types
+       — si no, mergeJournalErrorTypes los vuelve a sembrar en el siguiente reload() como
+       si nunca se hubieran tocado. Para un tipo normal esto no hace nada de mas. */
+    async (typeId: string, isDefaultType?: boolean) => {
       if (!enabled || !userId || !supabaseClient) {
         setMutationError("Conecta Supabase para borrar tipos de error reales.");
         return false;
@@ -338,6 +343,9 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
 
       try {
         await deleteCloudJournalErrorType(supabaseClient, userId, typeId);
+        if (isDefaultType) {
+          await markDefaultErrorTypeDeleted(supabaseClient, userId, typeId);
+        }
         await reload();
         return true;
       } catch (caught) {

@@ -175,6 +175,9 @@ export function parseTrazzaImport(raw: string): AppData {
 
   return {
     accounts,
+    /* El legado no tiene concepto de tipos por defecto borrados (es cosa nueva de
+       React) — una importacion nunca trae nada que poner aqui. */
+    deletedDefaultErrorTypeIds: [],
     firms,
     journalEntries,
     journalErrorTypes,

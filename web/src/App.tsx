@@ -38,7 +38,7 @@ export default function App() {
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
   const subscription = useSubscription(auth.user);
   const [plansOpen, setPlansOpen] = useState(false);
-  const { accounts, firms, journalEntries, journalErrorTypes, movements } = dataState.data;
+  const { accounts, deletedDefaultErrorTypeIds, firms, journalEntries, journalErrorTypes, movements } = dataState.data;
   const currency = auth.profile?.currency ?? "EUR";
 
   const { canMutateData } = subscription;
@@ -269,6 +269,7 @@ export default function App() {
           accounts={accounts}
           currency={currency}
           dataMode={dataState.mode}
+          deletedDefaultErrorTypeIds={deletedDefaultErrorTypeIds}
           entries={visibleJournalEntries}
           firms={firms}
           initialMode={activeView === "journalEntries" ? "entries" : "cockpit"}

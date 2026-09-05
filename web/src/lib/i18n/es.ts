@@ -427,7 +427,6 @@ export const es = {
   "journal.errorManager.severityHint": "El color sale de la gravedad.",
   "journal.errorManager.delete": "Borrar",
   "journal.errorManager.deleteConfirm": "Borrar este tipo de error?",
-  "journal.errorManager.defaultTypePrefix": "Es un tipo por defecto, no se puede borrar del todo.",
   "journal.errorManager.inUsePrefix": "No se puede borrar: en uso en",
   "journal.errorManager.inUseEntries": "trades",
   "journal.errorManager.inUseEntry": "trade",

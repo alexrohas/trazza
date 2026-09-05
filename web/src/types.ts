@@ -173,6 +173,10 @@ export type AppData = {
   movements: Movement[];
   journalEntries: JournalEntry[];
   journalErrorTypes: JournalErrorType[];
+  /* Ids de los 8 tipos de error "por defecto" (defaultJournalErrorTypes en
+     journalErrors.ts) que el usuario ha borrado de verdad. Sin esto, mergeJournalErrorTypes
+     los volveria a sembrar en cada carga aunque no exista fila real para ellos. */
+  deletedDefaultErrorTypeIds: string[];
 };
 
 export type DataMode = "cloud" | "demo";
