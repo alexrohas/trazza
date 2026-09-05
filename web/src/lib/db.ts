@@ -231,7 +231,7 @@ export async function createCloudJournalEntry(
     .select("*")
     .single();
 
-  return fromSingleRow(result, fromDbJournalEntry, "No se pudo crear la entrada de journal.");
+  return fromSingleRow(result, fromDbJournalEntry, "No se pudo crear el trade del journal.");
 }
 
 export async function updateCloudJournalEntry(
@@ -248,13 +248,13 @@ export async function updateCloudJournalEntry(
     .select("*")
     .single();
 
-  return fromSingleRow(result, fromDbJournalEntry, "No se pudo actualizar la entrada de journal.");
+  return fromSingleRow(result, fromDbJournalEntry, "No se pudo actualizar el trade del journal.");
 }
 
 export async function deleteCloudJournalEntry(client: SupabaseClient, userId: string, entryId: string): Promise<void> {
   const result = await client.from("journal_entries").delete().eq("id", entryId).eq("user_id", userId);
 
-  if (result.error) throw new Error(result.error.message || "No se pudo eliminar la entrada de journal.");
+  if (result.error) throw new Error(result.error.message || "No se pudo eliminar el trade del journal.");
 }
 
 export async function upsertCloudJournalErrorType(
@@ -319,7 +319,7 @@ export async function replaceCloudData(client: SupabaseClient, userId: string, i
     await insertRows(client, "firms", mapped.firms, "No se pudieron importar las empresas.");
     await insertRows(client, "accounts", mapped.accounts, "No se pudieron importar las cuentas.");
     await insertRows(client, "transactions", mapped.movements, "No se pudieron importar los movimientos.");
-    await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar las entradas de journal.");
+    await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar los trades del journal.");
     await insertRows(client, "journal_error_types", mapped.journalErrorTypes, "No se pudieron importar los tipos de error.");
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -642,7 +642,7 @@ async function insertRows(client: SupabaseClient, table: string, rows: DbRow[], 
   const result = await client.from(table).insert(rows);
   if (result.error) {
     if (table === "journal_entries" && isMissingTableError(result.error)) {
-      throw new Error("Crea la tabla journal_entries en Supabase antes de importar entradas de journal.");
+      throw new Error("Crea la tabla journal_entries en Supabase antes de importar trades del journal.");
     }
     if (table === "journal_error_types" && isMissingTableError(result.error)) {
       throw new Error("Crea la tabla journal_error_types en Supabase antes de importar tipos de error.");

@@ -250,7 +250,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
   const saveJournalEntry = useCallback(
     async (input: JournalEntryInput, entryId?: string) => {
       if (!enabled || !userId || !supabaseClient) {
-        setMutationError("Conecta Supabase para guardar entradas reales.");
+        setMutationError("Conecta Supabase para guardar trades reales.");
         return false;
       }
 
@@ -266,7 +266,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
         await reload();
         return true;
       } catch (caught) {
-        const message = caught instanceof Error ? caught.message : "No se pudo guardar la entrada.";
+        const message = caught instanceof Error ? caught.message : "No se pudo guardar el trade.";
         setMutationError(message);
         return false;
       } finally {
@@ -279,7 +279,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
   const deleteJournalEntry = useCallback(
     async (entryId: string) => {
       if (!enabled || !userId || !supabaseClient) {
-        setMutationError("Conecta Supabase para eliminar entradas reales.");
+        setMutationError("Conecta Supabase para eliminar trades reales.");
         return false;
       }
 
@@ -291,7 +291,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
         await reload();
         return true;
       } catch (caught) {
-        const message = caught instanceof Error ? caught.message : "No se pudo eliminar la entrada.";
+        const message = caught instanceof Error ? caught.message : "No se pudo eliminar el trade.";
         setMutationError(message);
         return false;
       } finally {
