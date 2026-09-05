@@ -567,16 +567,6 @@ button {
   color: var(--strong-muted);
 }
 
-.theme-toggle.language-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  width: auto;
-  padding: 0 var(--space-md);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-}
-
 .sidebar-toggle {
   width: 32px;
   height: 32px;
@@ -821,29 +811,13 @@ button {
   min-width: 0;
 }
 
-/* Cada control de la barra ya tiene su propio ancho: 38px los cuadrados de icono, el
-   texto los demas. Flex los encoge por debajo de eso salvo que se le prohiba, y era
-   justo lo que pasaba en movil: a 375px los cuadrados de 38 se quedaban en 20 con el
-   icono asomando por fuera, y "Nuevo movimiento" se cortaba dentro de su pastilla.
-   Aqui se encoge la columna del titulo, que si puede reflowear, no los botones. */
+/* Los controles de la barra (el principal con su etiqueta, y los dos cuadrados de 38 de
+   privacidad y menu) tienen todos altura 38. Flex los encoge por debajo de su ancho
+   salvo que se le prohiba, y era justo lo que pasaba en movil: a 375px los cuadrados se
+   quedaban en 20 con el icono asomando por fuera. Aqui se encoge la columna del titulo,
+   que si puede reflowear, no los botones. */
 .topbar-actions > * {
   flex-shrink: 0;
-}
-
-.topbar-primary {
-  min-height: 40px;
-  padding-inline: var(--space-2xl);
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
-}
-
-.topbar-primary,
-.topbar-exit {
-  white-space: nowrap;
-}
-
-.topbar-exit {
-  min-height: 38px;
-  padding-inline: var(--space-lg);
 }
 
 .app-shell[data-sidebar="collapsed"] .brand {
@@ -1274,6 +1248,19 @@ button {
 .auth-switch:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* En la barra superior el boton principal iguala la altura de los demas controles
+   (privacidad, menu): 38px en vez de los 44 de .primary-action. Conserva la etiqueta y
+   el padding lateral que hereda de .primary-action — no es un cuadrado de icono.
+   Tiene que ir DESPUES de las reglas de .primary-action: mismo peso de selector (0,1,0),
+   asi que decide el orden en el archivo — puesto antes, el min-height 44 ganaba y el
+   boton quedaba mas alto que el del ojo. Se conserva la sombra de acento. */
+.topbar-primary {
+  min-height: 0;
+  height: 38px;
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+  white-space: nowrap;
 }
 
 .auth-switch {
@@ -2075,6 +2062,86 @@ button {
 .custom-select-option svg {
   flex-shrink: 0;
   color: var(--accent);
+}
+
+/* Menu de desbordamiento de la barra superior (TopbarMenu): recoge tema, idioma,
+   sincronizar y salir, que antes eran iconos sueltos en la fila. El disparador reutiliza
+   .theme-toggle (el cuadrado de 38 de los demas interruptores). El panel reutiliza el
+   lenguaje del de Select —portado a body, mismo borde/sombra/radio— pero con filas de
+   accion (icono de acento + etiqueta + apunte), no opciones de valor, y anclado por la
+   derecha porque nace en la esquina y crece hacia dentro. */
+.topbar-menu {
+  display: inline-flex;
+}
+
+.topbar-menu-panel {
+  z-index: 130;
+  display: grid;
+  gap: 2px;
+  min-width: 208px;
+  transform-origin: top right;
+  animation: drop-in var(--dur-fast) var(--ease-overshoot) backwards;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2xs);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.topbar-menu-panel.is-upward {
+  transform-origin: bottom right;
+  animation-name: lift-in;
+}
+
+.topbar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  cursor: pointer;
+}
+
+.topbar-menu-item svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.topbar-menu-item span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-menu-item small {
+  flex-shrink: 0;
+  color: var(--strong-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.topbar-menu-item:hover:not(:disabled),
+.topbar-menu-item.is-highlighted:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+.topbar-menu-item:disabled {
+  color: var(--strong-muted);
+  cursor: default;
+}
+
+.topbar-menu-item:disabled svg {
+  color: currentColor;
 }
 
 /* Sustituye al calendario de <input type="date">, que lo pinta el navegador fuera del
@@ -7310,15 +7377,17 @@ tbody tr:last-child td {
   }
 }
 
-/* La barra superior se queda sin sitio bastante antes de llegar a movil, y no por el
-   boton principal: el titulo con su fecha pide ~180px y los seis controles ~478px, o
-   sea ~682px de contenido. Descontando el padding de la barra (24 por lado) y la barra
-   lateral (240), el area util es ventana-288, asi que el cruce cae en ~970px.
-   El cruce estaba en 960 cuando los controles median 473px; subieron a 478 al pasar el
-   padding de .topbar-primary de 18 a 24 con la poda de la escala de espaciado, y a 976px
-   de ventana la fila se partia en dos lineas. Se apila con margen sobre el cruce nuevo
-   para que la fila de acciones tenga el ancho entero para ella. */
-@media (max-width: 1000px) {
+/* La fila de acciones es ahora el boton principal (~150px con "Nuevo trade") mas dos
+   cuadrados de 38 (privacidad y el menu de TopbarMenu): ~250px con los huecos, contra
+   los ~478px de los seis controles sueltos de antes. Con eso cabe en una linea muy por
+   debajo de donde la barra lateral pasa a ir arriba (820), asi que el apilado ya no es
+   por falta de sitio: se mantiene en ese mismo punto para que en el layout apilado las
+   acciones tengan su propia fila y no compartan linea con el titulo. */
+@media (max-width: 820px) {
+  body {
+    overflow-x: hidden;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: stretch;
@@ -7327,12 +7396,6 @@ tbody tr:last-child td {
 
   .topbar-actions {
     justify-content: flex-start;
-  }
-}
-
-@media (max-width: 820px) {
-  body {
-    overflow-x: hidden;
   }
 
   .journal-dashboard-widget {
@@ -7437,33 +7500,6 @@ tbody tr:last-child td {
 @media (max-width: 560px) {
   .workspace {
     padding: var(--space-xl);
-  }
-
-  /* Ni con la fila entera para el caben las dos etiquetas: con ellas la fila mide 473px
-     y a 375px solo hay ~343px. Se quedan los iconos y el texto pasa a aria-label (ver
-     AppShell.tsx, donde ambos botones lo llevan puesto para este caso). */
-  .topbar-primary span,
-  .topbar-exit span {
-    display: none;
-  }
-
-  /* Solo con iconos la fila mide 293px, y a 320px —el movil mas estrecho que se ve—
-     hay 288: se pasaba por 5px y se partia en dos lineas. Bajar el hueco 2px la
-     devuelve a una sola sin que se note en pantallas mas anchas. */
-  .topbar-actions {
-    gap: var(--space-xs);
-  }
-
-  /* Cuadrados: el principal hereda 44px de alto de .primary-action y los interruptores
-     miden 38, asi que cada uno iguala su ancho al alto que ya tiene. */
-  .topbar-primary {
-    width: 44px;
-    padding-inline: 0;
-  }
-
-  .topbar-exit {
-    width: 38px;
-    padding-inline: 0;
   }
 
   .state-notice {

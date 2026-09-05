@@ -67,6 +67,7 @@ export const es = {
   "appShell.topbar.language": "Cambiar idioma",
   "appShell.topbar.sync": "Sincronizar",
   "appShell.topbar.signOut": "Salir",
+  "appShell.topbar.more": "Más opciones",
 
   "auth.noEmail": "Sin email",
   "auth.kicker": "Hecho por traders, para traders",

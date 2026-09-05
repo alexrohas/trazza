@@ -20,6 +20,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { DataMode, NavigationView, UserProfile } from "../types";
+import { TopbarMenu, type TopbarMenuItem } from "./TopbarMenu";
 import { Wordmark } from "./Wordmark";
 
 type AppShellProps = {
@@ -116,6 +117,48 @@ export function AppShell({
         ? t("appShell.status.cloud")
         : t("appShell.status.demo");
 
+  /* Los controles de segundo nivel de la barra superior. Antes eran cuatro iconos sueltos
+     junto al boton principal y el de privacidad (seis en total, que no cabian bien);
+     ahora se pliegan en el menu de TopbarMenu. tema/idioma son toggles y dejan el menu
+     abierto; sincronizar y salir lo cierran al pulsarlos. */
+  const menuItems = useMemo<TopbarMenuItem[]>(() => {
+    const items: TopbarMenuItem[] = [
+      {
+        id: "theme",
+        label: t("appShell.topbar.theme"),
+        icon: theme === "dark" ? Sun : Moon,
+        onSelect: onThemeToggle,
+        keepOpen: true,
+      },
+      {
+        id: "language",
+        label: t("appShell.topbar.language"),
+        icon: Languages,
+        trailing: language.toUpperCase(),
+        onSelect: () => setLanguage(language === "es" ? "en" : "es"),
+        keepOpen: true,
+      },
+    ];
+    if (onRefresh) {
+      items.push({
+        id: "sync",
+        label: t("appShell.topbar.sync"),
+        icon: RefreshCw,
+        onSelect: onRefresh,
+        disabled: isSyncing,
+      });
+    }
+    if (onSignOut) {
+      items.push({
+        id: "signOut",
+        label: t("appShell.topbar.signOut"),
+        icon: LogOut,
+        onSelect: onSignOut,
+      });
+    }
+    return items;
+  }, [t, theme, language, setLanguage, onThemeToggle, onRefresh, onSignOut, isSyncing]);
+
   return (
     <div className="app-shell" data-privacy={privacyHidden ? "hidden" : "visible"} data-sidebar={collapsed ? "collapsed" : "expanded"} data-view={activeView}>
       <aside className="sidebar">
@@ -194,8 +237,8 @@ export function AppShell({
           </div>
 
           <div className="topbar-actions">
-            {/* En movil el <span> de este boton y el de Salir se ocultan y queda solo el
-                icono, asi que el nombre tiene que vivir tambien en un aria-label. */}
+            {/* Mantiene la etiqueta visible; solo iguala la altura (38) a la de los
+                controles de al lado, sin ser mas alto como antes. */}
             {activeView !== "settings" && (
               <button aria-label={activeCopy.primary} className="primary-action topbar-primary" onClick={onPrimaryAction} type="button">
                 <Plus size={17} strokeWidth={2.3} />
@@ -205,29 +248,7 @@ export function AppShell({
             <button className="theme-toggle" onClick={onPrivacyToggle} title={privacyHidden ? t("appShell.topbar.showData") : t("appShell.topbar.hideData")} type="button">
               {privacyHidden ? <EyeOff size={17} strokeWidth={2.2} /> : <Eye size={17} strokeWidth={2.2} />}
             </button>
-            <button className="theme-toggle" onClick={onThemeToggle} title={t("appShell.topbar.theme")} type="button">
-              {theme === "dark" ? <Sun size={17} strokeWidth={2.2} /> : <Moon size={17} strokeWidth={2.2} />}
-            </button>
-            <button
-              className="theme-toggle language-toggle"
-              onClick={() => setLanguage(language === "es" ? "en" : "es")}
-              title={t("appShell.topbar.language")}
-              type="button"
-            >
-              <Languages size={17} strokeWidth={2.2} />
-              <span>{language.toUpperCase()}</span>
-            </button>
-            {onRefresh && (
-              <button className="theme-toggle" disabled={isSyncing} onClick={onRefresh} title={t("appShell.topbar.sync")} type="button">
-                <RefreshCw size={17} strokeWidth={2.2} />
-              </button>
-            )}
-            {onSignOut && (
-              <button aria-label={t("appShell.topbar.signOut")} className="secondary-action topbar-exit" onClick={onSignOut} type="button">
-                <LogOut size={16} strokeWidth={2.2} />
-                <span>{t("appShell.topbar.signOut")}</span>
-              </button>
-            )}
+            <TopbarMenu items={menuItems} label={t("appShell.topbar.more")} />
           </div>
         </header>
 

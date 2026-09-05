@@ -69,6 +69,7 @@ export const en: Record<TranslationKey, string> = {
   "appShell.topbar.language": "Change language",
   "appShell.topbar.sync": "Sync",
   "appShell.topbar.signOut": "Sign out",
+  "appShell.topbar.more": "More options",
 
   "auth.noEmail": "No email",
   "auth.kicker": "Made by traders, for traders",
