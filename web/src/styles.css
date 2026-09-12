@@ -2501,42 +2501,48 @@ button {
   padding: 0 var(--space-base);
 }
 
-/* .entity-form.bulk-account-form y no .bulk-account-form sola: .entity-form ya trae su
-   propio display:grid con columnas auto-fit(190px) para los formularios normales de
-   etiqueta+campo (mas abajo en el archivo), y una clase sola empata en especificidad
-   con otra clase sola -- el orden en el archivo decidiria, y .entity-form gana por ir
-   despues. El selector compuesto (0,2,0) le gana siempre, sin depender de donde caiga
-   cada regla. Esto es una tabla de filas repetidas, forma distinta a esa rejilla de
-   dos columnas, asi que se maqueta con su propio flex; de .entity-form solo interesa
-   el estilo de los input/select, que si se reutiliza igual. */
-.entity-form.bulk-account-form {
+/* No lleva la clase .entity-form (esa la lleva cada .bulk-account-block por dentro, ver
+   mas abajo): aqui solo hace falta apilar en vertical el bloque de cuentas, el boton de
+   "añadir cuenta" y la fila final de acciones. Si llevara tambien .entity-form, su
+   propio display:grid (pensado para un formulario de etiqueta+campo) le ganaria a este
+   flex en un empate de especificidad, que es justo el bug que hubo aqui la primera vez:
+   ver el commit que separo estas dos clases. */
+.bulk-account-form {
   display: flex;
   flex-direction: column;
-  /* .entity-form tambien trae align-items:end (pensado para que los campos cortos de su
-     grid de etiqueta+campo se alineen abajo). Sin cancelarlo aqui, en un flex-column
-     "end" es el eje cruzado -- el horizontal -- y cada hijo se encoge a su contenido y
-     se pega a la derecha en vez de ocupar el ancho entero. */
-  align-items: stretch;
   gap: var(--space-lg);
 }
 
-.bulk-account-rows {
-  display: grid;
-  gap: var(--space-sm);
+.bulk-account-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
 }
 
-.bulk-account-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 0.6fr auto;
+/* Mismo lenguaje visual que .journal-entry-mode-option: borde simple, radio y sombra
+   del token, no una tarjeta nueva inventada para la ocasion. */
+.bulk-account-block {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.bulk-account-block-head {
+  display: flex;
   align-items: center;
-  gap: var(--space-sm);
-}
-
-.bulk-account-row-head span {
-  padding: 0 var(--space-sm);
+  justify-content: space-between;
+  margin-bottom: var(--space-base);
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
+}
+
+.bulk-account-block-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3xs);
 }
 
 .bulk-account-row-remove {
@@ -8047,13 +8053,8 @@ tbody tr:last-child td {
   }
 
   .account-card-rules,
-  .accounts-overview-stats,
-  .bulk-account-row {
+  .accounts-overview-stats {
     grid-template-columns: 1fr;
-  }
-
-  .bulk-account-row-head {
-    display: none;
   }
 
   .user-chip {

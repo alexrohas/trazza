@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
+import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { InfoHint } from "./InfoHint";
 import { Modal } from "./Modal";
-import { Select } from "./Select";
+import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import {
   formatAccountSize,
@@ -92,13 +92,10 @@ const emptyAccountInput: AccountInput = {
   dailyDrawdown: undefined,
 };
 
-/* Solo lo esencial para distinguir una cuenta de otra: empresa, nombre y tamaño. El
-   resto (kind, status, drawdownType) sale de emptyAccountInput igual para todas las
-   filas -- el caso real que pide esto es "acabo de comprar varios challenges", no un
-   mix de tipos, y añadir esos selectores por fila habria convertido la tabla rapida en
-   el mismo formulario largo que se queria evitar repetir. Quien necesite algo distinto
-   lo ajusta luego editando esa cuenta. */
-type BulkAccountRow = { key: number; firmId: string; name: string; size: string };
+/* Los mismos campos que AccountInput (el alta masiva rellena cuenta a cuenta con todo,
+   no solo lo esencial), mas key para la lista de React y nameTouched para el
+   autorrelleno del nombre -- ver AccountFieldset y bulkSuggestedNames mas abajo. */
+type BulkAccountRow = AccountInput & { key: number; nameTouched: boolean };
 
 export function AccountsView({
   accounts,
@@ -340,11 +337,14 @@ export function AccountsView({
 
   const makeBulkRow = (firmId = ""): BulkAccountRow => {
     bulkRowKey.current += 1;
-    return { key: bulkRowKey.current, firmId, name: "", size: "" };
+    return { ...emptyAccountInput, key: bulkRowKey.current, firmId, nameTouched: false };
   };
 
   const openBulkAdd = (firmId = "") => {
-    setBulkRows([makeBulkRow(firmId), makeBulkRow(firmId), makeBulkRow(firmId)]);
+    /* Dos bloques y no tres: cada uno trae ahora el formulario completo (11 campos),
+       no solo empresa/nombre/tamaño, y arrancar con tres se sentia pesado nada mas
+       abrir. "+ Añadir cuenta" cubre el resto. */
+    setBulkRows([makeBulkRow(firmId), makeBulkRow(firmId)]);
     setBulkFailed(0);
     setBulkOpen(true);
   };
@@ -371,7 +371,71 @@ export function AccountsView({
   const updateBulkRow = (key: number, patch: Partial<BulkAccountRow>) =>
     setBulkRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
 
-  const validBulkRows = bulkRows.filter((row) => row.firmId && row.name.trim().length >= 2 && row.size.trim());
+  /* Copia todos los campos salvo el nombre, que se deja sin tocar (nameTouched: false)
+     para que bulkSuggestedNames lo resuelva solo: si la que se duplica es "Apex 50K #4",
+     esa cifra ya esta "ocupada" en el lote y la nueva sale con el siguiente numero libre,
+     sin tener que calcularlo aqui a mano. Se inserta justo despues de la original, no al
+     final, para que quede claro de cual es copia. */
+  const duplicateBulkRow = (key: number) => {
+    bulkRowKey.current += 1;
+    const newKey = bulkRowKey.current;
+    setBulkRows((current) => {
+      const index = current.findIndex((row) => row.key === key);
+      if (index === -1) return current;
+      const source = current[index];
+      const duplicate: BulkAccountRow = { ...source, key: newKey, name: "", nameTouched: false };
+      return [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)];
+    });
+  };
+
+  /* Mismo nombre propuesto que el alta individual (empresa + tamano, ver
+     suggestedName/formatSizeForName mas abajo), pero recorriendo las filas de arriba a
+     abajo para que tambien se desambigue dentro del propio lote: es el caso real que
+     pide esto ("cinco cuentas de 50K de Apex") y con solo comparar contra las cuentas
+     ya existentes las cinco filas habrian sugerido el mismo nombre. Una fila que ya se
+     ha tocado a mano sigue contando su nombre actual como "ocupado" para las de abajo,
+     para no proponer dos filas iguales. */
+  const bulkSuggestedNames = useMemo(() => {
+    const takenExisting = new Set(accounts.map((account) => account.name.toLowerCase()));
+    const usedInBatch = new Set<string>();
+    const suggestions = new Map<number, string>();
+    bulkRows.forEach((row) => {
+      const firmName = firmNameById.get(row.firmId);
+      if (row.nameTouched || !firmName || !row.size.trim()) {
+        if (row.name.trim()) usedInBatch.add(row.name.trim().toLowerCase());
+        return;
+      }
+      const base = `${firmName} ${formatSizeForName(row.size)}`.trim();
+      let candidate = base;
+      let index = 2;
+      while (takenExisting.has(candidate.toLowerCase()) || usedInBatch.has(candidate.toLowerCase())) {
+        candidate = `${base} #${index}`;
+        index += 1;
+      }
+      usedInBatch.add(candidate.toLowerCase());
+      suggestions.set(row.key, candidate);
+    });
+    return suggestions;
+  }, [accounts, bulkRows, firmNameById]);
+
+  useEffect(() => {
+    if (bulkSuggestedNames.size === 0) return;
+    setBulkRows((current) => {
+      let changed = false;
+      const next = current.map((row) => {
+        const suggestion = bulkSuggestedNames.get(row.key);
+        if (suggestion === undefined || suggestion === row.name) return row;
+        changed = true;
+        return { ...row, name: suggestion };
+      });
+      return changed ? next : current;
+    });
+  }, [bulkSuggestedNames]);
+
+  /* Mismo requisito que el alta individual: empresa obligatoria salvo capital propio. */
+  const validBulkRows = bulkRows.filter(
+    (row) => (row.firmId || row.kind === "own") && row.name.trim().length >= 2 && row.size.trim(),
+  );
 
   /* Secuencial, no Promise.all: son escrituras contra Supabase y el motivo real de
      esto es poder saber cuales filas fallan sin que un fallo tire abajo las demas.
@@ -383,16 +447,10 @@ export function AccountsView({
     setBulkSaving(true);
     setBulkFailed(0);
     const succeededKeys = new Set<number>();
-    const purchasedAt = new Date().toISOString().slice(0, 10);
     for (const row of validBulkRows) {
-      const saved = await onSaveAccount({
-        ...emptyAccountInput,
-        firmId: row.firmId,
-        name: row.name.trim(),
-        purchasedAt,
-        size: row.size.trim(),
-      });
-      if (saved) succeededKeys.add(row.key);
+      const { key, nameTouched, ...input } = row;
+      const saved = await onSaveAccount({ ...input, name: input.name.trim(), size: input.size.trim() });
+      if (saved) succeededKeys.add(key);
     }
     setBulkSaving(false);
     const failedCount = validBulkRows.length - succeededKeys.size;
@@ -488,139 +546,26 @@ export function AccountsView({
             closeForm();
           }}
         >
-          <label>
-            <span>{t("account.field.kind")}</span>
-            <Select
-              disabled={!canWrite || mutating}
-              onChange={(next) => {
-                const kind = next as AccountKind;
-                setFirmRequiredError(false);
-                setDraft((current) => ({
-                  ...current,
-                  kind,
-                  firmId: kind === "own" ? "" : current.firmId,
-                  phaseTarget: kind === "challenge" ? current.phaseTarget : undefined,
-                  maxDrawdown: kind === "own" ? undefined : current.maxDrawdown,
-                  dailyDrawdown: kind === "own" ? undefined : current.dailyDrawdown,
-                  parentAccountId: kind === "funded" ? current.parentAccountId : undefined,
-                }));
-              }}
-              options={accountKindOptions}
-              value={draft.kind}
-            />
-          </label>
-
-          {draft.kind !== "own" && (
-            <label>
-              <span>{t("account.field.firm")}</span>
-              <Select
-                disabled={!canWrite || mutating}
-                onChange={(next) => {
-                  setFirmRequiredError(false);
-                  setDraft((current) => ({ ...current, firmId: next }));
-                }}
-                options={firmOptions}
-                placeholder={t("account.field.selectFirm")}
-                value={draft.firmId}
-              />
-              {firmRequiredError && <p className="mutation-message error">{t("account.field.selectFirmRequired")}</p>}
-            </label>
-          )}
-
-          <label>
-            <span>{t("account.field.name")}</span>
-            <input
-              disabled={!canWrite || mutating}
-              minLength={2}
-              onChange={(event) => {
-                /* En cuanto se escribe, el nombre pasa a ser tuyo y deja de regenerarse.
-                   Si se vacia vuelve a considerarse automatico, para poder deshacer. */
-                setNameTouched(event.target.value.trim().length > 0);
-                setDraft((current) => ({ ...current, name: event.target.value }));
-              }}
-              placeholder={t("account.field.namePlaceholder")}
-              required
-              type="text"
-              value={draft.name}
-            />
-          </label>
-
-          <label>
-            <span>{t("account.field.status")}</span>
-            <Select
-              disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, status: next as AccountStatus }))}
-              options={accountStatusOptions}
-              value={draft.status}
-            />
-          </label>
-
-          <label>
-            <span>{t("account.field.size")}</span>
-            <input
-              disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, size: event.target.value }))}
-              placeholder={t("account.field.sizePlaceholder")}
-              required
-              type="text"
-              value={draft.size}
-            />
-          </label>
-
-          <label>
-            <span>{t("account.field.purchase")}</span>
-            <DatePicker
-              disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, purchasedAt: next }))}
-              value={draft.purchasedAt || ""}
-            />
-          </label>
-
-          {draft.kind === "challenge" && (
-            <NumberField
-              disabled={!canWrite || mutating}
-              label={t("account.field.target")}
-              onChange={(value) => setDraft((current) => ({ ...current, phaseTarget: value }))}
-              value={draft.phaseTarget}
-            />
-          )}
-          {draft.kind !== "own" && (
-            <>
-              <NumberField
-                disabled={!canWrite || mutating}
-                label={t("account.field.maxDrawdown")}
-                onChange={(value) => setDraft((current) => ({ ...current, maxDrawdown: value }))}
-                value={draft.maxDrawdown}
-              />
-              <label>
-                <span>{t("account.field.drawdownType")}</span>
-                <Select
-                  disabled={!canWrite || mutating}
-                  onChange={(next) => setDraft((current) => ({ ...current, drawdownType: next as DrawdownType }))}
-                  options={drawdownTypeOptions}
-                  value={draft.drawdownType}
-                />
-              </label>
-              <NumberField
-                disabled={!canWrite || mutating}
-                label={t("account.field.dailyDrawdown")}
-                onChange={(value) => setDraft((current) => ({ ...current, dailyDrawdown: value }))}
-                value={draft.dailyDrawdown}
-              />
-            </>
-          )}
-          {draft.kind === "funded" && (
-            <label>
-              <span>{t("account.field.parentAccount")}</span>
-              <Select
-                disabled={!canWrite || mutating}
-                onChange={(next) => setDraft((current) => ({ ...current, parentAccountId: next || undefined }))}
-                options={[{ label: t("account.field.parentAccountNone"), value: "" }, ...challengeAccountOptions]}
-                placeholder={t("account.field.parentAccountNone")}
-                value={draft.parentAccountId || ""}
-              />
-            </label>
-          )}
+          <AccountFieldset
+            accountKindOptions={accountKindOptions}
+            accountStatusOptions={accountStatusOptions}
+            disabled={!canWrite || mutating}
+            drawdownTypeOptions={drawdownTypeOptions}
+            firmError={firmRequiredError ? t("account.field.selectFirmRequired") : undefined}
+            firmOptions={firmOptions}
+            onChange={(patch) => {
+              if (patch.firmId !== undefined || patch.kind !== undefined) setFirmRequiredError(false);
+              setDraft((current) => ({ ...current, ...patch }));
+            }}
+            onNameChange={(value) => {
+              /* En cuanto se escribe, el nombre pasa a ser tuyo y deja de regenerarse.
+                 Si se vacia vuelve a considerarse automatico, para poder deshacer. */
+              setNameTouched(value.trim().length > 0);
+              setDraft((current) => ({ ...current, name: value }));
+            }}
+            parentAccountOptions={[{ label: t("account.field.parentAccountNone"), value: "" }, ...challengeAccountOptions]}
+            value={draft}
+          />
 
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
@@ -639,52 +584,59 @@ export function AccountsView({
 
       {bulkOpen && (
       <Modal onClose={() => setBulkOpen(false)} title={t("account.bulk.title")} subtitle={t("account.bulk.subtitle")} width="wide">
-        <div className="entity-form bulk-account-form">
-          <div className="bulk-account-rows">
-            <div className="bulk-account-row bulk-account-row-head" aria-hidden="true">
-              <span>{t("account.field.firm")}</span>
-              <span>{t("account.field.name")}</span>
-              <span>{t("account.field.size")}</span>
-              <span />
-            </div>
-            {bulkRows.map((row) => (
-              <div className="bulk-account-row" key={row.key}>
-                <Select
-                  disabled={!canBulkWrite || bulkSaving}
-                  onChange={(next) => updateBulkRow(row.key, { firmId: next })}
-                  options={firmOptions}
-                  placeholder={t("account.field.selectFirm")}
-                  value={row.firmId}
-                />
-                <input
-                  disabled={!canBulkWrite || bulkSaving}
-                  minLength={2}
-                  onChange={(event) => updateBulkRow(row.key, { name: event.target.value })}
-                  placeholder={t("account.field.namePlaceholder")}
-                  type="text"
-                  value={row.name}
-                />
-                <input
-                  disabled={!canBulkWrite || bulkSaving}
-                  onChange={(event) => updateBulkRow(row.key, { size: event.target.value })}
-                  placeholder={t("account.field.sizePlaceholder")}
-                  type="text"
-                  value={row.size}
-                />
-                <button
-                  aria-label={t("account.bulk.removeRow")}
-                  className="bulk-account-row-remove"
-                  disabled={bulkSaving || bulkRows.length <= 1}
-                  onClick={() => removeBulkRow(row.key)}
-                  type="button"
-                >
-                  <X size={15} strokeWidth={2.2} />
-                </button>
+        <div className="bulk-account-form">
+          <div className="bulk-account-blocks">
+            {bulkRows.map((row, index) => (
+              <div className="bulk-account-block" key={row.key}>
+                <div className="bulk-account-block-head">
+                  <span>
+                    {t("account.bulk.rowLabel")} {index + 1}
+                  </span>
+                  <div className="bulk-account-block-actions">
+                    <button
+                      aria-label={t("account.bulk.duplicateRow")}
+                      className="bulk-account-row-remove"
+                      disabled={bulkSaving}
+                      onClick={() => duplicateBulkRow(row.key)}
+                      title={t("account.bulk.duplicateRow")}
+                      type="button"
+                    >
+                      <Copy size={15} strokeWidth={2.2} />
+                    </button>
+                    <button
+                      aria-label={t("account.bulk.removeRow")}
+                      className="bulk-account-row-remove"
+                      disabled={bulkSaving || bulkRows.length <= 1}
+                      onClick={() => removeBulkRow(row.key)}
+                      type="button"
+                    >
+                      <X size={15} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                </div>
+                <div className="entity-form">
+                  <AccountFieldset
+                    accountKindOptions={accountKindOptions}
+                    accountStatusOptions={accountStatusOptions}
+                    disabled={!canBulkWrite || bulkSaving}
+                    drawdownTypeOptions={drawdownTypeOptions}
+                    firmOptions={firmOptions}
+                    onChange={(patch) => updateBulkRow(row.key, patch)}
+                    onNameChange={(value) =>
+                      /* Igual que en el alta individual: en cuanto se escribe, el nombre
+                         pasa a ser tuyo y deja de regenerarse; al vaciarlo vuelve a
+                         proponerse solo. */
+                      updateBulkRow(row.key, { name: value, nameTouched: value.trim().length > 0 })
+                    }
+                    parentAccountOptions={[{ label: t("account.field.parentAccountNone"), value: "" }, ...challengeAccountOptions]}
+                    value={row}
+                  />
+                </div>
               </div>
             ))}
           </div>
 
-          <button className="ghost-action bulk-account-add" disabled={!canBulkWrite || bulkSaving} onClick={addBulkRow} type="button">
+          <button className="ghost-action" disabled={!canBulkWrite || bulkSaving} onClick={addBulkRow} type="button">
             <Plus size={15} strokeWidth={2.2} />
             {t("account.bulk.addRow")}
           </button>
@@ -765,6 +717,33 @@ export function AccountsView({
         </div>
       </section>
 
+      {/* Tarjeta propia, no una fila mas dentro de account-filter-panel: asi se oculta
+          entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas, en
+          vez de dejar un hueco que cambia de alto dentro de la tarjeta del listado.
+          Va justo aqui, pegada al panel que contiene su boton disparador: puesta
+          despues de accounts-overview-money quedaba colgando debajo de esas cifras,
+          sin ninguna relacion visual con el boton "Filtros" que la abre. */}
+      {filtersOpen && (
+        <section className="panel dashboard-filter-panel">
+          <div className="account-filter-row">
+            <label>
+              <span>{t("account.field.firm")}</span>
+              <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
+            </label>
+            <button
+              className="secondary-action"
+              onClick={() => {
+                setFirmFilter("all");
+                setStatusFilter("all");
+              }}
+              type="button"
+            >
+              {t("account.filter.resetFilters")}
+            </button>
+          </div>
+        </section>
+      )}
+
       <div className="accounts-overview-money">
         <span>
           <TrendingDown size={16} strokeWidth={2.2} />
@@ -789,30 +768,6 @@ export function AccountsView({
           </small>
         </span>
       </div>
-
-      {/* Tarjeta propia, no una fila mas dentro de account-filter-panel: asi se oculta
-          entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas, en
-          vez de dejar un hueco que cambia de alto dentro de la tarjeta del listado. */}
-      {filtersOpen && (
-        <section className="panel dashboard-filter-panel">
-          <div className="account-filter-row">
-            <label>
-              <span>{t("account.field.firm")}</span>
-              <Select onChange={setFirmFilter} options={firmFilterOptions} value={firmFilter} />
-            </label>
-            <button
-              className="secondary-action"
-              onClick={() => {
-                setFirmFilter("all");
-                setStatusFilter("all");
-              }}
-              type="button"
-            >
-              {t("account.filter.resetFilters")}
-            </button>
-          </div>
-        </section>
-      )}
 
       {/* La rejilla es solo para cuentas vivas. Una fallada o cerrada no es un elemento
           de trabajo sino una entrada de archivo, y darle la misma tarjeta que a una que
@@ -1140,6 +1095,164 @@ function NumberField({
         value={value ?? ""}
       />
     </label>
+  );
+}
+
+/**
+ * Los campos de una cuenta, sin form ni modal alrededor: los usa tanto el alta
+ * individual como cada bloque del alta masiva, para que sean exactamente los mismos
+ * campos con la misma logica condicional (que depende de `kind`) en los dos sitios, en
+ * vez de mantener dos copias que acaban divergiendo. onNameChange va aparte de onChange
+ * porque el nombre "tocado" se guarda de forma distinta en cada contexto: estado suelto
+ * en el alta individual, parte de la fila en el masivo -- cada llamador sabe como
+ * guardarlo, el fieldset no necesita saberlo.
+ */
+function AccountFieldset({
+  accountKindOptions,
+  disabled,
+  drawdownTypeOptions,
+  firmError,
+  firmOptions,
+  accountStatusOptions,
+  onChange,
+  onNameChange,
+  parentAccountOptions,
+  value,
+}: {
+  accountKindOptions: SelectOption[];
+  disabled: boolean;
+  drawdownTypeOptions: SelectOption[];
+  firmError?: string;
+  firmOptions: SelectOption[];
+  accountStatusOptions: SelectOption[];
+  onChange: (patch: Partial<AccountInput>) => void;
+  onNameChange: (value: string) => void;
+  parentAccountOptions: SelectOption[];
+  value: AccountInput;
+}) {
+  const t = useT();
+  return (
+    <>
+      <label>
+        <span>{t("account.field.kind")}</span>
+        <Select
+          disabled={disabled}
+          onChange={(next) => {
+            const kind = next as AccountKind;
+            onChange({
+              kind,
+              firmId: kind === "own" ? "" : value.firmId,
+              phaseTarget: kind === "challenge" ? value.phaseTarget : undefined,
+              maxDrawdown: kind === "own" ? undefined : value.maxDrawdown,
+              dailyDrawdown: kind === "own" ? undefined : value.dailyDrawdown,
+              parentAccountId: kind === "funded" ? value.parentAccountId : undefined,
+            });
+          }}
+          options={accountKindOptions}
+          value={value.kind}
+        />
+      </label>
+
+      {value.kind !== "own" && (
+        <label>
+          <span>{t("account.field.firm")}</span>
+          <Select
+            disabled={disabled}
+            onChange={(next) => onChange({ firmId: next })}
+            options={firmOptions}
+            placeholder={t("account.field.selectFirm")}
+            value={value.firmId}
+          />
+          {firmError && <p className="mutation-message error">{firmError}</p>}
+        </label>
+      )}
+
+      <label>
+        <span>{t("account.field.name")}</span>
+        <input
+          disabled={disabled}
+          minLength={2}
+          onChange={(event) => onNameChange(event.target.value)}
+          placeholder={t("account.field.namePlaceholder")}
+          required
+          type="text"
+          value={value.name}
+        />
+      </label>
+
+      <label>
+        <span>{t("account.field.status")}</span>
+        <Select
+          disabled={disabled}
+          onChange={(next) => onChange({ status: next as AccountStatus })}
+          options={accountStatusOptions}
+          value={value.status}
+        />
+      </label>
+
+      <label>
+        <span>{t("account.field.size")}</span>
+        <input
+          disabled={disabled}
+          onChange={(event) => onChange({ size: event.target.value })}
+          placeholder={t("account.field.sizePlaceholder")}
+          required
+          type="text"
+          value={value.size}
+        />
+      </label>
+
+      <label>
+        <span>{t("account.field.purchase")}</span>
+        <DatePicker disabled={disabled} onChange={(next) => onChange({ purchasedAt: next })} value={value.purchasedAt || ""} />
+      </label>
+
+      {value.kind === "challenge" && (
+        <NumberField
+          disabled={disabled}
+          label={t("account.field.target")}
+          onChange={(next) => onChange({ phaseTarget: next })}
+          value={value.phaseTarget}
+        />
+      )}
+      {value.kind !== "own" && (
+        <>
+          <NumberField
+            disabled={disabled}
+            label={t("account.field.maxDrawdown")}
+            onChange={(next) => onChange({ maxDrawdown: next })}
+            value={value.maxDrawdown}
+          />
+          <label>
+            <span>{t("account.field.drawdownType")}</span>
+            <Select
+              disabled={disabled}
+              onChange={(next) => onChange({ drawdownType: next as DrawdownType })}
+              options={drawdownTypeOptions}
+              value={value.drawdownType}
+            />
+          </label>
+          <NumberField
+            disabled={disabled}
+            label={t("account.field.dailyDrawdown")}
+            onChange={(next) => onChange({ dailyDrawdown: next })}
+            value={value.dailyDrawdown}
+          />
+        </>
+      )}
+      {value.kind === "funded" && (
+        <label>
+          <span>{t("account.field.parentAccount")}</span>
+          <Select
+            disabled={disabled}
+            onChange={(next) => onChange({ parentAccountId: next || undefined })}
+            options={parentAccountOptions}
+            placeholder={t("account.field.parentAccountNone")}
+            value={value.parentAccountId || ""}
+          />
+        </label>
+      )}
+    </>
   );
 }
 
