@@ -151,6 +151,7 @@ export default function App() {
         message={auth.message}
         theme={themeState.theme}
         onForgotPassword={auth.resetPassword}
+        onGoogleSignIn={auth.signInWithGoogle}
         onSignIn={auth.signIn}
         onSignUp={auth.signUp}
         onThemeToggle={() => themeState.setTheme(themeState.theme === "dark" ? "light" : "dark")}

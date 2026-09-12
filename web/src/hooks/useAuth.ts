@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabaseClient } from "../lib/supabase";
 import { useT } from "../lib/i18n/context";
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from "../lib/storage";
 import type { Currency, UserProfile, UserProfileInput } from "../types";
 
 type AuthStatus = "checking" | "authenticated" | "anonymous" | "unconfigured";
@@ -18,6 +19,16 @@ type Credentials = {
 };
 
 const supportedCurrencies = new Set<Currency>(["EUR", "USD"]);
+
+// Version del texto legal vigente. Se guarda junto a terms_accepted_at en la metadata
+// del usuario para dejar constancia de que copia acepto; debe coincidir con la que
+// registra el alta por email (signUp, mas abajo).
+const TERMS_VERSION = "2026-08-06";
+
+// Marca que deja signInWithGoogle justo antes de irse a Google. Al volver ya autenticado
+// no hay checkbox que consultar (el texto legal viaja junto al boton), asi que el
+// consentimiento se anota a partir de esta marca. Se consume una sola vez.
+const PENDING_TERMS_KEY = "trazza:pending-google-terms";
 
 export function useAuth() {
   const t = useT();
@@ -101,6 +112,38 @@ export function useAuth() {
     };
   }, [resolveSession]);
 
+  // Vuelca la aceptacion de terminos tras entrar con Google. En cuanto hay sesion, si
+  // quedo la marca de PENDING_TERMS_KEY y el usuario aun no tiene terms_accepted_at, se
+  // escribe en su metadata. La marca se consume siempre —haya escritura o no— para no
+  // reintentar en cada render ni pisar el sello de un usuario que ya lo tenia.
+  useEffect(() => {
+    if (status !== "authenticated" || !user || !supabaseClient) return;
+
+    const pending = safeLocalGet(PENDING_TERMS_KEY);
+    if (!pending) return;
+    safeLocalRemove(PENDING_TERMS_KEY);
+
+    if (user.user_metadata?.terms_accepted_at) return;
+
+    let parsed: { at?: unknown; version?: unknown };
+    try {
+      parsed = JSON.parse(pending);
+    } catch {
+      return;
+    }
+    if (typeof parsed.at !== "string") return;
+
+    void supabaseClient.auth
+      .updateUser({
+        data: {
+          ...(user.user_metadata || {}),
+          terms_accepted_at: parsed.at,
+          terms_version: typeof parsed.version === "string" ? parsed.version : TERMS_VERSION,
+        },
+      })
+      .catch(() => undefined);
+  }, [status, user]);
+
   const profile = useMemo(() => (user ? toUserProfile(user, t) : null), [t, user]);
 
   const signIn = useCallback(
@@ -138,7 +181,7 @@ export function useAuth() {
             // Registro de aceptacion de terminos: el checkbox es obligatorio en el
             // formulario, aqui se deja constancia de cuando y de que version.
             terms_accepted_at: new Date().toISOString(),
-            terms_version: "2026-08-06",
+            terms_version: TERMS_VERSION,
           },
           emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
         },
@@ -160,6 +203,35 @@ export function useAuth() {
     },
     [resolveSession],
   );
+
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabaseClient) return;
+    setBusy(true);
+    setMessage({ type: "info", text: "Abriendo Google..." });
+
+    safeLocalSet(
+      PENDING_TERMS_KEY,
+      JSON.stringify({ at: new Date().toISOString(), version: TERMS_VERSION }),
+    );
+
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Mismo criterio que emailRedirectTo en signUp: se vuelve a la misma pagina
+        // (/app en produccion, /app/ en el dev server). Tiene que estar en la lista de
+        // Redirect URLs de Supabase o el proveedor cae al Site URL por defecto.
+        redirectTo: `${window.location.origin}${window.location.pathname}`,
+      },
+    });
+
+    // Sin error, el navegador ya se esta yendo a Google y este arbol se desmonta; solo
+    // se sigue por aqui si fallo antes de redirigir.
+    if (error) {
+      safeLocalRemove(PENDING_TERMS_KEY);
+      setBusy(false);
+      setMessage({ type: "error", text: getAuthErrorMessage(error) });
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     if (!supabaseClient) return;
@@ -288,6 +360,7 @@ export function useAuth() {
     resetPassword,
     session,
     signIn,
+    signInWithGoogle,
     signOut,
     signUp,
     status,
@@ -327,6 +400,9 @@ function getAuthErrorMessage(error: { message?: string }) {
   if (normalized.includes("email not confirmed")) return "Confirma tu email antes de entrar.";
   if (normalized.includes("already registered") || normalized.includes("already been registered")) {
     return "Ya existe una cuenta con este email. Entra con tu contrasena.";
+  }
+  if (normalized.includes("provider is not enabled") || normalized.includes("unsupported provider")) {
+    return "El acceso con Google no esta disponible ahora mismo.";
   }
   if (normalized.includes("signup")) return "El registro no esta habilitado en Supabase.";
   if (normalized.includes("rate limit")) return "Demasiados intentos seguidos. Espera unos minutos y vuelve a probar.";

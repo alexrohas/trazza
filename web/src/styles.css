@@ -1360,6 +1360,78 @@ button {
   background: var(--surface-muted);
 }
 
+/* Separador entre el submit del formulario y el acceso con Google: "o" centrado con una
+   linea a cada lado. Los 16px arriba y abajo lo mantienen a la misma distancia de las
+   dos alternativas que separa. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-base) 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Mismo lenguaje que .auth-switch (superficie + borde de linea): es una alternativa al
+   submit, no la accion principal. La altura y el radio salen de .auth-card .auth-switch
+   (50 / 12), que aqui se repiten porque este boton no hereda de esa regla. */
+.auth-google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 var(--space-xl);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.auth-google-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: var(--surface-muted);
+}
+
+.auth-google-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-google-icon {
+  flex-shrink: 0;
+}
+
+/* El texto legal va aqui aunque en la pestana de registro ya haya un checkbox: pulsar
+   Google se salta el formulario, asi que el consentimiento tiene que estar junto a este
+   boton en las dos pestanas. Metrica calcada de .auth-terms. */
+.auth-google-legal {
+  margin: var(--space-sm) 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-normal);
+  text-align: center;
+}
+
+.auth-google-legal a {
+  color: var(--strong-muted);
+  font-weight: var(--weight-medium);
+}
+
 .loading-screen {
   /* Sin esto, los dos hijos (logo + etiqueta) son cada uno una fila implicita de grid
      con align-content:normal (equivale a stretch en filas auto): el navegador repartia
