@@ -5798,17 +5798,18 @@ button {
 /* Suelta en el workspace (hijo directo de .firms-workspace, que ya da 24px de gap con
    sus vecinos: el panel de resumen arriba y la rejilla de tarjetas abajo), no dentro de
    un .panel propio: gasto y retorno medio son solo dos cifras sueltas, no una seccion
-   con entidad propia que necesite tarjeta. Alineada a la derecha para no competir con
-   el resumen de conteos, que manda a la izquierda. Independiente de
-   .accounts-overview-stats (no comparte clase con ella): las cifras aqui son dinero, no
-   enteros, y definirla suelta evita arrastrar un tamaño de letra o una anchura de
-   columna que no le corresponden. Flex y no grid: solo son 2 cifras, y una columna de
-   grid al 1fr estira cada caja a la mitad del ancho por mucho que el contenido sea
-   corto. Aqui cada caja mide lo que pide su contenido. */
+   con entidad propia que necesite tarjeta. Alineada a la izquierda como el resto de la
+   pantalla (titulo, conteos, tarjetas): a la derecha quedaba descolgada, el unico bloque
+   que no arrancaba por ese lado. Independiente de .accounts-overview-stats (no comparte
+   clase con ella): las cifras aqui son dinero, no enteros, y definirla suelta evita
+   arrastrar un tamaño de letra o una anchura de columna que no le corresponden. Flex y
+   no grid: solo son 2 cifras, y una columna de grid al 1fr estira cada caja a la mitad
+   del ancho por mucho que el contenido sea corto. Aqui cada caja mide lo que pide su
+   contenido. */
 .accounts-overview-money {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--space-md);
 }
 
