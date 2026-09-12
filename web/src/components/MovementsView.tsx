@@ -382,7 +382,18 @@ export function MovementsView({
             <span>{t("movement.field.firm")}</span>
             <Select
               disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, firmId: next, accountId: "" }))}
+              onChange={(next) =>
+                setDraft((current) => ({
+                  ...current,
+                  firmId: next,
+                  /* "Crear cuenta nueva" no pertenece a ninguna empresa en concreto --
+                     es la intencion de crear una, no una cuenta ya enlazada a una
+                     empresa -- asi que un cambio de empresa no debe borrarla. Una
+                     cuenta real si, porque esa si pertenece a la empresa anterior y
+                     deja de tener sentido aqui. */
+                  accountId: current.accountId === NEW_ACCOUNT_OPTION ? current.accountId : "",
+                }))
+              }
               options={firmFormOptions}
               value={draft.firmId || ""}
             />
