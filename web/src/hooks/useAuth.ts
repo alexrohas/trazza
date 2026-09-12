@@ -30,6 +30,30 @@ const TERMS_VERSION = "2026-08-06";
 // consentimiento se anota a partir de esta marca. Se consume una sola vez.
 const PENDING_TERMS_KEY = "trazza:pending-google-terms";
 
+// Si GoTrue no puede completar el login por redirect (el caso mas comun: redirect_to no
+// esta en la lista blanca de Supabase), no lanza una excepcion visible: deja el error en
+// el hash de la URL (#error=...&error_description=...) y sigue con normalidad. El propio
+// cliente de supabase-js lo detecta en _initialize(), pero getSession() hace
+// `await this.initializePromise` y descarta el {error} con el que resolvio -es como
+// esta escrita la libreria, no un descuido nuestro-, asi que sin esto la app vuelve a
+// "anonymous" sin decir por que y parece que el boton de Google "no hace nada".
+// A diferencia del camino de exito (que si limpia el hash), GoTrue no toca el hash en el
+// camino de error, asi que sigue ahi para que lo leamos nosotros.
+function readOAuthHashError(): string | null {
+  if (typeof window === "undefined" || !window.location.hash) return null;
+
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const description = params.get("error_description");
+  const error = params.get("error");
+  if (!error && !description) return null;
+
+  const url = new URL(window.location.href);
+  url.hash = "";
+  window.history.replaceState(null, "", url.toString());
+
+  return description || "No se pudo completar el acceso con Google.";
+}
+
 export function useAuth() {
   const t = useT();
   const [status, setStatus] = useState<AuthStatus>(isSupabaseConfigured ? "checking" : "unconfigured");
@@ -84,6 +108,12 @@ export function useAuth() {
       return undefined;
     }
 
+    const oauthError = readOAuthHashError();
+    if (oauthError) {
+      setStatus("anonymous");
+      setMessage({ type: "error", text: oauthError });
+    }
+
     let active = true;
 
     supabaseClient.auth.getSession().then(({ data, error }) => {
@@ -93,6 +123,10 @@ export function useAuth() {
         setMessage({ type: "error", text: getAuthErrorMessage(error) });
         return;
       }
+      // Si ya se mostro el error de arriba, un getSession() sin sesion (y sin error
+      // propio) no debe pisarlo con "anonymous" otra vez -mismo estado, pero sin
+      // machacar el mensaje que se acaba de poner.
+      if (oauthError && !data.session) return;
       void resolveSession(data.session);
     });
 
