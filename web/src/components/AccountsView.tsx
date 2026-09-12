@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Building2, CalendarDays, Check, CircleAlert, Eye, EyeOff, Flag, Pencil, Plus, Shield, Trash2, TrendingUp, Wallet, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
+import { InfoHint } from "./InfoHint";
 import { Modal } from "./Modal";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
@@ -91,6 +92,14 @@ const emptyAccountInput: AccountInput = {
   dailyDrawdown: undefined,
 };
 
+/* Solo lo esencial para distinguir una cuenta de otra: empresa, nombre y tamaño. El
+   resto (kind, status, drawdownType) sale de emptyAccountInput igual para todas las
+   filas -- el caso real que pide esto es "acabo de comprar varios challenges", no un
+   mix de tipos, y añadir esos selectores por fila habria convertido la tabla rapida en
+   el mismo formulario largo que se queria evitar repetir. Quien necesite algo distinto
+   lo ajusta luego editando esa cuenta. */
+type BulkAccountRow = { key: number; firmId: string; name: string; size: string };
+
 export function AccountsView({
   accounts,
   currency,
@@ -111,6 +120,17 @@ export function AccountsView({
 }: AccountsViewProps) {
   const [draft, setDraft] = useState<AccountInput>(emptyAccountInput);
   const [editingId, setEditingId] = useState<string | undefined>();
+  /* Antes de abrir cualquier formulario de alta -- venga del "+" de la topbar o de
+     "crear cuenta nueva" en Movimientos, los dos casos que disparan newAccountToken --
+     se pregunta cuantas. Modal propio y no useConfirm: alli cerrar con Escape resuelve
+     false igual que pulsar el boton de cancelar, y aqui false tendria que significar
+     "varias" -- confundiria un cierre accidental con una eleccion real. */
+  const [creationChoiceOpen, setCreationChoiceOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkAccountRow[]>([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkFailed, setBulkFailed] = useState(0);
+  const bulkRowKey = useRef(0);
   const [firmFilter, setFirmFilter] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [firmRequiredError, setFirmRequiredError] = useState(false);
@@ -133,6 +153,10 @@ export function AccountsView({
   /* Capital propio no depende de una prop firm, asi que no hace falta tener ninguna
      empresa creada para poder guardarlo. El resto de tipos si la necesitan. */
   const canWrite = dataMode === "cloud" && (firms.length > 0 || draft.kind === "own");
+  /* El alta masiva siempre es de tipo challenge (ver BulkAccountRow), asi que a
+     diferencia de canWrite no puede colarse por draft.kind === "own": sin empresas no
+     hay nada que elegir en el selector de cada fila. */
+  const canBulkWrite = dataMode === "cloud" && firms.length > 0;
   /* Cuentas de origen para el selector de "cuenta de origen" de una fondeada: solo
      challenges, y nunca la propia cuenta que se esta editando. */
   const challengeAccountOptions = useMemo(
@@ -200,6 +224,39 @@ export function AccountsView({
     });
     return totals;
   }, [movements]);
+  /* Media de gasto y de resultado neto por cuenta, para el resumen del portfolio.
+     Recorre `accounts` (no directamente accountTotals): accountTotals sale de
+     `movements`, que llega SIN recortar por el selector global de cuenta de App.tsx
+     (movements={movements}, no visibleMovements), mientras que `accounts` si llega ya
+     recortado (accounts={visibleAccounts}). Sumar accountTotals entero colaria el gasto
+     y el retorno de cuentas que la pantalla ni siquiera esta enseñando en ese momento.
+     El gasto se calcula solo sobre las cuentas que de verdad han gastado algo: sumar
+     tambien las que aun estan en 0 infla el numero de cuentas y diluye la media hacia
+     un valor que no representa lo que cuesta una cuenta real. El resultado neto
+     (ingresos menos gastos) se calcula sobre cualquier cuenta con algun movimiento,
+     gaste o no: una evaluacion que aun no ha pagado nada tambien cuenta, con su parte
+     negativa, porque forma parte igual del retorno medio real del portfolio. */
+  const accountAggregates = useMemo(() => {
+    let expenseTotal = 0;
+    let expenseCount = 0;
+    let netTotal = 0;
+    let netCount = 0;
+    accounts.forEach((account) => {
+      const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
+      if (totals.expenses > 0) {
+        expenseTotal += totals.expenses;
+        expenseCount += 1;
+      }
+      if (totals.expenses > 0 || totals.income > 0) {
+        netTotal += totals.income - totals.expenses;
+        netCount += 1;
+      }
+    });
+    return {
+      avgExpense: expenseCount > 0 ? expenseTotal / expenseCount : 0,
+      avgNetResult: netCount > 0 ? netTotal / netCount : 0,
+    };
+  }, [accounts, accountTotals]);
   const filteredAccounts = useMemo(
     () =>
       accounts.filter((account) => {
@@ -281,6 +338,72 @@ export function AccountsView({
     setScreen("form");
   };
 
+  const makeBulkRow = (firmId = ""): BulkAccountRow => {
+    bulkRowKey.current += 1;
+    return { key: bulkRowKey.current, firmId, name: "", size: "" };
+  };
+
+  const openBulkAdd = (firmId = "") => {
+    setBulkRows([makeBulkRow(firmId), makeBulkRow(firmId), makeBulkRow(firmId)]);
+    setBulkFailed(0);
+    setBulkOpen(true);
+  };
+
+  const addBulkRow = () => setBulkRows((current) => [...current, makeBulkRow()]);
+
+  /* Las dos entradas de alta (el "+" de la topbar y "crear cuenta nueva" desde
+     Movimientos) llegan aqui igual, via newAccountToken -- ver el useEffect de mas
+     abajo. presetFirmId solo llega puesto en el segundo caso, y se traslada a
+     cualquiera de los dos formularios que se abra despues. */
+  const startSingleFromChoice = () => {
+    setCreationChoiceOpen(false);
+    openNewAccount();
+    if (presetFirmId) setDraft((current) => ({ ...current, firmId: presetFirmId }));
+  };
+
+  const startBulkFromChoice = () => {
+    setCreationChoiceOpen(false);
+    openBulkAdd(presetFirmId);
+  };
+
+  const removeBulkRow = (key: number) => setBulkRows((current) => current.filter((row) => row.key !== key));
+
+  const updateBulkRow = (key: number, patch: Partial<BulkAccountRow>) =>
+    setBulkRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+
+  const validBulkRows = bulkRows.filter((row) => row.firmId && row.name.trim().length >= 2 && row.size.trim());
+
+  /* Secuencial, no Promise.all: son escrituras contra Supabase y el motivo real de
+     esto es poder saber cuales filas fallan sin que un fallo tire abajo las demas.
+     Si falla alguna, solo se quitan del formulario las que SI se guardaron -- dejar
+     tambien esas y reintentar las crearia duplicadas; quitar de mas borraria filas que
+     ni siquiera se habian llegado a intentar (las que aun estaban incompletas). */
+  const handleBulkSave = async () => {
+    if (validBulkRows.length === 0) return;
+    setBulkSaving(true);
+    setBulkFailed(0);
+    const succeededKeys = new Set<number>();
+    const purchasedAt = new Date().toISOString().slice(0, 10);
+    for (const row of validBulkRows) {
+      const saved = await onSaveAccount({
+        ...emptyAccountInput,
+        firmId: row.firmId,
+        name: row.name.trim(),
+        purchasedAt,
+        size: row.size.trim(),
+      });
+      if (saved) succeededKeys.add(row.key);
+    }
+    setBulkSaving(false);
+    const failedCount = validBulkRows.length - succeededKeys.size;
+    if (failedCount === 0) {
+      setBulkOpen(false);
+    } else {
+      setBulkRows((current) => current.filter((row) => !succeededKeys.has(row.key)));
+      setBulkFailed(failedCount);
+    }
+  };
+
   const openEditAccount = (account: TradingAccount) => {
     setEditingId(account.id);
     setDraft(accountToInput(account));
@@ -315,15 +438,29 @@ export function AccountsView({
 
   useEffect(() => {
     if (!newAccountToken) return;
-    openNewAccount();
-    /* Si otra pantalla pidio el alta con una empresa ya decidida (el caso de
-       Movimientos), se precarga aqui: openNewAccount ya dejo el draft en blanco. */
-    if (presetFirmId) setDraft((current) => ({ ...current, firmId: presetFirmId }));
+    setCreationChoiceOpen(true);
     onNewAccountRequestHandled?.();
   }, [newAccountToken, onNewAccountRequestHandled]);
 
   return (
     <div className="firms-workspace">
+      {creationChoiceOpen && (
+      <Modal onClose={() => setCreationChoiceOpen(false)} title={t("account.createChoice.title")}>
+        <div className="journal-entry-mode-grid">
+          <button className="journal-entry-mode-option" onClick={startSingleFromChoice} type="button">
+            <Plus size={20} strokeWidth={2.2} />
+            <strong>{t("account.createChoice.one")}</strong>
+            <span>{t("account.createChoice.oneHint")}</span>
+          </button>
+          <button className="journal-entry-mode-option" onClick={startBulkFromChoice} type="button">
+            <ListPlus size={20} strokeWidth={2.2} />
+            <strong>{t("account.createChoice.many")}</strong>
+            <span>{t("account.createChoice.manyHint")}</span>
+          </button>
+        </div>
+      </Modal>
+      )}
+
       {screen === "form" && (
       <Modal
         onClose={closeForm}
@@ -500,6 +637,78 @@ export function AccountsView({
       </Modal>
       )}
 
+      {bulkOpen && (
+      <Modal onClose={() => setBulkOpen(false)} title={t("account.bulk.title")} subtitle={t("account.bulk.subtitle")} width="wide">
+        <div className="entity-form bulk-account-form">
+          <div className="bulk-account-rows">
+            <div className="bulk-account-row bulk-account-row-head" aria-hidden="true">
+              <span>{t("account.field.firm")}</span>
+              <span>{t("account.field.name")}</span>
+              <span>{t("account.field.size")}</span>
+              <span />
+            </div>
+            {bulkRows.map((row) => (
+              <div className="bulk-account-row" key={row.key}>
+                <Select
+                  disabled={!canBulkWrite || bulkSaving}
+                  onChange={(next) => updateBulkRow(row.key, { firmId: next })}
+                  options={firmOptions}
+                  placeholder={t("account.field.selectFirm")}
+                  value={row.firmId}
+                />
+                <input
+                  disabled={!canBulkWrite || bulkSaving}
+                  minLength={2}
+                  onChange={(event) => updateBulkRow(row.key, { name: event.target.value })}
+                  placeholder={t("account.field.namePlaceholder")}
+                  type="text"
+                  value={row.name}
+                />
+                <input
+                  disabled={!canBulkWrite || bulkSaving}
+                  onChange={(event) => updateBulkRow(row.key, { size: event.target.value })}
+                  placeholder={t("account.field.sizePlaceholder")}
+                  type="text"
+                  value={row.size}
+                />
+                <button
+                  aria-label={t("account.bulk.removeRow")}
+                  className="bulk-account-row-remove"
+                  disabled={bulkSaving || bulkRows.length <= 1}
+                  onClick={() => removeBulkRow(row.key)}
+                  type="button"
+                >
+                  <X size={15} strokeWidth={2.2} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button className="ghost-action bulk-account-add" disabled={!canBulkWrite || bulkSaving} onClick={addBulkRow} type="button">
+            <Plus size={15} strokeWidth={2.2} />
+            {t("account.bulk.addRow")}
+          </button>
+
+          {bulkFailed > 0 && <p className="mutation-message error">{t("account.bulk.partialError")}</p>}
+
+          <div className="form-action-row">
+            <button className="ghost-action" disabled={bulkSaving} onClick={() => setBulkOpen(false)} type="button">
+              {t("common.cancel")}
+            </button>
+            <button
+              className="primary-action"
+              disabled={!canBulkWrite || bulkSaving || validBulkRows.length === 0}
+              onClick={() => void handleBulkSave()}
+              type="button"
+            >
+              <Check size={17} strokeWidth={2.2} />
+              {bulkSaving ? t("common.saving") : `${t("account.bulk.submit")}${validBulkRows.length > 0 ? ` (${validBulkRows.length})` : ""}`}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      )}
+
       <>
       <section className="panel accounts-overview-panel">
         <div className="accounts-overview-copy">
@@ -556,6 +765,31 @@ export function AccountsView({
         </div>
       </section>
 
+      <div className="accounts-overview-money">
+        <span>
+          <TrendingDown size={16} strokeWidth={2.2} />
+          <strong>{formatMoney(accountAggregates.avgExpense, currency)}</strong>
+          <small>
+            {t("account.overview.avgSpent")}
+            <InfoHint text={t("account.overview.avgSpentHint")} />
+          </small>
+        </span>
+        <span>
+          <Banknote size={16} strokeWidth={2.2} />
+          <strong
+            className={
+              accountAggregates.avgNetResult > 0 ? "positive" : accountAggregates.avgNetResult < 0 ? "negative" : ""
+            }
+          >
+            {formatMoney(accountAggregates.avgNetResult, currency)}
+          </strong>
+          <small>
+            {t("account.overview.avgReturn")}
+            <InfoHint text={t("account.overview.avgReturnHint")} />
+          </small>
+        </span>
+      </div>
+
       {/* Tarjeta propia, no una fila mas dentro de account-filter-panel: asi se oculta
           entera cuando no hace falta filtrar, igual que en el dashboard de Finanzas, en
           vez de dejar un hueco que cambia de alto dentro de la tarjeta del listado. */}
@@ -599,6 +833,7 @@ export function AccountsView({
           const kind = account.kind;
           const progress = getAccountProgress(account, journalEntries);
           const tradingDays = getAccountTradingDays(journalEntries, account.id);
+          const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
           /* La barra necesita al menos un extremo para tener escala. Una cuenta de
              capital propio no tiene ni objetivo ni drawdown, asi que ahi no se pinta:
              se queda con balance y resultado, que es todo lo que se puede afirmar. */
@@ -663,6 +898,16 @@ export function AccountsView({
                   <strong className={hasDailyDrawdown ? undefined : "is-unset"}>
                     {hasDailyDrawdown ? formatMoney(account.dailyDrawdown, currency) : t("account.card.noLimit")}
                   </strong>
+                </span>
+                <span>
+                  <TrendingDown size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.spent")}</small>
+                  <strong>{formatMoney(totals.expenses, currency)}</strong>
+                </span>
+                <span>
+                  <Banknote size={15} strokeWidth={2.2} />
+                  <small>{t("account.card.withdrawn")}</small>
+                  <strong>{formatMoney(totals.income, currency)}</strong>
                 </span>
               </div>
 
