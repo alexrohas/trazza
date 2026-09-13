@@ -520,6 +520,13 @@ export const es = {
   "journal.calendar.entriesAriaSuffix": "trades",
   "journal.calendar.payoutsAriaSuffix": "payouts por",
   "journal.calendar.shareImage": "Guardar imagen del calendario",
+  "journal.calendar.monthView": "Mes",
+  "journal.calendar.yearView": "Año",
+  "journal.calendar.viewToggleLabel": "Cambiar entre vista de mes y de año",
+  "journal.calendar.prevYear": "Año anterior",
+  "journal.calendar.nextYear": "Año siguiente",
+  "journal.calendar.yearTotal": "Total del año",
+  "journal.calendar.yearSubtitleSuffix": "P&L mensual del año.",
 
   "journal.detail.rMultiple": "R",
   "journal.detail.direction": "Direccion",

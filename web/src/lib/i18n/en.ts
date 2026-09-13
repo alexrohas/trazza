@@ -522,6 +522,13 @@ export const en: Record<TranslationKey, string> = {
   "journal.calendar.entriesAriaSuffix": "trades",
   "journal.calendar.payoutsAriaSuffix": "payouts for",
   "journal.calendar.shareImage": "Save calendar image",
+  "journal.calendar.monthView": "Month",
+  "journal.calendar.yearView": "Year",
+  "journal.calendar.viewToggleLabel": "Switch between month and year view",
+  "journal.calendar.prevYear": "Previous year",
+  "journal.calendar.nextYear": "Next year",
+  "journal.calendar.yearTotal": "Year total",
+  "journal.calendar.yearSubtitleSuffix": "Monthly P&L for the year.",
 
   "journal.detail.rMultiple": "R",
   "journal.detail.direction": "Direction",

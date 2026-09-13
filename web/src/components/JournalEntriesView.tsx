@@ -300,6 +300,10 @@ export function JournalEntriesView({
      calendario a traves de renderEntryDetail): todas abren el mismo modal. */
   const [detailEntryId, setDetailEntryId] = useState<string | undefined>();
   const [visibleMonth, setVisibleMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  /* Mes/año viven en el mismo panel del calendario, no en dos widgets: comparten
+     navegacion (las mismas flechas cambian de paso segun el modo) y el mismo mes
+     visible sigue mandando cuando se vuelve a "Mes" sin pulsar ninguna tarjeta. */
+  const [calendarMode, setCalendarMode] = useState<"month" | "year">("month");
   const [zoomImage, setZoomImage] = useState<string | undefined>();
   /* Alta en tres pasos como el legado: se elige modo, y si es CSV se pide cuenta,
      sesion y archivo antes de revisar lo detectado. Manual salta directo al formulario. */
@@ -506,6 +510,17 @@ export function JournalEntriesView({
      operaciones. Varios trades el mismo dia cuentan una vez. */
   const tradedDaysCount = useMemo(() => new Set(filteredEntries.map((entry) => entry.date)).size, [filteredEntries]);
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
+  const visibleYear = visibleMonth.slice(0, 4);
+  const yearMonths = useMemo(
+    () => buildYearMonths(visibleYear, filteredEntries, movements),
+    [filteredEntries, movements, visibleYear],
+  );
+  /* Misma resta que monthTotal (pnl - payoutGross de cada mes): el total del año es la
+     suma de los mismos doce numeros que pinta cada tarjeta, no un calculo aparte. */
+  const yearTotal = useMemo(
+    () => yearMonths.reduce((total, month) => total + month.pnl - month.payoutGross, 0),
+    [yearMonths],
+  );
 
   /* Repartos de las dos barras divididas del cockpit y R medio de ganadoras y
      perdedoras. Van juntos porque los tres salen del mismo recorrido de entradas y solo
@@ -848,14 +863,24 @@ export function JournalEntriesView({
               aire, con las flechas a los lados. "Cambiar de mes de izquierda a derecha"
               pasa a ser lo primero que se ve del panel, no un control secundario. */}
           <div className="calendar-nav-heading">
-            <button className="icon-control" onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} title={t("journal.calendar.prevMonth")} type="button">
+            <button
+              className="icon-control"
+              onClick={() => setVisibleMonth((current) => shiftMonth(current, calendarMode === "year" ? -12 : -1))}
+              title={calendarMode === "year" ? t("journal.calendar.prevYear") : t("journal.calendar.prevMonth")}
+              type="button"
+            >
               <ChevronLeft size={15} strokeWidth={2.2} />
             </button>
             <div className="calendar-nav-label">
-              <h2>{visibleMonthLabel}</h2>
-              <InfoHint text={t("journal.calendar.subtitleSuffix")} />
+              <h2>{calendarMode === "year" ? visibleYear : visibleMonthLabel}</h2>
+              <InfoHint text={calendarMode === "year" ? t("journal.calendar.yearSubtitleSuffix") : t("journal.calendar.subtitleSuffix")} />
             </div>
-            <button className="icon-control" onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} title={t("journal.calendar.nextMonth")} type="button">
+            <button
+              className="icon-control"
+              onClick={() => setVisibleMonth((current) => shiftMonth(current, calendarMode === "year" ? 12 : 1))}
+              title={calendarMode === "year" ? t("journal.calendar.nextYear") : t("journal.calendar.nextMonth")}
+              type="button"
+            >
               <ChevronRight size={15} strokeWidth={2.2} />
             </button>
             <button className="secondary-action" onClick={() => setVisibleMonth(new Date().toISOString().slice(0, 7))} type="button">
@@ -867,24 +892,82 @@ export function JournalEntriesView({
               tamaño que usa el resto de la app para el numero mas importante de la
               vista (journal-detail-hero > strong, topbar h1). La camara comparte fila
               con el total, en la esquina superior derecha del panel (mismo patron que
-              .chart-heading-side en Disciplina y P&L acumulado). */}
+              .chart-heading-side en Disciplina y P&L acumulado). Solo tiene sentido en
+              vista mes: la vista año no genera imagen propia (fuera de alcance de la
+              primera version). */}
           <div className="calendar-heading-side">
             <span className="chart-delta-block">
-              <small>{t("journal.calendar.monthTotal")}</small>
-              <strong className={`chart-delta ${signedTone(monthTotal)}`}>{formatMoney(monthTotal, currency)}</strong>
+              <small>{calendarMode === "year" ? t("journal.calendar.yearTotal") : t("journal.calendar.monthTotal")}</small>
+              <strong className={`chart-delta ${signedTone(calendarMode === "year" ? yearTotal : monthTotal)}`}>
+                {formatMoney(calendarMode === "year" ? yearTotal : monthTotal, currency)}
+              </strong>
             </span>
-            <button
-              aria-label={t("journal.calendar.shareImage")}
-              className="icon-control journal-calendar-snapshot"
-              disabled={savingCalendarImage}
-              onClick={handleShareCalendarImage}
-              title={t("journal.calendar.shareImage")}
-              type="button"
-            >
-              <Camera size={13} strokeWidth={2.2} />
+            {calendarMode === "month" && (
+              <button
+                aria-label={t("journal.calendar.shareImage")}
+                className="icon-control journal-calendar-snapshot"
+                disabled={savingCalendarImage}
+                onClick={handleShareCalendarImage}
+                title={t("journal.calendar.shareImage")}
+                type="button"
+              >
+                <Camera size={13} strokeWidth={2.2} />
+              </button>
+            )}
+          </div>
+        </div>
+        {/* Interruptor Mes/Año en su propia fila, no metido en calendar-nav-heading ni
+            calendar-heading-side: las dos ya van justas de sitio en movil (flechas +
+            titulo + Hoy a un lado, total + camara al otro) y estaban auditadas para caber
+            en 375-414px. Una fila nueva y suelta no arriesga ese ajuste. */}
+        <div className="journal-calendar-mode-row">
+          <div className="period-range-tabs" aria-label={t("journal.calendar.viewToggleLabel")}>
+            <button className={calendarMode === "month" ? "active" : ""} onClick={() => setCalendarMode("month")} type="button">
+              {t("journal.calendar.monthView")}
+            </button>
+            <button className={calendarMode === "year" ? "active" : ""} onClick={() => setCalendarMode("year")} type="button">
+              {t("journal.calendar.yearView")}
             </button>
           </div>
         </div>
+        {calendarMode === "year" ? (
+          <div className="journal-year-grid">
+            {yearMonths.map((month) => {
+              const net = month.pnl - month.payoutGross;
+              const hasData = month.count > 0 || month.payoutCount > 0;
+              return (
+                <button
+                  aria-label={`${formatMonthLabel(month.month, language)}: ${formatMoney(net, currency)}, ${month.count} ${
+                    month.count === 1 ? t("journal.calendar.opsSuffixOne") : t("journal.calendar.opsSuffix")
+                  }`}
+                  className={`journal-day journal-month-card ${hasData ? "has-entries" : ""} ${signedTone(net)}`}
+                  key={month.month}
+                  onClick={() => {
+                    setVisibleMonth(month.month);
+                    setCalendarMode("month");
+                  }}
+                  type="button"
+                >
+                  <span className="journal-day-date">{formatMonthAbbrev(month.month, language)}</span>
+                  {hasData ? (
+                    <span className="journal-day-figure">
+                      <strong>
+                        <span className="journal-day-amount">{formatMoneyCompactSigned(net, currency)}</span>
+                        <span className="journal-day-amount is-tight">{formatAmountCompactSigned(net)}</span>
+                      </strong>
+                      <small className="journal-day-meta">
+                        {month.count
+                          ? `${month.count} ${month.count === 1 ? t("journal.calendar.opsSuffixOne") : t("journal.calendar.opsSuffix")}`
+                          : ""}
+                      </small>
+                      {month.count ? <small className="journal-day-rate">{formatPercentCompact(month.wins / month.count)}</small> : null}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
         <div className="journal-calendar-grid">
           {weekdayLabels.map((day) => (
             <span className="journal-weekday" key={day}>
@@ -973,6 +1056,7 @@ export function JournalEntriesView({
             </Fragment>
           ))}
         </div>
+        )}
       </section>
     ),
     errors: <JournalErrorsPanel rows={analytics.errorRows} />,
@@ -1950,6 +2034,18 @@ type CalendarDay = {
   pnl: number;
   /* Operaciones ganadoras del dia (pnl > 0), misma definicion de "win" que el cockpit
      (buildDashboardModel). La celda pinta wins / count como winrate, tercera linea. */
+  wins: number;
+};
+
+/* Mismos campos que CalendarDay salvo date/inMonth/firstEntryId (no aplican a un mes
+   entero): month sustituye a date con el mismo formato YYYY-MM que usa visibleMonth. */
+type YearMonthSummary = {
+  count: number;
+  month: string;
+  payoutCount: number;
+  payoutGross: number;
+  payoutNet: number;
+  pnl: number;
   wins: number;
 };
 
@@ -3422,6 +3518,48 @@ function buildCalendarDays(month: string, entries: JournalEntry[], movements: Mo
   });
 }
 
+/* Mismo agrupado que buildCalendarDays pero por mes en vez de por dia, para la vista
+   año: doce cifras, una por mes, con la misma formula (pnl de las entradas, payoutGross
+   de los retiros) que consume cada tarjeta y el total del año. */
+function buildYearMonths(year: string, entries: JournalEntry[], movements: Movement[]): YearMonthSummary[] {
+  const grouped = new Map<
+    string,
+    { count: number; payoutCount: number; payoutGross: number; payoutNet: number; pnl: number; wins: number }
+  >();
+
+  entries.forEach((entry) => {
+    if (!entry.date.startsWith(year)) return;
+    const key = entry.date.slice(0, 7);
+    const current = grouped.get(key) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0, wins: 0 };
+    grouped.set(key, {
+      count: current.count + 1,
+      payoutCount: current.payoutCount,
+      payoutGross: current.payoutGross,
+      payoutNet: current.payoutNet,
+      pnl: current.pnl + entry.pnl,
+      wins: current.wins + (entry.pnl > 0 ? 1 : 0),
+    });
+  });
+
+  movements.forEach((movement) => {
+    if (movement.category !== "payout" || !movement.accountId || !movement.date.startsWith(year)) return;
+    const key = movement.date.slice(0, 7);
+    const current = grouped.get(key) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0, wins: 0 };
+    grouped.set(key, {
+      ...current,
+      payoutCount: current.payoutCount + 1,
+      payoutGross: current.payoutGross + getPayoutGrossAmount(movement),
+      payoutNet: current.payoutNet + movement.amount,
+    });
+  });
+
+  return Array.from({ length: 12 }, (_, index) => {
+    const key = `${year}-${String(index + 1).padStart(2, "0")}`;
+    const item = grouped.get(key) || { count: 0, payoutCount: 0, payoutGross: 0, payoutNet: 0, pnl: 0, wins: 0 };
+    return { ...item, month: key };
+  });
+}
+
 function shiftMonth(month: string, offset: number) {
   const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
   const date = new Date(year, monthNumber - 1 + offset, 1);
@@ -3457,6 +3595,15 @@ function formatMonthLabel(month: string, language: Language) {
   const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
   const date = new Date(year, monthNumber - 1, 1);
   return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "long", year: "numeric" }).format(date);
+}
+
+/* Nombre corto del mes para la esquina de cada tarjeta de la vista año (mismo hueco que
+   el numero del dia en journal-day-date). El punto de la abreviatura en español
+   ("sept.") se quita igual que en DashboardView.formatMonthLabel. */
+function formatMonthAbbrev(month: string, language: Language) {
+  const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
+  const date = new Date(year, monthNumber - 1, 1);
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "short" }).format(date).replace(".", "");
 }
 
 function normalizeMonth(month: string) {

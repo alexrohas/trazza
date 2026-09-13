@@ -4960,6 +4960,23 @@ button {
   border-radius: 999px;
 }
 
+/* Fila propia para el interruptor Mes/Año, con el mismo hueco (16) que separa siempre
+   una cabecera de panel de su contenido. .period-range-tabs ya existe (Resumen del
+   periodo en Panel): mismo control, mismo aspecto, sin CSS nueva que mantener. */
+.journal-calendar-mode-row {
+  margin-bottom: var(--space-lg);
+}
+
+/* Cuatro columnas para los doce meses (3 filas completas), mismo paso de 4 que
+   .metric-grid en Panel. Las tarjetas reusan .journal-day entera (color, borde, tipos
+   de importe) via className compartido — journal-month-card no toca color, solo existe
+   por si algun dia hace falta un ajuste de tamaño propio sin arrastrar los dias. */
+.journal-year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
 /* Ocho columnas: las siete de los dias mas la del resumen semanal del legado. Esa ultima
    iba a 1.25fr (mas ancha que un dia) porque llevaba el importe con divisa sin compactar;
    con el total de la semana ya en formato compacto (formatMoneyCompactSigned) se estrecha
@@ -8386,6 +8403,13 @@ tbody tr:last-child td {
   .journal-calendar-grid {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: var(--space-2xs);
+  }
+
+  /* Dos columnas y no cuatro: a 375px, cuatro tarjetas de mes con importe + operaciones
+     + winrate quedarian mas estrechas que un dia del mes (que ya solo enseña el importe
+     compacto). Con dos, cada tarjeta conserva el ancho de un movil normal. */
+  .journal-year-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .journal-weekday.is-week {
