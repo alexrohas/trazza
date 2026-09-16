@@ -1,4 +1,4 @@
-import { accounts, firms, journalEntries, journalErrorTypes, movements } from "../data/demoData";
+import { accounts, firms, journalEntries, journalErrorTypes, journalStrategies, movements } from "../data/demoData";
 import type { AppData } from "../types";
 
 export const demoData: AppData = {
@@ -8,4 +8,5 @@ export const demoData: AppData = {
   journalEntries,
   journalErrorTypes,
   deletedDefaultErrorTypeIds: [],
+  journalStrategies,
 };

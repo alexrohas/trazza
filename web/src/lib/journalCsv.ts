@@ -1,6 +1,7 @@
 import type { useT } from "./i18n/context";
 import { mergeJournalErrorTypes, getJournalErrorDefinition, sanitizeErrorIds } from "./journalErrors";
 import { getAccountName } from "./metrics";
+import { stripHtmlToText } from "./richText";
 import type { Firm, JournalDirection, JournalEmotion, JournalEntry, JournalErrorType, JournalResult, JournalSessionType, JournalTradingSession, TradingAccount } from "../types";
 
 const journalTradingSessionValues: JournalTradingSession[] = ["asia", "london", "newYork", "londonNewYork", "other"];
@@ -139,7 +140,7 @@ export function exportJournalEntriesCsv(
       entry.pnl,
       entryErrors.map((id) => getJournalErrorDefinition(effectiveErrorTypes, id).label).join(" | "),
       entry.operationUrl || "",
-      entry.notes || "",
+      stripHtmlToText(entry.notes),
       entry.lesson || "",
     ]
       .map(escapeCsvValue)

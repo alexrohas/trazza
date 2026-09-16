@@ -13,16 +13,29 @@ import {
   markDefaultErrorTypeDeleted,
   replaceCloudData,
   deleteCloudJournalErrorType,
+  deleteCloudJournalStrategy,
   setCloudJournalErrorTypeActive,
+  setCloudJournalStrategyActive,
   updateCloudAccount,
   updateCloudAccountVisibility,
   updateCloudFirm,
   updateCloudJournalEntry,
   updateCloudMovement,
   upsertCloudJournalErrorType,
+  upsertCloudJournalStrategy,
 } from "../lib/db";
 import { supabaseClient } from "../lib/supabase";
-import type { AccountInput, AppData, DataMode, FirmInput, JournalEntryInput, JournalErrorTypeInput, MovementInput, TradingAccount } from "../types";
+import type {
+  AccountInput,
+  AppData,
+  DataMode,
+  FirmInput,
+  JournalEntryInput,
+  JournalErrorTypeInput,
+  JournalStrategyInput,
+  MovementInput,
+  TradingAccount,
+} from "../types";
 
 type DataStatus = "demo" | "idle" | "loading" | "ready" | "error";
 
@@ -384,6 +397,81 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     [enabled, reload, userId],
   );
 
+  const saveJournalStrategy = useCallback(
+    async (input: JournalStrategyInput, strategyId?: string) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para guardar estrategias reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        await upsertCloudJournalStrategy(supabaseClient, userId, input, strategyId);
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo guardar la estrategia.";
+        setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
+  const deleteJournalStrategy = useCallback(
+    async (strategyId: string) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para borrar estrategias reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        await deleteCloudJournalStrategy(supabaseClient, userId, strategyId);
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo borrar la estrategia.";
+        setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
+  const setJournalStrategyActive = useCallback(
+    async (strategyId: string, active: boolean) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para actualizar estrategias reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        await setCloudJournalStrategyActive(supabaseClient, userId, strategyId, active);
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo actualizar la estrategia.";
+        setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
   const importData = useCallback(
     async (imported: AppData) => {
       if (!enabled || !userId || !supabaseClient) {
@@ -429,10 +517,13 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     saveFirm,
     saveJournalErrorType,
     saveJournalEntry,
+    saveJournalStrategy,
     saveMovement,
     deleteJournalErrorType,
+    deleteJournalStrategy,
     setAccountVisible,
     setJournalErrorTypeActive,
+    setJournalStrategyActive,
     status,
   };
 }

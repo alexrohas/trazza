@@ -249,6 +249,7 @@ export function SettingsView({
           <span>{data.movements.length} {t("settings.export.movements")}</span>
           <span>{data.journalEntries.length} {t("settings.export.entries")}</span>
           <span>{data.journalErrorTypes.length} {t("settings.export.errorTypes")}</span>
+          <span>{data.journalStrategies.length} {t("settings.export.strategies")}</span>
         </div>
         <div className="migration-actions">
           <button className="secondary-action" onClick={() => exportJson(data, dataMode)} type="button">

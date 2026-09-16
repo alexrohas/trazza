@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   BarChart3,
   Brain,
   Camera,
@@ -36,10 +37,12 @@ import { FilterToggleButton } from "./FilterToggle";
 import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
+import { RichTextEditor } from "./RichTextEditor";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
+import { stripHtmlToText } from "../lib/richText";
 import { colorForSeverity } from "../lib/journalErrors";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
@@ -64,6 +67,7 @@ import {
   sanitizeErrorIds as sanitizeJournalErrorIds,
   severityRank,
 } from "../lib/journalErrors";
+import { getJournalStrategyLabel } from "../lib/journalStrategies";
 import { matchesSearch } from "../lib/search";
 import { parseTradovatePerformanceCsv, type TradovateImportResult } from "../lib/tradovateImport";
 import type {
@@ -79,6 +83,8 @@ import type {
   JournalErrorTypeInput,
   JournalResult,
   JournalSessionType,
+  JournalStrategy,
+  JournalStrategyInput,
   JournalTradingSession,
   Movement,
   TradingAccount,
@@ -93,6 +99,7 @@ type JournalEntriesViewProps = {
   firms: Firm[];
   initialMode?: "cockpit" | "entries";
   journalErrorTypes: JournalErrorType[];
+  journalStrategies: JournalStrategy[];
   movements: Movement[];
   mutationError?: string | null;
   mutating?: boolean;
@@ -106,6 +113,9 @@ type JournalEntriesViewProps = {
   onSaveErrorType: (input: JournalErrorTypeInput, typeId?: string) => Promise<boolean>;
   onDeleteErrorType: (typeId: string, isDefaultType?: boolean) => Promise<boolean>;
   onSetErrorTypeActive: (typeId: string, active: boolean) => Promise<boolean>;
+  onSaveStrategy: (input: JournalStrategyInput, strategyId?: string) => Promise<boolean>;
+  onDeleteStrategy: (strategyId: string) => Promise<boolean>;
+  onSetStrategyActive: (strategyId: string, active: boolean) => Promise<boolean>;
 };
 
 type JournalAccountRule = {
@@ -153,6 +163,14 @@ function createEmptyErrorTypeInput(): JournalErrorTypeInput {
   return {
     active: true,
     color: "#64748b",
+    label: "",
+    position: 1000,
+  };
+}
+
+function createEmptyStrategyInput(): JournalStrategyInput {
+  return {
+    active: true,
     label: "",
     position: 1000,
   };
@@ -264,6 +282,7 @@ export function JournalEntriesView({
   firms,
   initialMode = "cockpit",
   journalErrorTypes,
+  journalStrategies,
   movements,
   mutationError,
   mutating = false,
@@ -277,6 +296,9 @@ export function JournalEntriesView({
   onSaveEntry,
   onDeleteErrorType,
   onSetErrorTypeActive,
+  onSaveStrategy,
+  onDeleteStrategy,
+  onSetStrategyActive,
 }: JournalEntriesViewProps) {
   const operationFileInputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState<JournalEntryInput>(() => createEmptyJournalInput());
@@ -288,6 +310,12 @@ export function JournalEntriesView({
   const [errorManagerOpen, setErrorManagerOpen] = useState(false);
   const [errorTypeMessage, setErrorTypeMessage] = useState<LocalMessage | null>(null);
   const errorTypeMessageRef = useRef<HTMLParagraphElement>(null);
+  /* Mismo patron que el gestor de tipos de error, sin severidad ni color: solo nombre. */
+  const [strategyDraft, setStrategyDraft] = useState<JournalStrategyInput>(() => createEmptyStrategyInput());
+  const [editingStrategyId, setEditingStrategyId] = useState<string | undefined>();
+  const [strategyManagerOpen, setStrategyManagerOpen] = useState(false);
+  const [strategyMessage, setStrategyMessage] = useState<LocalMessage | null>(null);
+  const strategyMessageRef = useRef<HTMLParagraphElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [importMessage, setImportMessage] = useState<LocalMessage | null>(null);
   const [importing, setImporting] = useState(false);
@@ -318,6 +346,11 @@ export function JournalEntriesView({
   const canWrite = dataMode === "cloud";
   const dashboardLayout = useJournalDashboardLayout();
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  /* Arrastrar una tarjeta del cockpit directamente, no solo desde la lista de
+     "Personalizar panel": draggingWidgetId da la opacidad de la que se suelta,
+     dragOverWidgetId el recuadro de la que la recibiria si se soltara ahora. */
+  const [draggingWidgetId, setDraggingWidgetId] = useState<JournalWidgetId | null>(null);
+  const [dragOverWidgetId, setDragOverWidgetId] = useState<JournalWidgetId | null>(null);
   const [savingCalendarImage, setSavingCalendarImage] = useState(false);
   const t = useT();
   const confirm = useConfirm();
@@ -386,6 +419,20 @@ export function JournalEntriesView({
     });
     return usage;
   }, [effectiveErrorTypes, entries]);
+  /* Sin mergeJournalErrorTypes-equivalente: las estrategias no tienen semillas por
+     defecto, asi que journalStrategies (el prop, ya ordenado por position desde la
+     consulta) es directamente la lista efectiva. */
+  const activeStrategies = useMemo(
+    () => journalStrategies.filter((strategy) => strategy.active || strategy.id === draft.strategyId),
+    [draft.strategyId, journalStrategies],
+  );
+  const strategyUsageById = useMemo(() => {
+    const usage = new Map<string, number>();
+    entries.forEach((entry) => {
+      if (entry.strategyId) usage.set(entry.strategyId, (usage.get(entry.strategyId) || 0) + 1);
+    });
+    return usage;
+  }, [entries]);
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const reviewPresetRange = useMemo(() => getReviewPresetDateRange(reviewPreset), [reviewPreset]);
@@ -419,6 +466,13 @@ export function JournalEntriesView({
     ],
     [accountsForFirm, t],
   );
+  const entryStrategyOptions = useMemo(
+    () => [
+      { label: t("journal.entryForm.noStrategy"), value: "" },
+      ...activeStrategies.map((strategy) => ({ label: strategy.label, value: strategy.id })),
+    ],
+    [activeStrategies, t],
+  );
   const periodRange = useMemo(() => getPeriodDateRange(periodFilter), [periodFilter]);
   const filteredEntries = useMemo(
     () => {
@@ -440,7 +494,7 @@ export function JournalEntriesView({
           entryErrors.map((error) => getJournalErrorLabel(effectiveErrorTypes, error)).join(" "),
           entry.pnl,
           entry.operationUrl,
-          entry.notes,
+          stripHtmlToText(entry.notes),
           entry.lesson,
           firmName,
           account?.name,
@@ -502,8 +556,8 @@ export function JournalEntriesView({
     };
   }, [calendarDays]);
   const analytics = useMemo(
-    () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, weekdayBarLabels),
-    [effectiveErrorTypes, filteredEntries, sessionOptions, weekdayBarLabels],
+    () => buildJournalAnalytics(filteredEntries, effectiveErrorTypes, sessionOptions, weekdayBarLabels, journalStrategies, t("journal.entryForm.noStrategy")),
+    [effectiveErrorTypes, filteredEntries, journalStrategies, sessionOptions, t, weekdayBarLabels],
   );
   /* Fechas distintas del mismo subconjunto que analytics.stats.netPnl (filteredEntries):
      el numerito junto al P&L total dice sobre cuantos dias sale esa cifra, no cuantas
@@ -591,6 +645,13 @@ export function JournalEntriesView({
   useEffect(() => {
     if (errorTypeMessage) errorTypeMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [errorTypeMessage]);
+
+  /* Mismo arreglo que arriba (errorTypeMessage), mismo motivo: el gestor de estrategias
+     puede tener suficientes filas como para que el aviso de "en uso" aparezca fuera de
+     la parte visible del modal. */
+  useEffect(() => {
+    if (strategyMessage) strategyMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [strategyMessage]);
 
   const closeImportFlow = () => {
     setImportOpen(false);
@@ -752,6 +813,19 @@ export function JournalEntriesView({
     if (saved && editingErrorTypeId === type.id) resetErrorTypeForm();
   };
 
+  const resetStrategyForm = () => {
+    setStrategyDraft(createEmptyStrategyInput());
+    setEditingStrategyId(undefined);
+  };
+
+  /* Sin el equivalente de cloudErrorTypeIds: una estrategia solo existe en
+     journalStrategies cuando ya es una fila real (no hay semillas virtuales que
+     materializar), asi que archivar/restaurar es siempre un UPDATE directo. */
+  const handleToggleStrategyActive = async (strategy: JournalStrategy) => {
+    const saved = await onSetStrategyActive(strategy.id, !strategy.active);
+    if (saved && editingStrategyId === strategy.id) resetStrategyForm();
+  };
+
   /* Icono de camara en la esquina del panel del calendario: genera un PNG del mes
      (web/src/lib/journalCalendarImage.ts) y lo comparte o descarga. */
   const handleShareCalendarImage = async () => {
@@ -810,7 +884,7 @@ export function JournalEntriesView({
         </div>
         <div className="journal-detail-copy">
           <span>{t("journal.detail.notes")}</span>
-          <p>{entry.notes || t("journal.detail.noNotes")}</p>
+          {entry.notes ? <RichTextEditor editable={false} value={entry.notes} /> : <p>{t("journal.detail.noNotes")}</p>}
         </div>
         {entry.operationUrl && (
           <div className="journal-detail-copy">
@@ -1060,6 +1134,9 @@ export function JournalEntriesView({
       </section>
     ),
     errors: <JournalErrorsPanel rows={analytics.errorRows} />,
+    strategies: (
+      <JournalStrategiesPanel currency={currency} onConfigure={() => setStrategyManagerOpen(true)} rows={analytics.strategyRows} />
+    ),
     kpis: (
       <section className="metric-grid journal-kpi-grid" aria-label={t("journal.kpi.filteredAriaLabel")}>
         {/* Antes era la cifra grande de la cabecera de "P&L acumulado" (el grafico, mas
@@ -1164,6 +1241,7 @@ export function JournalEntriesView({
     pnl: t("journal.widgetLabel.pnl"),
     recent: t("journal.widgetLabel.recent"),
     session: t("journal.widgetLabel.session"),
+    strategies: t("journal.widgetLabel.strategies"),
     weekday: t("journal.widgetLabel.weekday"),
   };
 
@@ -1180,12 +1258,16 @@ export function JournalEntriesView({
     pnl: "half",
     recent: "narrow",
     session: "quarter",
+    /* Sola en su fila (12 de 12): no tiene pareja de legado que igualar (es feature
+       nueva), y una lista de barras como esta pide ancho para que las etiquetas de
+       estrategia no compitan con la barra. Ver journalDashboardWidgetIds. */
+    strategies: "full",
     weekday: "quarter",
   };
 
   return (
     <div className="firms-workspace">
-      {journalMode !== "cockpit" && (
+      {journalMode === "entries" && (
       <>
       <div className="dashboard-filter-bar">
         <FilterToggleButton
@@ -1266,7 +1348,47 @@ export function JournalEntriesView({
             {dashboardLayout.order
               .filter((id) => !dashboardLayout.isHidden(id))
               .map((id) => (
-                <div className="journal-dashboard-widget" data-widget-size={journalWidgetSizes[id]} key={id}>
+                <div
+                  className={`journal-dashboard-widget ${draggingWidgetId === id ? "is-dragging" : ""} ${
+                    dragOverWidgetId === id && draggingWidgetId !== id ? "is-drag-over" : ""
+                  }`}
+                  data-widget-size={journalWidgetSizes[id]}
+                  key={id}
+                  onDragEnd={() => {
+                    setDraggingWidgetId(null);
+                    setDragOverWidgetId(null);
+                  }}
+                  onDragLeave={() => setDragOverWidgetId((current) => (current === id ? null : current))}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (draggingWidgetId && draggingWidgetId !== id) setDragOverWidgetId(id);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const fromId = event.dataTransfer.getData("text/plain") as JournalWidgetId;
+                    dashboardLayout.moveWidget(fromId, id);
+                    setDraggingWidgetId(null);
+                    setDragOverWidgetId(null);
+                  }}
+                >
+                  {/* Asa propia: solo ella lleva draggable, no la tarjeta entera. Si la
+                      tarjeta completa fuera arrastrable, pasar el raton por un grafico
+                      (hover, zoom) podia arrancar un drag nativo sin querer — con la
+                      asa, el resto del contenido se comporta exactamente igual que
+                      antes. Se ve solo al pasar el raton por la tarjeta (CSS). */}
+                  <span
+                    aria-hidden="true"
+                    className="journal-dashboard-widget-handle"
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData("text/plain", id);
+                      event.dataTransfer.effectAllowed = "move";
+                      setDraggingWidgetId(id);
+                    }}
+                    title={t("journal.customize.dragHandle")}
+                  >
+                    <GripVertical size={14} strokeWidth={2.2} />
+                  </span>
                   {journalWidgetContent[id]}
                 </div>
               ))}
@@ -1468,6 +1590,132 @@ export function JournalEntriesView({
       </Modal>
       )}
 
+      {strategyManagerOpen && (
+      <Modal
+        onClose={() => {
+          setStrategyManagerOpen(false);
+          setStrategyMessage(null);
+        }}
+        title={t("journal.strategyManager.title")}
+        width="wide"
+      >
+        <div className="journal-error-manager-grid">
+          <form
+            className="journal-error-type-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const label = strategyDraft.label.trim();
+              if (label.length < 2) return;
+              const fallbackPosition = Math.max(0, ...journalStrategies.map((strategy) => strategy.position)) + 10;
+              const position = Number.isFinite(strategyDraft.position) ? strategyDraft.position : fallbackPosition;
+              const saved = await onSaveStrategy(
+                {
+                  active: strategyDraft.active ?? true,
+                  label,
+                  position,
+                },
+                editingStrategyId,
+              );
+              if (saved) resetStrategyForm();
+            }}
+          >
+            <label>
+              <span>{t("journal.strategyManager.name")}</span>
+              <input
+                disabled={!canWrite || mutating}
+                maxLength={34}
+                onChange={(event) => setStrategyDraft((current) => ({ ...current, label: event.target.value }))}
+                placeholder={t("journal.strategyManager.namePlaceholder")}
+                type="text"
+                value={strategyDraft.label}
+              />
+            </label>
+            <button className="primary-action" disabled={!canWrite || mutating || strategyDraft.label.trim().length < 2} type="submit">
+              <Check size={17} strokeWidth={2.2} />
+              {editingStrategyId ? t("journal.strategyManager.save") : t("journal.strategyManager.create")}
+            </button>
+            {editingStrategyId && (
+              <button className="ghost-action" disabled={mutating} onClick={resetStrategyForm} type="button">
+                <X size={16} strokeWidth={2.2} />
+                {t("common.cancel")}
+              </button>
+            )}
+          </form>
+          <div className="journal-error-type-list">
+            {strategyMessage && (
+              <p className={`mutation-message ${strategyMessage.type}`} ref={strategyMessageRef}>
+                {strategyMessage.text}
+              </p>
+            )}
+            {journalStrategies.length === 0 && <p className="inline-muted">{t("journal.strategyManager.empty")}</p>}
+            {journalStrategies.map((strategy) => {
+              const usage = strategyUsageById.get(strategy.id) || 0;
+              return (
+                <article className={`journal-error-type-row journal-strategy-row ${strategy.active ? "" : "is-archived"}`} key={strategy.id}>
+                  <div>
+                    <strong>
+                      {strategy.label}
+                      {!strategy.active && <em>{t("journal.strategyManager.hiddenBadge")}</em>}
+                    </strong>
+                    <span>
+                      {usage} {usage === 1 ? t("journal.strategyManager.entrySuffix") : t("journal.strategyManager.entriesSuffix")}
+                    </span>
+                  </div>
+                  <div className="row-actions">
+                    <button
+                      className="icon-control compact-icon"
+                      disabled={!canWrite || mutating}
+                      onClick={() => {
+                        setEditingStrategyId(strategy.id);
+                        setStrategyDraft({ active: strategy.active, label: strategy.label, position: strategy.position });
+                      }}
+                      title={t("common.edit")}
+                      type="button"
+                    >
+                      <Pencil size={15} strokeWidth={2.2} />
+                    </button>
+                    <button
+                      className="icon-control compact-icon"
+                      disabled={!canWrite || mutating}
+                      onClick={() => void handleToggleStrategyActive(strategy)}
+                      title={strategy.active ? t("journal.strategyManager.hide") : t("journal.strategyManager.restore")}
+                      type="button"
+                    >
+                      {strategy.active ? <EyeOff size={15} strokeWidth={2.2} /> : <Eye size={15} strokeWidth={2.2} />}
+                    </button>
+                    {/* Mismo criterio que borrar un tipo de error: bloqueado si esta en uso
+                        (las entradas guardan el id de la estrategia), con el mensaje visible
+                        en vez de un boton deshabilitado que solo se explica al pasar el
+                        raton. Para eso esta archivar, el boton de al lado. */}
+                    <button
+                      className="card-delete"
+                      disabled={!canWrite || mutating}
+                      onClick={async () => {
+                        if (usage > 0) {
+                          setStrategyMessage({
+                            text: `${t("journal.strategyManager.inUsePrefix")} ${usage} ${usage === 1 ? t("journal.strategyManager.inUseEntry") : t("journal.strategyManager.inUseEntries")}. ${t("journal.strategyManager.archiveInstead")}`,
+                            type: "error",
+                          });
+                          return;
+                        }
+                        setStrategyMessage(null);
+                        if (!(await confirm({ title: t("journal.strategyManager.deleteConfirm"), confirmLabel: t("common.delete"), tone: "danger" }))) return;
+                        void onDeleteStrategy(strategy.id);
+                      }}
+                      title={t("journal.strategyManager.delete")}
+                      type="button"
+                    >
+                      <Trash2 size={15} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </Modal>
+      )}
+
       {entryModeOpen && (
         <Modal onClose={() => setEntryModeOpen(false)} title={t("journal.entryMode.title")}>
           <div className="journal-entry-mode-help">
@@ -1612,15 +1860,40 @@ export function JournalEntriesView({
       )}
 
       {journalMode === "entryForm" && (
-      <Modal onClose={closeEntryForm} title={editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}>
+      /* Vista completa, no modal: a peticion expresa, para que el editor de notas tenga
+         sitio real y el resto de campos respire. El boton de guardar vive en la cabecera,
+         fuera del <form>, enlazado por id (atributo form) — asi queda visible sin
+         depender de donde se haya scrolleado la columna de la izquierda. */
+      <section className="journal-entry-page">
+        <div className="journal-entry-page-header">
+          <div className="journal-entry-page-heading">
+            <button className="icon-control" onClick={closeEntryForm} title={t("common.cancel")} type="button">
+              <ArrowLeft size={18} strokeWidth={2.2} />
+            </button>
+            <h2>{editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}</h2>
+          </div>
+          <div className="journal-entry-page-actions">
+            <button className="ghost-action" onClick={closeEntryForm} type="button">
+              {t("common.cancel")}
+            </button>
+            <button className="primary-action" disabled={!canWrite || mutating} form="journal-entry-form" type="submit">
+              <Check size={17} strokeWidth={2.2} />
+              {mutating ? t("common.saving") : editingId ? t("common.saveChanges") : t("journal.entryForm.create")}
+            </button>
+          </div>
+        </div>
+        {mutationError && <p className="mutation-message error">{mutationError}</p>}
+        {importMessage && <p className={`mutation-message ${importMessage.type}`}>{importMessage.text}</p>}
         <form
-          className="entity-form resource-form-grid modal-form-grid journal-entry-form"
+          className="journal-entry-page-body"
+          id="journal-entry-form"
           onSubmit={async (event) => {
             event.preventDefault();
             const saved = await onSaveEntry(draft, editingId);
             if (saved) closeEntryForm();
           }}
         >
+        <div className="entity-form journal-entry-form journal-entry-page-fields">
           <label>
             <span>{t("journal.entryForm.date")}</span>
             <DatePicker
@@ -1681,23 +1954,12 @@ export function JournalEntriesView({
             options={directionOptions}
             value={draft.direction}
           />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.entryForm.discipline")}
-            onChange={(value) => setDraft((current) => ({ ...current, discipline: Number(value) }))}
-            options={disciplineOptions}
-            value={String(draft.discipline)}
-          />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.session")}
-            onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
-            options={sessionOptions}
-            value={draft.tradingSession}
-          />
-          <label className="wide-field">
+          {/* El dato que mas importa se lee justo despues de los hechos duros (fecha,
+              activo, direccion), no al final junto a disciplina/sesion/emocion/estrategia
+              — esos son reflexion, este es el resultado. A peticion expresa. */}
+          <label className="wide-field journal-entry-pnl-field">
             <span>{t("journal.entryForm.pnl")}</span>
-            <span className="journal-money-input">
+            <span className={`journal-money-input ${signedTone(draft.pnl)}`}>
               <span>{currency === "USD" ? "$" : "€"}</span>
               {/* Lo que se ve es este texto, no draft.pnl: con el numero suelto, el 0
                   inicial se quedaba delante de lo que escribias ("0200"), y al teclear
@@ -1721,6 +1983,29 @@ export function JournalEntriesView({
                 value={pnlText}
               />
             </span>
+          </label>
+          <SelectField
+            disabled={!canWrite || mutating}
+            label={t("journal.entryForm.discipline")}
+            onChange={(value) => setDraft((current) => ({ ...current, discipline: Number(value) }))}
+            options={disciplineOptions}
+            value={String(draft.discipline)}
+          />
+          <SelectField
+            disabled={!canWrite || mutating}
+            label={t("journal.filter.session")}
+            onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
+            options={sessionOptions}
+            value={draft.tradingSession}
+          />
+          <label>
+            <span>{t("journal.entryForm.strategy")}</span>
+            <Select
+              disabled={!canWrite || mutating}
+              onChange={(next) => setDraft((current) => ({ ...current, strategyId: next || undefined }))}
+              options={entryStrategyOptions}
+              value={draft.strategyId || ""}
+            />
           </label>
           <div className="wide-field journal-operation-media-field">
             <div className="journal-operation-media-toolbar">
@@ -1834,34 +2119,21 @@ export function JournalEntriesView({
               })}
             </div>
           </fieldset>
-          <label className="wide-field">
-            <span>{t("journal.entryForm.notes")}</span>
-            <textarea
-              disabled={!canWrite || mutating}
-              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-              placeholder={t("journal.entryForm.notesPlaceholder")}
-              rows={3}
-              value={draft.notes || ""}
-            />
-          </label>
-
-          {mutationError && <p className="mutation-message error">{mutationError}</p>}
-          {importMessage && <p className={`mutation-message ${importMessage.type}`}>{importMessage.text}</p>}
-
-          <div className="form-action-row">
-            <button className="ghost-action" onClick={closeEntryForm} type="button">
-              {t("common.cancel")}
-            </button>
-            <button className="primary-action" disabled={!canWrite || mutating} type="submit">
-              <Check size={17} strokeWidth={2.2} />
-              {mutating ? t("common.saving") : editingId ? t("common.saveChanges") : t("journal.entryForm.create")}
-            </button>
-          </div>
+        </div>
+        <label className="journal-entry-page-notes">
+          <span>{t("journal.entryForm.notes")}</span>
+          <RichTextEditor
+            disabled={!canWrite || mutating}
+            onChange={(html) => setDraft((current) => ({ ...current, notes: html }))}
+            placeholder={t("journal.entryForm.notesPlaceholder")}
+            value={draft.notes || ""}
+          />
+        </label>
         </form>
-      </Modal>
+      </section>
       )}
 
-      {(journalMode === "entries" || journalMode === "entryForm") && (
+      {journalMode === "entries" && (
       <>
       {/* Sin tarjeta ni cabecera propia: cada entrada ya es su propia tarjeta
           (.journal-card lleva borde y sombra), envolverlas todas en una tarjeta mas
@@ -1953,6 +2225,7 @@ export function JournalEntriesView({
                   discipline: detailEntry.discipline || 3,
                   pnl: detailEntry.pnl,
                   errors: getEntryErrors(detailEntry, effectiveErrorTypes),
+                  strategyId: detailEntry.strategyId,
                   operationUrl: detailEntry.operationUrl || "",
                   notes: detailEntry.notes || "",
                   lesson: detailEntry.lesson || "",
@@ -2087,12 +2360,23 @@ type JournalErrorRow = {
   share: number;
 };
 
+/* Sin severidad ni color propio: el desglose la colorea por signo del P&L (como
+   Resultado por empresa en Panel), no por identidad de la estrategia. */
+type JournalStrategyRow = {
+  count: number;
+  id: string;
+  label: string;
+  pnl: number;
+  winRate: number | null;
+};
+
 type JournalAnalytics = {
   bestSession: JournalSummaryRow | null;
   errorRows: JournalErrorRow[];
   maxErrorCount: number;
   sessionRows: JournalSummaryRow[];
   stats: JournalStats;
+  strategyRows: JournalStrategyRow[];
   weekdayRows: JournalSummaryRow[];
 };
 
@@ -2202,6 +2486,63 @@ function JournalErrorsPanel({ rows }: { rows: JournalAnalytics["errorRows"] }) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* Mismo patron que InsightPanel (Resultado por empresa, en el Panel): barras que nacen
+   de la izquierda y se tinen por el signo del P&L, no por identidad de la estrategia —
+   la pregunta que responde este widget es "que estrategia me funciona", y el color de
+   una barra ya lo dice sin necesitar una leyenda de colores por estrategia. No se
+   reutiliza el componente de DashboardView.tsx (es privado a ese archivo y esta pensado
+   para filas ya resueltas afuera); aqui se reconstruye igual con las clases .insight-*,
+   que ya existen como CSS generica. */
+function JournalStrategiesPanel({
+  currency,
+  onConfigure,
+  rows,
+}: {
+  currency: Currency;
+  onConfigure: () => void;
+  rows: JournalAnalytics["strategyRows"];
+}) {
+  const t = useT();
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const maxAbs = Math.max(1, ...rows.map((row) => Math.abs(row.pnl)));
+
+  return (
+    <section className="panel insight-panel journal-strategies-panel">
+      <div className="panel-heading">
+        <div className="panel-title-row">
+          <h2>{t("journal.breakdown.strategies.title")}</h2>
+          <InfoHint text={t("journal.breakdown.strategies.subtitle")} />
+        </div>
+        <button className="ghost-action compact-action" onClick={onConfigure} type="button">
+          <Settings2 size={15} strokeWidth={2.2} />
+          {t("journal.strategyManager.configure")}
+        </button>
+      </div>
+      {total === 0 ? (
+        <div className="chart-empty">{t("journal.breakdown.strategies.empty")}</div>
+      ) : (
+        <div className="insight-list">
+          {rows.map((row) => (
+            <div className="insight-row" key={row.id}>
+              <div>
+                <span>
+                  <strong>{row.label}</strong>
+                  <b className={signedTone(row.pnl)}>{formatMoney(row.pnl, currency)}</b>
+                </span>
+                <i className={row.pnl < 0 ? "is-neg" : "is-pos"} style={{ width: `${Math.max(5, (Math.abs(row.pnl) / maxAbs) * 100)}%` }} />
+                <small>
+                  {row.count} {row.count === 1 ? t("journal.calendar.opsSuffixOne") : t("journal.calendar.opsSuffix")}
+                  {row.winRate !== null ? ` · ${formatPercentCompact(row.winRate)}` : ""}
+                </small>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>
@@ -2784,6 +3125,8 @@ function buildJournalAnalytics(
   errorTypes: JournalErrorType[],
   sessionOptions: Array<{ label: string; value: JournalTradingSession }>,
   weekdayLabels: string[],
+  strategies: JournalStrategy[],
+  noStrategyLabel: string,
 ): JournalAnalytics {
   const stats = getJournalStats(entries);
   const sessionRows = sessionOptions
@@ -2799,6 +3142,7 @@ function buildJournalAnalytics(
     ...summarizeJournalEntries(entries.filter((entry) => getWeekdayIndex(entry.date) === index)),
   }));
   const errorRows = buildJournalErrorRows(entries, errorTypes);
+  const strategyRows = buildJournalStrategyRows(entries, strategies, noStrategyLabel);
   const bestSession =
     [...sessionRows].sort((left, right) => right.pnl - left.pnl || (right.winRate ?? -1) - (left.winRate ?? -1))[0] ??
     null;
@@ -2809,8 +3153,38 @@ function buildJournalAnalytics(
     maxErrorCount: errorRows.reduce((max, row) => Math.max(max, row.count), 0),
     sessionRows,
     stats,
+    strategyRows,
     weekdayRows,
   };
+}
+
+/* Una fila por estrategia usada, mas "sin estrategia" si hay alguna entrada sin
+   etiquetar — asi los numeros del desglose siempre suman el total de operaciones
+   filtradas, y no parece que falten datos cuando en realidad falta etiquetar. Orden por
+   P&L descendente: la pregunta que responde este panel es "que estrategia me funciona",
+   no un orden alfabetico ni de frecuencia. */
+function buildJournalStrategyRows(entries: JournalEntry[], strategies: JournalStrategy[], noStrategyLabel: string): JournalStrategyRow[] {
+  const grouped = new Map<string, { count: number; pnl: number; wins: number }>();
+
+  entries.forEach((entry) => {
+    const key = entry.strategyId || "";
+    const current = grouped.get(key) || { count: 0, pnl: 0, wins: 0 };
+    grouped.set(key, {
+      count: current.count + 1,
+      pnl: current.pnl + entry.pnl,
+      wins: current.wins + (entry.pnl > 0 ? 1 : 0),
+    });
+  });
+
+  return Array.from(grouped.entries())
+    .map(([id, value]) => ({
+      count: value.count,
+      id: id || "unassigned",
+      label: id ? getJournalStrategyLabel(strategies, id) || id : noStrategyLabel,
+      pnl: value.pnl,
+      winRate: value.count > 0 ? value.wins / value.count : null,
+    }))
+    .sort((left, right) => right.pnl - left.pnl);
 }
 
 function JournalErrorChips({

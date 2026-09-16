@@ -1,5 +1,5 @@
 import { defaultJournalErrorTypes } from "../lib/journalErrors";
-import type { Firm, JournalEntry, JournalErrorType, Movement, TradingAccount } from "../types";
+import type { Firm, JournalEntry, JournalErrorType, JournalStrategy, Movement, TradingAccount } from "../types";
 
 export const firms: Firm[] = [
   {
@@ -145,6 +145,7 @@ export const journalEntries: JournalEntry[] = [
     discipline: 9,
     emotion: "focused",
     errors: [],
+    strategyId: "pullback",
     operationUrl:
       "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 720'%3E%3Crect width='1200' height='720' fill='%23101418'/%3E%3Cpath d='M80 520 L260 440 L420 470 L620 310 L760 350 L920 220 L1120 260' fill='none' stroke='%230e8f8d' stroke-width='16' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M80 560 H1120' stroke='%23333b45' stroke-width='4'/%3E%3Cpath d='M150 120 H1050 M150 230 H1050 M150 340 H1050 M150 450 H1050' stroke='%23252d36' stroke-width='3'/%3E%3Crect x='122' y='170' width='82' height='330' rx='12' fill='%23dc2626'/%3E%3Crect x='242' y='260' width='82' height='230' rx='12' fill='%23138a61'/%3E%3Crect x='362' y='215' width='82' height='275' rx='12' fill='%23138a61'/%3E%3Ctext x='80' y='92' fill='%23f8fafc' font-family='Arial' font-size='42' font-weight='700'%3ENQ long - breakout%3C/text%3E%3Ctext x='80' y='650' fill='%239aa4b2' font-family='Arial' font-size='28'%3EDemo capture%3C/text%3E%3C/svg%3E",
     notes: "Entrada con pullback limpio y salida parcial segun plan.",
@@ -164,6 +165,7 @@ export const journalEntries: JournalEntry[] = [
     discipline: 6,
     emotion: "anxious",
     errors: ["late-entry"],
+    strategyId: "reversal",
     operationUrl: "",
     notes: "Stop correcto, gestionable. Faltaba esperar confirmacion.",
   },
@@ -182,6 +184,7 @@ export const journalEntries: JournalEntry[] = [
     discipline: 10,
     emotion: "calm",
     errors: [],
+    strategyId: "pullback",
     operationUrl: "",
     notes: "Trade A+ en apertura, sin sobreoperar despues.",
   },
@@ -218,6 +221,7 @@ export const journalEntries: JournalEntry[] = [
     discipline: 8,
     emotion: "focused",
     errors: ["news"],
+    strategyId: "pullback",
     operationUrl: "",
     notes: "Gestion por niveles y cierre antes de noticia.",
   },
@@ -236,9 +240,20 @@ export const journalEntries: JournalEntry[] = [
     discipline: 8,
     emotion: "calm",
     errors: [],
+    strategyId: "scalping",
     operationUrl: "",
     notes: "Setup menor con riesgo reducido.",
   },
 ];
 
 export const journalErrorTypes: JournalErrorType[] = defaultJournalErrorTypes.map(({ severity: _severity, ...type }) => type);
+
+/* Sin defaults por defecto (a diferencia de journalErrorTypes): la demo enseña un caso
+   ya usado, no la lista vacia con la que arranca cualquier cuenta real. journal-004
+   (la reentrada impulsiva) se deja sin estrategia a proposito, para que el desglose
+   enseñe tambien la fila "Sin estrategia". */
+export const journalStrategies: JournalStrategy[] = [
+  { id: "pullback", label: "Pullback", position: 0, active: true },
+  { id: "reversal", label: "Reversión", position: 1, active: true },
+  { id: "scalping", label: "Scalping", position: 2, active: true },
+];

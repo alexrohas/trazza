@@ -12,6 +12,7 @@ import type {
   MovementKind,
 } from "../types";
 import { normalizeJournalErrorTypes } from "./journalErrors";
+import { normalizeJournalStrategies } from "./journalStrategies";
 import { safeLocalGet, safeLocalSet } from "./storage";
 
 const storageKeys = ["trazza:v1", "finix:v1", "prop-firm-tracker:v1"];
@@ -162,6 +163,7 @@ export function parseTrazzaImport(raw: string): AppData {
       tradingSession: normalizeTradingSession(entry.tradingSession ?? entry.trading_session ?? entry.session),
       notes: text(entry.notes),
       lesson: text(entry.lesson),
+      strategyId: text(entry.strategyId) || text(entry.strategy_id) || undefined,
     }))
     .filter((entry) => entry.date)
     .map((entry) => ({
@@ -172,6 +174,9 @@ export function parseTrazzaImport(raw: string): AppData {
   const journalErrorTypes = normalizeJournalErrorTypes(
     arrayOf(source.journalErrorTypes).length ? source.journalErrorTypes : source.errorTypes,
   );
+  /* Sin fallback a un nombre de campo viejo: las estrategias no existian antes de esta
+     funcion, asi que solo puede venir de un backup propio ya exportado con ellas. */
+  const journalStrategies = normalizeJournalStrategies(source.journalStrategies);
 
   return {
     accounts,
@@ -181,6 +186,7 @@ export function parseTrazzaImport(raw: string): AppData {
     firms,
     journalEntries,
     journalErrorTypes,
+    journalStrategies,
     movements,
   };
 }

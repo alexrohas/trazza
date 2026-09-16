@@ -16,6 +16,8 @@ import type {
   JournalErrorTypeInput,
   JournalResult,
   JournalSessionType,
+  JournalStrategy,
+  JournalStrategyInput,
   JournalTradingSession,
   Movement,
   MovementCategory,
@@ -71,15 +73,23 @@ const journalEmotions = new Set<JournalEmotion>([
 ]);
 
 export async function loadCloudData(client: SupabaseClient, userId: string): Promise<AppData> {
-  const [firmsResult, accountsResult, movementsResult, journalEntriesResult, journalErrorTypesResult, deletedDefaultsResult] =
-    await Promise.all([
-      client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
-      client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-      client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
-      fetchOptionalTable(client, userId, "journal_entries", "date", false),
-      fetchOptionalTable(client, userId, "journal_error_types", "position", true),
-      fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true),
-    ]);
+  const [
+    firmsResult,
+    accountsResult,
+    movementsResult,
+    journalEntriesResult,
+    journalErrorTypesResult,
+    deletedDefaultsResult,
+    journalStrategiesResult,
+  ] = await Promise.all([
+    client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
+    client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+    client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
+    fetchOptionalTable(client, userId, "journal_entries", "date", false),
+    fetchOptionalTable(client, userId, "journal_error_types", "position", true),
+    fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true),
+    fetchOptionalTable(client, userId, "journal_strategies", "position", true),
+  ]);
 
   return {
     firms: unwrapRows(firmsResult as QueryResult).map(fromDbFirm),
@@ -88,6 +98,7 @@ export async function loadCloudData(client: SupabaseClient, userId: string): Pro
     journalEntries: unwrapRows(journalEntriesResult).map(fromDbJournalEntry),
     journalErrorTypes: unwrapRows(journalErrorTypesResult).map(fromDbJournalErrorType),
     deletedDefaultErrorTypeIds: unwrapRows(deletedDefaultsResult).map((row) => String(row.type_id)),
+    journalStrategies: unwrapRows(journalStrategiesResult).map(fromDbJournalStrategy),
   };
 }
 
@@ -325,10 +336,51 @@ export async function setCloudJournalErrorTypeActive(
   return fromSingleRow(result, fromDbJournalErrorType, "No se pudo actualizar el tipo de error.");
 }
 
+export async function upsertCloudJournalStrategy(
+  client: SupabaseClient,
+  userId: string,
+  input: JournalStrategyInput,
+  strategyId?: string,
+): Promise<JournalStrategy> {
+  const row = journalStrategyInputToDb(userId, input, strategyId);
+  const result = await client
+    .from("journal_strategies")
+    .upsert(row, { onConflict: "user_id,id" })
+    .select("*")
+    .single();
+
+  return fromSingleRow(result, fromDbJournalStrategy, "No se pudo guardar la estrategia.");
+}
+
+/* Mismo criterio que deleteCloudJournalErrorType: borrado de verdad, y quien llama
+   comprueba antes que ninguna entrada la use (la app bloquea el borrado en ese caso). */
+export async function deleteCloudJournalStrategy(client: SupabaseClient, userId: string, strategyId: string): Promise<void> {
+  const result = await client.from("journal_strategies").delete().eq("user_id", userId).eq("id", strategyId);
+  if (result.error) throw new Error("No se pudo borrar la estrategia.");
+}
+
+export async function setCloudJournalStrategyActive(
+  client: SupabaseClient,
+  userId: string,
+  strategyId: string,
+  active: boolean,
+): Promise<JournalStrategy> {
+  const result = await client
+    .from("journal_strategies")
+    .update({ active })
+    .eq("user_id", userId)
+    .eq("id", strategyId)
+    .select("*")
+    .single();
+
+  return fromSingleRow(result, fromDbJournalStrategy, "No se pudo actualizar la estrategia.");
+}
+
 export async function replaceCloudData(client: SupabaseClient, userId: string, imported: AppData): Promise<void> {
   const mapped = mapImportedDataForCloud(userId, imported);
 
   await deleteOptionalUserRows(client, "journal_error_types", userId, mapped.journalErrorTypes.length > 0);
+  await deleteOptionalUserRows(client, "journal_strategies", userId, mapped.journalStrategies.length > 0);
   await deleteOptionalUserRows(client, "journal_entries", userId, mapped.journalEntries.length > 0);
   await deleteRequiredUserRows(client, "transactions", userId, "No se pudieron eliminar los movimientos actuales.");
   await deleteRequiredUserRows(client, "accounts", userId, "No se pudieron eliminar las cuentas actuales.");
@@ -343,6 +395,7 @@ export async function replaceCloudData(client: SupabaseClient, userId: string, i
     await insertRows(client, "transactions", mapped.movements, "No se pudieron importar los movimientos.");
     await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar los trades del journal.");
     await insertRows(client, "journal_error_types", mapped.journalErrorTypes, "No se pudieron importar los tipos de error.");
+    await insertRows(client, "journal_strategies", mapped.journalStrategies, "No se pudieron importar las estrategias.");
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -456,6 +509,7 @@ function fromDbJournalEntry(row: DbRow): JournalEntry {
     discipline: numberOrZero(row.discipline),
     emotion: normalizeJournalEmotion(row.emotion),
     errors: stringArray(row.errors),
+    strategyId: text(row.strategy_id) || undefined,
     operationUrl: text(row.operation_url),
     result: normalizeJournalResult(row.result),
     sessionType: normalizeJournalSessionType(row.session_type),
@@ -477,6 +531,15 @@ function fromDbJournalErrorType(row: DbRow): JournalErrorType {
        undefined significa "deducela del color", que es lo que hacen las dos apps con las
        filas antiguas. Un defecto aqui congelaria una deduccion como si fuera un dato. */
     severity: severity === "minor" || severity === "moderate" || severity === "severe" ? severity : undefined,
+  };
+}
+
+function fromDbJournalStrategy(row: DbRow): JournalStrategy {
+  return {
+    active: row.active === undefined ? true : Boolean(row.active),
+    id: text(row.id),
+    label: text(row.label) || "Estrategia sin nombre",
+    position: numberOrZero(row.position),
   };
 }
 
@@ -527,6 +590,7 @@ function journalEntryInputToDb(userId: string, input: JournalEntryInput, include
     discipline: input.discipline,
     pnl: input.pnl,
     errors: stringArray(input.errors),
+    strategy_id: input.strategyId || null,
     operation_url: input.operationUrl?.trim() || null,
     notes: input.notes?.trim() || null,
     lesson: input.lesson?.trim() || null,
@@ -546,9 +610,21 @@ function journalErrorTypeInputToDb(userId: string, input: JournalErrorTypeInput,
   };
 }
 
+function journalStrategyInputToDb(userId: string, input: JournalStrategyInput, strategyId?: string) {
+  const label = input.label.trim();
+  return {
+    user_id: userId,
+    id: strategyId || createSlug(label),
+    label,
+    position: nullableNumber(input.position) ?? 1000,
+    active: input.active ?? true,
+  };
+}
+
 function mapImportedDataForCloud(userId: string, imported: AppData) {
   const firmIds = new Map<string, string>();
   const accountIds = new Map<string, string>();
+  const strategyIds = new Map(imported.journalStrategies.map((strategy) => [strategy.id, strategy.id]));
 
   const firms = imported.firms
     .filter((firm) => firm.name.trim())
@@ -629,6 +705,7 @@ function mapImportedDataForCloud(userId: string, imported: AppData) {
         discipline: clampNumber(Math.round(entry.discipline), 1, 5),
         pnl: entry.pnl,
         errors: stringArray(entry.errors),
+        strategy_id: entry.strategyId ? strategyIds.get(entry.strategyId) || null : null,
         operation_url: entry.operationUrl?.trim() || null,
         notes: entry.notes?.trim() || null,
         lesson: entry.lesson?.trim() || null,
@@ -644,7 +721,15 @@ function mapImportedDataForCloud(userId: string, imported: AppData) {
     active: type.active,
   }));
 
-  return { accounts, firms, journalEntries, journalErrorTypes, movements };
+  const journalStrategies = imported.journalStrategies.map((strategy, index) => ({
+    user_id: userId,
+    id: strategy.id,
+    label: strategy.label.trim(),
+    position: Number.isFinite(strategy.position) ? strategy.position : (index + 1) * 10,
+    active: strategy.active,
+  }));
+
+  return { accounts, firms, journalEntries, journalErrorTypes, journalStrategies, movements };
 }
 
 async function deleteRequiredUserRows(client: SupabaseClient, table: string, userId: string, fallbackMessage: string) {

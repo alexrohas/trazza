@@ -40,7 +40,7 @@ export default function App() {
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
   const subscription = useSubscription(auth.user);
   const [plansOpen, setPlansOpen] = useState(false);
-  const { accounts, deletedDefaultErrorTypeIds, firms, journalEntries, journalErrorTypes, movements } = dataState.data;
+  const { accounts, deletedDefaultErrorTypeIds, firms, journalEntries, journalErrorTypes, journalStrategies, movements } = dataState.data;
   const currency = auth.profile?.currency ?? "EUR";
 
   const { canMutateData } = subscription;
@@ -74,10 +74,13 @@ export default function App() {
       saveFirm: guard(dataState.saveFirm),
       saveJournalEntry: guard(dataState.saveJournalEntry),
       saveJournalErrorType: guard(dataState.saveJournalErrorType),
+      saveJournalStrategy: guard(dataState.saveJournalStrategy),
       saveMovement: guard(dataState.saveMovement),
       deleteJournalErrorType: guard(dataState.deleteJournalErrorType),
+      deleteJournalStrategy: guard(dataState.deleteJournalStrategy),
       setAccountVisible: guard(dataState.setAccountVisible),
       setJournalErrorTypeActive: guard(dataState.setJournalErrorTypeActive),
+      setJournalStrategyActive: guard(dataState.setJournalStrategyActive),
     }),
     [dataState, guard],
   );
@@ -283,6 +286,7 @@ export default function App() {
           firms={firms}
           initialMode={activeView === "journalEntries" ? "entries" : "cockpit"}
           journalErrorTypes={journalErrorTypes}
+          journalStrategies={journalStrategies}
           movements={visibleMovements}
           newEntryToken={createRequest?.target === "journalEntry" ? createRequest.id : 0}
           searchQuery={searchQuery}
@@ -296,6 +300,9 @@ export default function App() {
           onSaveEntry={guarded.saveJournalEntry}
           onDeleteErrorType={guarded.deleteJournalErrorType}
           onSetErrorTypeActive={guarded.setJournalErrorTypeActive}
+          onSaveStrategy={guarded.saveJournalStrategy}
+          onDeleteStrategy={guarded.deleteJournalStrategy}
+          onSetStrategyActive={guarded.setJournalStrategyActive}
         />
       )}
       {activeView === "settings" && (

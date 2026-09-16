@@ -120,6 +120,23 @@ export type JournalErrorTypeInput = {
   severity?: JournalErrorSeverity;
 };
 
+/* A diferencia de JournalErrorType, sin color: la estrategia es una unica seleccion por
+   entrada (no una etiqueta multiple), y el desglose la colorea por signo del P&L (como
+   Resultado por empresa), no por identidad — no hace falta que el usuario elija un color
+   por estrategia. */
+export type JournalStrategy = {
+  id: string;
+  label: string;
+  position: number;
+  active: boolean;
+};
+
+export type JournalStrategyInput = {
+  label: string;
+  active?: boolean;
+  position?: number;
+};
+
 export type JournalEntry = {
   id: string;
   date: string;
@@ -132,6 +149,7 @@ export type JournalEntry = {
   discipline: number;
   emotion: JournalEmotion;
   errors?: string[];
+  strategyId?: string;
   operationUrl?: string;
   result?: JournalResult;
   sessionType?: JournalSessionType;
@@ -153,6 +171,7 @@ export type JournalEntryInput = {
   discipline: number;
   pnl: number;
   errors: string[];
+  strategyId?: string;
   operationUrl?: string;
   notes?: string;
   lesson?: string;
@@ -177,6 +196,9 @@ export type AppData = {
      journalErrors.ts) que el usuario ha borrado de verdad. Sin esto, mergeJournalErrorTypes
      los volveria a sembrar en cada carga aunque no exista fila real para ellos. */
   deletedDefaultErrorTypeIds: string[];
+  /* Sin equivalente al array de arriba: las estrategias no traen semillas por defecto
+     (no existian en el legado, nada que igualar), asi que no hace falta un tombstone. */
+  journalStrategies: JournalStrategy[];
 };
 
 export type DataMode = "cloud" | "demo";

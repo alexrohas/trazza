@@ -1,7 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import { safeLocalSet } from "../lib/storage";
 
-export type JournalWidgetId = "kpis" | "pnl" | "discipline" | "recent" | "session" | "errors" | "weekday" | "calendar";
+export type JournalWidgetId =
+  | "kpis"
+  | "pnl"
+  | "discipline"
+  | "recent"
+  | "session"
+  | "errors"
+  | "weekday"
+  | "calendar"
+  | "strategies";
 
 type JournalDashboardLayoutState = {
   hidden: JournalWidgetId[];
@@ -22,7 +31,11 @@ const storageKey = "trazza:journal-dashboard-layout";
      calendario se llevo una columna de Ultimas operaciones para que sus celdas de dia
      respiren mas; ver los comentarios de "wide"/"narrow" en styles.css.
    Los ocho widgets suman 12+6+3+3+6+6+9+3 = 48 = 4 filas de 12 exactas.
-   Si tocas esto, la cuenta que tiene que salir es 12 por fila. */
+   Si tocas esto, la cuenta que tiene que salir es 12 por fila.
+
+   Quinta fila, añadida despues: "strategies" a "full" (12), sola. No tiene pareja de
+   legado que igualar (la funcion es nueva), y una lista de barras con etiqueta de
+   estrategia + P&L pide ancho propio en vez de compartir fila a la mitad. */
 export const journalDashboardWidgetIds: JournalWidgetId[] = [
   "kpis",
   "pnl",
@@ -32,6 +45,7 @@ export const journalDashboardWidgetIds: JournalWidgetId[] = [
   "discipline",
   "calendar",
   "recent",
+  "strategies",
 ];
 
 function isWidgetId(value: unknown): value is JournalWidgetId {
