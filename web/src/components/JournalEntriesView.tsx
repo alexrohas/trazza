@@ -57,6 +57,7 @@ import {
   getDisciplineScale,
   getPayoutGrossAmount,
   getSelectableAccounts,
+  getTradeableAccounts,
   signedTone,
 } from "../lib/metrics";
 import {
@@ -450,17 +451,30 @@ export function JournalEntriesView({
     () => buildJournalAccountOverview({ account: selectedAccount, entries, movements }),
     [entries, movements, selectedAccount],
   );
+  /* Cuentas con las que se puede apuntar un trade nuevo, sin excepcion de cuenta elegida:
+     deciden que empresas se ofrecen y si "Importar CSV" tiene alguna cuenta a la que ir. */
+  const tradeableAccounts = useMemo(() => getTradeableAccounts(accounts, undefined), [accounts]);
+  const tradeableAccountCount = tradeableAccounts.length;
   const accountsForFirm = useMemo(
     () =>
-      getSelectableAccounts(accounts, draft.accountId).filter(
+      getTradeableAccounts(accounts, draft.accountId).filter(
         (account) => !draft.firmId || account.firmId === draft.firmId,
       ),
     [accounts, draft.accountId, draft.firmId],
   );
-  const entryFirmOptions = useMemo(
-    () => [{ label: t("journal.entryForm.noFirm"), value: "" }, ...firms.map((firm) => ({ label: firm.name, value: firm.id }))],
-    [firms, t],
-  );
+  /* Solo empresas con alguna cuenta con la que apuntar un trade nuevo (visible y activa, ver
+     getTradeableAccounts), a peticion expresa: las demas solo alargaban la lista. La que ya
+     tenga la entrada se queda aunque no cumpla, por lo mismo: al editar un trade antiguo no
+     puede desaparecer el valor guardado, o volver a guardarlo lo perderia. */
+  const entryFirmOptions = useMemo(() => {
+    const firmIdsWithActiveAccounts = new Set(tradeableAccounts.map((account) => account.firmId));
+    return [
+      { label: t("journal.entryForm.noFirm"), value: "" },
+      ...firms
+        .filter((firm) => firmIdsWithActiveAccounts.has(firm.id) || firm.id === draft.firmId)
+        .map((firm) => ({ label: firm.name, value: firm.id })),
+    ];
+  }, [draft.firmId, firms, t, tradeableAccounts]);
   const entryAccountOptions = useMemo(
     () => [
       { label: t("journal.entryForm.noAccount"), value: "" },
@@ -666,7 +680,7 @@ export function JournalEntriesView({
     setImportPreview(null);
     setImportFile(null);
     setImportMessage(null);
-    setImportAccountId((current) => current || getSelectableAccounts(accounts, undefined)[0]?.id || "");
+    setImportAccountId((current) => current || getTradeableAccounts(accounts, undefined)[0]?.id || "");
     setImportOpen(true);
   };
 
@@ -1738,9 +1752,9 @@ export function JournalEntriesView({
             </button>
             <button
               className="journal-entry-mode-option"
-              disabled={!accounts.length}
+              disabled={!tradeableAccountCount}
               onClick={openImportDialog}
-              title={accounts.length ? t("journal.entryMode.csvTitle") : t("journal.entryMode.csvBlocked")}
+              title={tradeableAccountCount ? t("journal.entryMode.csvTitle") : t("journal.entryMode.csvBlocked")}
               type="button"
             >
               <FileUp size={20} strokeWidth={2.2} />
@@ -1765,7 +1779,7 @@ export function JournalEntriesView({
               <Select
                 disabled={importing}
                 onChange={setImportAccountId}
-                options={getSelectableAccounts(accounts, importAccountId).map((account) => ({ label: account.name, value: account.id }))}
+                options={getTradeableAccounts(accounts, importAccountId).map((account) => ({ label: account.name, value: account.id }))}
                 value={importAccountId}
               />
             </label>

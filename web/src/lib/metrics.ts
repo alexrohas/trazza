@@ -9,6 +9,8 @@ import type {
 
 const activeAccountStatuses = new Set(["active", "evaluation", "passed", "funded"]);
 
+/* Activa = sigue corriendo: ni fallada ni cerrada. La usan los totales del Panel y los
+   desplegables de nuevo trade del Journal (getTradeableAccounts). */
 const accountIsActive = (account: TradingAccount) => activeAccountStatuses.has(account.status);
 
 const byDate = <T extends { date: string }>(left: T, right: T) => left.date.localeCompare(right.date);
@@ -329,6 +331,15 @@ export function getAccountName(accounts: TradingAccount[], accountId: string | u
    ocultas siguen sumando en totales y desgloses, que no pasan por aqui. */
 export function getSelectableAccounts(accounts: TradingAccount[], selectedId: string | undefined) {
   return accounts.filter((account) => account.visible !== false || account.id === selectedId);
+}
+
+/* Cuentas con las que se apunta un trade nuevo: ademas de visibles, activas (ni falladas ni
+   cerradas), a peticion expresa. Con la misma excepcion que getSelectableAccounts: la que
+   ya este elegida se queda aunque no cumpla, para no perderla al editar un trade antiguo.
+   No sirve para filtros ni selectores de consulta, donde una cuenta cerrada tiene que
+   poder elegirse para revisar su historial. */
+export function getTradeableAccounts(accounts: TradingAccount[], selectedId: string | undefined) {
+  return getSelectableAccounts(accounts, selectedId).filter((account) => accountIsActive(account) || account.id === selectedId);
 }
 
 export function calculatePayoutNetAmount(grossAmount: number, profitSplit: number) {
