@@ -43,14 +43,26 @@ export type AccountProgress = {
   breachedFloor: boolean;
 };
 
+/* Fecha local, no UTC: las entradas guardan el dia del usuario, y toISOString daria
+   todavia el dia anterior entre medianoche y las dos de la madrugada en Espana. */
+function localIsoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 /* Suelo de un drawdown EOD trailing: sube con el balance de cierre mas alto alcanzado
    (arrancando en el balance de partida, que ya es un cierre valido antes de operar) y
    se bloquea en cuanto ese pico llega a partida + drawdown, quedandose fijo en el
-   balance de partida a partir de ahi. Es la convencion habitual en Apex/Topstep/etc. */
+   balance de partida a partir de ahi. Es la convencion habitual en Apex/Topstep/etc.
+   Solo cuentan los dias ya cerrados: el de hoy se salta, porque en un EOD el limite no
+   se recalcula hasta el cierre. Contarlo subia el MLL en cuanto se apuntaba un dia
+   ganador, antes de que la firma lo moviera de verdad (el legado ya lo saltaba). Lo de
+   hoy si entra en el balance actual, que es contra lo que se mide el limite: una perdida
+   de hoy puede romperlo, una ganancia de hoy no lo sube hasta manana. */
 function getTrailingFloor(entries: JournalEntry[], accountId: string, start: number, maxDrawdown: number) {
+  const today = localIsoDate(new Date());
   const pnlByDate = new Map<string, number>();
   entries
-    .filter((entry) => entry.accountId === accountId)
+    .filter((entry) => entry.accountId === accountId && Boolean(entry.date) && entry.date < today)
     .forEach((entry) => {
       pnlByDate.set(entry.date, (pnlByDate.get(entry.date) || 0) + entry.pnl);
     });
