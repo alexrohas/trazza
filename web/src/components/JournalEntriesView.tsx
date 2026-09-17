@@ -52,6 +52,7 @@ import {
   formatMoneyCompactSigned,
   formatPercent,
   formatPercentCompact,
+  getAccountLossLimitPnl,
   getAccountProgress,
   getDisciplineScale,
   getPayoutGrossAmount,
@@ -444,14 +445,10 @@ export function JournalEntriesView({
   const firmNameById = useMemo(() => new Map(firms.map((firm) => [firm.id, firm.name])), [firms]);
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const reviewPresetRange = useMemo(() => getReviewPresetDateRange(reviewPreset), [reviewPreset]);
+  const selectedAccount = selectedAccountId === "all" ? undefined : accountById.get(selectedAccountId);
   const accountOverview = useMemo(
-    () =>
-      buildJournalAccountOverview({
-        account: selectedAccountId === "all" ? undefined : accountById.get(selectedAccountId),
-        entries,
-        movements,
-      }),
-    [accountById, entries, movements, selectedAccountId],
+    () => buildJournalAccountOverview({ account: selectedAccount, entries, movements }),
+    [entries, movements, selectedAccount],
   );
   const accountsForFirm = useMemo(
     () =>
@@ -1217,7 +1214,7 @@ export function JournalEntriesView({
         </JournalSplitBarPanel>
       </section>
     ),
-    pnl: <JournalPnlCurvePanel entries={filteredEntries} currency={currency} />,
+    pnl: <JournalPnlCurvePanel account={selectedAccount} entries={filteredEntries} currency={currency} />,
     discipline: <JournalDisciplinePanel entries={filteredEntries} />,
     recent: (
       <JournalRecentTradesPanel currency={currency} entries={filteredEntries.slice(0, 5)} onSelectEntry={setDetailEntryId} />
@@ -2692,26 +2689,55 @@ function JournalDisciplinePanel({ entries }: { entries: JournalEntry[] }) {
   );
 }
 
-function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entries: JournalEntry[] }) {
+function JournalPnlCurvePanel({
+  account,
+  currency,
+  entries,
+}: {
+  /** La cuenta elegida en el selector del cockpit; sin ella no hay lineas de limites. */
+  account?: TradingAccount;
+  currency: Currency;
+  entries: JournalEntry[];
+}) {
   const t = useT();
   const { language } = useI18n();
   const width = 760;
   const height = 320;
   const padding = { bottom: 42, left: 48, right: 26, top: 32 };
   const allPoints = useMemo(() => buildJournalPnlPoints(entries), [entries]);
+  const limits = useMemo(() => (account ? buildJournalCurveLimits(account, entries, allPoints) : null), [account, allPoints, entries]);
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
+  /* Con lineas de limites la curva no llega hasta el borde: deja libre un tramo a la
+     derecha que es "hoy", donde las lineas siguen con el valor de hoy. Hace falta por el
+     MLL: si el ultimo dia operado cerro en maximo, hoy esta un escalon mas arriba que el
+     que regia ese dia, y sin este hueco el escalon caia justo en el borde y no se veia. */
+  const hasLimitLines = Boolean(limits && (limits.target !== undefined || limits.mllLevels));
+  const curveWidth = chartWidth - (hasLimitLines ? 44 : 0);
   const { activeIndex, frameRef, isZoomed, onPointerMove, reset, setActiveIndex, visibleCount, visibleStart } =
-    useChartZoomHover({ chartWidth, paddingLeft: padding.left, totalPoints: allPoints.length, width });
+    useChartZoomHover({ chartWidth: curveWidth, paddingLeft: padding.left, totalPoints: allPoints.length, width });
   /* La escala se recalcula sobre la ventana visible y no sobre el total: con zoom puesto,
      escalar contra el maximo global dejaria el tramo ampliado aplastado en una franja
      estrecha, que es justo lo contrario de lo que se pide al hacer zoom. */
   const points = allPoints.slice(visibleStart, visibleStart + visibleCount);
   const values = points.map((point) => point.value);
-  const min = Math.min(0, ...values);
-  const max = Math.max(1, ...values);
+  const mllLevels = limits?.mllLevels?.slice(visibleStart, visibleStart + visibleCount);
+  /* La linea del MLL acaba en el de hoy solo si se ve el final de la curva; con zoom en un
+     tramo antiguo acaba en el que habia al final de ese tramo. */
+  const mllEnd = mllLevels?.length
+    ? visibleStart + points.length >= allPoints.length
+      ? limits?.currentMll
+      : mllLevels.at(-1)
+    : undefined;
+  /* Sin zoom la escala se abre hasta que quepan las dos lineas, que es el sentido de
+     pintarlas: ver a que distancia queda la curva de cada una. Con zoom no, por lo mismo
+     que dice el comentario de arriba; ahi la linea que caiga fuera se recorta. */
+  const limitValues = limits && !isZoomed ? [limits.target, mllEnd, ...(mllLevels ?? [])].filter((value): value is number => value !== undefined) : [];
+  const min = Math.min(0, ...values, ...limitValues);
+  const max = Math.max(1, ...values, ...limitValues);
   const range = max - min || 1;
-  const step = points.length > 1 ? chartWidth / (points.length - 1) : 0;
+  const valueToY = (value: number) => height - padding.bottom - ((value - min) / range) * chartHeight;
+  const step = points.length > 1 ? curveWidth / (points.length - 1) : 0;
   const scaledPoints = points.map((point, index) => ({
     date: point.date,
     value: point.value,
@@ -2722,6 +2748,29 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
   const finalValue = points.at(-1)?.value ?? 0;
   const lastScaledPoint = scaledPoints.at(-1);
   const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
+  const plotRight = width - padding.right;
+  const targetY = limits?.target === undefined ? null : valueToY(limits.target);
+  const mllEndY = mllEnd === undefined ? null : valueToY(mllEnd);
+  /* El MLL va escalonado: cada punto lleva el limite que regia el dia de ese trade, asi que
+     en un trailing la linea sube de golpe en el primer trade del dia siguiente a un cierre
+     maximo. El ultimo escalon, al salir del ultimo punto hacia el tramo de "hoy", es el
+     paso de ese dia a hoy: si el ultimo dia operado ya cerro en maximo, hoy el limite esta
+     mas arriba, y la linea tiene que acabar donde lo ensena la barra de la cuenta. */
+  let mllPath = "";
+  if (mllLevels?.length && mllEndY !== null && lastScaledPoint) {
+    if (scaledPoints.length < 2) {
+      mllPath = `M ${padding.left} ${mllEndY} H ${plotRight}`;
+    } else {
+      mllPath = `M ${scaledPoints[0].x} ${valueToY(mllLevels[0])}`;
+      for (let index = 1; index < scaledPoints.length; index += 1) {
+        if (mllLevels[index] !== mllLevels[index - 1]) mllPath += ` H ${scaledPoints[index].x} V ${valueToY(mllLevels[index])}`;
+      }
+      mllPath += ` H ${lastScaledPoint.x} V ${mllEndY} H ${plotRight}`;
+    }
+  }
+  /* Las etiquetas solo salen si su linea cae dentro del area de la curva (con zoom puede
+     quedar fuera, y ahi la linea tambien se recorta). */
+  const isInsidePlot = (y: number | null): y is number => y !== null && y >= padding.top - 0.5 && y <= height - padding.bottom + 0.5;
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
   /* Etiquetas del eje de precios, mismo criterio que CapitalCurve: la posicion 0 es
      arriba, asi que el valor baja de max a min segun se desciende. Dan una miniguia de
@@ -2790,6 +2839,9 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                   <stop offset="68%" stopColor="rgba(139, 92, 246, 0.12)" />
                   <stop offset="100%" stopColor="rgba(124, 58, 237, 0)" />
                 </linearGradient>
+                <clipPath id="journal-pnl-plot">
+                  <rect x={padding.left} y={padding.top} width={chartWidth} height={chartHeight} />
+                </clipPath>
               </defs>
               {/* Sin verticales (esas si eran puro adorno, a peticion expresa), pero las
                   horizontales vuelven como miniguia de precio: cada una lleva su valor en
@@ -2806,6 +2858,16 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                 className="journal-pnl-chart-fill"
                 d={scaledPoints.length ? buildAreaPath(path, scaledPoints[0], scaledPoints.at(-1) || scaledPoints[0], height - padding.bottom) : ""}
               />
+              {/* Objetivo y MLL de la cuenta elegida, por debajo de la curva para que esta
+                  siga mandando. Recortadas al area de la curva por si el zoom las deja fuera. */}
+              {targetY !== null && (
+                <path
+                  className="journal-pnl-chart-limit is-target"
+                  clipPath="url(#journal-pnl-plot)"
+                  d={`M ${padding.left} ${targetY} H ${plotRight}`}
+                />
+              )}
+              {mllPath && <path className="journal-pnl-chart-limit is-mll" clipPath="url(#journal-pnl-plot)" d={mllPath} />}
               <path className="journal-pnl-chart-line" d={path} />
               {scaledPoints.length <= 14 &&
                 scaledPoints.map((point, index) => (
@@ -2829,6 +2891,20 @@ function JournalPnlCurvePanel({ currency, entries }: { currency: Currency; entri
                 </span>
               ))}
             </div>
+            {/* Nombres de las dos lineas en HTML, como el resto de textos del grafico, para
+                que no los deforme el estirado del viewBox. Van en el extremo derecho, que es
+                "hoy", y hacia fuera: el objetivo por encima de su linea y el MLL por debajo,
+                porque la curva suele quedar entre las dos. */}
+            {isInsidePlot(targetY) && (
+              <span className="journal-pnl-chart-limit-label is-target" style={{ left: `${(plotRight / width) * 100}%`, top: `${(targetY / height) * 100}%` }}>
+                {t("journal.accountBar.target")}
+              </span>
+            )}
+            {mllPath && isInsidePlot(mllEndY) && (
+              <span className="journal-pnl-chart-limit-label is-mll" style={{ left: `${(plotRight / width) * 100}%`, top: `${(mllEndY / height) * 100}%` }}>
+                {t("journal.accountBar.mll")}
+              </span>
+            )}
             {lastScaledPoint && (
               <span
                 className={`chart-value-badge ${signedTone(finalValue)}`}
@@ -3567,6 +3643,35 @@ function buildJournalPnlPoints(entries: JournalEntry[]) {
         value: running,
       };
     });
+}
+
+/* Niveles de las lineas de objetivo y MLL en las unidades de la curva (P&L acumulado, 0 =
+   balance de partida), para la cuenta elegida. La curva empieza de verdad en 0 porque
+   App ya le pasa al Journal solo los trades de esa cuenta, y el cockpit no tiene filtros
+   propios que le quiten los primeros. El objetivo es fijo; el MLL se calcula para el dia
+   de cada punto (cache por fecha: un dia con varios trades se calcula una vez) y aparte el
+   de hoy, que es con el que acaba la linea y el mismo que ensena la barra de la cuenta.
+   El DD diario no va aqui a proposito: se pidio solo como marca en la barra, no como una
+   tercera linea en el grafico. */
+function buildJournalCurveLimits(account: TradingAccount, entries: JournalEntry[], points: Array<{ date: string }>) {
+  const currentMll = getAccountLossLimitPnl(account, entries, todayIso());
+  const levelByDate = new Map<string, number>();
+  const mllLevels =
+    currentMll === undefined
+      ? undefined
+      : points.map((point) => {
+          const cached = levelByDate.get(point.date);
+          if (cached !== undefined) return cached;
+          const level = getAccountLossLimitPnl(account, entries, point.date) ?? currentMll;
+          levelByDate.set(point.date, level);
+          return level;
+        });
+
+  return {
+    currentMll,
+    mllLevels,
+    target: account.phaseTarget > 0 ? account.phaseTarget : undefined,
+  };
 }
 
 function summarizeJournalEntries(entries: JournalEntry[]): JournalSummary {

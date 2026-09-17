@@ -57,12 +57,20 @@ function localIsoDate(date: Date) {
    se recalcula hasta el cierre. Contarlo subia el MLL en cuanto se apuntaba un dia
    ganador, antes de que la firma lo moviera de verdad (el legado ya lo saltaba). Lo de
    hoy si entra en el balance actual, que es contra lo que se mide el limite: una perdida
-   de hoy puede romperlo, una ganancia de hoy no lo sube hasta manana. */
-function getTrailingFloor(entries: JournalEntry[], accountId: string, start: number, maxDrawdown: number) {
-  const today = localIsoDate(new Date());
+   de hoy puede romperlo, una ganancia de hoy no lo sube hasta manana.
+   `before` es el dia que se mira: cuentan los cierres de los dias anteriores a el. Por
+   defecto hoy, que es lo que ensenan la barra y las tarjetas; el grafico del Journal lo
+   pide dia a dia para dibujar como fue subiendo. */
+function getTrailingFloor(
+  entries: JournalEntry[],
+  accountId: string,
+  start: number,
+  maxDrawdown: number,
+  before = localIsoDate(new Date()),
+) {
   const pnlByDate = new Map<string, number>();
   entries
-    .filter((entry) => entry.accountId === accountId && Boolean(entry.date) && entry.date < today)
+    .filter((entry) => entry.accountId === accountId && Boolean(entry.date) && entry.date < before)
     .forEach((entry) => {
       pnlByDate.set(entry.date, (pnlByDate.get(entry.date) || 0) + entry.pnl);
     });
@@ -75,6 +83,17 @@ function getTrailingFloor(entries: JournalEntry[], accountId: string, start: num
   });
 
   return Math.min(peak - maxDrawdown, start);
+}
+
+/* MLL expresado como P&L (0 es el balance de partida) vigente durante `date`: el nivel al
+   que, ese dia, la curva de P&L acumulado reventaba la cuenta. undefined si la cuenta no
+   tiene drawdown maximo. No depende del tamano de la cuenta: el grafico del Journal no
+   pinta balances sino P&L, y en esas unidades el suelo es -drawdown (estatico) o sube con
+   los cierres hasta bloquearse en 0 (trailing), con el mismo calculo que la barra. */
+export function getAccountLossLimitPnl(account: TradingAccount, entries: JournalEntry[], date: string) {
+  if (!(account.maxDrawdown > 0)) return undefined;
+  if (account.drawdownType !== "trailing") return -account.maxDrawdown;
+  return getTrailingFloor(entries, account.id, 0, account.maxDrawdown, date);
 }
 
 /* Geometria de la barra de progreso. El 0,5 es siempre el balance de partida, no el

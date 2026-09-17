@@ -3769,6 +3769,49 @@ button {
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 32%, transparent));
 }
 
+/* Lineas de objetivo (verde) y MLL (rojo) del grafico de P&L, solo con una cuenta elegida.
+   Finas y discontinuas porque son referencia y no datos: no pueden competir con la curva.
+   Clase propia y no .chart-axis a proposito: en oscuro, :root[data-theme="dark"]
+   .chart-axis pisa el stroke con (0,3,0) y se comeria el color. El DD diario no tiene
+   linea aqui: se quiso solo como marca en la barra de la cuenta. */
+.journal-pnl-chart-limit {
+  fill: none;
+  stroke-dasharray: 6 5;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.journal-pnl-chart-limit.is-target {
+  stroke: var(--positive);
+}
+
+.journal-pnl-chart-limit.is-mll {
+  stroke: var(--negative);
+}
+
+.journal-pnl-chart-limit-label {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.journal-pnl-chart-limit-label.is-target {
+  color: var(--positive);
+  transform: translate(-100%, calc(-100% - var(--space-2xs)));
+}
+
+.journal-pnl-chart-limit-label.is-mll {
+  color: var(--negative);
+  transform: translate(-100%, var(--space-2xs));
+}
+
 .journal-errors-body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
