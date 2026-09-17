@@ -25,8 +25,6 @@ import {
   Plus,
   RotateCcw,
   Settings2,
-  ShieldAlert,
-  Target,
   Trash2,
   TrendingUp,
   X,
@@ -54,6 +52,7 @@ import {
   formatMoneyCompactSigned,
   formatPercent,
   formatPercentCompact,
+  getAccountProgress,
   getDisciplineScale,
   getPayoutGrossAmount,
   getSelectableAccounts,
@@ -118,25 +117,34 @@ type JournalEntriesViewProps = {
   onSetStrategyActive: (strategyId: string, active: boolean) => Promise<boolean>;
 };
 
-type JournalAccountRule = {
-  hint: string;
-  icon: "target" | "drawdown";
-  label: string;
-  meter: number;
-  status: string;
+/* Recorrido de la cuenta del MLL al objetivo, que sustituye a las tres tarjetas de reglas
+   (objetivo, DD maximo, DD diario): decian lo mismo en tres cajas, cada una con su
+   barrita y sin escala comun entre ellas. Los porcentajes llegan ya calculados, de 0 a
+   100, sobre la misma escala. Ver buildJournalAccountBar. */
+type JournalAccountBar = {
+  balance: number;
+  balancePercent: number;
+  breachedFloor: boolean;
+  /** undefined si la cuenta no tiene objetivo (fondeadas, capital propio). */
+  ceiling?: number;
+  /** Donde salta hoy el DD diario; null si la cuenta no tiene o si cae fuera de la barra. */
+  dailyFloorPercent: number | null;
+  /** undefined si la cuenta no tiene drawdown maximo. */
+  floor?: number;
+  /** false sin drawdown ni objetivo: sin extremos no hay escala. */
+  hasScale: boolean;
+  reachedTarget: boolean;
+  startPercent: number;
   tone: "positive" | "negative" | "neutral";
 };
 
 type JournalAccountOverview = {
   accountName: string;
-  balance: number;
-  base: number | null;
-  baseLabel: string;
-  firmName: string;
+  /** null si la cuenta no tiene tamano: sin balance de partida no hay recorrido. */
+  bar: JournalAccountBar | null;
   netPnl: number;
   payouts: number;
   returnRatio: number | null;
-  rules: JournalAccountRule[];
 };
 
 function createEmptyJournalInput(): JournalEntryInput {
@@ -440,13 +448,10 @@ export function JournalEntriesView({
     () =>
       buildJournalAccountOverview({
         account: selectedAccountId === "all" ? undefined : accountById.get(selectedAccountId),
-        currency,
         entries,
-        firmNameById,
         movements,
-        t,
       }),
-    [accountById, currency, entries, firmNameById, movements, selectedAccountId, t],
+    [accountById, entries, movements, selectedAccountId],
   );
   const accountsForFirm = useMemo(
     () =>
@@ -3228,209 +3233,224 @@ function JournalAccountOverviewPanel({ currency, overview }: { currency: Currenc
               dejan libre es el que ahora usa el nombre, mas grande. */}
           <h2>{overview.accountName}</h2>
         </div>
-        <div className="journal-account-return">
-          <span>{t("journal.accountOverview.return")}</span>
-          <strong className={overview.returnRatio === null ? "neutral" : signedTone(overview.returnRatio)}>
-            {overview.returnRatio === null ? "-" : formatSignedPercent(overview.returnRatio)}
-          </strong>
+        {/* Antes eran cuatro cajas (balance, P&L neto, payouts, base) debajo del nombre.
+            Balance y base salen ya en la barra —el balance debajo y la base es la marca
+            de inicio—, asi que aqui solo quedan las cifras que la barra no cuenta, junto
+            al retorno y como texto, no como cajas: la idea era tener menos cuadros. */}
+        <div className="journal-account-figures">
+          <div>
+            <span>{t("journal.accountOverview.netPnl")}</span>
+            <strong className={signedTone(overview.netPnl)}>{formatSignedMoney(overview.netPnl, currency)}</strong>
+          </div>
+          <div>
+            <span>{t("journal.accountOverview.payouts")}</span>
+            <strong className={overview.payouts ? "negative" : "neutral"}>
+              {overview.payouts ? `-${formatMoney(overview.payouts, currency)}` : formatMoney(0, currency)}
+            </strong>
+          </div>
+          <div>
+            <span>{t("journal.accountOverview.return")}</span>
+            <strong className={overview.returnRatio === null ? "neutral" : signedTone(overview.returnRatio)}>
+              {overview.returnRatio === null ? "-" : formatSignedPercent(overview.returnRatio)}
+            </strong>
+          </div>
         </div>
       </div>
 
-      <div className="journal-account-overview-stats">
-        <div>
-          <span>{t("journal.accountOverview.balance")}</span>
-          <strong>{formatMoney(overview.balance, currency)}</strong>
-        </div>
-        <div>
-          <span>{t("journal.accountOverview.netPnl")}</span>
-          <strong className={signedTone(overview.netPnl)}>{formatSignedMoney(overview.netPnl, currency)}</strong>
-        </div>
-        <div>
-          <span>{t("journal.accountOverview.payouts")}</span>
-          <strong className={overview.payouts ? "negative" : "neutral"}>
-            {overview.payouts ? `-${formatMoney(overview.payouts, currency)}` : formatMoney(0, currency)}
-          </strong>
-        </div>
-        <div>
-          <span>{t("journal.accountOverview.base")}</span>
-          <strong>{overview.base === null ? "-" : formatMoney(overview.base, currency)}</strong>
-        </div>
-      </div>
-
-      <div className="journal-account-rules">
-        {overview.rules.map((rule) => (
-          <article className={`journal-account-rule ${rule.tone}`} key={rule.label}>
-            <div className="journal-account-rule-head">
-              <span>
-                {rule.icon === "target" ? <Target size={16} strokeWidth={2.2} /> : <ShieldAlert size={16} strokeWidth={2.2} />}
-                {rule.label}
-              </span>
-              <strong>{rule.status}</strong>
-            </div>
-            <div className="journal-account-rule-track" aria-hidden="true">
-              <i style={{ width: `${rule.meter}%` }} />
-            </div>
-            <small>{rule.hint}</small>
-          </article>
-        ))}
-      </div>
+      {overview.bar ? (
+        <JournalAccountBarView bar={overview.bar} currency={currency} />
+      ) : (
+        <p className="journal-account-bar-empty">{t("journal.accountBar.addSize")}</p>
+      )}
     </section>
+  );
+}
+
+/* Una etiqueta centrada sobre una marca pegada a un extremo se saldria media fuera de la
+   barra (pasa con un trailing bloqueado, que deja el inicio justo en el MLL). Ahi se
+   alinea hacia dentro en vez de centrarse. */
+function accountBarEdgeClass(percent: number) {
+  if (percent < 8) return "is-edge-start";
+  if (percent > 92) return "is-edge-end";
+  return "";
+}
+
+function JournalAccountBarView({ bar, currency }: { bar: JournalAccountBar; currency: Currency }) {
+  const t = useT();
+  const fillFrom = Math.min(bar.startPercent, bar.balancePercent);
+  const fillWidth = Math.abs(bar.balancePercent - bar.startPercent);
+  const toneClass = bar.tone === "positive" ? "is-up" : bar.tone === "negative" ? "is-down" : "";
+
+  return (
+    <div
+      className={`journal-account-bar ${toneClass} ${bar.hasScale ? "" : "is-unscaled"} ${bar.dailyFloorPercent === null ? "" : "has-daily"}`}
+      style={{ "--bar-start": `${bar.startPercent}%` } as CSSProperties}
+    >
+      {/* Solo dibujo: todas sus cifras van escritas justo debajo, asi que al lector de
+          pantalla no le aporta nada que no vaya a leer de todas formas. */}
+      <div aria-hidden="true" className="journal-account-bar-track">
+        {fillWidth > 0 && <i className="journal-account-bar-fill" style={{ left: `${fillFrom}%`, width: `${fillWidth}%` }} />}
+        {bar.dailyFloorPercent !== null && (
+          <span
+            className={`journal-account-bar-mark is-daily ${accountBarEdgeClass(bar.dailyFloorPercent)}`}
+            style={{ left: `${bar.dailyFloorPercent}%` }}
+          >
+            <small>{t("journal.accountBar.dailyLimit")}</small>
+          </span>
+        )}
+        <span className={`journal-account-bar-mark is-start ${accountBarEdgeClass(bar.startPercent)}`} style={{ left: `${bar.startPercent}%` }}>
+          <small>{t("journal.accountBar.start")}</small>
+        </span>
+      </div>
+
+      <div className="journal-account-bar-ends">
+        <span className="is-floor">
+          {bar.floor === undefined ? (
+            <small>{t("journal.accountBar.noDrawdown")}</small>
+          ) : (
+            <>
+              <strong>{formatMoney(bar.floor, currency)}</strong>
+              <small>{t("journal.accountBar.mll")}</small>
+            </>
+          )}
+        </span>
+        <span className="is-ceiling">
+          {bar.ceiling === undefined ? (
+            <small>{t("journal.accountBar.noTarget")}</small>
+          ) : (
+            <>
+              <strong>{formatMoney(bar.ceiling, currency)}</strong>
+              <small>{t("journal.accountBar.target")}</small>
+            </>
+          )}
+        </span>
+      </div>
+
+      <div className="journal-account-bar-figures">
+        <span>
+          {bar.floor === undefined ? null : bar.breachedFloor ? (
+            <strong className="negative">{t("journal.accountBar.limitExceeded")}</strong>
+          ) : (
+            <>
+              <strong>{formatMoney(bar.balance - bar.floor, currency)}</strong>
+              <small>{t("journal.accountBar.toFloor")}</small>
+            </>
+          )}
+        </span>
+        <span>
+          <strong>{formatMoney(bar.balance, currency)}</strong>
+          <small>{t("journal.accountBar.balance")}</small>
+        </span>
+        <span>
+          {bar.ceiling === undefined ? null : bar.reachedTarget ? (
+            <strong className="positive">{t("journal.accountBar.targetReached")}</strong>
+          ) : (
+            <>
+              <strong>{formatMoney(bar.ceiling - bar.balance, currency)}</strong>
+              <small>{t("journal.accountBar.toTarget")}</small>
+            </>
+          )}
+        </span>
+      </div>
+    </div>
   );
 }
 
 function buildJournalAccountOverview({
   account,
-  currency,
   entries,
-  firmNameById,
   movements,
-  t,
 }: {
   account?: TradingAccount;
-  currency: Currency;
   entries: JournalEntry[];
-  firmNameById: Map<string, string>;
   movements: Movement[];
-  t: ReturnType<typeof useT>;
 }): JournalAccountOverview | null {
   if (!account) return null;
 
-  const accountEntries = entries.filter((entry) => entry.accountId === account.id);
-  const base = account.size > 0 ? account.size : null;
-  const netPnl = sumNumbers(accountEntries.map((entry) => entry.pnl));
+  const netPnl = sumNumbers(entries.filter((entry) => entry.accountId === account.id).map((entry) => entry.pnl));
   const payouts = sumNumbers(
     movements
       .filter((movement) => movement.category === "payout" && movement.accountId === account.id)
       .map(getPayoutGrossAmount),
   );
-  const balance = (base ?? 0) + netPnl - payouts;
-  const returnRatio = base ? netPnl / base : null;
-  const todayPnl = sumNumbers(accountEntries.filter((entry) => entry.date === todayIso()).map((entry) => entry.pnl));
 
   return {
     accountName: account.name,
-    balance,
-    base,
-    baseLabel: base ? `${t("journal.accountOverview.baseWithAmountPrefix")} ${formatMoney(base, currency)}` : t("journal.accountOverview.addSizeToCalc"),
-    firmName: firmNameById.get(account.firmId) || "",
+    bar: account.size > 0 ? buildJournalAccountBar(account, entries) : null,
     netPnl,
     payouts,
-    returnRatio,
-    rules: [
-      buildTargetRule(account.phaseTarget, netPnl, currency, t),
-      buildEodDrawdownRule(account.maxDrawdown, base, accountEntries, netPnl, currency, t),
-      buildDailyDrawdownRule(account.dailyDrawdown, todayPnl, currency, t),
-    ],
+    returnRatio: account.size > 0 ? netPnl / account.size : null,
   };
 }
 
-function buildTargetRule(target: number, netPnl: number, currency: Currency, t: ReturnType<typeof useT>): JournalAccountRule {
-  if (!isPositiveAmount(target)) {
+/* Aire del lado que no tiene extremo propio cuando el balance ya se sale de la escala
+   prestada: sin el, el relleno tocaria el borde y pareceria haber llegado a un limite
+   que no existe. */
+const ACCOUNT_BAR_BORROWED_HEADROOM = 1.2;
+
+/* Suelo, techo y balance salen de getAccountProgress, el mismo calculo que la barra de
+   las tarjetas de Cuentas: respeta el tipo de drawdown (el estatico fijo, el trailing
+   subiendo con el maximo hasta bloquearse en el balance de partida), y asi las dos vistas
+   dan las mismas cifras. El modelo propio que tenia antes el Journal trataba todas las
+   cuentas como trailing, aunque estuvieran marcadas como estaticas.
+   Lo unico que cambia aqui es la escala. En Cuentas el inicio va siempre al centro y cada
+   mitad mide lo suyo; aqui va a escala, a peticion expresa: un dolar ocupa lo mismo a los
+   dos lados, asi que con 1.000 de drawdown y 1.250 de objetivo el inicio cae al 44%. */
+function buildJournalAccountBar(account: TradingAccount, entries: JournalEntry[]): JournalAccountBar {
+  const progress = getAccountProgress(account, entries);
+  const { ceiling, current, floor, pnl, start } = progress;
+  const tone = pnl > 0 ? "positive" : pnl < 0 ? "negative" : "neutral";
+
+  /* Sin drawdown ni objetivo (capital propio) no hay extremos que den escala: la barra
+     se queda en carril neutro con el inicio al centro y sin relleno, y las etiquetas de
+     los extremos dicen que falta cada cosa. */
+  if (floor === undefined && ceiling === undefined) {
     return {
-      hint: t("journal.rules.targetHintEmpty"),
-      icon: "target",
-      label: t("journal.rules.target"),
-      meter: 0,
-      status: t("journal.rules.noTarget"),
-      tone: "neutral",
+      balance: current,
+      balancePercent: 50,
+      breachedFloor: false,
+      dailyFloorPercent: null,
+      hasScale: false,
+      reachedTarget: false,
+      startPercent: 50,
+      tone,
     };
   }
 
-  const remaining = target - netPnl;
-  const reached = remaining <= 0;
+  /* El lado sin extremo propio toma prestada la escala de la regla del otro: el tamano
+     del drawdown en una fondeada, el del objetivo en una cuenta sin drawdown. Se presta
+     el importe configurado y no la distancia actual, porque un trailing bloqueado deja
+     el suelo en el propio inicio y prestar esa distancia (cero) dejaria la barra sin
+     escala. */
+  let lossSpan = floor !== undefined ? start - floor : account.phaseTarget;
+  let gainSpan = ceiling !== undefined ? ceiling - start : account.maxDrawdown;
+  if (floor === undefined && pnl < 0) lossSpan = Math.max(lossSpan, -pnl * ACCOUNT_BAR_BORROWED_HEADROOM);
+  if (ceiling === undefined && pnl > 0) gainSpan = Math.max(gainSpan, pnl * ACCOUNT_BAR_BORROWED_HEADROOM);
+
+  const min = start - lossSpan;
+  const max = start + gainSpan;
+  const toPercent = (value: number) => Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  /* El DD diario se cuenta desde el balance con el que abrio el dia. Solo se marca si cae
+     dentro de la barra: por debajo del MLL salta antes el drawdown maximo, y una marca
+     fuera de escala no diria nada. */
+  const todayPnl = sumNumbers(
+    entries.filter((entry) => entry.accountId === account.id && entry.date === todayIso()).map((entry) => entry.pnl),
+  );
+  const dailyFloor = account.dailyDrawdown > 0 ? current - todayPnl - account.dailyDrawdown : null;
+  const dailyFloorPercent = dailyFloor !== null && dailyFloor > min && dailyFloor < max ? toPercent(dailyFloor) : null;
+
   return {
-    hint: `${formatSignedMoney(netPnl, currency)} / ${formatMoney(target, currency)}`,
-    icon: "target",
-    label: t("journal.rules.target"),
-    meter: clampPercent((netPnl / target) * 100),
-    status: reached ? t("journal.rules.targetReached") : `${t("journal.rules.remainingPrefix")} ${formatMoney(Math.max(remaining, 0), currency)}`,
-    tone: reached ? "positive" : "neutral",
-  };
-}
-
-function buildEodDrawdownRule(
-  amount: number,
-  base: number | null,
-  entries: JournalEntry[],
-  pnl: number,
-  currency: Currency,
-  t: ReturnType<typeof useT>,
-): JournalAccountRule {
-  if (!isPositiveAmount(amount)) {
-    return {
-      hint: t("journal.rules.maxDrawdownHintEmpty"),
-      icon: "drawdown",
-      label: t("journal.rules.maxDrawdown"),
-      meter: 0,
-      status: t("journal.rules.noMaxDrawdown"),
-      tone: "neutral",
-    };
-  }
-
-  const model = getEodDrawdownModel(amount, base, entries, pnl);
-  const percent = clampPercent((model.remaining / amount) * 100);
-  const breached = model.remaining <= 0;
-  return {
-    hint: `${t("journal.rules.limitCurrentPrefix")} ${formatMoney(model.limit, currency)} - ${t("journal.rules.eodMaxPrefix")} ${formatMoney(model.highWatermark, currency)}`,
-    icon: "drawdown",
-    label: t("journal.rules.maxDrawdown"),
-    meter: percent,
-    status: breached ? t("journal.rules.limitExceeded") : `${t("journal.rules.remainingPrefix")} ${formatMoney(model.remaining, currency)}`,
-    tone: breached || percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive",
-  };
-}
-
-function buildDailyDrawdownRule(amount: number, todayPnl: number, currency: Currency, t: ReturnType<typeof useT>): JournalAccountRule {
-  if (!isPositiveAmount(amount)) {
-    return {
-      hint: t("journal.rules.dailyDrawdownHintEmpty"),
-      icon: "drawdown",
-      label: t("journal.rules.dailyDrawdown"),
-      meter: 0,
-      status: t("journal.rules.noDailyDrawdown"),
-      tone: "neutral",
-    };
-  }
-
-  const remaining = amount + todayPnl;
-  const percent = clampPercent((remaining / amount) * 100);
-  const breached = remaining <= 0;
-  return {
-    hint: `${t("journal.rules.todayPrefix")} ${formatSignedMoney(todayPnl, currency)} / -${formatMoney(amount, currency)}`,
-    icon: "drawdown",
-    label: t("journal.rules.dailyDrawdown"),
-    meter: percent,
-    status: breached ? t("journal.rules.limitExceeded") : `${t("journal.rules.remainingPrefix")} ${formatMoney(remaining, currency)}`,
-    tone: breached || percent <= 25 ? "negative" : percent <= 50 ? "neutral" : "positive",
-  };
-}
-
-function getEodDrawdownModel(amount: number, base: number | null, entries: JournalEntry[], pnl: number) {
-  const startBalance = base ?? 0;
-  const dailyPnl = new Map<string, number>();
-  const today = todayIso();
-
-  entries.forEach((entry) => {
-    if (!entry.date || entry.date >= today) return;
-    dailyPnl.set(entry.date, (dailyPnl.get(entry.date) || 0) + entry.pnl);
-  });
-
-  let cumulative = 0;
-  let highWatermark = startBalance;
-  Array.from(dailyPnl.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .forEach(([, dayPnl]) => {
-      cumulative += dayPnl;
-      highWatermark = Math.max(highWatermark, startBalance + cumulative);
-    });
-
-  const currentBalance = startBalance + pnl;
-  const limit = highWatermark - amount;
-  return {
-    currentBalance,
-    highWatermark,
-    limit,
-    remaining: currentBalance - limit,
+    balance: current,
+    balancePercent: toPercent(current),
+    breachedFloor: progress.breachedFloor,
+    ceiling,
+    dailyFloorPercent,
+    floor,
+    hasScale: true,
+    reachedTarget: progress.reachedTarget,
+    startPercent: toPercent(start),
+    tone,
   };
 }
 
@@ -3728,15 +3748,6 @@ function arcoDonut(cx: number, cy: number, radio: number, inicio: number, fin: n
   const anguloGrados = ((fin - inicio) / (2 * Math.PI * radio)) * 360;
   const arcoGrande = anguloGrados > 180 ? 1 : 0;
   return `M ${p1.x} ${p1.y} A ${radio} ${radio} 0 ${arcoGrande} 1 ${p2.x} ${p2.y}`;
-}
-
-function clampPercent(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, value));
-}
-
-function isPositiveAmount(value: number) {
-  return Number.isFinite(value) && value > 0;
 }
 
 function todayIso() {

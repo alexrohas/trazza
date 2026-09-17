@@ -233,8 +233,6 @@
 :root[data-theme="dark"] .entity-form textarea,
 :root[data-theme="dark"] .entity-form .custom-select-trigger,
 :root[data-theme="dark"] .journal-breakdown-empty,
-:root[data-theme="dark"] .journal-account-overview-stats div,
-:root[data-theme="dark"] .journal-account-rule,
 :root[data-theme="dark"] .journal-day,
 :root[data-theme="dark"] .journal-detail-copy,
 :root[data-theme="dark"] .journal-detail-grid div,
@@ -808,10 +806,9 @@ button {
 .app-shell[data-privacy="hidden"] .journal-split-value,
 .app-shell[data-privacy="hidden"] .journal-split-figures strong,
 .app-shell[data-privacy="hidden"] .journal-split-figures small,
-.app-shell[data-privacy="hidden"] .journal-account-return strong,
-.app-shell[data-privacy="hidden"] .journal-account-overview-stats strong,
-.app-shell[data-privacy="hidden"] .journal-account-rule-head strong,
-.app-shell[data-privacy="hidden"] .journal-account-rule small,
+.app-shell[data-privacy="hidden"] .journal-account-figures strong,
+.app-shell[data-privacy="hidden"] .journal-account-bar-ends strong,
+.app-shell[data-privacy="hidden"] .journal-account-bar-figures strong,
 .app-shell[data-privacy="hidden"] .journal-breakdown-row .breakdown-main strong,
 .app-shell[data-privacy="hidden"] .weekday-track strong,
 .app-shell[data-privacy="hidden"] .journal-recent-row strong,
@@ -4092,9 +4089,11 @@ button {
   background: var(--line);
 }
 
+/* 24 entre la cabecera y la barra: un peldano por encima de los 16 que separan, dentro
+   de la barra, los extremos de las cifras de abajo. */
 .journal-account-overview-panel {
   display: grid;
-  gap: var(--space-lg);
+  gap: var(--space-2xl);
   background:
     linear-gradient(90deg, rgba(124, 58, 237, 0.045), transparent 38%),
     var(--surface);
@@ -4107,14 +4106,6 @@ button {
   gap: var(--space-lg);
 }
 
-.journal-account-return span,
-.journal-account-overview-stats span {
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-}
-
 /* Sin margin-top: ya no hay una etiqueta ni una linea de empresa/base encima o debajo
    que separar, el nombre es el unico contenido de esta columna. Un escalon mas grande
    que antes (--text-lg a --text-2xl) porque quitar esas dos lineas dejo el hueco libre. */
@@ -4125,131 +4116,206 @@ button {
   line-height: var(--leading-tight);
 }
 
-.journal-account-return {
+/* P&L neto, payouts y retorno como texto junto al nombre, no como cajas. Sin color
+   propio en el valor a proposito: asi mandan las clases globales .positive/.negative/
+   .neutral, y un payout a cero o un retorno sin calcular se quedan apagados. */
+.journal-account-figures {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-md) var(--space-2xl);
+}
+
+.journal-account-figures div {
   display: grid;
   justify-items: end;
   gap: var(--space-2xs);
-  min-width: 120px;
 }
 
-.journal-account-return strong {
-  font-size: var(--text-lg);
-}
-
-.journal-account-overview-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.journal-account-overview-stats div {
-  display: grid;
-  gap: var(--space-xs);
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md);
-  background: var(--surface-raised);
-}
-
-.journal-account-overview-stats strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text);
-  font-size: var(--text-md);
-  font-weight: var(--weight-black);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.journal-account-rules {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.journal-account-rule {
-  display: grid;
-  gap: var(--space-sm);
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: var(--space-md);
-  background: var(--surface-raised);
-}
-
-.journal-account-rule-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.journal-account-rule-head span,
-.journal-account-rule-head strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.journal-account-rule-head span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--strong-muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-black);
-}
-
-.journal-account-rule-head strong {
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-black);
-}
-
-.journal-account-rule-track {
-  height: 9px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--surface-muted);
-}
-
-.journal-account-rule-track i {
-  display: block;
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-.journal-account-rule.positive .journal-account-rule-track i {
-  background: var(--positive);
-}
-
-.journal-account-rule.negative .journal-account-rule-track i {
-  background: var(--negative);
-}
-
-.journal-account-rule.positive .journal-account-rule-head strong,
-.journal-account-return .positive,
-.journal-account-overview-stats .positive {
-  color: var(--positive);
-}
-
-.journal-account-rule.negative .journal-account-rule-head strong,
-.journal-account-return .negative,
-.journal-account-overview-stats .negative {
-  color: var(--negative);
-}
-
-.journal-account-rule small {
-  min-width: 0;
+.journal-account-figures span {
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-  line-height: var(--leading-snug);
+  text-transform: uppercase;
+}
+
+.journal-account-figures strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* RECORRIDO DE LA CUENTA: del MLL (izquierda) al objetivo (derecha), con la marca de
+   inicio en su sitio real y no en el centro — la escala sale de buildJournalAccountBar.
+   --bar-start lo pone el TSX para que el degradado del carril se vuelva neutro justo en
+   el inicio: se tine de rojo hacia las perdidas y de verde hacia el objetivo. */
+.journal-account-bar {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+/* El margen de abajo es el hueco de la etiqueta INICIO, que cuelga bajo su marca: 4 de
+   marca que asoma + 4 de aire + 12 de letra deja 8 libres hasta los extremos con el gap
+   de 16 que ya pone la rejilla. Con marca de DD diario pasa lo mismo por arriba. */
+.journal-account-bar-track {
+  position: relative;
+  height: 6px;
+  margin-bottom: var(--space-md);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--negative) 40%, var(--line)) 0%,
+    var(--line) var(--bar-start, 50%),
+    color-mix(in srgb, var(--positive) 40%, var(--line)) 100%
+  );
+}
+
+.journal-account-bar.has-daily .journal-account-bar-track {
+  margin-top: var(--space-md);
+}
+
+/* Sin drawdown ni objetivo no hay perdida ni objetivo hacia los que tenirse. */
+.journal-account-bar.is-unscaled .journal-account-bar-track {
+  background: var(--line);
+}
+
+.journal-account-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+}
+
+.journal-account-bar.is-down .journal-account-bar-fill {
+  background: var(--negative);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--negative) 50%, transparent);
+}
+
+.journal-account-bar.is-up .journal-account-bar-fill {
+  background: var(--positive);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--positive) 50%, transparent);
+}
+
+/* Marcas sobre el carril (inicio y DD diario). Van por encima del relleno para que se
+   sigan viendo cuando el recorrido las cubre. */
+.journal-account-bar-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  z-index: 1;
+  width: 2px;
+  transform: translateX(-1px);
+  border-radius: 999px;
+  background: var(--strong-muted);
+  transition: left var(--dur) var(--ease);
+}
+
+.journal-account-bar-mark small {
+  position: absolute;
+  left: 50%;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.journal-account-bar-mark.is-start small {
+  top: calc(100% + var(--space-2xs));
+}
+
+.journal-account-bar-mark.is-daily {
+  background: var(--warning);
+}
+
+.journal-account-bar-mark.is-daily small {
+  bottom: calc(100% + var(--space-2xs));
+  color: var(--warning);
+}
+
+.journal-account-bar-mark.is-edge-start small {
+  left: 0;
+  transform: none;
+}
+
+.journal-account-bar-mark.is-edge-end small {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
+.journal-account-bar-ends {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.journal-account-bar-ends span,
+.journal-account-bar-figures span {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.journal-account-bar-ends strong,
+.journal-account-bar-figures strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.journal-account-bar-ends .is-floor strong {
+  color: var(--negative);
+}
+
+.journal-account-bar-ends .is-ceiling strong {
+  color: var(--positive);
+}
+
+.journal-account-bar-ends small {
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.journal-account-bar-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--line);
+}
+
+.journal-account-bar-figures span:nth-child(2) {
+  justify-content: center;
+}
+
+.journal-account-bar-figures span:nth-child(3) {
+  justify-content: flex-end;
+}
+
+.journal-account-bar-figures small {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.journal-account-bar-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .compact-heading {
@@ -8122,8 +8188,6 @@ tbody tr:last-child td {
 .empty-panel,
 .state-notice,
 .firm-overview-stats span,
-.journal-account-overview-stats div,
-.journal-account-rule,
 .journal-breakdown-row,
 .journal-breakdown-empty,
 .journal-error-type-row,
@@ -8183,7 +8247,6 @@ tbody tr:last-child td {
   .dashboard-insights,
   .directory-grid,
   .journal-error-manager-grid,
-  .journal-account-rules,
   .settings-grid {
     grid-template-columns: 1fr;
   }
@@ -8476,10 +8539,6 @@ tbody tr:last-child td {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .journal-account-overview-stats {
-    grid-template-columns: 1fr;
-  }
-
   .journal-review-actions {
     justify-content: flex-start;
   }
@@ -8647,7 +8706,6 @@ tbody tr:last-child td {
 
   .dashboard-filters,
   .export-summary,
-  .journal-account-overview-stats,
   .journal-detail-grid {
     grid-template-columns: 1fr;
   }
@@ -8656,8 +8714,42 @@ tbody tr:last-child td {
     display: grid;
   }
 
-  .journal-account-return {
+  .journal-account-figures {
+    justify-content: flex-start;
+  }
+
+  .journal-account-figures div {
     justify-items: start;
+  }
+
+  /* En un telefono no caben tres importes en fila con su etiqueta al lado: "24.322,00
+     US$ balance" pide mas de un tercio del ancho. En vez de recortar o bajar la letra,
+     los extremos ponen la etiqueta debajo del importe y las cifras pasan a lista, con
+     la etiqueta a la izquierda y el importe a la derecha. */
+  .journal-account-bar-ends span {
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  .journal-account-bar-ends .is-ceiling {
+    align-items: flex-end;
+  }
+
+  .journal-account-bar-figures {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+
+  .journal-account-bar-figures span,
+  .journal-account-bar-figures span:nth-child(2),
+  .journal-account-bar-figures span:nth-child(3) {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+  }
+
+  /* Sin drawdown o sin objetivo su celda llega vacia; en lista dejaria un hueco. */
+  .journal-account-bar-figures span:empty {
+    display: none;
   }
 
   .journal-weekday-bars {
