@@ -43,6 +43,7 @@ import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
 import { stripHtmlToText } from "../lib/richText";
 import { colorForSeverity } from "../lib/journalErrors";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
+import { useCurveValueBadge } from "../hooks/useCurveValueBadge";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
@@ -2760,11 +2761,36 @@ function JournalPnlCurvePanel({
   }));
   const path = buildSmoothPath(scaledPoints);
   const finalValue = points.at(-1)?.value ?? 0;
+  const finalValueLabel = formatMoney(finalValue, currency);
   const lastScaledPoint = scaledPoints.at(-1);
   const baselineY = height - padding.bottom - ((0 - min) / range) * chartHeight;
   const plotRight = width - padding.right;
   const targetY = limits?.target === undefined ? null : valueToY(limits.target);
   const mllEndY = mllEnd === undefined ? null : valueToY(mllEnd);
+  /* La insignia del ultimo valor va encima o debajo del tramo final, sin taparlo (ver
+     useCurveValueBadge). Aqui solo se dice que no debe pisar: el cero, el objetivo con su
+     etiqueta (encima de la linea) y el MLL con la suya (debajo), este en el tramo que la
+     insignia ocupa a lo ancho, donde puede haber mas de un escalon. 16px = 12 de letra + 4
+     de separacion, como en el CSS de las etiquetas. */
+  const { badgeRef, badgeRight, badgeY } = useCurveValueBadge({
+    bounds: { bottom: height, top: 0 },
+    frameRef,
+    height,
+    label: finalValueLabel,
+    obstacles: ({ spanLeft, unitsPerPixelY }) => {
+      const limitLabelSpan = 16 * unitsPerPixelY;
+      return [
+        { bottom: baselineY, top: baselineY },
+        ...(targetY === null ? [] : [{ bottom: targetY, top: targetY - limitLabelSpan }]),
+        ...(mllEndY === null ? [] : [{ bottom: mllEndY + limitLabelSpan, top: mllEndY }]),
+        ...(mllLevels ?? [])
+          .filter((_, index) => (scaledPoints[index]?.x ?? 0) >= spanLeft)
+          .map((level) => ({ bottom: valueToY(level), top: valueToY(level) })),
+      ];
+    },
+    points: scaledPoints,
+    width,
+  });
   /* El MLL va escalonado: cada punto lleva el limite que regia el dia de ese trade, asi que
      en un trailing la linea sube de golpe en el primer trade del dia siguiente a un cierre
      maximo. El ultimo escalon, al salir del ultimo punto hacia el tramo de "hoy", es el
@@ -2922,9 +2948,10 @@ function JournalPnlCurvePanel({
             {lastScaledPoint && (
               <span
                 className={`chart-value-badge ${signedTone(finalValue)}`}
-                style={{ left: `${(lastScaledPoint.x / width) * 100}%`, top: `${(lastScaledPoint.y / height) * 100}%` }}
+                ref={badgeRef}
+                style={{ left: `${(badgeRight / width) * 100}%`, top: `${(badgeY / height) * 100}%` }}
               >
-                {formatMoney(finalValue, currency)}
+                {finalValueLabel}
               </span>
             )}
             {/* El punto activo va en HTML y no como <circle>: con preserveAspectRatio

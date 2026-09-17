@@ -3,6 +3,7 @@ import { RotateCcw } from "lucide-react";
 import type { CapitalPoint, Currency, Movement } from "../types";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
+import { useCurveValueBadge } from "../hooks/useCurveValueBadge";
 import { InfoHint } from "./InfoHint";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
@@ -96,6 +97,20 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
         top: `${(Math.max(padding.top + 72, activeScaledPoint.y - 12) / height) * 100}%`,
       }
     : undefined;
+  const lastValueLabel = formatMoney(lastPoint?.value || 0, currency);
+  /* La insignia del saldo final va encima o debajo del tramo final, sin taparlo (ver
+     useCurveValueBadge). Puede bajar hasta donde empieza la franja de movimientos, no mas:
+     debajo de la curva estan las barras, y taparlas seria el mismo problema. Lo unico que
+     no debe pisar es la linea del cero. */
+  const { badgeRef, badgeRight, badgeY } = useCurveValueBadge({
+    bounds: { bottom: chartBottom + bandGap, top: 0 },
+    frameRef,
+    height,
+    label: lastValueLabel,
+    obstacles: () => [{ bottom: baselineY, top: baselineY }],
+    points: scaledPoints,
+    width,
+  });
 
   if (points.length === 0) {
     return (
@@ -235,9 +250,10 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
         {lastScaledPoint && (
           <span
             className={`chart-value-badge ${signedTone(lastPoint?.value || 0)}`}
-            style={{ left: `${(lastScaledPoint.x / width) * 100}%`, top: `${(lastScaledPoint.y / height) * 100}%` }}
+            ref={badgeRef}
+            style={{ left: `${(badgeRight / width) * 100}%`, top: `${(badgeY / height) * 100}%` }}
           >
-            {formatMoney(lastPoint?.value || 0, currency)}
+            {lastValueLabel}
           </span>
         )}
         {activeScaledPoint && activePoint && activeTooltipPosition && (
