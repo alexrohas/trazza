@@ -42,6 +42,13 @@ import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
 import { stripHtmlToText } from "../lib/richText";
 import { colorForSeverity } from "../lib/journalErrors";
+import {
+  getEconomicEventLabelKey,
+  getEconomicEventsByDate,
+  toLocalIsoDate,
+  type EconomicEventOccurrence,
+} from "../lib/economicEvents";
+import { useEconomicEventPrefs } from "../hooks/useEconomicEventPrefs";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { useCurveValueBadge } from "../hooks/useCurveValueBadge";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
@@ -542,6 +549,20 @@ export function JournalEntriesView({
      visible, no memoizado: es una comparacion de string barata y solo se usa al pintar
      la rejilla, no merece la pena arrastrar un valor que caducaria pasada medianoche. */
   const todayDate = new Date().toISOString().slice(0, 10);
+  /* Eventos de alto impacto por dia (fecha local), para marcar las celdas del calendario y
+     avisar de lo de hoy. No depende de la cuenta ni de los filtros del journal, pero si de
+     que citas sigue el usuario: lo que apaga en la pantalla de Eventos deja de marcarse
+     tambien aqui, o la personalizacion serviria solo a medias. */
+  const economicEventPrefs = useEconomicEventPrefs();
+  const economicEventsByDate = useMemo(() => {
+    const byDate = new Map<string, EconomicEventOccurrence[]>();
+    getEconomicEventsByDate().forEach((occurrences, date) => {
+      const followed = occurrences.filter((occurrence) => economicEventPrefs.isEnabled(occurrence.type));
+      if (followed.length) byDate.set(date, followed);
+    });
+    return byDate;
+  }, [economicEventPrefs]);
+  const todayEconomicEvents = economicEventsByDate.get(toLocalIsoDate(new Date())) || [];
   const calendarDays = useMemo(
     () => buildCalendarDays(visibleMonth, filteredEntries, movements),
     [filteredEntries, movements, visibleMonth],
@@ -1070,7 +1091,7 @@ export function JournalEntriesView({
             <Fragment key={week.key}>
               {week.days.map((day) => (
             <button
-              aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}${day.date === todayDate ? `, ${t("journal.calendar.today")}` : ""}`}
+              aria-label={`${day.date}: ${day.count} ${t("journal.calendar.entriesAriaSuffix")}${day.payoutCount ? `, ${day.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(day.payoutGross, currency)}` : ""}${day.date === todayDate ? `, ${t("journal.calendar.today")}` : ""}${(economicEventsByDate.get(day.date) || []).map((event) => `, ${t(getEconomicEventLabelKey(event.type))}`).join("")}`}
               className={`journal-day ${day.inMonth ? "" : "muted"} ${day.firstEntryId || day.payoutCount ? "has-entries" : ""} ${signedTone(day.pnl)} ${day.payoutCount ? "payout" : ""}`}
               disabled={!day.firstEntryId}
               key={day.date}
@@ -1092,6 +1113,10 @@ export function JournalEntriesView({
                   Number(day.date.slice(-2))
                 )}
               </span>
+              {/* La carpeta roja del dia: solo la marca, en la esquina contraria al numero.
+                  Que evento es va en el aria-label de la celda y en la pantalla de Eventos;
+                  aqui solo hace falta saber que ese dia hay dato. */}
+              {economicEventsByDate.has(day.date) && <span aria-hidden="true" className="journal-day-event" />}
               {day.count || day.payoutCount ? (
                 <span className="journal-day-figure">
                   {/* Dos veces el mismo importe, en dos formatos, y el @media enseña uno:
@@ -1360,6 +1385,20 @@ export function JournalEntriesView({
                   el hueco de --space-2xl que .firms-workspace ya pone a los dos lados. */}
               <div aria-hidden="true" className="journal-account-divider" />
             </>
+          )}
+          {/* Lo de hoy, y solo si hay algo: una linea, no un aviso con caja. Si se pone
+              cuando no hay nada, deja de leerse el dia que si lo hay. */}
+          {todayEconomicEvents.length > 0 && (
+            <p className="journal-today-events">
+              <i aria-hidden="true" />
+              <strong>{t("events.today")}</strong>
+              {todayEconomicEvents.map((event) => (
+                <span key={event.at.toISOString()}>
+                  {t(getEconomicEventLabelKey(event.type))}
+                  <small>{formatEventTime(event.at, language)}</small>
+                </span>
+              ))}
+            </p>
           )}
           <section className="journal-dashboard-widgets" aria-label={t("journal.cockpit.panelLabel")}>
             {dashboardLayout.order
@@ -4105,6 +4144,12 @@ function formatFullDate(date: string, language: Language) {
     month: "short",
     year: "numeric",
   }).format(new Date(`${date}T12:00:00`));
+}
+
+/* Hora local de un evento economico. El dato viaja como instante UTC justo para esto: la
+   hora la pone el navegador de quien mira, no el calendario. */
+function formatEventTime(date: Date, language: Language) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function clamp(value: number, min: number, max: number) {

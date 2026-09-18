@@ -52,6 +52,17 @@ export function getNextEconomicEvent(afterDate: string, events: EconomicEvent[] 
   return getEconomicEventOccurrences(events).find((occurrence) => occurrence.date > afterDate) || null;
 }
 
+/* Dias (fecha local) con algun evento, para marcarlos de un vistazo en un calendario. */
+export function getEconomicEventsByDate(events: EconomicEvent[] = economicEvents) {
+  const byDate = new Map<string, EconomicEventOccurrence[]>();
+  getEconomicEventOccurrences(events).forEach((occurrence) => {
+    const day = byDate.get(occurrence.date);
+    if (day) day.push(occurrence);
+    else byDate.set(occurrence.date, [occurrence]);
+  });
+  return byDate;
+}
+
 /* La clave i18n del nombre del evento. Vive aqui y no en la vista porque la usan tanto la
    pantalla de eventos como el calendario y el aviso del dia del Journal. */
 export function getEconomicEventLabelKey(type: EconomicEventType) {
