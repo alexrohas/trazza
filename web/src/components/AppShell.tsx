@@ -2,6 +2,7 @@ import {
   BarChart3,
   BookOpenText,
   Building2,
+  CalendarClock,
   CircleDollarSign,
   Eye,
   EyeOff,
@@ -55,8 +56,13 @@ function getJournalItems(t: ReturnType<typeof useT>) {
   return [
     { id: "journalDashboard" as const, label: t("appShell.nav.journalDashboard"), icon: BarChart3 },
     { id: "journalEntries" as const, label: t("appShell.nav.journalEntries"), icon: BookOpenText },
+    { id: "economicEvents" as const, label: t("appShell.nav.economicEvents"), icon: CalendarClock },
   ];
 }
+
+/* Vistas sin boton de accion principal: no hay nada que crear en ellas. Ajustes tiene su
+   propio guardar dentro, y el calendario economico es solo de consulta. */
+const viewsWithoutPrimaryAction = new Set<NavigationView>(["settings", "economicEvents"]);
 
 function getViewTitles(t: ReturnType<typeof useT>): Record<NavigationView, { eyebrow: string; primary: string; title: string }> {
   return {
@@ -73,6 +79,11 @@ function getViewTitles(t: ReturnType<typeof useT>): Record<NavigationView, { eye
       eyebrow: t("appShell.view.journalEntries.eyebrow"),
       primary: t("appShell.view.journalEntries.primary"),
       title: t("appShell.view.journalEntries.title"),
+    },
+    economicEvents: {
+      eyebrow: t("appShell.view.economicEvents.eyebrow"),
+      primary: t("appShell.view.economicEvents.primary"),
+      title: t("appShell.view.economicEvents.title"),
     },
     settings: { eyebrow: t("appShell.view.settings.eyebrow"), primary: t("appShell.view.settings.primary"), title: t("appShell.view.settings.title") },
   };
@@ -318,7 +329,7 @@ export function AppShell({
           <div className="topbar-actions">
             {/* Mantiene la etiqueta visible; solo iguala la altura (38) a la de los
                 controles de al lado, sin ser mas alto como antes. */}
-            {activeView !== "settings" && (
+            {!viewsWithoutPrimaryAction.has(activeView) && (
               <button aria-label={activeCopy.primary} className="primary-action topbar-primary" onClick={onPrimaryAction} type="button">
                 <Plus size={17} strokeWidth={2.3} />
                 <span>{activeCopy.primary}</span>

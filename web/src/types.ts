@@ -177,6 +177,16 @@ export type JournalEntryInput = {
   lesson?: string;
 };
 
+/* Citas del calendario economico que se siguen. Solo alto impacto ("carpeta roja"), y solo
+   EE. UU., que es lo que mueve los indices con los que se opera aqui. Ver data/economicEvents. */
+export type EconomicEventType = "fomc" | "cpi" | "nfp" | "pce" | "retailSales" | "ismManufacturing" | "ismServices";
+
+export type EconomicEvent = {
+  /** Instante exacto en UTC (ISO): la hora local la pone quien lo pinta. */
+  at: string;
+  type: EconomicEventType;
+};
+
 export type NavigationView =
   | "overview"
   | "firms"
@@ -184,6 +194,7 @@ export type NavigationView =
   | "movements"
   | "journalDashboard"
   | "journalEntries"
+  | "economicEvents"
   | "settings";
 
 export type AppData = {

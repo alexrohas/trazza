@@ -4,6 +4,7 @@ import { AccountsView } from "./components/AccountsView";
 import { AppShell } from "./components/AppShell";
 import { AuthScreen } from "./components/AuthScreen";
 import { DashboardView } from "./components/DashboardView";
+import { EconomicEventsView } from "./components/EconomicEventsView";
 import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
@@ -305,6 +306,7 @@ export default function App() {
           onSetStrategyActive={guarded.setJournalStrategyActive}
         />
       )}
+      {activeView === "economicEvents" && <EconomicEventsView />}
       {activeView === "settings" && (
         <SettingsView
           busy={auth.busy}
