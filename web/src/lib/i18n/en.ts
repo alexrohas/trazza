@@ -26,6 +26,7 @@ export const en: Record<TranslationKey, string> = {
   "datePicker.today": "Today",
   "common.of": "of",
   "common.closeModal": "Close modal",
+  "common.requiredLegend": "Required. Everything else is optional.",
 
   "richText.bold": "Bold",
   "richText.italic": "Italic",

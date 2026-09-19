@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BadgeCheck, Building2, Check, Pencil, Plus, Trash2, WalletCards } from "lucide-react";
 import { Combobox } from "./Combobox";
 import { Modal } from "./Modal";
+import { RequiredLegend } from "./RequiredLegend";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
 import { getFirmLogo, getKnownFirmNames } from "../lib/firmLogos";
@@ -203,6 +204,7 @@ export function FirmsView({
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
           <div className="form-action-row">
+            <RequiredLegend />
             <button className="ghost-action" onClick={closeForm} type="button">
               {t("common.cancel")}
             </button>

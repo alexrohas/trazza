@@ -2556,6 +2556,54 @@ button {
 /* Sin linea de separacion arriba (se quito a peticion expresa, en todos los modales:
    se veia de mas). El hueco que ya deja el gap del formulario y el padding del propio
    modal-body es suficiente para distinguir donde acaba el ultimo campo. */
+/* CAMPOS OBLIGATORIOS
+   Se marca lo obligatorio y no lo opcional porque lo obligatorio es la minoria en todos
+   los formularios de la app (2 o 3 campos de entre 9 y 13): escribir "opcional" diez
+   veces por formulario pesa mucho mas que tres asteriscos, y ademas convierte en ruido
+   justo lo que se queria destacar.
+   El asterisco lo decide `:has(:required)`, o sea el propio atributo del control: asi no
+   hay una segunda lista de campos obligatorios que mantener al dia, y un campo que deje
+   de serlo pierde la marca sola. Los controles propios (Select, DatePicker) no son
+   `:required` porque no son campos nativos, asi que esos se marcan a mano con
+   `.is-required` — hoy solo la empresa de una cuenta, que valida el formulario en JS.
+   `:has` mira a cualquier descendiente y no solo al hijo directo: Combobox y el importe
+   de un movimiento envuelven su input en un div.
+   El formulario de acceso queda fuera a proposito (no esta en esta lista de clases):
+   ahi TODOS los campos son obligatorios, y cuando no hay nada opcional la marca no
+   distingue nada — solo ensucia. */
+.modal-form-grid label:has(:required) > span:first-child::after,
+.modal-form-grid label.is-required > span:first-child::after,
+.journal-entry-page label:has(:required) > span:first-child::after,
+.journal-error-type-form label:has(:required) > span:first-child::after {
+  content: "*";
+  margin-left: 2px;
+  color: var(--accent-strong);
+  font-weight: var(--weight-bold);
+}
+
+/* La leyenda va en la fila de acciones, pegada a la izquierda, para no gastar una linea
+   propia. Es la mitad que faltaba de la pregunta: el asterisco dice cual es obligatorio
+   y esto dice que el resto no lo es. Solo en los formularios largos; en uno de dos
+   campos con un asterisco no hay nada que aclarar. */
+.form-required-note {
+  margin-right: auto;
+  align-self: center;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.form-required-note em {
+  color: var(--accent-strong);
+  font-style: normal;
+  font-weight: var(--weight-bold);
+}
+
+/* El formulario de trade no tiene fila de acciones: guarda desde la cabecera de la
+   pagina. Alli la leyenda es un elemento mas de la rejilla del formulario, al final. */
+.journal-entry-page .form-required-note {
+  margin: 0;
+}
+
 /* Titulo de un bloque de campos dentro de un formulario en rejilla: ocupa la fila
    entera, como la fila de acciones. Existe porque las reglas de cobro responden otra
    pregunta que los campos de arriba (cuando se cobra, no cuando revienta la cuenta) y
@@ -2574,6 +2622,9 @@ button {
 .form-action-row {
   grid-column: 1 / -1;
   display: flex;
+  /* Envuelve desde que existe la leyenda de campos obligatorios: en un telefono no cabe
+     junto a los dos botones, y sin esto los empujaba fuera en vez de pasar a su linea. */
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-sm);
   margin-top: var(--space-2xs);

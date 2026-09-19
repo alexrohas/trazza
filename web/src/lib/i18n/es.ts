@@ -24,6 +24,7 @@ export const es = {
   "datePicker.today": "Hoy",
   "common.of": "de",
   "common.closeModal": "Cerrar modal",
+  "common.requiredLegend": "Obligatorio. El resto es opcional.",
 
   "richText.bold": "Negrita",
   "richText.italic": "Cursiva",

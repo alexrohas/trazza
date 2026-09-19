@@ -5,6 +5,7 @@ import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { InfoHint } from "./InfoHint";
 import { Modal } from "./Modal";
+import { RequiredLegend } from "./RequiredLegend";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus } from "../lib/accountRules";
@@ -583,6 +584,7 @@ export function AccountsView({
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
           <div className="form-action-row">
+            <RequiredLegend />
             <button className="ghost-action" onClick={closeForm} type="button">
               {t("common.cancel")}
             </button>
@@ -657,6 +659,7 @@ export function AccountsView({
           {bulkFailed > 0 && <p className="mutation-message error">{t("account.bulk.partialError")}</p>}
 
           <div className="form-action-row">
+            <RequiredLegend />
             <button className="ghost-action" disabled={bulkSaving} onClick={() => setBulkOpen(false)} type="button">
               {t("common.cancel")}
             </button>
@@ -1191,7 +1194,10 @@ function AccountFieldset({
       </label>
 
       {value.kind !== "own" && (
-        <label>
+        /* La empresa es el unico campo obligatorio de toda la app cuya marca no la pone
+           `:has(:required)`: el control es un Select propio, que no es un campo nativo,
+           y quien lo exige es la validacion del formulario (firmRequiredError). */
+        <label className="is-required">
           <span>{t("account.field.firm")}</span>
           <Select
             disabled={disabled}

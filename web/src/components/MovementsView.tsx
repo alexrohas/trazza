@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-r
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
+import { RequiredLegend } from "./RequiredLegend";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
 import { calculatePayoutNetAmount, formatMoney, getAccountName, getPayoutGrossAmount, getSelectableAccounts } from "../lib/metrics";
@@ -438,6 +439,7 @@ export function MovementsView({
           {mutationError && <p className="mutation-message error">{mutationError}</p>}
 
           <div className="form-action-row">
+            <RequiredLegend />
             <button className="ghost-action" onClick={closeForm} type="button">
               {t("common.cancel")}
             </button>

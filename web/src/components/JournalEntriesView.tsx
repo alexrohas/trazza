@@ -36,6 +36,7 @@ import { FilterToggleButton } from "./FilterToggle";
 import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
+import { RequiredLegend } from "./RequiredLegend";
 import { RichTextEditor } from "./RichTextEditor";
 import { AccountRuleStatusPanel } from "./AccountRuleStatus";
 import { Select } from "./Select";
@@ -1524,8 +1525,10 @@ export function JournalEntriesView({
               <input
                 disabled={!canWrite || mutating}
                 maxLength={34}
+                minLength={2}
                 onChange={(event) => setErrorTypeDraft((current) => ({ ...current, label: event.target.value }))}
                 placeholder={t("journal.errorManager.namePlaceholder")}
+                required
                 type="text"
                 value={errorTypeDraft.label}
               />
@@ -1706,8 +1709,10 @@ export function JournalEntriesView({
               <input
                 disabled={!canWrite || mutating}
                 maxLength={34}
+                minLength={2}
                 onChange={(event) => setStrategyDraft((current) => ({ ...current, label: event.target.value }))}
                 placeholder={t("journal.strategyManager.namePlaceholder")}
+                required
                 type="text"
                 value={strategyDraft.label}
               />
@@ -2248,6 +2253,7 @@ export function JournalEntriesView({
             />
           </label>
         )}
+        <RequiredLegend />
         </form>
       </section>
       )}
