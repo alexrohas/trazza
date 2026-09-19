@@ -37,8 +37,10 @@ import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { RichTextEditor } from "./RichTextEditor";
+import { AccountRuleStatusPanel } from "./AccountRuleStatus";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
+import { getAccountRuleStatus, type AccountRuleStatus } from "../lib/accountRules";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
 import { stripHtmlToText } from "../lib/richText";
@@ -151,12 +153,15 @@ type JournalAccountBar = {
 };
 
 type JournalAccountOverview = {
+  account: TradingAccount;
   accountName: string;
   /** null si la cuenta no tiene tamano: sin balance de partida no hay recorrido. */
   bar: JournalAccountBar | null;
   netPnl: number;
   payouts: number;
   returnRatio: number | null;
+  /** null si la cuenta no tiene ninguna regla de cobro configurada. */
+  ruleStatus: AccountRuleStatus | null;
 };
 
 function createEmptyJournalInput(): JournalEntryInput {
@@ -3502,6 +3507,13 @@ function JournalAccountOverviewPanel({ currency, overview }: { currency: Currenc
       ) : (
         <p className="journal-account-bar-empty">{t("journal.accountBar.addSize")}</p>
       )}
+
+      {/* Debajo de la barra y no encima: la barra dice si la cuenta sigue viva, que es
+          la pregunta previa. Solo cuando la respuesta es "si" tiene sentido la de
+          cuanto falta para cobrar. */}
+      {overview.ruleStatus && (
+        <AccountRuleStatusPanel account={overview.account} currency={currency} status={overview.ruleStatus} />
+      )}
     </section>
   );
 }
@@ -3615,11 +3627,16 @@ function buildJournalAccountOverview({
   );
 
   return {
+    account,
     accountName: account.name,
     bar: account.size > 0 ? buildJournalAccountBar(account, entries) : null,
     netPnl,
     payouts,
     returnRatio: account.size > 0 ? netPnl / account.size : null,
+    /* Las reglas de cobro no dependen del tamano de la cuenta (una fondeada sin tamano
+       apuntado sigue teniendo consistencia y dias rentables), asi que se calculan
+       aunque no haya barra que pintar. */
+    ruleStatus: getAccountRuleStatus(account, entries, movements),
   };
 }
 

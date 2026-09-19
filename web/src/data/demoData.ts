@@ -35,6 +35,14 @@ export const accounts: TradingAccount[] = [
     phaseTarget: 3000,
     maxDrawdown: 2500,
     dailyDrawdown: 1200,
+    /* Reglas de cobro tipicas de una fondeada de futuros: el mejor dia no puede pesar
+       mas del 40% del ciclo, cinco dias rentables de 100 $ para arriba y 1.000 $ de
+       minimo. La demo tiene un payout el 8 de mayo, asi que el ciclo que se ve aqui
+       arranca despues de esa fecha — que es justo lo que hace entendible el bloque. */
+    consistencyPct: 40,
+    minProfitDays: 5,
+    profitDayMin: 100,
+    payoutMin: 1000,
   },
   {
     id: "account-topstep-150k",
@@ -48,6 +56,10 @@ export const accounts: TradingAccount[] = [
     phaseTarget: 9000,
     maxDrawdown: 4500,
     dailyDrawdown: 2500,
+    /* En evaluacion la consistencia suele ser mas holgada que en fondeada y no hay
+       minimo para cobrar: lo que se persigue aqui es el objetivo de fase. */
+    consistencyPct: 50,
+    minProfitDays: 3,
   },
   {
     id: "account-ftmo-100k",

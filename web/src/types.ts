@@ -35,6 +35,15 @@ export type TradingAccount = {
   phaseTarget: number;
   maxDrawdown: number;
   dailyDrawdown: number;
+  /* Reglas de cobro (supabase-accounts-payout-rules.sql). Opcionales de verdad, no
+     numeros con cero por defecto como las tres de arriba: aqui undefined significa "esta
+     firma no tiene esa regla", y un cero diria justo lo contrario — que el limite de
+     consistencia es 0% o que hacen falta 0 dias rentables. El motor de reglas
+     (lib/accountRules.ts) solo comprueba las que estan puestas. */
+  consistencyPct?: number;
+  minProfitDays?: number;
+  profitDayMin?: number;
+  payoutMin?: number;
   /* Opcional (no obligatorio) a proposito: la columna es aditiva en Supabase y una fila
      sin ella se lee como visible, igual que en el legado. No vive en AccountInput —
      se escribe con un update propio (setAccountVisible), no con el alta/edicion normal,
@@ -54,6 +63,10 @@ export type AccountInput = {
   phaseTarget?: number;
   maxDrawdown?: number;
   dailyDrawdown?: number;
+  consistencyPct?: number;
+  minProfitDays?: number;
+  profitDayMin?: number;
+  payoutMin?: number;
 };
 
 export type MovementKind = "expense" | "income";

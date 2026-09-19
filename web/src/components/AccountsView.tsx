@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
+import { AccountRuleStatusLine } from "./AccountRuleStatus";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { InfoHint } from "./InfoHint";
 import { Modal } from "./Modal";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
+import { getAccountRuleStatus } from "../lib/accountRules";
 import {
   formatAccountSize,
   formatAmount,
@@ -90,6 +92,10 @@ const emptyAccountInput: AccountInput = {
   phaseTarget: undefined,
   maxDrawdown: undefined,
   dailyDrawdown: undefined,
+  consistencyPct: undefined,
+  minProfitDays: undefined,
+  profitDayMin: undefined,
+  payoutMin: undefined,
 };
 
 /* Los mismos campos que AccountInput (el alta masiva rellena cuenta a cuenta con todo,
@@ -315,6 +321,13 @@ export function AccountsView({
     phaseTarget: account.phaseTarget || undefined,
     maxDrawdown: account.maxDrawdown || undefined,
     dailyDrawdown: account.dailyDrawdown || undefined,
+    /* Sin `|| undefined` como los de arriba: estos ya llegan como undefined cuando no
+       hay regla, y ese o-logico convertiria un 0 legitimo en "sin regla" (un minimo de
+       dia rentable de 0 $ significa "cualquier dia en verde vale", que es un dato). */
+    consistencyPct: account.consistencyPct,
+    minProfitDays: account.minProfitDays,
+    profitDayMin: account.profitDayMin,
+    payoutMin: account.payoutMin,
   });
 
   const resetForm = () => {
@@ -787,6 +800,7 @@ export function AccountsView({
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
           const kind = account.kind;
           const progress = getAccountProgress(account, journalEntries);
+          const ruleStatus = getAccountRuleStatus(account, journalEntries, movements);
           const tradingDays = getAccountTradingDays(journalEntries, account.id);
           const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
           /* La barra necesita al menos un extremo para tener escala. Una cuenta de
@@ -895,6 +909,12 @@ export function AccountsView({
                   </div>
                 </div>
               )}
+
+              {/* Las reglas de cobro, en una linea: la insignia y la que falta. El
+                  detalle (el ciclo, las tres cifras) vive en el panel de cuenta del
+                  Journal, que es donde se mira mientras se opera; aqui la tarjeta tiene
+                  que seguir cabiendo en la rejilla. */}
+              {ruleStatus && <AccountRuleStatusLine account={account} currency={currency} status={ruleStatus} />}
 
               {/* El challenge ya cumple el objetivo. No se cambia nada solo: el boton
                   abre el alta de la fondeada ya precargada, y al guardarla esta cuenta
@@ -1071,26 +1091,39 @@ export function AccountsView({
   );
 }
 
+/* `unit` cambia los tres detalles que distinguen un importe de una cuenta de dias o de
+   un porcentaje: el paso, el marcador de posicion y el teclado del movil. Un campo de
+   dias con step 0.01 y placeholder "0.00" invita a escribir "2,50 dias". */
 function NumberField({
   disabled,
+  hint,
   label,
   onChange,
+  unit = "amount",
   value,
 }: {
   disabled: boolean;
+  hint?: string;
   label: string;
   onChange: (value: number | undefined) => void;
+  unit?: "amount" | "count" | "percent";
   value?: number;
 }) {
+  const isAmount = unit === "amount";
   return (
     <label>
-      <span>{label}</span>
+      <span>
+        {label}
+        {hint && <InfoHint text={hint} />}
+      </span>
       <input
         disabled={disabled}
-        inputMode="decimal"
+        inputMode={isAmount ? "decimal" : "numeric"}
+        max={unit === "percent" ? 100 : undefined}
+        min={isAmount ? undefined : 0}
         onChange={(event) => onChange(event.target.value === "" ? undefined : Number(event.target.value))}
-        placeholder="0.00"
-        step="0.01"
+        placeholder={isAmount ? "0.00" : "0"}
+        step={isAmount ? "0.01" : "1"}
         type="number"
         value={value ?? ""}
       />
@@ -1146,6 +1179,10 @@ function AccountFieldset({
               maxDrawdown: kind === "own" ? undefined : value.maxDrawdown,
               dailyDrawdown: kind === "own" ? undefined : value.dailyDrawdown,
               parentAccountId: kind === "funded" ? value.parentAccountId : undefined,
+              consistencyPct: kind === "own" ? undefined : value.consistencyPct,
+              minProfitDays: kind === "own" ? undefined : value.minProfitDays,
+              profitDayMin: kind === "own" ? undefined : value.profitDayMin,
+              payoutMin: kind === "funded" ? value.payoutMin : undefined,
             });
           }}
           options={accountKindOptions}
@@ -1238,6 +1275,45 @@ function AccountFieldset({
             onChange={(next) => onChange({ dailyDrawdown: next })}
             value={value.dailyDrawdown}
           />
+
+          {/* Las reglas de cobro van detras de las de riesgo y bajo su propio titulo
+              porque responden otra pregunta: las de arriba dicen cuando revienta la
+              cuenta, estas cuando se puede cobrar de ella. Todas son opcionales — se
+              dejan vacias si la firma no las exige, y entonces el motor ni las mira. */}
+          <h3 className="form-section-heading">
+            {value.kind === "funded" ? t("account.rules.titlePayout") : t("account.rules.titleEvaluation")}
+          </h3>
+          <NumberField
+            disabled={disabled}
+            hint={t("account.field.consistencyPctHint")}
+            label={t("account.field.consistencyPct")}
+            onChange={(next) => onChange({ consistencyPct: next })}
+            unit="percent"
+            value={value.consistencyPct}
+          />
+          <NumberField
+            disabled={disabled}
+            label={t("account.field.minProfitDays")}
+            onChange={(next) => onChange({ minProfitDays: next })}
+            unit="count"
+            value={value.minProfitDays}
+          />
+          <NumberField
+            disabled={disabled}
+            hint={t("account.field.profitDayMinHint")}
+            label={t("account.field.profitDayMin")}
+            onChange={(next) => onChange({ profitDayMin: next })}
+            value={value.profitDayMin}
+          />
+          {value.kind === "funded" && (
+            <NumberField
+              disabled={disabled}
+              hint={t("account.field.payoutMinHint")}
+              label={t("account.field.payoutMin")}
+              onChange={(next) => onChange({ payoutMin: next })}
+              value={value.payoutMin}
+            />
+          )}
         </>
       )}
       {value.kind === "funded" && (

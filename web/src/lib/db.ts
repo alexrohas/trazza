@@ -474,6 +474,13 @@ function fromDbAccount(row: DbRow): TradingAccount {
     phaseTarget,
     maxDrawdown: numberOrZero(row.max_drawdown),
     dailyDrawdown: numberOrZero(row.daily_drawdown),
+    /* undefined y no 0 cuando la columna viene a null o no existe todavia (antes de
+       ejecutar supabase-accounts-payout-rules.sql): la regla no esta puesta, que no es
+       lo mismo que tenerla a cero. numberOrZero borraria esa diferencia. */
+    consistencyPct: undefinedNumber(row.consistency_pct),
+    minProfitDays: undefinedNumber(row.min_profit_days),
+    profitDayMin: undefinedNumber(row.profit_day_min),
+    payoutMin: undefinedNumber(row.payout_min),
     /* Solo false cuenta como oculta: una fila sin la columna (antes de ejecutar
        supabase-accounts-visibility.sql, o escrita por una version vieja de la app) o con
        null se lee como visible, igual que hace el legado. */
@@ -557,6 +564,15 @@ function accountInputToDb(userId: string, input: AccountInput, includeUser = tru
     phase_target: input.kind === "challenge" ? nullableNumber(input.phaseTarget) : null,
     max_drawdown: input.kind === "own" ? null : nullableNumber(input.maxDrawdown),
     daily_drawdown: input.kind === "own" ? null : nullableNumber(input.dailyDrawdown),
+    /* Reglas de cobro. En capital propio no hay firma que las imponga, y el minimo para
+       cobrar solo tiene sentido en una fondeada: en una evaluacion el umbral es el
+       objetivo, que ya vive en phase_target. Se limpian al cambiar de tipo por lo mismo
+       que phase_target y los drawdowns — una cuenta que pasa a capital propio no debe
+       arrastrar reglas invisibles que el formulario ya no ensena. */
+    consistency_pct: input.kind === "own" ? null : nullableNumber(input.consistencyPct),
+    min_profit_days: input.kind === "own" ? null : nullableNumber(input.minProfitDays),
+    profit_day_min: input.kind === "own" ? null : nullableNumber(input.profitDayMin),
+    payout_min: input.kind === "funded" ? nullableNumber(input.payoutMin) : null,
   };
 }
 
@@ -878,6 +894,12 @@ function nullableNumber(value: unknown) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+/* Como nullableNumber pero hacia la app, que distingue "sin regla" con undefined y no
+   con null (el resto de campos opcionales de TradingAccount ya son undefined). */
+function undefinedNumber(value: unknown) {
+  return nullableNumber(value) ?? undefined;
 }
 
 export function parseAccountSizeAmount(value: unknown) {

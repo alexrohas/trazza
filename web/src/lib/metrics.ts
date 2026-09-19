@@ -51,6 +51,34 @@ function localIsoDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+/* Resultado de una cuenta agrupado por dia. Las firmas miden casi todo por dias cerrados
+   y no por operaciones (el MLL EOD trailing, los dias rentables, la consistencia), asi
+   que este mapa es la unidad de cuenta compartida: lo usan el suelo trailing de aqui
+   abajo y el motor de reglas de accountRules.ts.
+   El rango es abierto por los dos lados a proposito. `before` deja fuera el dia que se
+   mira (el trailing no recalcula hasta el cierre) y `after` deja fuera el dia del ultimo
+   payout, porque ese dia ya conto en el ciclo que el payout cerro. */
+export function getAccountPnlByDate(
+  entries: JournalEntry[],
+  accountId: string,
+  range: { after?: string; before?: string } = {},
+) {
+  const pnlByDate = new Map<string, number>();
+  entries
+    .filter(
+      (entry) =>
+        entry.accountId === accountId &&
+        Boolean(entry.date) &&
+        (range.before === undefined || entry.date < range.before) &&
+        (range.after === undefined || entry.date > range.after),
+    )
+    .forEach((entry) => {
+      pnlByDate.set(entry.date, (pnlByDate.get(entry.date) || 0) + entry.pnl);
+    });
+
+  return pnlByDate;
+}
+
 /* Suelo de un drawdown EOD trailing: sube con el balance de cierre mas alto alcanzado
    (arrancando en el balance de partida, que ya es un cierre valido antes de operar) y
    se bloquea en cuanto ese pico llega a partida + drawdown, quedandose fijo en el
@@ -70,12 +98,7 @@ function getTrailingFloor(
   maxDrawdown: number,
   before = localIsoDate(new Date()),
 ) {
-  const pnlByDate = new Map<string, number>();
-  entries
-    .filter((entry) => entry.accountId === accountId && Boolean(entry.date) && entry.date < before)
-    .forEach((entry) => {
-      pnlByDate.set(entry.date, (pnlByDate.get(entry.date) || 0) + entry.pnl);
-    });
+  const pnlByDate = getAccountPnlByDate(entries, accountId, { before });
 
   let balance = start;
   let peak = start;
