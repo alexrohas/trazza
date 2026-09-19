@@ -520,6 +520,12 @@ export const en: Record<TranslationKey, string> = {
   "journal.entryForm.notes": "Notes",
   "journal.entryForm.notesPlaceholder": "What happened, which setups you took, how you managed risk...",
   "journal.entryForm.create": "Create trade",
+  "journal.entryForm.customize": "Customize fields",
+
+  "journal.entryFields.title": "Form fields",
+  "journal.entryFields.subtitle": "Choose which fields you want to fill in when logging a trade. Date, symbol and P&L are always asked for. Anything you already saved is kept.",
+  "journal.entryFields.note": "Fields you remove aren't asked for in new trades. If a dashboard chart depends on one, you can hide it from \"Customize panel\".",
+  "journal.entryFields.showAll": "Show all",
 
   "journal.list.title": "Journal trades",
   "journal.list.noNotes": "No notes.",

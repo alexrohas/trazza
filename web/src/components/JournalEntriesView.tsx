@@ -25,6 +25,7 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  SlidersHorizontal,
   Trash2,
   TrendingUp,
   X,
@@ -52,6 +53,7 @@ import { useEconomicEventPrefs } from "../hooks/useEconomicEventPrefs";
 import { useChartZoomHover } from "../hooks/useChartZoomHover";
 import { useCurveValueBadge } from "../hooks/useCurveValueBadge";
 import { useJournalDashboardLayout, type JournalWidgetId } from "../hooks/useJournalDashboardLayout";
+import { journalEntryFieldIds, useJournalEntryFormFields, type JournalEntryFieldId } from "../hooks/useJournalEntryFormFields";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { Language } from "../lib/i18n/context";
 import {
@@ -364,6 +366,10 @@ export function JournalEntriesView({
   const canWrite = dataMode === "cloud";
   const dashboardLayout = useJournalDashboardLayout();
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  /* Que campos del formulario de trade se piden. Solo afecta a lo que se pinta al crear o
+     editar: lo ya guardado no se toca, ni el modelo de datos. */
+  const formFields = useJournalEntryFormFields();
+  const [formFieldsOpen, setFormFieldsOpen] = useState(false);
   /* Arrastrar una tarjeta del cockpit directamente, no solo desde la lista de
      "Personalizar panel": draggingWidgetId da la opacidad de la que se suelta,
      dragOverWidgetId el recuadro de la que la recibiria si se soltara ahora. */
@@ -1287,6 +1293,21 @@ export function JournalEntriesView({
     weekday: t("journal.widgetLabel.weekday"),
   };
 
+  /* Los mismos rotulos que pinta el formulario, para que la lista de "Personalizar campos"
+     hable igual que aquello que enciende y apaga. */
+  const entryFieldLabels: Record<JournalEntryFieldId, string> = {
+    account: t("journal.entryForm.account"),
+    direction: t("journal.filter.direction"),
+    discipline: t("journal.entryForm.discipline"),
+    emotion: t("journal.filter.emotion"),
+    errors: t("journal.entryForm.errorsLegend"),
+    firm: t("journal.entryForm.firm"),
+    media: t("journal.entryForm.mediaTitle"),
+    notes: t("journal.entryForm.notes"),
+    session: t("journal.filter.session"),
+    strategy: t("journal.entryForm.strategy"),
+  };
+
   const journalWidgetSizes: Record<JournalWidgetId, "full" | "wide" | "narrow" | "half" | "quarter"> = {
     /* "wide" y no "full": vuelve a compartir fila, ahora con Ultimas operaciones en vez
        de con Errores (ver journalDashboardWidgetIds). Misma pareja que en el legado. */
@@ -1929,6 +1950,16 @@ export function JournalEntriesView({
             <h2>{editingId ? t("journal.entryForm.editTitle") : t("journal.entryForm.newTitle")}</h2>
           </div>
           <div className="journal-entry-page-actions">
+            <button
+              aria-label={t("journal.entryForm.customize")}
+              className="secondary-action"
+              onClick={() => setFormFieldsOpen(true)}
+              title={t("journal.entryForm.customize")}
+              type="button"
+            >
+              <SlidersHorizontal size={16} strokeWidth={2.2} />
+              <span className="journal-entry-customize-label">{t("journal.entryForm.customize")}</span>
+            </button>
             <button className="ghost-action" onClick={closeEntryForm} type="button">
               {t("common.cancel")}
             </button>
@@ -1941,11 +1972,18 @@ export function JournalEntriesView({
         {mutationError && <p className="mutation-message error">{mutationError}</p>}
         {importMessage && <p className={`mutation-message ${importMessage.type}`}>{importMessage.text}</p>}
         <form
-          className="journal-entry-page-body"
+          className={`journal-entry-page-body ${formFields.isVisible("notes") ? "" : "is-single-column"}`}
           id="journal-entry-form"
           onSubmit={async (event) => {
             event.preventDefault();
-            const saved = await onSaveEntry(draft, editingId);
+            /* "Largo" viene preseleccionado: con el campo oculto nadie lo ha elegido, asi
+               que un trade nuevo se guarda "sin direccion" en vez de dar por hecho un
+               largo. Al editar no se toca nada: se conserva lo que ya tenia. Emocion,
+               disciplina y sesion no tienen equivalente (la base las exige), asi que
+               siguen con el valor de relleno de siempre, el mismo que pone el importador. */
+            const input: JournalEntryInput =
+              !editingId && !formFields.isVisible("direction") ? { ...draft, direction: "none" } : draft;
+            const saved = await onSaveEntry(input, editingId);
             if (saved) closeEntryForm();
           }}
         >
@@ -1959,38 +1997,44 @@ export function JournalEntriesView({
               value={draft.date}
             />
           </label>
-          <label>
-            <span>{t("journal.entryForm.firm")}</span>
-            <Select
+          {formFields.isVisible("firm") && (
+            <label>
+              <span>{t("journal.entryForm.firm")}</span>
+              <Select
+                disabled={!canWrite || mutating}
+                onChange={(next) => setDraft((current) => ({ ...current, firmId: next, accountId: "" }))}
+                options={entryFirmOptions}
+                value={draft.firmId || ""}
+              />
+            </label>
+          )}
+          {formFields.isVisible("account") && (
+            <label>
+              <span>{t("journal.entryForm.account")}</span>
+              <Select
+                disabled={!canWrite || mutating}
+                onChange={(next) => {
+                  const account = accounts.find((item) => item.id === next);
+                  setDraft((current) => ({
+                    ...current,
+                    accountId: next,
+                    firmId: account?.firmId || current.firmId,
+                  }));
+                }}
+                options={entryAccountOptions}
+                value={draft.accountId || ""}
+              />
+            </label>
+          )}
+          {formFields.isVisible("emotion") && (
+            <SelectField
               disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, firmId: next, accountId: "" }))}
-              options={entryFirmOptions}
-              value={draft.firmId || ""}
+              label={t("journal.filter.emotion")}
+              onChange={(value) => setDraft((current) => ({ ...current, emotion: value as JournalEmotion }))}
+              options={emotionOptions}
+              value={draft.emotion}
             />
-          </label>
-          <label>
-            <span>{t("journal.entryForm.account")}</span>
-            <Select
-              disabled={!canWrite || mutating}
-              onChange={(next) => {
-                const account = accounts.find((item) => item.id === next);
-                setDraft((current) => ({
-                  ...current,
-                  accountId: next,
-                  firmId: account?.firmId || current.firmId,
-                }));
-              }}
-              options={entryAccountOptions}
-              value={draft.accountId || ""}
-            />
-          </label>
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.emotion")}
-            onChange={(value) => setDraft((current) => ({ ...current, emotion: value as JournalEmotion }))}
-            options={emotionOptions}
-            value={draft.emotion}
-          />
+          )}
           <label>
             <span>{t("journal.entryForm.symbol")}</span>
             <input
@@ -2003,13 +2047,15 @@ export function JournalEntriesView({
               value={draft.symbol}
             />
           </label>
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.direction")}
-            onChange={(value) => setDraft((current) => ({ ...current, direction: value as JournalDirection }))}
-            options={directionOptions}
-            value={draft.direction}
-          />
+          {formFields.isVisible("direction") && (
+            <SelectField
+              disabled={!canWrite || mutating}
+              label={t("journal.filter.direction")}
+              onChange={(value) => setDraft((current) => ({ ...current, direction: value as JournalDirection }))}
+              options={directionOptions}
+              value={draft.direction}
+            />
+          )}
           {/* El dato que mas importa se lee justo despues de los hechos duros (fecha,
               activo, direccion), no al final junto a disciplina/sesion/emocion/estrategia
               — esos son reflexion, este es el resultado. A peticion expresa. */}
@@ -2040,151 +2086,163 @@ export function JournalEntriesView({
               />
             </span>
           </label>
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.entryForm.discipline")}
-            onChange={(value) => setDraft((current) => ({ ...current, discipline: Number(value) }))}
-            options={disciplineOptions}
-            value={String(draft.discipline)}
-          />
-          <SelectField
-            disabled={!canWrite || mutating}
-            label={t("journal.filter.session")}
-            onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
-            options={sessionOptions}
-            value={draft.tradingSession}
-          />
-          <label>
-            <span>{t("journal.entryForm.strategy")}</span>
-            <Select
+          {formFields.isVisible("discipline") && (
+            <SelectField
               disabled={!canWrite || mutating}
-              onChange={(next) => setDraft((current) => ({ ...current, strategyId: next || undefined }))}
-              options={entryStrategyOptions}
-              value={draft.strategyId || ""}
+              label={t("journal.entryForm.discipline")}
+              onChange={(value) => setDraft((current) => ({ ...current, discipline: Number(value) }))}
+              options={disciplineOptions}
+              value={String(draft.discipline)}
+            />
+          )}
+          {formFields.isVisible("session") && (
+            <SelectField
+              disabled={!canWrite || mutating}
+              label={t("journal.filter.session")}
+              onChange={(value) => setDraft((current) => ({ ...current, tradingSession: value as JournalTradingSession }))}
+              options={sessionOptions}
+              value={draft.tradingSession}
+            />
+          )}
+          {formFields.isVisible("strategy") && (
+            <label>
+              <span>{t("journal.entryForm.strategy")}</span>
+              <Select
+                disabled={!canWrite || mutating}
+                onChange={(next) => setDraft((current) => ({ ...current, strategyId: next || undefined }))}
+                options={entryStrategyOptions}
+                value={draft.strategyId || ""}
+              />
+            </label>
+          )}
+          {formFields.isVisible("media") && (
+            <div className="wide-field journal-operation-media-field">
+              <div className="journal-operation-media-toolbar">
+                <span>{t("journal.entryForm.mediaTitle")}</span>
+                {draft.operationUrl && (
+                  <button
+                    className="ghost-action compact-action"
+                    disabled={!canWrite || mutating}
+                    onClick={() => {
+                      setDraft((current) => ({ ...current, operationUrl: "" }));
+                      setMediaMessage(null);
+                    }}
+                    type="button"
+                  >
+                    <X size={15} strokeWidth={2.2} />
+                    {t("journal.entryForm.mediaRemove")}
+                  </button>
+                )}
+              </div>
+              <input
+                accept="image/*"
+                disabled={!canWrite || mutating}
+                hidden
+                onChange={(event) => {
+                  const file = getImageFileFromList(event.target.files);
+                  event.target.value = "";
+                  void setOperationMediaFromFile(file);
+                }}
+                ref={operationFileInputRef}
+                type="file"
+              />
+              <div
+                className={`journal-operation-dropzone ${draggingOperationMedia ? "is-dragging" : ""} ${!canWrite || mutating ? "is-disabled" : ""}`}
+                onClick={() => {
+                  if (canWrite && !mutating) operationFileInputRef.current?.click();
+                }}
+                onDragLeave={() => setDraggingOperationMedia(false)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (canWrite && !mutating) setDraggingOperationMedia(true);
+                }}
+                onDrop={handleOperationDrop}
+                onKeyDown={(event) => {
+                  if ((event.key === "Enter" || event.key === " ") && canWrite && !mutating) {
+                    event.preventDefault();
+                    operationFileInputRef.current?.click();
+                  }
+                }}
+                onPaste={handleOperationPaste}
+                role="button"
+                tabIndex={canWrite && !mutating ? 0 : -1}
+              >
+                {isImageSource(draft.operationUrl || "") ? (
+                  <div className="journal-operation-preview">
+                    <img src={draft.operationUrl} alt={t("journal.media.captureAlt")} />
+                    <span>
+                      <ZoomIn size={15} strokeWidth={2.2} />
+                      {t("journal.entryForm.mediaReplace")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="journal-operation-empty">
+                    {draft.operationUrl ? <ExternalLink size={22} strokeWidth={2.2} /> : <ImagePlus size={24} strokeWidth={2.2} />}
+                    <span>{draft.operationUrl ? t("journal.entryForm.mediaSavedLink") : t("journal.entryForm.mediaDropHint")}</span>
+                  </div>
+                )}
+              </div>
+              <input
+                disabled={!canWrite || mutating}
+                onChange={(event) => {
+                  setDraft((current) => ({ ...current, operationUrl: event.target.value }));
+                  setMediaMessage(null);
+                }}
+                placeholder="O pega una URL de imagen / referencia"
+                type="text"
+                value={draft.operationUrl || ""}
+              />
+              {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
+            </div>
+          )}
+          {formFields.isVisible("errors") && (
+            <fieldset className="wide-field journal-errors-field">
+              {/* El boton va dentro de la leyenda, no debajo: asi la cabecera del recuadro
+                  es una sola linea con el titulo a un lado y la accion al otro, en vez de
+                  un boton suelto flotando sobre el borde. */}
+              <legend>
+                <span>{t("journal.entryForm.errorsLegend")}</span>
+                <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
+                  <Settings2 size={15} strokeWidth={2.2} />
+                  {t("journal.errorManager.configure")}
+                </button>
+              </legend>
+              <div className="journal-error-options">
+                {activeErrorTypes.map((type) => {
+                  const selected = draft.errors.includes(type.id);
+                  return (
+                    <label className={selected ? "is-selected" : ""} key={type.id} style={{ "--error-color": type.color } as CSSProperties}>
+                      <input
+                        checked={selected}
+                        disabled={!canWrite || mutating}
+                        onChange={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            errors: toggleString(current.errors, type.id),
+                          }))
+                        }
+                        type="checkbox"
+                      />
+                      <i aria-hidden="true" />
+                      <span>{type.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+        </div>
+        {formFields.isVisible("notes") && (
+          <label className="journal-entry-page-notes">
+            <span>{t("journal.entryForm.notes")}</span>
+            <RichTextEditor
+              disabled={!canWrite || mutating}
+              onChange={(html) => setDraft((current) => ({ ...current, notes: html }))}
+              placeholder={t("journal.entryForm.notesPlaceholder")}
+              value={draft.notes || ""}
             />
           </label>
-          <div className="wide-field journal-operation-media-field">
-            <div className="journal-operation-media-toolbar">
-              <span>{t("journal.entryForm.mediaTitle")}</span>
-              {draft.operationUrl && (
-                <button
-                  className="ghost-action compact-action"
-                  disabled={!canWrite || mutating}
-                  onClick={() => {
-                    setDraft((current) => ({ ...current, operationUrl: "" }));
-                    setMediaMessage(null);
-                  }}
-                  type="button"
-                >
-                  <X size={15} strokeWidth={2.2} />
-                  {t("journal.entryForm.mediaRemove")}
-                </button>
-              )}
-            </div>
-            <input
-              accept="image/*"
-              disabled={!canWrite || mutating}
-              hidden
-              onChange={(event) => {
-                const file = getImageFileFromList(event.target.files);
-                event.target.value = "";
-                void setOperationMediaFromFile(file);
-              }}
-              ref={operationFileInputRef}
-              type="file"
-            />
-            <div
-              className={`journal-operation-dropzone ${draggingOperationMedia ? "is-dragging" : ""} ${!canWrite || mutating ? "is-disabled" : ""}`}
-              onClick={() => {
-                if (canWrite && !mutating) operationFileInputRef.current?.click();
-              }}
-              onDragLeave={() => setDraggingOperationMedia(false)}
-              onDragOver={(event) => {
-                event.preventDefault();
-                if (canWrite && !mutating) setDraggingOperationMedia(true);
-              }}
-              onDrop={handleOperationDrop}
-              onKeyDown={(event) => {
-                if ((event.key === "Enter" || event.key === " ") && canWrite && !mutating) {
-                  event.preventDefault();
-                  operationFileInputRef.current?.click();
-                }
-              }}
-              onPaste={handleOperationPaste}
-              role="button"
-              tabIndex={canWrite && !mutating ? 0 : -1}
-            >
-              {isImageSource(draft.operationUrl || "") ? (
-                <div className="journal-operation-preview">
-                  <img src={draft.operationUrl} alt={t("journal.media.captureAlt")} />
-                  <span>
-                    <ZoomIn size={15} strokeWidth={2.2} />
-                    {t("journal.entryForm.mediaReplace")}
-                  </span>
-                </div>
-              ) : (
-                <div className="journal-operation-empty">
-                  {draft.operationUrl ? <ExternalLink size={22} strokeWidth={2.2} /> : <ImagePlus size={24} strokeWidth={2.2} />}
-                  <span>{draft.operationUrl ? t("journal.entryForm.mediaSavedLink") : t("journal.entryForm.mediaDropHint")}</span>
-                </div>
-              )}
-            </div>
-            <input
-              disabled={!canWrite || mutating}
-              onChange={(event) => {
-                setDraft((current) => ({ ...current, operationUrl: event.target.value }));
-                setMediaMessage(null);
-              }}
-              placeholder="O pega una URL de imagen / referencia"
-              type="text"
-              value={draft.operationUrl || ""}
-            />
-            {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
-          </div>
-          <fieldset className="wide-field journal-errors-field">
-            {/* El boton va dentro de la leyenda, no debajo: asi la cabecera del recuadro
-                es una sola linea con el titulo a un lado y la accion al otro, en vez de
-                un boton suelto flotando sobre el borde. */}
-            <legend>
-              <span>{t("journal.entryForm.errorsLegend")}</span>
-              <button className="ghost-action compact-action" onClick={() => setErrorManagerOpen(true)} type="button">
-                <Settings2 size={15} strokeWidth={2.2} />
-                {t("journal.errorManager.configure")}
-              </button>
-            </legend>
-            <div className="journal-error-options">
-              {activeErrorTypes.map((type) => {
-                const selected = draft.errors.includes(type.id);
-                return (
-                  <label className={selected ? "is-selected" : ""} key={type.id} style={{ "--error-color": type.color } as CSSProperties}>
-                    <input
-                      checked={selected}
-                      disabled={!canWrite || mutating}
-                      onChange={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          errors: toggleString(current.errors, type.id),
-                        }))
-                      }
-                      type="checkbox"
-                    />
-                    <i aria-hidden="true" />
-                    <span>{type.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        </div>
-        <label className="journal-entry-page-notes">
-          <span>{t("journal.entryForm.notes")}</span>
-          <RichTextEditor
-            disabled={!canWrite || mutating}
-            onChange={(html) => setDraft((current) => ({ ...current, notes: html }))}
-            placeholder={t("journal.entryForm.notesPlaceholder")}
-            value={draft.notes || ""}
-          />
-        </label>
+        )}
         </form>
       </section>
       )}
@@ -2342,6 +2400,32 @@ export function JournalEntriesView({
               {t("journal.customize.resetOrder")}
             </button>
             <button className="primary-action" onClick={() => setCustomizeOpen(false)} type="button">
+              <Check size={17} strokeWidth={2.2} />
+              {t("journal.customize.done")}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {formFieldsOpen && (
+        <Modal onClose={() => setFormFieldsOpen(false)} subtitle={t("journal.entryFields.subtitle")} title={t("journal.entryFields.title")}>
+          <div className="journal-widget-customize-list is-two-columns">
+            {journalEntryFieldIds.map((id) => {
+              const visible = formFields.isVisible(id);
+              return (
+                <label className={`journal-widget-customize-row is-field ${visible ? "" : "is-hidden"}`} key={id}>
+                  <span>{entryFieldLabels[id]}</span>
+                  <input checked={visible} onChange={() => formFields.toggle(id)} type="checkbox" />
+                </label>
+              );
+            })}
+          </div>
+          <p className="journal-field-customize-note">{t("journal.entryFields.note")}</p>
+          <div className="form-action-row">
+            <button className="ghost-action" disabled={formFields.hiddenCount === 0} onClick={formFields.reset} type="button">
+              {t("journal.entryFields.showAll")}
+            </button>
+            <button className="primary-action" onClick={() => setFormFieldsOpen(false)} type="button">
               <Check size={17} strokeWidth={2.2} />
               {t("journal.customize.done")}
             </button>

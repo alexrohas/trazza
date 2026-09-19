@@ -3730,6 +3730,37 @@ button {
   accent-color: var(--accent);
 }
 
+/* "Personalizar campos" reutiliza la fila de widgets (mismo borde, mismo hueco, mismo
+   casillero) pero sin arrastre: aqui no hay orden que cambiar, solo encender y apagar. Por
+   eso el cursor pasa de mano abierta a puntero. Todo son tokens con su par de tema, no hay
+   color nuevo.
+
+   A dos columnas: son diez filas y en una sola el modal pasaba de los 800px, dejando el
+   boton "Listo" fuera de la ventana en un portatil. Una columna en movil, donde el ancho
+   no da para dos (el 560 es el mismo del resto de la hoja). Va despues de la regla base
+   porque el @media empata en especificidad con ella. */
+.journal-widget-customize-row.is-field,
+.journal-widget-customize-row.is-field:active {
+  cursor: pointer;
+}
+
+.journal-widget-customize-list.is-two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 560px) {
+  .journal-widget-customize-list.is-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.journal-field-customize-note {
+  margin: 0 0 var(--space-base);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
 .journal-pnl-curve-panel {
   min-height: 392px;
 }
@@ -6912,6 +6943,16 @@ tbody tr:last-child td {
   gap: var(--space-sm);
 }
 
+/* Con los tres botones ("Personalizar campos", Cancelar, Crear trade) la fila no cabe en un
+   telefono: 358px utiles y los textos se partian en dos lineas cada uno. El de personalizar
+   se queda en icono (lleva aria-label y title, asi que sigue teniendo nombre); el 560 es el
+   mismo del resto de la hoja. */
+@media (max-width: 560px) {
+  .journal-entry-customize-label {
+    display: none;
+  }
+}
+
 .journal-entry-page-body {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);
@@ -6924,6 +6965,14 @@ tbody tr:last-child td {
    de modal a vista propia. row-gap solo, para no arrastrar tambien el column-gap. */
 .journal-entry-page-fields {
   row-gap: var(--space-2xl);
+}
+
+/* Sin el campo de notas (el usuario lo quito) no hay editor que llene la columna derecha:
+   dejarla vacia empujaria los campos a una franja estrecha a la izquierda con media
+   pantalla en blanco. Una sola columna, con un tope para que los pares de campos no se
+   estiren a todo el ancho de la ventana. */
+.journal-entry-page-body.is-single-column {
+  grid-template-columns: minmax(0, 720px);
 }
 
 .journal-entry-page-notes {

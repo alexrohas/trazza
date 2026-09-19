@@ -518,6 +518,12 @@ export const es = {
   "journal.entryForm.notes": "Notas",
   "journal.entryForm.notesPlaceholder": "Que paso, que setups tomaste, como gestionaste el riesgo...",
   "journal.entryForm.create": "Crear trade",
+  "journal.entryForm.customize": "Personalizar campos",
+
+  "journal.entryFields.title": "Campos del formulario",
+  "journal.entryFields.subtitle": "Elige que campos quieres rellenar al registrar un trade. Fecha, activo y P&L se piden siempre. Lo que ya guardaste no se borra.",
+  "journal.entryFields.note": "Los campos que quites no se piden en los trades nuevos. Si un grafico del panel depende de alguno, puedes ocultarlo desde \"Personalizar panel\".",
+  "journal.entryFields.showAll": "Mostrar todos",
 
   "journal.list.title": "Trades del journal",
   "journal.list.noNotes": "Sin notas.",
