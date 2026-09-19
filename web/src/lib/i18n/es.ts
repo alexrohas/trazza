@@ -227,6 +227,7 @@ export const es = {
   "account.field.selectFirmRequired": "Selecciona una empresa antes de guardar.",
   "account.field.name": "Nombre",
   "account.field.namePlaceholder": "50K PA, Combine 150K...",
+  "account.field.nameHint": "Se rellena solo con la empresa y el tamaño (y añade #2 si ya tienes una igual). Escribe uno solo si quieres otro nombre.",
   "account.field.status": "Estado",
   "account.field.size": "Tamano",
   "account.field.sizePlaceholder": "50K, 100K...",

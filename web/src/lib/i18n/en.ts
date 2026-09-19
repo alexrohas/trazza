@@ -229,6 +229,7 @@ export const en: Record<TranslationKey, string> = {
   "account.field.selectFirmRequired": "Select a firm before saving.",
   "account.field.name": "Name",
   "account.field.namePlaceholder": "50K PA, Combine 150K...",
+  "account.field.nameHint": "Filled in from the firm and the size (adding #2 when you already have one like it). Type one only if you want a different name.",
   "account.field.status": "Status",
   "account.field.size": "Size",
   "account.field.sizePlaceholder": "50K, 100K...",

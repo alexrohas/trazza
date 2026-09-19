@@ -293,7 +293,11 @@ export function AccountsView({
      Antes habia que escribirlo a mano, y acababa cargando datos que la app ya conoce
      ("[ALPHA] 25K FUNDED" lleva empresa y estado dentro del texto libre). */
   const suggestedName = useMemo(() => {
-    const firmName = firmNameById.get(draft.firmId);
+    /* Capital propio no tiene empresa de la que sacar el nombre, asi que usa su propia
+       etiqueta de tipo ("Capital propio 50K"). Sin esto era el unico tipo de cuenta en
+       el que el nombre habia que escribirlo a mano, y por tanto el unico motivo por el
+       que el campo tenia que seguir siendo obligatorio. */
+    const firmName = draft.kind === "own" ? t("account.kind.own") : firmNameById.get(draft.firmId);
     if (!firmName || !draft.size.trim()) return "";
     const base = `${firmName} ${formatSizeForName(draft.size)}`.trim();
     const taken = accounts.filter((account) => account.id !== editingId).map((account) => account.name.toLowerCase());
@@ -301,7 +305,7 @@ export function AccountsView({
     let index = 2;
     while (taken.includes(`${base} #${index}`.toLowerCase())) index += 1;
     return `${base} #${index}`;
-  }, [accounts, draft.firmId, draft.size, editingId, firmNameById]);
+  }, [accounts, draft.firmId, draft.kind, draft.size, editingId, firmNameById, t]);
 
   useEffect(() => {
     /* Solo se rellena solo mientras el nombre no se haya tocado. Al editar una cuenta
@@ -414,7 +418,9 @@ export function AccountsView({
     const usedInBatch = new Set<string>();
     const suggestions = new Map<number, string>();
     bulkRows.forEach((row) => {
-      const firmName = firmNameById.get(row.firmId);
+      /* Misma excepcion que en el alta individual: capital propio usa su etiqueta de
+         tipo en lugar de la empresa, que no tiene. */
+      const firmName = row.kind === "own" ? t("account.kind.own") : firmNameById.get(row.firmId);
       if (row.nameTouched || !firmName || !row.size.trim()) {
         if (row.name.trim()) usedInBatch.add(row.name.trim().toLowerCase());
         return;
@@ -430,7 +436,7 @@ export function AccountsView({
       suggestions.set(row.key, candidate);
     });
     return suggestions;
-  }, [accounts, bulkRows, firmNameById]);
+  }, [accounts, bulkRows, firmNameById, t]);
 
   useEffect(() => {
     if (bulkSuggestedNames.size === 0) return;
@@ -549,7 +555,10 @@ export function AccountsView({
               return;
             }
             setFirmRequiredError(false);
-            const saved = await onSaveAccount(draft, editingId);
+            /* Red de seguridad del nombre automatico: el efecto de arriba ya lo mantiene
+               al dia, pero si alguien vacia el campo y envia en el mismo gesto, aqui se
+               vuelve a poner la propuesta en vez de guardar una cuenta sin nombre. */
+            const saved = await onSaveAccount({ ...draft, name: draft.name.trim() || suggestedName }, editingId);
             if (!saved) return;
             /* Promocion: la cuenta fondeada ya se guardo, ahora la evaluacion de origen
                pasa a superada. Segunda llamada aparte porque son dos filas distintas. */
@@ -1210,14 +1219,20 @@ function AccountFieldset({
         </label>
       )}
 
+      {/* El nombre NO es obligatorio y por eso no lleva `required`: se compone solo con
+          la empresa (o el tipo, en capital propio) y el tamano, que si lo son. Escribirlo
+          es para quedarse con otro, no para rellenar un hueco — de ahi la pista en vez de
+          un asterisco, que habria pedido teclear algo que ya esta escrito. */}
       <label>
-        <span>{t("account.field.name")}</span>
+        <span>
+          {t("account.field.name")}
+          <InfoHint text={t("account.field.nameHint")} />
+        </span>
         <input
           disabled={disabled}
           minLength={2}
           onChange={(event) => onNameChange(event.target.value)}
           placeholder={t("account.field.namePlaceholder")}
-          required
           type="text"
           value={value.name}
         />

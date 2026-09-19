@@ -3128,6 +3128,30 @@ button {
   color: var(--strong-muted);
 }
 
+/* Pegado a la etiqueta de un campo pesa mas que en cualquier otro sitio: ahi convive
+   con texto de 12px, y la caja de 18 con glifo de 13 (pensada para titulos de tarjeta,
+   que son mayores) se leia como el elemento principal de la linea en vez de como una
+   ayuda. Caja de 15 con glifo de 11, y la separacion pasa a ser un valor de la escala
+   en vez de los ~2px que dejaba el propio hueco de la caja.
+   El `:has` limita esto a las etiquetas que llevan pista, que hoy son el nombre de una
+   cuenta y los campos de reglas de cobro — el resto de <span> de etiqueta se quedan como
+   estan, sin volverse flex sin motivo. */
+label > span:has(> .info-hint-wrap) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+}
+
+label > span > .info-hint-wrap .info-hint {
+  width: 15px;
+  height: 15px;
+}
+
+label > span > .info-hint-wrap .info-hint svg {
+  width: 11px;
+  height: 11px;
+}
+
 /* Tooltip propio, no el `title` nativo del navegador: ese no admite estilos. Mismo
    patron que .journal-entry-mode-help del legado: borde simple, sombra del token
    compartido (no una sombra inventada), sin blur de fondo. */
