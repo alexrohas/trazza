@@ -278,6 +278,62 @@ Los otros dos escritores del webhook (`customer.subscription.deleted` e
 vez de darlo, así que un fallo ahí deja a alguien con acceso de más, mucho menos grave que
 dejar fuera a quien ha pagado. Si algún día se tocan, ese es el criterio.
 
+**Las reglas de cobro**, cerradas el **20 de septiembre de 2026** en tres commits
+(`70b8cc9`, `bee80d4`, `fcc717a`). La app ya guardaba las reglas que miden el *recorrido*
+de una cuenta —objetivo, drawdown máximo, drawdown diario, que es lo que pinta la barra—
+pero no las que deciden si **puedes cobrar**, que en las prop firms de futuros son otras
+y son la causa número uno de payout denegado del sector.
+
+`supabase-accounts-payout-rules.sql` (aditivo, anulable, **ya ejecutado en producción**)
+añade cuatro columnas: `consistency_pct`, `min_profit_days`, `profit_day_min` y
+`payout_min`. **`NULL` significa "esta firma no tiene esa regla", nunca cero** — con cero,
+una cuenta sin configurar afirmaría que su límite de consistencia es 0 % y que le faltan
+días que nadie le pide. Por eso no hay relleno ni defecto, al revés que `kind` y
+`drawdown_type`, donde sí había un valor correcto que derivar de lo existente.
+
+Detalles que no son obvios y conviene no deshacer:
+
+- **El ciclo no se guarda**: va desde el último payout registrado de esa cuenta en
+  `transactions` y, si no hay ninguno, desde el principio. Guardarlo sería una segunda
+  copia que se desincroniza en cuanto alguien corrige la fecha de un payout. Cuentan los
+  días **posteriores** a esa fecha, no el día del payout, que ya contó en el ciclo que
+  cerró. Y lo que cierra ciclo es un payout, no cualquier ingreso: un refund devuelve
+  dinero pero no reinicia nada de lo que mide la firma.
+- **El motor vive del journal** (`lib/accountRules.ts`), sin ninguna integración: si el
+  usuario apunta su día, Trazza puede decirle qué le falta. Los días ya agrupados que
+  usaba el suelo EOD trailing se sacaron a `getAccountPnlByDate` en `metrics.ts` y los
+  comparten los dos — no hay dos formas de agrupar por día.
+- **Su límite real: una entrada sin cuenta asignada no cuenta para nada.** Medido en
+  Supabase el 17 de septiembre de 2026: 274 de 431 entradas tienen `account_id`, así que
+  el resto es invisible para este cálculo. Si alguien dice que "el ciclo sale vacío", eso es lo primero que mirar.
+- Se pinta en dos sitios con el mismo lenguaje y desde un solo componente
+  (`AccountRuleStatus.tsx`): el panel entero bajo la barra de recorrido del Journal y una
+  sola línea en la tarjeta de Cuentas, que dice solo la regla que falta.
+- **Lo que falta va con "+" y sin verbo** ("+2 días", "+790,00 €"). El signo funciona
+  igual en los dos idiomas y se salta la concordancia de singular y plural, que en
+  castellano cambia el verbo y en inglés no.
+- En consistencia, ese "+" es **el beneficio que hace falta en OTROS días**, no lo que
+  falta para un objetivo: sale de despejar `mejorDía / (beneficio + x) = límite`. Ganarlo
+  en el propio mejor día no sirve, sube las dos cifras a la vez — de ahí el tooltip.
+- Con el ciclo en pérdidas o a cero la consistencia se da por **cumplida**, no por rota:
+  sin beneficio no hay nada que repartir, y marcarla en rojo desde el primer día sería
+  avisar de un problema que aún no ha ocurrido.
+- Los datos demo llevan reglas puestas a propósito (`data/demoData.ts`), para que el
+  bloque se vea en el servidor demo sin entrar con una cuenta real.
+
+Queda fuera, por si hace falta: **días operados mínimos** (Apex pide 8) no está — la
+tarjeta enseña el número pero sin meta contra la que compararlo.
+
+**Obligatorio y opcional en los formularios**, el mismo día. No había forma de saber qué
+hacía falta rellenar. La convención elegida y su porqué están en el sistema de diseño,
+más abajo; lo que conviene saber aquí es que **el nombre de una cuenta dejó de ser
+obligatorio**: se compone solo con la empresa y el tamaño, que sí lo son, así que pedirlo
+con un asterisco era pedir teclear algo que ya está escrito. Para que eso fuera cierto en
+todos los casos, **capital propio pasa a componerlo con su etiqueta de tipo** ("Capital
+propio 50K") en lugar de la empresa que no tiene: era el único tipo de cuenta en el que
+había que escribirlo a mano, y por tanto el único motivo real para que el campo siguiera
+siendo obligatorio. Al guardar, si el campo está vacío se usa la propuesta.
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -287,9 +343,11 @@ de los errores dejó de ser una deducción (ver abajo).
 El calendario del Journal en móvil estuvo aquí desde el 2 de septiembre de 2026 y **se
 cerró el 8**, con el resto de la pasada de móvil (tiene sección propia arriba).
 
-**No queda nada abierto.** El último pendiente —comprobar un cobro real de punta a punta
-sobre el build de React— se cerró el **8 de septiembre de 2026** con el primer pago de
-verdad (ver "El primer pago" abajo).
+**No quedaba nada abierto hasta el 17 de septiembre de 2026**, cuando se hizo el análisis
+de competencia que abrió una lista nueva (sección propia justo abajo). El último pendiente
+del plan viejo —comprobar un cobro real de punta a punta sobre el build de React— se
+cerró el **8 de septiembre de 2026** con el primer pago de verdad (ver "El primer pago"
+abajo).
 
 El corte a React se desplegó el 7 de septiembre de 2026 y está verificado contra
 producción: rutas (`/`, `/app`, `/legal.html`, `/robots.txt`, `/sitemap.xml`), la
@@ -298,6 +356,65 @@ www, la URL y la clave de Supabase incrustadas de verdad en el bundle (o sea, no
 modo demo) y los `.sql` ya devolviendo 404. Las dos Edge Functions de Stripe se
 redesplegaron después, con las URLs de retorno apuntando ya a `/app`, y responden
 correctamente.
+
+### Qué construir después (análisis de competencia, 17 de septiembre de 2026)
+
+Esto está aquí porque la conclusión no es intuitiva y redescubrirla cuesta una sesión
+entera de búsquedas. **El control de gastos y payouts —que es el corazón de Trazza—
+está comoditizado**: Tradezella lo regala dentro de su plan (PropFirm Sync, que además
+lee los cargos del banco vía Plaid) y Master Tracker tiene plan gratuito con costes y ROI. En
+español hay dos ya montados: Trading Control (11,99 €/mes, con reglas precargadas de más
+de 20 firmas) y SimpleTrader (29-149 €/mes, copiador + journal + gestor financiero con
+"próximos vencimientos"). Otros del ramo: Deltalytix (open source, sync con Rithmic y
+Tradovate, avisos de cargo, catálogo de firmas), Everedge, PropTato, Tradesyncer.
+
+O sea: **"ver cuánto gastas y cuánto cobras" ya no justifica pagar por sí solo.** Tampoco
+se puede ganar en integraciones con brokers, IA o replay, que piden equipo y dinero. Lo
+que sí es terreno propio son tres cosas, y de ahí sale la lista:
+
+1. Ser **la herramienta de fondeo de futuros en español**. Dato propio, medido en
+   Supabase el 17 de septiembre: de los 30 usuarios que han creado una empresa, **20
+   tienen Lucid**; luego Alpha (7), Tradeify, Apex y Topstep. De CFDs solo 3. Los nombres
+   son texto libre y están duplicados ("lucid", "lucid trading", "lucid 1", "apha futures
+   50 k"), así que hoy no se pueden agregar datos ni precargar reglas.
+2. Responder la pregunta de dinero **entera**: cuánto gano de verdad, cuándo puedo cobrar
+   (esto ya está hecho, ver las reglas de cobro arriba) y qué le debo a Hacienda.
+3. Conocer a fondo **las cinco o seis firmas que usan tus usuarios**, en vez de 500
+   brokers por encima.
+
+La lista, por orden de impacto entre esfuerzo:
+
+- **Catálogo de firmas y planes con reglas precargadas.** Eliges "Lucid · Flex 50K" y
+  salen solos precio, objetivo, drawdown, consistencia, días mínimos y reparto. Es lo que
+  rellenaría los cuatro campos nuevos de reglas de cobro, que hoy hay que escribir a mano
+  cuenta por cuenta, y de paso arregla los nombres duplicados. Ya hay material del que
+  tirar: los presets de comisiones de `tradovateImport.ts` y los logos de `firmLogos.ts`.
+  Empezar por las seis firmas reales, con fecha de última revisión de sus reglas.
+- **Importar el extracto del banco (Revolut, Wise) en CSV**, procesado en el navegador y
+  detectando cargos de LUCID/APEX/TOPSTEP y payouts. Es el PropFirm Sync de Tradezella sin
+  Plaid, sin coste y sin pedir acceso al banco. Ataca el agujero grande: **35 de 54
+  usuarios no crearon ni un registro**, y hoy ver el gasto acumulado exige teclear 167
+  compras a mano.
+- **Informe fiscal para España**: payouts por trimestre en euros al cambio del día, gastos
+  por firma, exportación para la gestoría y estimación orientativa del modelo 130. Ningún
+  competidor en inglés lo tiene, y desde febrero de 2026 Wise y Revolut informan a Hacienda
+  (DAC8 / modelo 196), así que el tema aprieta. **Cuidado: las fuentes se contradicen sobre
+  si el coste de los challenges es deducible** — no darlo por hecho, dejar que lo decida la
+  gestoría y avisarlo. Sirve además como contenido SEO en español con intención de compra.
+- **Avisos de cargos y fechas.** Apex y Topstep renuevan la evaluación cada mes aunque la
+  hayas suspendido. Preguntar "¿has cancelado la suscripción?" al marcar una cuenta como
+  fallada, calendario de próximos cargos, aviso de ventana de payout. Por email sería
+  además la primera razón para volver a entrar.
+- **Tarjetas para compartir** un payout o el mes: `journalCalendarImage.ts` ya hace la del
+  calendario, y es difusión gratis en Discord y Telegram.
+- **Códigos de descuento de afiliado** (el modelo de PropFirmMatch): ingresos que no
+  dependen de la conversión, pero hay que declararlo y no recomendar por comisión.
+
+Lo que **no** conviene hacer: sync automático con Rithmic/Tradovate/ProjectX (caro de
+mantener, la API de TopstepX cuesta 29 $/mes por usuario, y ahí ya están los grandes),
+replay/backtesting/copiador (piden capital), estadísticas públicas por firma (con 54
+usuarios no significan nada) y **volver a bajar el precio** — ya está medido que el precio
+no es la restricción.
 
 ### El primer pago (8 de septiembre de 2026)
 
@@ -582,6 +699,23 @@ sesión no vuelva a pisarlas.
   que parecen medidas). El color computado sí sigue siendo fiable, así que para comprobar
   pares de tema vale igual; para cualquier cosa de disposición, no. `tabs_context` dice si
   el panel está oculto — mirarlo antes ahorra la ronda entera.
+  (Aviso del 19 de septiembre de 2026: el panel puede estar oculto **y** con otra pestaña
+  al frente, y entonces las capturas de la tuya salen en blanco aunque el DOM mida bien.
+  Medir por JS siguió funcionando toda la sesión; solo se pierde el *ver*.)
+- **En modo demo los formularios son de solo lectura, así que no se pueden probar ahí.**
+  `canWrite` es `dataMode === "cloud" && ...`, y con él a `false` los `Select` propios
+  llegan `disabled`: al pincharlos no se abre el panel de opciones y **el síntoma parece
+  otro** ("los clicks sintéticos no funcionan en este componente"), cuando lo que pasa es
+  que el control está desactivado. Para verificar un formulario en la demo hay que forzar
+  `canWrite` a `true` temporalmente y revertirlo después — comprobando con `git show
+  HEAD:<fichero>` que la línea vuelve a quedar idéntica, no fiándose del deshacer.
+- **Un script que reparte el diff en varios commits tiene que reconstruir desde un sha
+  base fijo, nunca desde `HEAD`.** En cuanto entra el primer commit, `HEAD` se mueve y los
+  números de línea del diff dejan de corresponder con el fichero de partida: la segunda
+  etapa sale con trozos duplicados o cortados. Costó una etapa entera, y lo delató el
+  typecheck con dos `TS1109: Expression expected` en ficheros que no se habían tocado en
+  ese grupo. El script de la tanda del 20 de septiembre está en el scratchpad de esa
+  sesión, pero lo que hay que recordar es la constante `BASE`.
 
 ## El sistema de diseño — léelo antes de tocar `styles.css`
 
@@ -629,6 +763,35 @@ No los "arregles" en masa.
 La única letra fluida de la app es la cifra titular del Panel
 (`.metric-card.is-featured strong`), un `clamp()` con los topes atados a la escala. Es
 una excepción a propósito y está comentada como tal.
+
+### Obligatorio y opcional en los formularios (20 de septiembre de 2026)
+
+**Se marca lo obligatorio, no lo opcional.** Es minoría en todos los formularios —3 campos
+de 13 en Cuentas, 2 de 9 en Movimientos, 1 de 12 en un trade—, así que escribir "opcional"
+diez veces por formulario pesa mucho más que tres asteriscos, y convierte en ruido justo
+lo que se quería destacar. El asterisco va en `--accent-strong` (nunca en rojo: no es un
+error) y la fila de acciones lleva la leyenda "* Obligatorio. El resto es opcional.", que
+es la otra mitad de la respuesta.
+
+Dos decisiones que conviene no deshacer:
+
+- **La marca la decide `:has(:required)`, o sea el propio atributo del control**, no una
+  lista de campos escrita aparte. Así no hay una segunda fuente de verdad que mantener al
+  día y un campo que deje de ser obligatorio pierde la marca solo. Los controles propios
+  (`Select`, `DatePicker`) no son `:required` porque no son campos nativos: esos se marcan
+  a mano con `.is-required`, y hoy solo lo usa la empresa de una cuenta, que valida en JS.
+  El selector mira a cualquier descendiente y no al hijo directo, porque `Combobox` y el
+  importe de un movimiento envuelven su `input` en un `div`.
+- **El formulario de acceso queda fuera** (no está en la lista de clases del selector):
+  ahí todos los campos son obligatorios, y cuando no hay nada opcional la marca no
+  distingue nada, solo ensucia. Misma idea con la leyenda, que solo va en los formularios
+  largos.
+
+Si un campo se rellena solo, **no es obligatorio aunque haga falta**: lleva una pista
+(`InfoHint`) que dice qué hace, no un asterisco que pide teclear algo que ya está escrito.
+Es el caso del nombre de una cuenta. Y el icono de pista, cuando va pegado a la etiqueta de
+un campo (texto de 12), baja a caja de 15 con glifo de 11 y se separa con `--space-3xs`: a
+los 18/13 de las cabeceras de tarjeta pesaba más que la propia etiqueta.
 
 ### La landing extiende la escalera hacia arriba, no la contradice
 
@@ -730,6 +893,12 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   en bucle sobre todos los commits, `pnpm typecheck` en cada uno y `git checkout HEAD --
   web/src` al final. Barato y es la única forma de saberlo, porque hacer typecheck con el
   árbol de trabajo entero no dice nada de los intermedios.
+  **Pero ese `checkout` miente si la tanda añade ficheros nuevos**: no borra los que el
+  commit antiguo no tenía, así que el typecheck del primer commit se hace con un
+  componente del tercero delante y puede fallar (o pasar) por algo que ese commit no
+  contiene. La forma exacta es un worktree desechable por sha —`git worktree add -q
+  --detach <dir> <sha>`, enlazar `node_modules` del principal con `ln -s`, typecheck, y
+  `git worktree remove --force`—, que arranca del árbol limpio de ese commit y nada más.
 - git: local manda sobre origin, push normal sin `--force` salvo que se pida explícito.
 - Antes de tocar el precio, la copia legal o cualquier texto contractual: es
   `web/public/legal.html` (se movió ahí al pasar el despliegue a Vite; se sirve igual en
