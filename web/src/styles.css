@@ -8584,15 +8584,38 @@ tbody tr:last-child td {
   min-width: 0;
 }
 
+/* Hueco fijo entre las flechas. La fecha que toca y la mas ancha posible (invisible, con la
+   insignia de hoy) comparten celda, asi que la celda mide siempre lo de la ancha y la de
+   verdad va centrada dentro. Con el ancho de cada fecha, de "lunes, 5 de julio" a
+   "miércoles, 30 de septiembre" la flecha de la derecha se movia 99px. */
 .economic-events-nav h2 {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
+  display: grid;
   margin: 0;
+  white-space: nowrap;
 }
 
-.economic-events-nav h2::first-letter {
-  text-transform: uppercase;
+.economic-events-nav h2 > span {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.economic-events-title-sizer {
+  visibility: hidden;
+}
+
+.economic-events-title-stack {
+  display: inline-grid;
+}
+
+.economic-events-title-stack > span {
+  grid-area: 1 / 1;
+}
+
+.economic-events-title-date.is-tight {
+  display: none;
 }
 
 .economic-events-nav h2 em {
@@ -8605,6 +8628,65 @@ tbody tr:last-child td {
   font-weight: var(--weight-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Con la fecha a ancho fijo el titulo ya no se encoge, asi que es "Ajustes" quien baja a la
+   linea de abajo cuando la fila no da para los dos. */
+.economic-events-panel .panel-heading {
+  flex-wrap: wrap;
+}
+
+.economic-events-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* La copia de la pista que va junto a "Ajustes" es la del movil. */
+.economic-events-actions .info-hint-wrap {
+  display: none;
+}
+
+/* En el movil la fecha larga no cabe: con la insignia pide 274px y a 375 hay 189 entre las
+   flechas. Pasa a la corta ("Mié, 30 sept") y la fila se lleva el ancho entero, con las
+   flechas en los bordes: ahi el hueco ya lo fija la pantalla y la reserva sobra. La pista
+   baja junto a "Ajustes" por dos motivos: en la fila, "TODAY" con la corta mas ancha
+   (167px) no cabia a 375, y su zona de 44px pisaba 5px de la flecha de la derecha. Asi cabe
+   todo hasta 360; por debajo, ver el ultimo bloque. */
+@media (max-width: 560px) {
+  .economic-events-nav {
+    flex: 1 1 100%;
+  }
+
+  .economic-events-nav .info-hint-wrap {
+    display: none;
+  }
+
+  .economic-events-actions .info-hint-wrap {
+    display: inline-flex;
+  }
+
+  .economic-events-nav h2 {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Con .economic-events-nav delante: "h2 > span", que le pone el flex, pesa mas que la
+     clase sola y se la comeria. */
+  .economic-events-nav .economic-events-title-sizer,
+  .economic-events-title-date {
+    display: none;
+  }
+
+  .economic-events-title-date.is-tight {
+    display: inline;
+  }
+
+  /* Si ni la corta cabe junto a la insignia (un telefono de 320), la insignia sube a su
+     propia linea en vez de partir la fecha por la mitad. */
+  .economic-events-nav h2 > span {
+    flex-wrap: wrap;
+  }
 }
 
 .economic-events-none {

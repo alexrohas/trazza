@@ -85,19 +85,34 @@ export function EconomicEventsView() {
             <button aria-label={t("events.range.previous")} className="icon-control compact-icon" onClick={() => shift(-1)} type="button">
               <ChevronLeft size={17} strokeWidth={2.2} />
             </button>
+            {/* El hueco entre las flechas no depende de la fecha que toca: debajo de ella,
+                invisible, va la mas ancha posible con la insignia de hoy, y la celda se
+                queda con ese ancho. Si no, pasar de "lunes" a "miércoles" movia la flecha. */}
             <h2>
-              {isSingleDay && range.from === today && <em>{t("events.today")}</em>}
-              {formatRangeLabel(range, mode, language)}
+              <span aria-hidden="true" className="economic-events-title-sizer">
+                <em>{t("events.today")}</em>
+                <WidestLongDate language={language} />
+              </span>
+              <span>
+                {isSingleDay && range.from === today && <em>{t("events.today")}</em>}
+                <span className="economic-events-title-date">{formatRangeLabel(range, mode, language, "long")}</span>
+                <span className="economic-events-title-date is-tight">{formatRangeLabel(range, mode, language, "short")}</span>
+              </span>
             </h2>
             <button aria-label={t("events.range.next")} className="icon-control compact-icon" onClick={() => shift(1)} type="button">
               <ChevronRight size={17} strokeWidth={2.2} />
             </button>
             <InfoHint text={t("events.upcoming.hint")} />
           </div>
-          <button className="secondary-action" onClick={() => setSettingsOpen(true)} type="button">
-            <SlidersHorizontal size={16} strokeWidth={2.2} />
-            {t("events.settings.open")}
-          </button>
+          {/* La pista sale dos veces y el @media elige: junto a la fecha en escritorio y
+              junto a "Ajustes" en el movil, donde la fila de la fecha necesita su ancho. */}
+          <div className="economic-events-actions">
+            <button className="secondary-action" onClick={() => setSettingsOpen(true)} type="button">
+              <SlidersHorizontal size={16} strokeWidth={2.2} />
+              {t("events.settings.open")}
+            </button>
+            <InfoHint text={t("events.upcoming.hint")} />
+          </div>
         </div>
 
         {events.length ? (
@@ -227,6 +242,49 @@ export function EconomicEventsView() {
   );
 }
 
+/* La fecha larga mas ancha que puede salir en este idioma, solo para reservar su hueco. De
+   un dia a otro cambian de ancho el nombre del dia, la cifra y el mes (DM Sans no trae
+   cifras tabulares: "11" mide 12px y "20", 20), asi que cada una de esas partes apila todas
+   sus opciones en una sola celda y la celda se queda con la mas ancha. Sale exacta sin medir
+   nada y sin saber cual gana, que no es obvio: el dia mas ancho del año puede no existir en
+   el calendario de ese año. */
+function WidestLongDate({ language }: { language: Language }) {
+  const parts = useMemo(() => getLongDateOptions(language), [language]);
+  return (
+    <span>
+      {parts.map((options, index) =>
+        options.length === 1 ? (
+          <span key={index}>{options[0]}</span>
+        ) : (
+          <span className="economic-events-title-stack" key={index}>
+            {options.map((option) => (
+              <span key={option}>{option}</span>
+            ))}
+          </span>
+        ),
+      )}
+    </span>
+  );
+}
+
+/* Las partes de la fecha larga en el orden del idioma ("miércoles" ", " "30" " de "
+   "septiembre"), cada una con todas las opciones que puede tomar: un año bisiesto entero
+   pasa por los siete dias, las 31 cifras y los doce meses. Lo de entre medias va tal cual. */
+function getLongDateOptions(language: Language) {
+  const format = new Intl.DateTimeFormat(toLocale(language), longDateFormat);
+  const options = new Map<string, Set<string>>();
+  for (let day = 0; day < 366; day += 1) {
+    for (const part of format.formatToParts(new Date(2024, 0, 1 + day))) {
+      if (part.type !== "literal") options.set(part.type, (options.get(part.type) ?? new Set<string>()).add(part.value));
+    }
+  }
+  return format.formatToParts(new Date(2024, 0, 1)).map((part, index) => {
+    const values = part.type === "literal" ? [part.value] : [...(options.get(part.type) ?? [])];
+    // La primera parte sube a mayuscula, igual que en el titulo (ver capitalize).
+    return index === 0 ? values.map((value) => capitalize(value, language)) : values;
+  });
+}
+
 /* --- Periodo ------------------------------------------------------------------------- */
 
 function getRange(mode: RangeMode, anchor: string, custom: { from: string; to: string }) {
@@ -277,16 +335,38 @@ function toLocale(language: Language) {
   return language === "en" ? "en-US" : "es-ES";
 }
 
-function formatRangeLabel(range: { from: string; to: string }, mode: RangeMode, language: Language) {
-  if (range.from === range.to) return formatLongDate(toDate(range.from), language);
+/* Cada titulo sale en dos tamaños y el @media elige: en el movil la fecha larga no cabe
+   entre las flechas y va la corta ("Mié, 30 sept"). Los periodos ya son cortos y salen
+   iguales en los dos. */
+function formatRangeLabel(range: { from: string; to: string }, mode: RangeMode, language: Language, size: "long" | "short") {
+  if (range.from === range.to) {
+    const date = toDate(range.from);
+    return capitalize(size === "long" ? formatLongDate(date, language) : formatShortDay(date, language), language);
+  }
   if (mode === "month") {
-    return new Intl.DateTimeFormat(toLocale(language), { month: "long", year: "numeric" }).format(toDate(range.from));
+    return capitalize(new Intl.DateTimeFormat(toLocale(language), { month: "long", year: "numeric" }).format(toDate(range.from)), language);
   }
   return `${formatShortDate(toDate(range.from), language)} – ${formatShortDate(toDate(range.to), language)}`;
 }
 
+/* Lo comparten el titulo y su reserva de hueco (WidestLongDate): si cambia uno, el otro con el. */
+const longDateFormat: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", weekday: "long" };
+
 function formatLongDate(date: Date, language: Language) {
-  return new Intl.DateTimeFormat(toLocale(language), { day: "numeric", month: "long", weekday: "long" }).format(date);
+  return new Intl.DateTimeFormat(toLocale(language), longDateFormat).format(date);
+}
+
+function formatShortDay(date: Date, language: Language) {
+  return new Intl.DateTimeFormat(toLocale(language), { day: "numeric", month: "short", weekday: "short" })
+    .format(date)
+    .replace(/\./g, "");
+}
+
+/* En espanol el dia y el mes van en minuscula, y en un titulo solo sube la primera letra. Va
+   en el texto y no con ::first-letter, que no entra en un flex ni en una rejilla: con esa
+   regla el titulo seguia saliendo "martes, 22 de septiembre". */
+function capitalize(text: string, language: Language) {
+  return text.charAt(0).toLocaleUpperCase(toLocale(language)) + text.slice(1);
 }
 
 function formatShortDate(date: Date, language: Language) {
