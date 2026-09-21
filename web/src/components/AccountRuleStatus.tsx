@@ -172,3 +172,24 @@ export function AccountRuleStatusLine({
     </p>
   );
 }
+
+/**
+ * Lo que se ve en el Journal cuando la cuenta todavia no tiene ninguna regla de cobro.
+ * Antes no se veia nada, y esa era la razon de que un dia despues de desplegar las reglas
+ * ninguna cuenta las tuviera: la funcion solo existia para quien abriera la ficha de la
+ * cuenta y bajara hasta el final del formulario. Si la empresa esta en el catalogo, el
+ * aviso ofrece lo corto (elegir el plan) en vez de lo largo (teclear las reglas).
+ */
+export function AccountRuleEmpty({ inCatalog, onEdit }: { inCatalog: boolean; onEdit?: () => void }) {
+  const t = useT();
+  return (
+    <div className="account-rules account-rules-empty">
+      <p>{inCatalog ? t("account.rules.emptyCatalog") : t("account.rules.empty")}</p>
+      {onEdit && (
+        <button className="ghost-action compact-action" onClick={onEdit} type="button">
+          {inCatalog ? t("account.rules.emptyCatalogAction") : t("account.rules.emptyAction")}
+        </button>
+      )}
+    </div>
+  );
+}

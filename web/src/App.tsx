@@ -32,6 +32,10 @@ export default function App() {
     id: number;
     target: "account" | "firm" | "journalEntry" | "movement";
   } | null>(null);
+  /* Cuenta que otra pantalla pide abrir en edicion (el Journal, desde el aviso de "sin
+     reglas de cobro"). El id sube en cada peticion, como en createRequest, para que pedir
+     dos veces la misma cuenta la vuelva a abrir. */
+  const [editAccountRequest, setEditAccountRequest] = useState<{ id: number; accountId: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState("all");
   /* Movimiento a medio crear en espera de una cuenta que todavia no existe: se guarda
@@ -89,6 +93,11 @@ export default function App() {
   /* Movimientos manda aqui cuando el usuario elige "crear cuenta nueva" en vez de
      enlazar una existente: guarda el borrador del movimiento (sin tocar Supabase
      todavia), lleva a Cuentas y abre su alta, igual que el "+" de la cabecera. */
+  const requestAccountEdit = useCallback((accountId: string) => {
+    setActiveView("accounts");
+    setEditAccountRequest((current) => ({ id: (current?.id || 0) + 1, accountId }));
+  }, []);
+
   const requestAccountForMovement = useCallback((input: MovementInput, movementId?: string) => {
     setPendingMovementLink({ input, movementId });
     setActiveView("accounts");
@@ -247,6 +256,7 @@ export default function App() {
           firms={firms}
           journalEntries={journalEntries}
           movements={movements}
+          editAccountRequest={editAccountRequest || undefined}
           newAccountToken={createRequest?.target === "account" ? createRequest.id : 0}
           presetFirmId={pendingMovementLink?.input.firmId || undefined}
           searchQuery={searchQuery}
@@ -254,6 +264,7 @@ export default function App() {
           mutating={dataState.mutating}
           onClose={handleAccountModalClosed}
           onDeleteAccount={guarded.deleteAccount}
+          onEditAccountRequestHandled={() => setEditAccountRequest(null)}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
           onSaveAccount={saveAccountAndLinkPendingMovement}
           onSetAccountVisible={guarded.setAccountVisible}
@@ -304,6 +315,7 @@ export default function App() {
           onSaveStrategy={guarded.saveJournalStrategy}
           onDeleteStrategy={guarded.deleteJournalStrategy}
           onSetStrategyActive={guarded.setJournalStrategyActive}
+          onEditAccount={requestAccountEdit}
         />
       )}
       {activeView === "economicEvents" && <EconomicEventsView />}

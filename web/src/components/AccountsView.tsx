@@ -46,8 +46,13 @@ type AccountsViewProps = {
      al pedir crear la cuenta de un movimiento sin la suya todavia). */
   presetFirmId?: string;
   searchQuery: string;
+  /* Cuenta que abrir en edicion cuando lo pide otra pantalla: el Journal, desde el aviso
+     de una cuenta sin reglas de cobro. El id cambia en cada peticion para que pedir dos
+     veces la misma cuenta la vuelva a abrir. */
+  editAccountRequest?: { id: number; accountId: string };
   onClose?: () => void;
   onDeleteAccount: (accountId: string) => Promise<boolean>;
+  onEditAccountRequestHandled?: () => void;
   onNewAccountRequestHandled?: () => void;
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
   onSetAccountVisible: (accountId: string, visible: boolean) => Promise<boolean>;
@@ -119,8 +124,10 @@ export function AccountsView({
   newAccountToken = 0,
   presetFirmId,
   searchQuery,
+  editAccountRequest,
   onClose,
   onDeleteAccount,
+  onEditAccountRequestHandled,
   onNewAccountRequestHandled,
   onSaveAccount,
   onSetAccountVisible,
@@ -537,6 +544,18 @@ export function AccountsView({
     setCreationChoiceOpen(true);
     onNewAccountRequestHandled?.();
   }, [newAccountToken, onNewAccountRequestHandled]);
+
+  /* Otra pantalla pide abrir una cuenta en edicion (el Journal, desde el aviso de "esta
+     cuenta no tiene reglas de cobro"). Se atiende una vez y se da por atendida aunque la
+     cuenta ya no exista, para que no quede una peticion colgando que se dispare despues. */
+  useEffect(() => {
+    if (!editAccountRequest) return;
+    const account = accounts.find((item) => item.id === editAccountRequest.accountId);
+    if (account) openEditAccount(account);
+    onEditAccountRequestHandled?.();
+    // openEditAccount se redefine en cada render; la peticion es lo unico que debe disparar esto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editAccountRequest?.id]);
 
   return (
     <div className="firms-workspace">

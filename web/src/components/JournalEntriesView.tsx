@@ -38,10 +38,11 @@ import { MetricCard } from "./MetricCard";
 import { Modal } from "./Modal";
 import { RequiredLegend } from "./RequiredLegend";
 import { RichTextEditor } from "./RichTextEditor";
-import { AccountRuleStatusPanel } from "./AccountRuleStatus";
+import { AccountRuleEmpty, AccountRuleStatusPanel } from "./AccountRuleStatus";
 import { Select } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus, type AccountRuleStatus } from "../lib/accountRules";
+import { findCatalogFirm } from "../lib/firmCatalog";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
 import { stripHtmlToText } from "../lib/richText";
@@ -130,6 +131,9 @@ type JournalEntriesViewProps = {
   onSaveStrategy: (input: JournalStrategyInput, strategyId?: string) => Promise<boolean>;
   onDeleteStrategy: (strategyId: string) => Promise<boolean>;
   onSetStrategyActive: (strategyId: string, active: boolean) => Promise<boolean>;
+  /* Abre la cuenta en edicion en Cuentas. Lo usa el aviso de "sin reglas de cobro"; sin
+     esta prop el aviso sale igual, solo que sin boton. */
+  onEditAccount?: (accountId: string) => void;
 };
 
 /* Recorrido de la cuenta del MLL al objetivo, que sustituye a las tres tarjetas de reglas
@@ -163,6 +167,9 @@ type JournalAccountOverview = {
   returnRatio: number | null;
   /** null si la cuenta no tiene ninguna regla de cobro configurada. */
   ruleStatus: AccountRuleStatus | null;
+  /** Si su empresa esta en el catalogo de planes: cambia lo que ofrece el aviso de "sin
+   *  reglas" (elegir plan en vez de teclearlas). */
+  inCatalog: boolean;
 };
 
 function createEmptyJournalInput(): JournalEntryInput {
@@ -325,6 +332,7 @@ export function JournalEntriesView({
   onSaveStrategy,
   onDeleteStrategy,
   onSetStrategyActive,
+  onEditAccount,
 }: JournalEntriesViewProps) {
   const operationFileInputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState<JournalEntryInput>(() => createEmptyJournalInput());
@@ -468,8 +476,14 @@ export function JournalEntriesView({
   const reviewPresetRange = useMemo(() => getReviewPresetDateRange(reviewPreset), [reviewPreset]);
   const selectedAccount = selectedAccountId === "all" ? undefined : accountById.get(selectedAccountId);
   const accountOverview = useMemo(
-    () => buildJournalAccountOverview({ account: selectedAccount, entries, movements }),
-    [entries, movements, selectedAccount],
+    () =>
+      buildJournalAccountOverview({
+        account: selectedAccount,
+        entries,
+        firmName: selectedAccount ? firmNameById.get(selectedAccount.firmId) : undefined,
+        movements,
+      }),
+    [entries, firmNameById, movements, selectedAccount],
   );
   /* Cuentas con las que se puede apuntar un trade nuevo, sin excepcion de cuenta elegida:
      deciden que empresas se ofrecen y si "Importar CSV" tiene alguna cuenta a la que ir. */
@@ -1405,7 +1419,7 @@ export function JournalEntriesView({
           </div>
           {accountOverview && (
             <>
-              <JournalAccountOverviewPanel overview={accountOverview} currency={currency} />
+              <JournalAccountOverviewPanel currency={currency} onEditAccount={onEditAccount} overview={accountOverview} />
               {/* Separador muy discreto entre la tarjeta de la cuenta y el resto del
                   cockpit debajo, a peticion expresa. Va como elemento propio del flujo,
                   no como border-top/padding de la seccion siguiente, para no duplicar
@@ -3472,7 +3486,15 @@ function JournalErrorChips({
   );
 }
 
-function JournalAccountOverviewPanel({ currency, overview }: { currency: Currency; overview: JournalAccountOverview }) {
+function JournalAccountOverviewPanel({
+  currency,
+  onEditAccount,
+  overview,
+}: {
+  currency: Currency;
+  onEditAccount?: (accountId: string) => void;
+  overview: JournalAccountOverview;
+}) {
   const t = useT();
   return (
     <section className="panel journal-account-overview-panel">
@@ -3517,8 +3539,17 @@ function JournalAccountOverviewPanel({ currency, overview }: { currency: Currenc
       {/* Debajo de la barra y no encima: la barra dice si la cuenta sigue viva, que es
           la pregunta previa. Solo cuando la respuesta es "si" tiene sentido la de
           cuanto falta para cobrar. */}
-      {overview.ruleStatus && (
+      {overview.ruleStatus ? (
         <AccountRuleStatusPanel account={overview.account} currency={currency} status={overview.ruleStatus} />
+      ) : (
+        /* Sin reglas, en vez de nada, una linea que dice que existen y como ponerlas.
+           Capital propio queda fuera: ahi no hay firma que imponga reglas de cobro. */
+        overview.account.kind !== "own" && (
+          <AccountRuleEmpty
+            inCatalog={overview.inCatalog}
+            onEdit={onEditAccount ? () => onEditAccount(overview.account.id) : undefined}
+          />
+        )
       )}
     </section>
   );
@@ -3617,10 +3648,12 @@ function JournalAccountBarView({ bar, currency }: { bar: JournalAccountBar; curr
 function buildJournalAccountOverview({
   account,
   entries,
+  firmName,
   movements,
 }: {
   account?: TradingAccount;
   entries: JournalEntry[];
+  firmName?: string;
   movements: Movement[];
 }): JournalAccountOverview | null {
   if (!account) return null;
@@ -3643,6 +3676,7 @@ function buildJournalAccountOverview({
        apuntado sigue teniendo consistencia y dias rentables), asi que se calculan
        aunque no haya barra que pintar. */
     ruleStatus: getAccountRuleStatus(account, entries, movements),
+    inCatalog: Boolean(findCatalogFirm(firmName)),
   };
 }
 

@@ -4654,6 +4654,24 @@ label > span > .info-hint-wrap .info-hint svg {
   font-variant-numeric: tabular-nums;
 }
 
+/* Cuenta sin reglas: una linea y un boton en el mismo sitio y con el mismo corte que
+   tendria el panel de reglas, para que se lea como "aqui iria esto" y no como un aviso
+   de error. En gris y sin insignia a proposito: no le falta nada a la cuenta, le falta
+   informacion a Trazza. */
+.account-rules-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-lg);
+}
+
+.account-rules-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* En un telefono las tres columnas no caben: "Minimo para cobrar" se partia en tres
    lineas y el nombre llegaba a tocar su propia cifra. Por debajo de 560 cada regla
    vuelve a ser una fila que envuelve — nombre primero y las cifras detras o debajo,
