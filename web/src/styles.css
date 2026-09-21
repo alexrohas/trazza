@@ -8464,25 +8464,12 @@ tbody tr:last-child td {
 }
 
 /* CALENDARIO DE EVENTOS DE ALTO IMPACTO. Una tarjeta corta y no un calendario entero, a
-   peticion expresa: lo de hoy arriba y del tamano que se lee de un vistazo, unas pocas citas
-   siguientes debajo, y ya. La lista completa de doce meses pedia scroll para nada, porque lo
-   que se mira antes de operar es el dia. */
+   peticion expresa: el dia elegido, con flechas para ir pasando, y el periodo y las citas
+   que se siguen en unos ajustes aparte. La lista completa de doce meses pedia scroll para
+   nada, porque lo que se mira antes de operar es el dia. */
 .economic-events-panel {
   display: grid;
   gap: var(--space-lg);
-}
-
-.economic-events-date {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
-
-/* En espanol el dia y el mes van en minuscula ("viernes, 18 de septiembre"), asi que solo
-   sube la primera letra. Con text-transform: capitalize salia "Viernes, 18 De Septiembre". */
-.economic-events-date::first-letter {
-  text-transform: uppercase;
 }
 
 .economic-events-list {
@@ -8781,24 +8768,6 @@ tbody tr:last-child td {
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-  text-transform: uppercase;
-}
-
-/* Las siguientes citas, separadas de lo de hoy por una linea: son otra cosa (lo que viene),
-   no mas filas de la misma lista. */
-.economic-events-next {
-  display: grid;
-  gap: var(--space-sm);
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-lg);
-}
-
-.economic-events-next h3 {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

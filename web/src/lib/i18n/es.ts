@@ -776,7 +776,6 @@ export const es = {
   "events.settings.title": "Ajustes de eventos",
   "events.settings.subtitle": "Elige qué periodo ves y qué citas sigues. Las flechas de la pantalla se mueven en el periodo que dejes puesto.",
   "events.customize.title": "Qué eventos sigo",
-  "events.customize.subtitle": "Los que apagues dejan de salir aquí y de marcarse en el calendario del Journal.",
   "events.customize.reset": "Volver a todos",
   "events.customize.done": "Listo",
   "events.coveragePrefix": "Calendario cargado hasta el",

@@ -778,7 +778,6 @@ export const en: Record<TranslationKey, string> = {
   "events.settings.title": "Event settings",
   "events.settings.subtitle": "Pick the period you see and the releases you follow. The arrows on the page move by the period you leave set.",
   "events.customize.title": "Events I follow",
-  "events.customize.subtitle": "The ones you switch off stop showing here and stop being marked in the Journal calendar.",
   "events.customize.reset": "Back to all",
   "events.customize.done": "Done",
   "events.coveragePrefix": "Calendar loaded through",
