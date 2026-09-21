@@ -595,9 +595,12 @@ export function JournalEntriesView({
   );
   /* Las celdas se parten en las semanas que el mes forma (4, 5 o 6 — las decide
      buildCalendarDays), para pintar el resumen semanal del legado en una octava columna.
-     El total de la semana suma el P&L de las entradas y resta el bruto de los payouts,
-     igual que cada celda de dia. El total del mes cuenta solo los dias del mes visible
-     (inMonth), no las celdas de relleno de los meses vecinos. */
+     El total de la semana y el del mes son P&L de operar y NADA MAS: los payouts no
+     restan. Hasta el 21 de septiembre de 2026 restaban (herencia del legado), y un mes en
+     el que se ganaban 1.000 y se retiraban 500 salia en 500 — retirar dinero no es perder
+     dinero, y el P&L de ese mes son 1.000. El payout sigue viendose, aparte y en azul, en
+     la celda del dia en que se cobro. El total del mes cuenta solo los dias del mes
+     visible (inMonth), no las celdas de relleno de los meses vecinos. */
   const { calendarWeeks, monthTotal, monthEntries } = useMemo(() => {
     const weeks = Array.from({ length: calendarDays.length / 7 }, (_, index) => {
       const days = calendarDays.slice(index * 7, index * 7 + 7);
@@ -606,7 +609,7 @@ export function JournalEntriesView({
         entries: days.reduce((total, day) => total + day.count, 0),
         key: days[0]?.date ?? `semana-${index}`,
         number: index + 1,
-        pnl: days.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
+        pnl: days.reduce((total, day) => total + day.pnl, 0),
         /* Dias con al menos una operacion, no dias con algun movimiento: un payout sin
            trades ese dia no cuenta como "dia operado". */
         tradedDays: days.filter((day) => day.count > 0).length,
@@ -616,7 +619,7 @@ export function JournalEntriesView({
     return {
       calendarWeeks: weeks,
       monthEntries: delMes.reduce((total, day) => total + day.count, 0),
-      monthTotal: delMes.reduce((total, day) => total + day.pnl - day.payoutGross, 0),
+      monthTotal: delMes.reduce((total, day) => total + day.pnl, 0),
     };
   }, [calendarDays]);
   const analytics = useMemo(
@@ -633,12 +636,9 @@ export function JournalEntriesView({
     () => buildYearMonths(visibleYear, filteredEntries, movements),
     [filteredEntries, movements, visibleYear],
   );
-  /* Misma resta que monthTotal (pnl - payoutGross de cada mes): el total del año es la
-     suma de los mismos doce numeros que pinta cada tarjeta, no un calculo aparte. */
-  const yearTotal = useMemo(
-    () => yearMonths.reduce((total, month) => total + month.pnl - month.payoutGross, 0),
-    [yearMonths],
-  );
+  /* Mismo criterio que monthTotal (solo P&L, los payouts no restan): el total del año es
+     la suma de los mismos doce numeros que pinta cada tarjeta, no un calculo aparte. */
+  const yearTotal = useMemo(() => yearMonths.reduce((total, month) => total + month.pnl, 0), [yearMonths]);
 
   /* Repartos de las dos barras divididas del cockpit y R medio de ganadoras y
      perdedoras. Van juntos porque los tres salen del mismo recorrido de entradas y solo
@@ -1071,14 +1071,13 @@ export function JournalEntriesView({
         {calendarMode === "year" ? (
           <div className="journal-year-grid">
             {yearMonths.map((month) => {
-              const net = month.pnl - month.payoutGross;
               const hasData = month.count > 0 || month.payoutCount > 0;
               return (
                 <button
-                  aria-label={`${formatMonthLabel(month.month, language)}: ${formatMoney(net, currency)}, ${month.count} ${
+                  aria-label={`${formatMonthLabel(month.month, language)}: ${formatMoney(month.pnl, currency)}, ${month.count} ${
                     month.count === 1 ? t("journal.calendar.opsSuffixOne") : t("journal.calendar.opsSuffix")
-                  }`}
-                  className={`journal-day journal-month-card ${hasData ? "has-entries" : ""} ${signedTone(net)}`}
+                  }${month.payoutCount ? `, ${month.payoutCount} ${t("journal.calendar.payoutsAriaSuffix")} ${formatMoney(month.payoutGross, currency)}` : ""}`}
+                  className={`journal-day journal-month-card ${hasData ? "has-entries" : ""} ${signedTone(month.pnl)}`}
                   key={month.month}
                   onClick={() => {
                     setVisibleMonth(month.month);
@@ -1090,8 +1089,8 @@ export function JournalEntriesView({
                   {hasData ? (
                     <span className="journal-day-figure">
                       <strong>
-                        <span className="journal-day-amount">{formatMoneyCompactSigned(net, currency)}</span>
-                        <span className="journal-day-amount is-tight">{formatAmountCompactSigned(net)}</span>
+                        <span className="journal-day-amount">{formatMoneyCompactSigned(month.pnl, currency)}</span>
+                        <span className="journal-day-amount is-tight">{formatAmountCompactSigned(month.pnl)}</span>
                       </strong>
                       <small className="journal-day-meta">
                         {month.count
@@ -1150,15 +1149,18 @@ export function JournalEntriesView({
                       de formatAmountCompactSigned). Emitirlos los dos y elegir en CSS evita
                       el parpadeo con el formato equivocado que daria decidirlo en JS. */}
                   <strong>
+                    {/* Un dia de solo payout ensena lo cobrado, en azul (la celda lleva
+                        .payout) y SIN signo: no es ganancia ni perdida, y con "-" se leia
+                        como un dia en rojo. */}
                     <span className="journal-day-amount">
                       {day.count
                         ? formatMoneyCompactSigned(day.pnl, currency)
-                        : formatMoneyCompactSigned(-day.payoutGross, currency)}
+                        : formatMoneyCompactSigned(day.payoutGross, currency, "never")}
                     </span>
                     <span className="journal-day-amount is-tight">
                       {day.count
                         ? formatAmountCompactSigned(day.pnl)
-                        : formatAmountCompactSigned(-day.payoutGross)}
+                        : formatAmountCompactSigned(day.payoutGross, "never")}
                     </span>
                   </strong>
                   <small className="journal-day-meta">
@@ -1172,7 +1174,7 @@ export function JournalEntriesView({
                         va como extra. */}
                     {day.payoutCount
                       ? day.count
-                        ? `${t("journal.calendar.payoutPrefix")} ${formatMoneyCompactSigned(-day.payoutGross, currency)}`
+                        ? `${t("journal.calendar.payoutPrefix")} ${formatMoneyCompactSigned(day.payoutGross, currency, "never")}`
                         : t("journal.calendar.payoutPrefix")
                       : ""}
                   </small>
@@ -4243,8 +4245,8 @@ function buildCalendarDays(month: string, entries: JournalEntry[], movements: Mo
 }
 
 /* Mismo agrupado que buildCalendarDays pero por mes en vez de por dia, para la vista
-   año: doce cifras, una por mes, con la misma formula (pnl de las entradas, payoutGross
-   de los retiros) que consume cada tarjeta y el total del año. */
+   año: doce cifras, una por mes. El P&L sale solo de las entradas; los payouts se cuentan
+   aparte (payoutCount, payoutGross) para poder nombrarlos, no para restarlos. */
 function buildYearMonths(year: string, entries: JournalEntry[], movements: Movement[]): YearMonthSummary[] {
   const grouped = new Map<
     string,

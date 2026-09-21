@@ -271,7 +271,13 @@ function compactScale(value: number) {
   return { scaled, suffix, fractionDigits: Math.abs(scaled) >= 10 ? 0 : 1 };
 }
 
-export function formatMoneyCompactSigned(value: number, currency: Currency = "EUR") {
+/* `signDisplay: "never"` es para los payouts del calendario: no son resultado de operar,
+   asi que no llevan ni "+" (sumaria a la ganancia) ni "-" (pareceria una perdida). */
+export function formatMoneyCompactSigned(
+  value: number,
+  currency: Currency = "EUR",
+  signDisplay: "exceptZero" | "never" = "exceptZero",
+) {
   /* Notacion compacta "K"/"M" como el calendario de Tradezella: "2.410 $" -> "+$2,4K".
      Es lo que permite que el importe vaya mas grande sin recortarse — un dia de cinco
      cifras spelled ("-12.500 $", ~75px a --text-md) no cabe en la celda mas estrecha;
@@ -287,7 +293,7 @@ export function formatMoneyCompactSigned(value: number, currency: Currency = "EU
     currencyDisplay: "narrowSymbol",
     maximumFractionDigits: compact ? compact.fractionDigits : 0,
     minimumFractionDigits: 0,
-    signDisplay: "exceptZero",
+    signDisplay,
     style: "currency",
   }).formatToParts(compact ? compact.scaled : value);
 
@@ -317,7 +323,7 @@ export function formatMoneyCompactSigned(value: number, currency: Currency = "EU
    pintura y no habria parpadeo), pero partiria el breakpoint en dos sitios: el 560 vive
    hoy solo en la hoja de estilos, y ahi es donde alguien lo va a buscar el dia que lo
    mueva. Mismo patron en el eje de fechas de CapitalCurve. */
-export function formatAmountCompactSigned(value: number) {
+export function formatAmountCompactSigned(value: number, signDisplay: "exceptZero" | "never" = "exceptZero") {
   /* Misma notacion compacta que formatMoneyCompactSigned, aqui sin divisa: "-2410" -> "-2,4K".
      En movil la celda deja ~37px, asi que esto es lo que hace entrar un dia de miles
      ("-2,4K" pide ~34; "-2410" pedia ~52 y se recortaba). */
@@ -326,14 +332,14 @@ export function formatAmountCompactSigned(value: number) {
     const text = new Intl.NumberFormat("es-ES", {
       maximumFractionDigits: compact.fractionDigits,
       minimumFractionDigits: 0,
-      signDisplay: "exceptZero",
+      signDisplay,
       useGrouping: false,
     }).format(compact.scaled);
     return `${text}${compact.suffix}`;
   }
   return new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: 0,
-    signDisplay: "exceptZero",
+    signDisplay,
     /* Sin separador de miles, y aqui SI a proposito. La regla de la casa es la contraria
        —formatMoney fuerza useGrouping porque el español se lo salta en numeros de cuatro
        cifras y una columna de importes quedaba con unos con punto y otros sin el— pero lo

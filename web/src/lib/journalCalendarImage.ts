@@ -232,9 +232,13 @@ function drawCalendar(canvas: HTMLCanvasElement, input: CalendarImageInput, t: R
       // Importe (grande) + operaciones + winrate, centrados como grupo. Un dia vacio no
       // pinta nada mas: en la UI la celda se apaga, aqui igual (sin el "–" de antes).
       if (hasTrades || hasPayout) {
-        const value = hasTrades ? day.pnl : -day.payoutGross;
-        const amountColor = hasPayout && !hasTrades ? c.payoutText : toneColor(value, c);
-        label(formatMoneyCompactSigned(value, input.currency), x + DAY_W / 2, rowY + CELL_H / 2 - 6, "700 18px", amountColor, "center", "middle");
+        // Mismo criterio que la celda de la UI: un dia de solo payout ensena lo cobrado, en
+        // azul y sin signo. Antes iba con "-" y en la imagen compartida parecia una perdida.
+        const amountText = hasTrades
+          ? formatMoneyCompactSigned(day.pnl, input.currency)
+          : formatMoneyCompactSigned(day.payoutGross, input.currency, "never");
+        const amountColor = hasTrades ? toneColor(day.pnl, c) : c.payoutText;
+        label(amountText, x + DAY_W / 2, rowY + CELL_H / 2 - 6, "700 18px", amountColor, "center", "middle");
 
         if (day.inMonth) {
           const sub = hasTrades
