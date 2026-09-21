@@ -247,8 +247,18 @@ export const es = {
   "account.field.profitDayMin": "Mínimo del día rentable",
   "account.field.profitDayMinHint":
     "Lo que tiene que ganar un día para contar como rentable. Si lo dejas vacío, cuenta cualquier día en verde.",
-  "account.field.payoutMin": "Mínimo para cobrar",
+  "account.field.payoutMin": "Objetivo del ciclo",
   "account.field.payoutMinHint": "Beneficio acumulado desde el último payout que hace falta para poder pedir el cobro.",
+  "account.field.withdrawMinProfit": "Beneficio para retirar",
+  "account.field.withdrawMinProfitHint":
+    "Beneficio que tiene que quedar en la cuenta, descontando lo que ya has retirado, para poder pedir el retiro mínimo.",
+  "account.field.trailLockOffset": "Bloqueo del trailing",
+  "account.field.trailLockOffsetHint":
+    "Cuánto por encima del balance inicial deja de subir el MLL (en Lucid, 100 $). Si lo dejas vacío, se bloquea en el balance inicial.",
+  "account.field.plan": "Plan",
+  "account.field.planHint":
+    "Rellena el objetivo, el drawdown y las reglas de cobro con las del plan oficial. Si cambias un número a mano, deja de coincidir con el plan. Reglas revisadas el",
+  "account.field.planPlaceholder": "Elige el plan para rellenar las reglas",
   "account.rules.titlePayout": "Reglas de cobro",
   "account.rules.titleEvaluation": "Reglas de la evaluación",
   "account.rules.sinceLastPayoutPrefix": "Desde el último payout del",
@@ -258,7 +268,8 @@ export const es = {
   "account.rules.readyRules": "Reglas cumplidas",
   "account.rules.pendingOne": "1 pendiente",
   "account.rules.pendingMany": "pendientes",
-  "account.rules.payoutMin": "Mínimo para cobrar",
+  "account.rules.payoutMin": "Objetivo del ciclo",
+  "account.rules.withdrawMin": "Beneficio para retirar",
   "account.rules.profitDays": "Días rentables",
   "account.rules.consistency": "Consistencia",
   "account.rules.limitPrefix": "límite",

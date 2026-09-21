@@ -481,6 +481,8 @@ function fromDbAccount(row: DbRow): TradingAccount {
     minProfitDays: undefinedNumber(row.min_profit_days),
     profitDayMin: undefinedNumber(row.profit_day_min),
     payoutMin: undefinedNumber(row.payout_min),
+    withdrawMinProfit: undefinedNumber(row.withdraw_min_profit),
+    trailLockOffset: undefinedNumber(row.trail_lock_offset),
     /* Solo false cuenta como oculta: una fila sin la columna (antes de ejecutar
        supabase-accounts-visibility.sql, o escrita por una version vieja de la app) o con
        null se lee como visible, igual que hace el legado. */
@@ -573,6 +575,13 @@ function accountInputToDb(userId: string, input: AccountInput, includeUser = tru
     min_profit_days: input.kind === "own" ? null : nullableNumber(input.minProfitDays),
     profit_day_min: input.kind === "own" ? null : nullableNumber(input.profitDayMin),
     payout_min: input.kind === "funded" ? nullableNumber(input.payoutMin) : null,
+    /* El beneficio para retirar, como el minimo del ciclo, solo existe en una fondeada. El
+       bloqueo del trailing es propiedad del drawdown, asi que vive donde vive el drawdown:
+       en todo lo que no es capital propio, y solo si es trailing (en uno estatico no hay
+       nada que se bloquee). */
+    withdraw_min_profit: input.kind === "funded" ? nullableNumber(input.withdrawMinProfit) : null,
+    trail_lock_offset:
+      input.kind !== "own" && input.drawdownType === "trailing" ? nullableNumber(input.trailLockOffset) : null,
   };
 }
 

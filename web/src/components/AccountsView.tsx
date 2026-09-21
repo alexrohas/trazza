@@ -9,6 +9,7 @@ import { RequiredLegend } from "./RequiredLegend";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus } from "../lib/accountRules";
+import { applyCatalogPlan, findCatalogFirm, formatPlanLabel, matchCatalogPlan } from "../lib/firmCatalog";
 import {
   formatAccountSize,
   formatAmount,
@@ -16,7 +17,7 @@ import {
   getAccountProgress,
   getAccountTradingDays,
 } from "../lib/metrics";
-import { useT } from "../lib/i18n/context";
+import { useI18n, useT, type Language } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
   AccountInput,
@@ -97,6 +98,8 @@ const emptyAccountInput: AccountInput = {
   minProfitDays: undefined,
   profitDayMin: undefined,
   payoutMin: undefined,
+  withdrawMinProfit: undefined,
+  trailLockOffset: undefined,
 };
 
 /* Los mismos campos que AccountInput (el alta masiva rellena cuenta a cuenta con todo,
@@ -299,13 +302,13 @@ export function AccountsView({
        que el campo tenia que seguir siendo obligatorio. */
     const firmName = draft.kind === "own" ? t("account.kind.own") : firmNameById.get(draft.firmId);
     if (!firmName || !draft.size.trim()) return "";
-    const base = `${firmName} ${formatSizeForName(draft.size)}`.trim();
+    const base = `${firmName} ${planProgramFor(firmName, draft)}${formatSizeForName(draft.size)}`.trim();
     const taken = accounts.filter((account) => account.id !== editingId).map((account) => account.name.toLowerCase());
     if (!taken.includes(base.toLowerCase())) return base;
     let index = 2;
     while (taken.includes(`${base} #${index}`.toLowerCase())) index += 1;
     return `${base} #${index}`;
-  }, [accounts, draft.firmId, draft.kind, draft.size, editingId, firmNameById, t]);
+  }, [accounts, draft, editingId, firmNameById, t]);
 
   useEffect(() => {
     /* Solo se rellena solo mientras el nombre no se haya tocado. Al editar una cuenta
@@ -333,6 +336,8 @@ export function AccountsView({
     minProfitDays: account.minProfitDays,
     profitDayMin: account.profitDayMin,
     payoutMin: account.payoutMin,
+    withdrawMinProfit: account.withdrawMinProfit,
+    trailLockOffset: account.trailLockOffset,
   });
 
   const resetForm = () => {
@@ -425,7 +430,7 @@ export function AccountsView({
         if (row.name.trim()) usedInBatch.add(row.name.trim().toLowerCase());
         return;
       }
-      const base = `${firmName} ${formatSizeForName(row.size)}`.trim();
+      const base = `${firmName} ${planProgramFor(firmName, row)}${formatSizeForName(row.size)}`.trim();
       let candidate = base;
       let index = 2;
       while (takenExisting.has(candidate.toLowerCase()) || usedInBatch.has(candidate.toLowerCase())) {
@@ -493,6 +498,14 @@ export function AccountsView({
   /* Alta de la fondeada que nace de un challenge superado: formulario en blanco pero
      con el tipo, la empresa y la cuenta de origen ya resueltos. Es alta, no edicion
      (editingId se queda vacio): la evaluacion original sigue siendo su propia fila. */
+  /* Las reglas de la fase fondeada del plan que seguia la evaluacion, o nada si no seguia
+     ninguno del catalogo. */
+  const promotedPlanRules = (account: TradingAccount): Partial<AccountInput> => {
+    const firm = findCatalogFirm(firmNameById.get(account.firmId));
+    const plan = firm ? matchCatalogPlan(firm, accountToInput(account)) : undefined;
+    return plan ? applyCatalogPlan(plan, "funded") : {};
+  };
+
   const openPromoteAccount = (account: TradingAccount) => {
     resetForm();
     setDraft({
@@ -509,6 +522,11 @@ export function AccountsView({
       dailyDrawdown: account.dailyDrawdown || undefined,
       drawdownType: account.drawdownType,
       purchasedAt: new Date().toISOString().slice(0, 10),
+      /* Si la evaluacion seguia un plan del catalogo, la fondeada nace con las reglas de
+         la fase fondeada de ese mismo plan: en Lucid Flex eso es quitar el objetivo y la
+         consistencia del 50 % y poner los 5 dias rentables y el minimo para retirar. Es
+         el momento en que mas importan esas reglas y el que menos ganas hay de teclearlas. */
+      ...promotedPlanRules(account),
     });
     setPromotingFromId(account.id);
     setScreen("form");
@@ -1175,7 +1193,13 @@ function AccountFieldset({
   parentAccountOptions: SelectOption[];
   value: AccountInput;
 }) {
-  const t = useT();
+  const { language, t } = useI18n();
+  /* Si la empresa elegida esta en el catalogo, el formulario ofrece sus planes. El plan
+     no se guarda: se deduce de los valores (ver matchCatalogPlan), asi que el selector
+     refleja siempre lo que de verdad tiene la cuenta. */
+  const catalogFirm =
+    value.kind === "own" ? undefined : findCatalogFirm(firmOptions.find((option) => option.value === value.firmId)?.label);
+  const matchedPlan = catalogFirm ? matchCatalogPlan(catalogFirm, value) : undefined;
   return (
     <>
       <label>
@@ -1195,6 +1219,13 @@ function AccountFieldset({
               minProfitDays: kind === "own" ? undefined : value.minProfitDays,
               profitDayMin: kind === "own" ? undefined : value.profitDayMin,
               payoutMin: kind === "funded" ? value.payoutMin : undefined,
+              withdrawMinProfit: kind === "funded" ? value.withdrawMinProfit : undefined,
+              trailLockOffset: kind === "own" ? undefined : value.trailLockOffset,
+              /* Si la cuenta seguia un plan, se queda en el mismo plan pero con las reglas
+                 de la otra fase: una Flex 50K de evaluacion que pasa a fondeada tiene que
+                 perder el objetivo y la consistencia del 50 % y ganar los 5 dias
+                 rentables, no quedarse con una mezcla de las dos. */
+              ...(matchedPlan ? applyCatalogPlan(matchedPlan, kind) : {}),
             });
           }}
           options={accountKindOptions}
@@ -1216,6 +1247,30 @@ function AccountFieldset({
             value={value.firmId}
           />
           {firmError && <p className="mutation-message error">{firmError}</p>}
+        </label>
+      )}
+
+      {/* El plan va pegado a la empresa porque depende de ella y porque rellena casi todo
+          lo de abajo: al elegirlo, el resto del formulario ya esta hecho. Con valores que
+          no coinciden con ningun plan (una cuenta antigua, o un numero cambiado a mano)
+          el selector vuelve al marcador, que es la forma honesta de decir "esto no es
+          exactamente ningun plan". */}
+      {catalogFirm && (
+        <label>
+          <span>
+            {t("account.field.plan")}
+            <InfoHint text={`${t("account.field.planHint")} ${formatCatalogDate(catalogFirm.verifiedAt, language)}.`} />
+          </span>
+          <Select
+            disabled={disabled}
+            onChange={(next) => {
+              const plan = catalogFirm.plans.find((item) => item.id === next);
+              if (plan) onChange(applyCatalogPlan(plan, value.kind));
+            }}
+            options={catalogFirm.plans.map((plan) => ({ label: formatPlanLabel(plan), value: plan.id }))}
+            placeholder={t("account.field.planPlaceholder")}
+            value={matchedPlan?.id || ""}
+          />
         </label>
       )}
 
@@ -1290,6 +1345,17 @@ function AccountFieldset({
               value={value.drawdownType}
             />
           </label>
+          {/* Solo en trailing: en un drawdown estatico el suelo no se mueve, asi que no
+              hay nada que se bloquee. */}
+          {value.drawdownType === "trailing" && (
+            <NumberField
+              disabled={disabled}
+              hint={t("account.field.trailLockOffsetHint")}
+              label={t("account.field.trailLockOffset")}
+              onChange={(next) => onChange({ trailLockOffset: next })}
+              value={value.trailLockOffset}
+            />
+          )}
           <NumberField
             disabled={disabled}
             label={t("account.field.dailyDrawdown")}
@@ -1327,13 +1393,22 @@ function AccountFieldset({
             value={value.profitDayMin}
           />
           {value.kind === "funded" && (
-            <NumberField
-              disabled={disabled}
-              hint={t("account.field.payoutMinHint")}
-              label={t("account.field.payoutMin")}
-              onChange={(next) => onChange({ payoutMin: next })}
-              value={value.payoutMin}
-            />
+            <>
+              <NumberField
+                disabled={disabled}
+                hint={t("account.field.payoutMinHint")}
+                label={t("account.field.payoutMin")}
+                onChange={(next) => onChange({ payoutMin: next })}
+                value={value.payoutMin}
+              />
+              <NumberField
+                disabled={disabled}
+                hint={t("account.field.withdrawMinProfitHint")}
+                label={t("account.field.withdrawMinProfit")}
+                onChange={(next) => onChange({ withdrawMinProfit: next })}
+                value={value.withdrawMinProfit}
+              />
+            </>
           )}
         </>
       )}
@@ -1350,6 +1425,26 @@ function AccountFieldset({
         </label>
       )}
     </>
+  );
+}
+
+/* El programa del plan, con su espacio detras, cuando la cuenta sigue uno del catalogo:
+   en cuanto se tienen cuentas de Flex y de Pro, "Lucid Flex 50K" dice mas que "Lucid
+   50K". Vacio si no sigue ninguno, o si la empresa ya lleva el programa en su nombre
+   (alguien que la llamo "Lucid Flex" no quiere un "Lucid Flex Flex 50K"). */
+function planProgramFor(firmName: string, input: AccountInput) {
+  const firm = findCatalogFirm(firmName);
+  const plan = firm ? matchCatalogPlan(firm, input) : undefined;
+  if (!plan || firmName.toLowerCase().includes(plan.program.toLowerCase())) return "";
+  return `${plan.program} `;
+}
+
+/* La fecha de revision del catalogo, en largo y en el idioma de la interfaz. Mediodia y
+   no medianoche, para que el desfase horario no devuelva el dia anterior. */
+function formatCatalogDate(date: string, language: Language) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { day: "numeric", month: "long", year: "numeric" }).format(
+    new Date(year, (month || 1) - 1, day || 1, 12),
   );
 }
 

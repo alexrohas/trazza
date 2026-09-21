@@ -249,8 +249,18 @@ export const en: Record<TranslationKey, string> = {
   "account.field.profitDayMin": "Profitable day minimum",
   "account.field.profitDayMinHint":
     "How much a day has to make to count as profitable. Leave it empty and any green day counts.",
-  "account.field.payoutMin": "Withdrawal minimum",
+  "account.field.payoutMin": "Cycle goal",
   "account.field.payoutMinHint": "Profit since the last payout needed before you can request a withdrawal.",
+  "account.field.withdrawMinProfit": "Profit to withdraw",
+  "account.field.withdrawMinProfitHint":
+    "Profit that has to remain in the account, net of what you already withdrew, before you can request the minimum withdrawal.",
+  "account.field.trailLockOffset": "Trailing lock",
+  "account.field.trailLockOffsetHint":
+    "How far above the starting balance the MLL stops rising (100 $ at Lucid). Leave it empty and it locks at the starting balance.",
+  "account.field.plan": "Plan",
+  "account.field.planHint":
+    "Fills the target, the drawdown and the payout rules with the official plan's. Change any number by hand and it stops matching the plan. Rules checked on",
+  "account.field.planPlaceholder": "Pick the plan to fill in the rules",
   "account.rules.titlePayout": "Payout rules",
   "account.rules.titleEvaluation": "Evaluation rules",
   "account.rules.sinceLastPayoutPrefix": "Since the last payout on",
@@ -260,7 +270,8 @@ export const en: Record<TranslationKey, string> = {
   "account.rules.readyRules": "Rules met",
   "account.rules.pendingOne": "1 to go",
   "account.rules.pendingMany": "to go",
-  "account.rules.payoutMin": "Withdrawal minimum",
+  "account.rules.payoutMin": "Cycle goal",
+  "account.rules.withdrawMin": "Profit to withdraw",
   "account.rules.profitDays": "Profitable days",
   "account.rules.consistency": "Consistency",
   "account.rules.limitPrefix": "limit",

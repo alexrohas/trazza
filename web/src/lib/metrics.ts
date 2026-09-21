@@ -90,13 +90,17 @@ export function getAccountPnlByDate(
    de hoy puede romperlo, una ganancia de hoy no lo sube hasta manana.
    `before` es el dia que se mira: cuentan los cierres de los dias anteriores a el. Por
    defecto hoy, que es lo que ensenan la barra y las tarjetas; el grafico del Journal lo
-   pide dia a dia para dibujar como fue subiendo. */
+   pide dia a dia para dibujar como fue subiendo.
+   `lockOffset` es cuanto por encima del balance de partida se bloquea (trailLockOffset
+   de la cuenta). Cero es la convencion de Apex/Topstep; Lucid bloquea en partida + 100 $,
+   y sin esto una cuenta de Lucid ya bloqueada ensenaba 100 $ mas de margen del real. */
 function getTrailingFloor(
   entries: JournalEntry[],
   accountId: string,
   start: number,
   maxDrawdown: number,
   before = localIsoDate(new Date()),
+  lockOffset = 0,
 ) {
   const pnlByDate = getAccountPnlByDate(entries, accountId, { before });
 
@@ -107,7 +111,7 @@ function getTrailingFloor(
     if (balance > peak) peak = balance;
   });
 
-  return Math.min(peak - maxDrawdown, start);
+  return Math.min(peak - maxDrawdown, start + lockOffset);
 }
 
 /* MLL expresado como P&L (0 es el balance de partida) vigente durante `date`: el nivel al
@@ -118,7 +122,7 @@ function getTrailingFloor(
 export function getAccountLossLimitPnl(account: TradingAccount, entries: JournalEntry[], date: string) {
   if (!(account.maxDrawdown > 0)) return undefined;
   if (account.drawdownType !== "trailing") return -account.maxDrawdown;
-  return getTrailingFloor(entries, account.id, 0, account.maxDrawdown, date);
+  return getTrailingFloor(entries, account.id, 0, account.maxDrawdown, date, account.trailLockOffset ?? 0);
 }
 
 /* Geometria de la barra de progreso. El 0,5 es siempre el balance de partida, no el
@@ -133,7 +137,7 @@ export function getAccountProgress(account: TradingAccount, entries: JournalEntr
   const floor =
     account.maxDrawdown > 0
       ? account.drawdownType === "trailing"
-        ? getTrailingFloor(entries, account.id, start, account.maxDrawdown)
+        ? getTrailingFloor(entries, account.id, start, account.maxDrawdown, undefined, account.trailLockOffset ?? 0)
         : start - account.maxDrawdown
       : undefined;
   const ceiling = account.phaseTarget > 0 ? start + account.phaseTarget : undefined;

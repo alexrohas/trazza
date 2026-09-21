@@ -44,6 +44,12 @@ export type TradingAccount = {
   minProfitDays?: number;
   profitDayMin?: number;
   payoutMin?: number;
+  /* Beneficio que tiene que quedar en la cuenta (ganado menos ya retirado) para poder
+     pedir un cobro; y cuanto por encima del balance inicial se bloquea el MLL trailing.
+     Mismo criterio que las cuatro de arriba: undefined es "esta firma no la tiene". Ver
+     supabase-accounts-withdraw-rules.sql. */
+  withdrawMinProfit?: number;
+  trailLockOffset?: number;
   /* Opcional (no obligatorio) a proposito: la columna es aditiva en Supabase y una fila
      sin ella se lee como visible, igual que en el legado. No vive en AccountInput —
      se escribe con un update propio (setAccountVisible), no con el alta/edicion normal,
@@ -67,6 +73,8 @@ export type AccountInput = {
   minProfitDays?: number;
   profitDayMin?: number;
   payoutMin?: number;
+  withdrawMinProfit?: number;
+  trailLockOffset?: number;
 };
 
 export type MovementKind = "expense" | "income";

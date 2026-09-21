@@ -18,7 +18,11 @@ import type { Currency, TradingAccount } from "../types";
    a un mismo "% completado" las haria comparables entre si, que es justo lo que no son. */
 function formatCheckValue(check: AccountRuleCheck, currency: Currency, t: ReturnType<typeof useT>) {
   if (check.id === "profitDays") return `${check.current} / ${check.required}`;
-  if (check.id === "payoutMin") return `${formatAmount(check.current)} / ${formatMoney(check.required, currency)}`;
+  /* Las dos de dinero se leen igual, "donde vas / lo que pide": una mide el ciclo y la
+     otra lo que queda en la cuenta, y el nombre de la fila ya dice cual es cual. */
+  if (check.id === "payoutMin" || check.id === "withdrawMin") {
+    return `${formatAmount(check.current)} / ${formatMoney(check.required, currency)}`;
+  }
   /* Consistencia sin beneficio en el ciclo: no hay reparto que medir todavia, y un
      "0 %" ahi se leeria como un dato tranquilizador cuando no lo es. */
   if (!check.missing && !check.current) return t("account.rules.noProfitYet");
@@ -52,6 +56,7 @@ function formatCycleDate(date: string, language: Language) {
 
 function checkName(check: AccountRuleCheck, t: ReturnType<typeof useT>) {
   if (check.id === "payoutMin") return t("account.rules.payoutMin");
+  if (check.id === "withdrawMin") return t("account.rules.withdrawMin");
   if (check.id === "profitDays") return t("account.rules.profitDays");
   return t("account.rules.consistency");
 }

@@ -1,24 +1,26 @@
-import { getAccountPnlByDate } from "./metrics";
+import { getAccountPnl, getAccountPnlByDate, getPayoutGrossAmount } from "./metrics";
 import type { JournalEntry, Movement, TradingAccount } from "../types";
 
 /**
  * Las reglas que deciden si se puede COBRAR, que son distintas de las que miden el
  * recorrido de la cuenta (objetivo y drawdowns, que ya pinta la barra). Aqui viven las
- * tres que en las prop firms de futuros denegan un payout aunque el balance este bien:
- * consistencia, dias rentables e importe minimo. Las columnas y su porque estan en
- * supabase-accounts-payout-rules.sql.
+ * que en las prop firms de futuros deniegan un payout aunque el balance este bien:
+ * consistencia, dias rentables, objetivo del ciclo y beneficio minimo para retirar. Las
+ * columnas y su porque estan en supabase-accounts-payout-rules.sql y
+ * supabase-accounts-withdraw-rules.sql.
  *
  * Todo se calcula con el journal, que es lo unico que la app sabe de la operativa. No
  * hace falta ninguna integracion: si el usuario apunta su dia, Trazza puede decirle que
  * le falta para cobrar.
  */
 
-export type AccountRuleId = "payoutMin" | "profitDays" | "consistency";
+export type AccountRuleId = "payoutMin" | "withdrawMin" | "profitDays" | "consistency";
 
 export type AccountRuleCheck = {
   id: AccountRuleId;
   met: boolean;
-  /** Lo que pide la regla: dinero en payoutMin, dias en profitDays, % en consistency. */
+  /** Lo que pide la regla: dinero en payoutMin y withdrawMin, dias en profitDays, % en
+   *  consistency. */
   required: number;
   /** Donde vas, en la misma unidad que `required`. */
   current: number;
@@ -43,8 +45,9 @@ export type AccountCycle = {
 
 export type AccountRuleStatus = {
   cycle: AccountCycle;
-  /** Solo las reglas configuradas, en orden de lectura: cuanto llevas, cuantos dias,
-   *  y por ultimo la consistencia, que es la que mas cuesta entender. */
+  /** Solo las reglas configuradas, en orden de lectura: las dos de dinero (lo del ciclo y
+   *  lo que queda en la cuenta), cuantos dias, y por ultimo la consistencia, que es la que
+   *  mas cuesta entender. */
   checks: AccountRuleCheck[];
   /** true cuando se cumplen todas las configuradas. Con `checks` vacio no se devuelve
    *  status, asi que `ready` nunca es un "si" sacado de no haber comprobado nada. */
@@ -99,9 +102,10 @@ export function getAccountRuleStatus(
   const cycle = getAccountCycle(account, entries, movements);
   const checks: AccountRuleCheck[] = [];
 
-  /* Minimo para cobrar: solo en fondeadas. En una evaluacion el umbral equivalente es el
-     objetivo de fase, que ya sale en la barra de recorrido — repetirlo aqui seria decir
-     dos veces lo mismo con dos nombres distintos. */
+  /* Objetivo del ciclo: lo que hay que ganar desde el ultimo payout. Solo en fondeadas: en
+     una evaluacion el umbral equivalente es el objetivo de fase, que ya sale en la barra
+     de recorrido — repetirlo aqui seria decir dos veces lo mismo con dos nombres
+     distintos. */
   if (account.kind === "funded" && account.payoutMin && account.payoutMin > 0) {
     checks.push({
       id: "payoutMin",
@@ -109,6 +113,27 @@ export function getAccountRuleStatus(
       required: account.payoutMin,
       current: cycle.profit,
       missing: Math.max(0, account.payoutMin - cycle.profit),
+    });
+  }
+
+  /* Beneficio para retirar: lo que QUEDA en la cuenta, no lo del ciclo. Es lo ganado
+     operando desde el principio menos lo que ya se ha retirado (en bruto, que es lo que
+     sale de la cuenta; el neto es lo que te llega a ti despues del reparto). Existe
+     porque hay firmas que no dejan cobrar por debajo de un minimo aunque el ciclo cumpla:
+     Lucid pide retirar 500 $ como poco, con tope del 50 % del beneficio en Flex y sin
+     tocar el colchon en Pro. Sin esto una Flex 50K con cinco dias de 150 $ salia lista
+     para cobrar cuando no podia retirar nada. */
+  if (account.kind === "funded" && account.withdrawMinProfit && account.withdrawMinProfit > 0) {
+    const withdrawn = movements
+      .filter((movement) => movement.category === "payout" && movement.accountId === account.id)
+      .reduce((total, movement) => total + getPayoutGrossAmount(movement), 0);
+    const available = getAccountPnl(entries, account.id) - withdrawn;
+    checks.push({
+      id: "withdrawMin",
+      met: available >= account.withdrawMinProfit,
+      required: account.withdrawMinProfit,
+      current: available,
+      missing: Math.max(0, account.withdrawMinProfit - available),
     });
   }
 
@@ -127,8 +152,8 @@ export function getAccountRuleStatus(
      EN OTROS DIAS para que el mejor deje de pesar demasiado — si los ganas en el propio
      mejor dia, el porcentaje no baja. Sale de despejar best / (profit + x) = limite.
      Con el ciclo en perdidas o a cero la regla no dice nada todavia (dividir por ese
-     beneficio daria un porcentaje absurdo o infinito), asi que se marca como no cumplida
-     pero sin cifra: lo que falta ahi es beneficio, y eso ya lo dicen las otras dos. */
+     beneficio daria un porcentaje absurdo o infinito), asi que va sin cifra: lo que falta
+     ahi es beneficio, y eso ya lo dicen las otras reglas. */
   if (account.consistencyPct && account.consistencyPct > 0) {
     const limit = account.consistencyPct / 100;
     const hasProfit = cycle.profit > 0 && cycle.bestDay > 0;
