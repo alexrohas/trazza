@@ -1,4 +1,4 @@
-import { getAccountPnl, getAccountPnlByDate, getPayoutGrossAmount } from "./metrics";
+import { getAccountPnl, getAccountPnlByDate, getAccountWithdrawn } from "./metrics";
 import type { JournalEntry, Movement, TradingAccount } from "../types";
 
 /**
@@ -124,10 +124,7 @@ export function getAccountRuleStatus(
      tocar el colchon en Pro. Sin esto una Flex 50K con cinco dias de 150 $ salia lista
      para cobrar cuando no podia retirar nada. */
   if (account.kind === "funded" && account.withdrawMinProfit && account.withdrawMinProfit > 0) {
-    const withdrawn = movements
-      .filter((movement) => movement.category === "payout" && movement.accountId === account.id)
-      .reduce((total, movement) => total + getPayoutGrossAmount(movement), 0);
-    const available = getAccountPnl(entries, account.id) - withdrawn;
+    const available = getAccountPnl(entries, account.id) - getAccountWithdrawn(movements, account.id);
     checks.push({
       id: "withdrawMin",
       met: available >= account.withdrawMinProfit,

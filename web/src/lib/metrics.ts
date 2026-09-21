@@ -19,10 +19,36 @@ const sum = (values: number[]) => values.reduce((total, value) => total + value,
 
 /* Lo que la cuenta lleva ganado o perdido operando. Sale del journal y no de los
    movimientos a proposito: los movimientos son costes y retiros (la cuota del
-   challenge, un payout), no resultado de trading, y meterlos aqui desplazaria el
-   balance de la cuenta por haber pagado la inscripcion. */
+   challenge, un payout), no resultado de trading. Ojo, que eso vale para el P&L y NO para
+   el balance: la cuota se paga con tu dinero y no toca la cuenta, pero un payout sale de
+   la cuenta. Ver getAccountWithdrawn. */
 export function getAccountPnl(entries: JournalEntry[], accountId: string) {
   return sum(entries.filter((entry) => entry.accountId === accountId).map((entry) => entry.pnl));
+}
+
+/* Lo que ha salido de la cuenta en payouts, por dia y EN BRUTO: lo que se descuenta del
+   balance es lo que se retira, no lo que te llega despues del reparto (un payout de
+   1.250 $ al 90 % te deja 1.125, pero a la cuenta le quita 1.250). */
+function getAccountPayoutsByDate(movements: Movement[], accountId: string) {
+  const byDate = new Map<string, number>();
+  movements
+    .filter((movement) => movement.category === "payout" && movement.accountId === accountId && Boolean(movement.date))
+    .forEach((movement) => {
+      byDate.set(movement.date, (byDate.get(movement.date) || 0) + getPayoutGrossAmount(movement));
+    });
+  return byDate;
+}
+
+/* Total retirado de la cuenta hasta `upTo` incluido (todo, sin fecha). Es la unica
+   definicion de "retirado" de la app: la usan el balance, el suelo trailing, la linea
+   del MLL del grafico y la regla de beneficio para retirar, para que ninguna de las
+   cuatro cuente distinto. */
+export function getAccountWithdrawn(movements: Movement[], accountId: string, upTo?: string) {
+  let total = 0;
+  getAccountPayoutsByDate(movements, accountId).forEach((amount, date) => {
+    if (upTo === undefined || date <= upTo) total += amount;
+  });
+  return total;
 }
 
 export function getAccountTradingDays(entries: JournalEntry[], accountId: string) {
@@ -32,9 +58,14 @@ export function getAccountTradingDays(entries: JournalEntry[], accountId: string
 export type AccountProgress = {
   /** Balance de partida: el tamano nominal de la cuenta. */
   start: number;
-  /** Balance ahora mismo, segun el journal. */
+  /** Balance ahora mismo: partida + P&L del journal - payouts retirados en bruto. */
   current: number;
+  /** Resultado de operar, sin payouts. Es lo que se ensena como "Resultado". */
   pnl: number;
+  /** Cuanto se ha movido el balance desde la partida (pnl - retirado). Es lo que manda en
+   *  la geometria de la barra: una fondeada que gano 1.210 y retiro 1.250 esta 40 por
+   *  DEBAJO de su partida, aunque su resultado sea positivo. */
+  balanceChange: number;
   /** Suelo: donde salta el drawdown maximo. undefined si la cuenta no tiene limite. */
   floor?: number;
   /** Techo: donde se supera el objetivo. undefined en fondeadas y capital propio. */
@@ -93,9 +124,14 @@ export function getAccountPnlByDate(
    pide dia a dia para dibujar como fue subiendo.
    `lockOffset` es cuanto por encima del balance de partida se bloquea (trailLockOffset
    de la cuenta). Cero es la convencion de Apex/Topstep; Lucid bloquea en partida + 100 $,
-   y sin esto una cuenta de Lucid ya bloqueada ensenaba 100 $ mas de margen del real. */
+   y sin esto una cuenta de Lucid ya bloqueada ensenaba 100 $ mas de margen del real.
+   Los cierres llevan descontados los payouts de su dia: el pico es el del balance de
+   verdad, no el de un balance que nunca devolvio lo retirado. Un payout no baja el suelo
+   (el trailing solo sube), asi que lo que hace es acercar el balance a el — que es
+   exactamente por que las firmas exigen un colchon antes de dejarte cobrar. */
 function getTrailingFloor(
   entries: JournalEntry[],
+  movements: Movement[],
   accountId: string,
   start: number,
   maxDrawdown: number,
@@ -103,11 +139,13 @@ function getTrailingFloor(
   lockOffset = 0,
 ) {
   const pnlByDate = getAccountPnlByDate(entries, accountId, { before });
+  const payoutsByDate = getAccountPayoutsByDate(movements, accountId);
+  const dates = new Set([...pnlByDate.keys(), ...[...payoutsByDate.keys()].filter((date) => date < before)]);
 
   let balance = start;
   let peak = start;
-  [...pnlByDate.keys()].sort().forEach((date) => {
-    balance += pnlByDate.get(date) || 0;
+  [...dates].sort().forEach((date) => {
+    balance += (pnlByDate.get(date) || 0) - (payoutsByDate.get(date) || 0);
     if (balance > peak) peak = balance;
   });
 
@@ -118,11 +156,15 @@ function getTrailingFloor(
    que, ese dia, la curva de P&L acumulado reventaba la cuenta. undefined si la cuenta no
    tiene drawdown maximo. No depende del tamano de la cuenta: el grafico del Journal no
    pinta balances sino P&L, y en esas unidades el suelo es -drawdown (estatico) o sube con
-   los cierres hasta bloquearse en 0 (trailing), con el mismo calculo que la barra. */
-export function getAccountLossLimitPnl(account: TradingAccount, entries: JournalEntry[], date: string) {
+   los cierres hasta bloquearse en 0 (trailing), con el mismo calculo que la barra.
+   Lo retirado hasta ese dia SUBE la linea: la curva es resultado de operar y no descuenta
+   los payouts, pero la cuenta si los ha perdido, asi que la ruptura llega con menos P&L.
+   Sin esto, en una fondeada que ya cobro, la linea ensenaba mas margen del que habia. */
+export function getAccountLossLimitPnl(account: TradingAccount, entries: JournalEntry[], movements: Movement[], date: string) {
   if (!(account.maxDrawdown > 0)) return undefined;
-  if (account.drawdownType !== "trailing") return -account.maxDrawdown;
-  return getTrailingFloor(entries, account.id, 0, account.maxDrawdown, date, account.trailLockOffset ?? 0);
+  const withdrawn = getAccountWithdrawn(movements, account.id, date);
+  if (account.drawdownType !== "trailing") return -account.maxDrawdown + withdrawn;
+  return getTrailingFloor(entries, movements, account.id, 0, account.maxDrawdown, date, account.trailLockOffset ?? 0) + withdrawn;
 }
 
 /* Geometria de la barra de progreso. El 0,5 es siempre el balance de partida, no el
@@ -130,14 +172,18 @@ export function getAccountLossLimitPnl(account: TradingAccount, entries: Journal
    derecha lo que te falta, aunque las dos distancias sean muy distintas. Con un
    objetivo de 1.250 y un drawdown de 1.000 las escalas no coinciden, y eso es correcto:
    lo que importa es cuanto te queda de cada lado, no que sean comparables entre si. */
-export function getAccountProgress(account: TradingAccount, entries: JournalEntry[]): AccountProgress {
+export function getAccountProgress(account: TradingAccount, entries: JournalEntry[], movements: Movement[]): AccountProgress {
   const start = account.size;
   const pnl = getAccountPnl(entries, account.id);
-  const current = start + pnl;
+  /* Hasta el 21 de septiembre de 2026 esto era start + pnl, y en cualquier fondeada que
+     hubiera cobrado la distancia al MLL salia mas holgada de lo real: la cuenta demo cobro
+     1.250 $ y seguia marcando 51.210 cuando tenia 49.960. */
+  const current = start + pnl - getAccountWithdrawn(movements, account.id);
+  const balanceChange = current - start;
   const floor =
     account.maxDrawdown > 0
       ? account.drawdownType === "trailing"
-        ? getTrailingFloor(entries, account.id, start, account.maxDrawdown, undefined, account.trailLockOffset ?? 0)
+        ? getTrailingFloor(entries, movements, account.id, start, account.maxDrawdown, undefined, account.trailLockOffset ?? 0)
         : start - account.maxDrawdown
       : undefined;
   const ceiling = account.phaseTarget > 0 ? start + account.phaseTarget : undefined;
@@ -152,18 +198,19 @@ export function getAccountProgress(account: TradingAccount, entries: JournalEntr
     position = 0;
   } else if (reachedTarget) {
     position = 1;
-  } else if (pnl > 0) {
+  } else if (balanceChange > 0) {
     const margen = ceiling ? ceiling - start : account.maxDrawdown || start;
-    position = 0.5 + Math.min(pnl / margen, 1) * 0.5;
-  } else if (pnl < 0) {
+    position = 0.5 + Math.min(balanceChange / margen, 1) * 0.5;
+  } else if (balanceChange < 0) {
     const margen = floor !== undefined ? start - floor : account.phaseTarget || start;
-    position = 0.5 - Math.min(Math.abs(pnl) / margen, 1) * 0.5;
+    position = 0.5 - Math.min(Math.abs(balanceChange) / margen, 1) * 0.5;
   }
 
   return {
     start,
     current,
     pnl,
+    balanceChange,
     floor,
     ceiling,
     position,

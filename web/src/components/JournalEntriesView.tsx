@@ -1280,7 +1280,7 @@ export function JournalEntriesView({
         </JournalSplitBarPanel>
       </section>
     ),
-    pnl: <JournalPnlCurvePanel account={selectedAccount} entries={filteredEntries} currency={currency} />,
+    pnl: <JournalPnlCurvePanel account={selectedAccount} entries={filteredEntries} currency={currency} movements={movements} />,
     discipline: <JournalDisciplinePanel entries={filteredEntries} />,
     recent: (
       <JournalRecentTradesPanel currency={currency} entries={filteredEntries.slice(0, 5)} onSelectEntry={setDetailEntryId} />
@@ -2856,11 +2856,14 @@ function JournalPnlCurvePanel({
   account,
   currency,
   entries,
+  movements,
 }: {
   /** La cuenta elegida en el selector del cockpit; sin ella no hay lineas de limites. */
   account?: TradingAccount;
   currency: Currency;
   entries: JournalEntry[];
+  /** Para la linea del MLL: lo retirado en payouts la sube (ver getAccountLossLimitPnl). */
+  movements: Movement[];
 }) {
   const t = useT();
   const { language } = useI18n();
@@ -2868,7 +2871,10 @@ function JournalPnlCurvePanel({
   const height = 320;
   const padding = { bottom: 42, left: 48, right: 26, top: 32 };
   const allPoints = useMemo(() => buildJournalPnlPoints(entries), [entries]);
-  const limits = useMemo(() => (account ? buildJournalCurveLimits(account, entries, allPoints) : null), [account, allPoints, entries]);
+  const limits = useMemo(
+    () => (account ? buildJournalCurveLimits(account, entries, movements, allPoints) : null),
+    [account, allPoints, entries, movements],
+  );
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   /* Con lineas de limites la curva no llega hasta el borde: deja libre un tramo a la
@@ -3668,7 +3674,7 @@ function buildJournalAccountOverview({
   return {
     account,
     accountName: account.name,
-    bar: account.size > 0 ? buildJournalAccountBar(account, entries) : null,
+    bar: account.size > 0 ? buildJournalAccountBar(account, entries, movements) : null,
     netPnl,
     payouts,
     returnRatio: account.size > 0 ? netPnl / account.size : null,
@@ -3693,10 +3699,12 @@ const ACCOUNT_BAR_BORROWED_HEADROOM = 1.2;
    Lo unico que cambia aqui es la escala. En Cuentas el inicio va siempre al centro y cada
    mitad mide lo suyo; aqui va a escala, a peticion expresa: un dolar ocupa lo mismo a los
    dos lados, asi que con 1.000 de drawdown y 1.250 de objetivo el inicio cae al 44%. */
-function buildJournalAccountBar(account: TradingAccount, entries: JournalEntry[]): JournalAccountBar {
-  const progress = getAccountProgress(account, entries);
-  const { ceiling, current, floor, pnl, start } = progress;
-  const tone = pnl > 0 ? "positive" : pnl < 0 ? "negative" : "neutral";
+function buildJournalAccountBar(account: TradingAccount, entries: JournalEntry[], movements: Movement[]): JournalAccountBar {
+  const progress = getAccountProgress(account, entries, movements);
+  /* La geometria sigue al balance (balanceChange), no al resultado de operar: tras un
+     payout la cuenta puede estar por debajo de su partida aunque haya ganado. */
+  const { balanceChange, ceiling, current, floor, start } = progress;
+  const tone = balanceChange > 0 ? "positive" : balanceChange < 0 ? "negative" : "neutral";
 
   /* Sin drawdown ni objetivo (capital propio) no hay extremos que den escala: la barra
      se queda en carril neutro con el inicio al centro y sin relleno, y las etiquetas de
@@ -3721,8 +3729,8 @@ function buildJournalAccountBar(account: TradingAccount, entries: JournalEntry[]
      escala. */
   let lossSpan = floor !== undefined ? start - floor : account.phaseTarget;
   let gainSpan = ceiling !== undefined ? ceiling - start : account.maxDrawdown;
-  if (floor === undefined && pnl < 0) lossSpan = Math.max(lossSpan, -pnl * ACCOUNT_BAR_BORROWED_HEADROOM);
-  if (ceiling === undefined && pnl > 0) gainSpan = Math.max(gainSpan, pnl * ACCOUNT_BAR_BORROWED_HEADROOM);
+  if (floor === undefined && balanceChange < 0) lossSpan = Math.max(lossSpan, -balanceChange * ACCOUNT_BAR_BORROWED_HEADROOM);
+  if (ceiling === undefined && balanceChange > 0) gainSpan = Math.max(gainSpan, balanceChange * ACCOUNT_BAR_BORROWED_HEADROOM);
 
   const min = start - lossSpan;
   const max = start + gainSpan;
@@ -3874,8 +3882,13 @@ function buildJournalPnlPoints(entries: JournalEntry[]) {
    de hoy, que es con el que acaba la linea y el mismo que ensena la barra de la cuenta.
    El DD diario no va aqui a proposito: se pidio solo como marca en la barra, no como una
    tercera linea en el grafico. */
-function buildJournalCurveLimits(account: TradingAccount, entries: JournalEntry[], points: Array<{ date: string }>) {
-  const currentMll = getAccountLossLimitPnl(account, entries, todayIso());
+function buildJournalCurveLimits(
+  account: TradingAccount,
+  entries: JournalEntry[],
+  movements: Movement[],
+  points: Array<{ date: string }>,
+) {
+  const currentMll = getAccountLossLimitPnl(account, entries, movements, todayIso());
   const levelByDate = new Map<string, number>();
   const mllLevels =
     currentMll === undefined
@@ -3883,7 +3896,7 @@ function buildJournalCurveLimits(account: TradingAccount, entries: JournalEntry[
       : points.map((point) => {
           const cached = levelByDate.get(point.date);
           if (cached !== undefined) return cached;
-          const level = getAccountLossLimitPnl(account, entries, point.date) ?? currentMll;
+          const level = getAccountLossLimitPnl(account, entries, movements, point.date) ?? currentMll;
           levelByDate.set(point.date, level);
           return level;
         });

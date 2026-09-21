@@ -848,7 +848,7 @@ export function AccountsView({
           const hasMaxDrawdown = Boolean(account.maxDrawdown);
           const hasDailyDrawdown = Boolean(account.dailyDrawdown);
           const kind = account.kind;
-          const progress = getAccountProgress(account, journalEntries);
+          const progress = getAccountProgress(account, journalEntries, movements);
           const ruleStatus = getAccountRuleStatus(account, journalEntries, movements);
           const tradingDays = getAccountTradingDays(journalEntries, account.id);
           const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
@@ -935,7 +935,10 @@ export function AccountsView({
                   proposito (un objetivo de 1.250 y un drawdown de 1.000 no son
                   comparables); cada lado mide cuanto te queda de lo suyo. */}
               {hasBar && (
-                <div className={`account-track ${progress.pnl > 0 ? "is-up" : progress.pnl < 0 ? "is-down" : ""}`}>
+                /* El color sigue al balance y no al resultado: una fondeada que gano y
+                   cobro puede estar por debajo de su partida, y pintar esa barra en verde
+                   diria lo contrario de lo que dibuja. */
+                <div className={`account-track ${progress.balanceChange > 0 ? "is-up" : progress.balanceChange < 0 ? "is-down" : ""}`}>
                   <div className="account-track-bar">
                     <span className="account-track-start" aria-hidden="true" />
                     <span
