@@ -305,7 +305,8 @@ Detalles que no son obvios y conviene no deshacer:
   comparten los dos — no hay dos formas de agrupar por día.
 - **Su límite real: una entrada sin cuenta asignada no cuenta para nada.** Medido en
   Supabase el 17 de septiembre de 2026: 274 de 431 entradas tienen `account_id`, así que
-  el resto es invisible para este cálculo. Si alguien dice que "el ciclo sale vacío", eso es lo primero que mirar.
+  el resto es invisible para este cálculo. Si alguien dice que "el ciclo sale vacío", eso
+  es lo primero que mirar.
 - Se pinta en dos sitios con el mismo lenguaje y desde un solo componente
   (`AccountRuleStatus.tsx`): el panel entero bajo la barra de recorrido del Journal y una
   sola línea en la tarjeta de Cuentas, que dice solo la regla que falta.
@@ -334,7 +335,84 @@ propio 50K") en lugar de la empresa que no tiene: era el único tipo de cuenta e
 había que escribirlo a mano, y por tanto el único motivo real para que el campo siguiera
 siendo obligatorio. Al guardar, si el campo está vacío se usa la propuesta.
 
+**El catálogo de planes de Lucid**, cerrado el **21 de septiembre de 2026** en dos commits
+(`668ca53` catálogo y reglas, `aea9a2f` aviso del Journal). Existe por un dato: **un día
+después de desplegar las reglas de cobro, ninguna cuenta las tenía puestas** — había que
+teclear ocho números que casi nadie se sabe. Con una empresa de Lucid, el formulario
+ofrece un campo "Plan" (Flex y Pro, de 25K a 150K) y elegirlo rellena tamaño, objetivo,
+MLL, límite diario, consistencia, días rentables y lo necesario para cobrar. Solo Lucid
+porque es la firma de 20 de los 30 usuarios con empresa; añadir otra es añadir un objeto
+a `firmCatalog` en `web/src/lib/firmCatalog.ts`, el formulario no sabe de firmas concretas.
+
+**Estos datos caducan, y un valor precargado equivocado es peor que un campo vacío**,
+porque parece un dato. Cada firma lleva `verifiedAt` (la fecha que enseña la pista del
+campo) y `sources` con las páginas de `support.lucidtrading.com` de las que salió cada
+número. Al revisarlos, siempre desde el soporte oficial y nunca desde blogs: al montarlo,
+la propia web de Lucid se contradecía entre dos artículos sobre el límite diario de la
+Pro 25K, y mandó el más específico y más reciente (el del límite diario, sin límite).
+
+Decisiones que conviene no deshacer:
+
+- **El plan no se guarda en la cuenta: se deduce de sus valores** (`matchCatalogPlan`).
+  Si el usuario cambia un solo número, el selector vuelve a "Elige el plan" en vez de
+  afirmar que la cuenta sigue un plan que ya no sigue. Y una revisión futura del catálogo
+  no cambia en silencio las reglas de cuentas que ya existen — que es justo lo que hacen
+  las firmas: Lucid subió la consistencia de Pro del 35 al 40 % en noviembre de 2025 y
+  mantuvo el 35 % a quien había comprado antes.
+- **Cambiar de evaluación a fondeada conserva el plan y aplica la otra fase**, y
+  promocionar una evaluación hace nacer la fondeada con las reglas de fondeada de ese
+  mismo plan: una Flex 50K pierde el objetivo y la consistencia del 50 % y gana los cinco
+  días de 150 $.
+- **Flex y Pro comparten objetivo y MLL por tamaño**, y aun así nunca se confunden: el
+  límite diario, la consistencia o los días rentables siempre los separan.
+
+Comprobar las reglas oficiales contra el motor sacó **dos huecos que ya existían**, y van
+como dos columnas más (`supabase-accounts-withdraw-rules.sql`, aditivo, **ya ejecutado en
+producción**):
+
+- **`withdraw_min_profit` — beneficio para retirar.** Lo que queda en la cuenta: lo
+  ganado desde el principio menos lo ya retirado **en bruto**. No es `payout_min`, que
+  mide solo el ciclo. Lucid exige retirar 500 $ como poco, con tope del 50 % del
+  beneficio en Flex (hacen falta 1.000 $) y sin tocar el colchón de MLL + 100 $ en Pro
+  (en una 50K, 2.600 $). Sin esto, una Flex 50K con cinco días de 150 $ salía "Lista para
+  cobrar" sin poder retirar nada.
+- **`trail_lock_offset` — bloqueo del trailing.** Cuánto por encima del balance inicial
+  deja de subir el MLL. Trazza lo bloqueaba siempre en el inicial, que es lo de
+  Apex/Topstep; Lucid lo bloquea en inicial + 100 $, así que en sus cuentas ya bloqueadas
+  la app enseñaba 100 $ más de margen del real. `NULL` es 0, el comportamiento de siempre.
+
+"Mínimo para cobrar" pasó a llamarse **"Objetivo del ciclo"**: con dos reglas de dinero, el
+nombre viejo valía para las dos.
+
+**Las cuentas sin reglas ya no están en blanco en el Journal**: en su lugar hay una línea y
+un botón que abre esa cuenta en Cuentas (`editAccountRequest` viaja por `App.tsx` con un
+id que sube en cada petición, como `createRequest`). Si la empresa está en el catálogo, el
+texto ofrece elegir el plan en vez de teclear las reglas.
+
+Lo que el catálogo **no** carga, a propósito:
+
+- El límite diario de **Pro fondeada escala** (al 60 % del mejor cierre una vez superado el
+  balance de trail). No cabe en un número fijo; se carga el de la primera fase.
+- El ciclo de **Flex fondeada** solo tiene que acabar en positivo (1 $). No va como
+  objetivo del ciclo porque "210 / 1 $" se leería como un error, y en la práctica ya lo
+  cubren los cinco días rentables y el beneficio para retirar.
+
+Verificado con **16 casos contra el código real** (compilando `metrics`, `accountRules` y
+`firmCatalog` con `tsc` a CommonJS y ejecutándolos con Node): MLL bloqueado en 50.100,
+retiro con el payout descontado, objetivo de ciclo que solo mira desde el último payout y
+planes que no se confunden.
+
 ## Qué queda
+
+**Lo primero, y es un fallo, no una función: el balance de una cuenta no descuenta los
+payouts.** `getAccountProgress` calcula el balance como tamaño + P&L del journal; el
+comentario de `getAccountPnl` deja fuera los movimientos para no restar la cuota del
+challenge, pero mete los payouts en el mismo saco. Resultado: en la demo, la Apex 50K
+cobró 1.250 $ y la barra sigue marcando 51.210 cuando el balance real es 49.960, y en
+cualquier fondeada que haya cobrado **la distancia al MLL sale más holgada de lo que es**
+— el número que se mira antes de operar. La regla de beneficio para retirar sí los
+descuenta; la barra, las tarjetas y el suelo trailing no. Arreglarlo toca los tres, y
+conviene pensar qué hace el trailing el día de un payout.
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
 cabos: las siete pantallas de React están pulidas, Cuentas quedó cerrada y la severidad
@@ -384,12 +462,12 @@ que sí es terreno propio son tres cosas, y de ahí sale la lista:
 
 La lista, por orden de impacto entre esfuerzo:
 
-- **Catálogo de firmas y planes con reglas precargadas.** Eliges "Lucid · Flex 50K" y
-  salen solos precio, objetivo, drawdown, consistencia, días mínimos y reparto. Es lo que
-  rellenaría los cuatro campos nuevos de reglas de cobro, que hoy hay que escribir a mano
-  cuenta por cuenta, y de paso arregla los nombres duplicados. Ya hay material del que
-  tirar: los presets de comisiones de `tradovateImport.ts` y los logos de `firmLogos.ts`.
-  Empezar por las seis firmas reales, con fecha de última revisión de sus reglas.
+- ~~**Catálogo de firmas y planes con reglas precargadas.**~~ **Hecho para Lucid el 21 de
+  septiembre de 2026** (ver "Qué está cerrado"). Quedan Alpha (7 usuarios), Tradeify, Apex
+  y Topstep, cada una con sus fuentes oficiales y su fecha. Lo que **no** hizo: arreglar
+  los nombres de empresa duplicados. El catálogo reconoce "lucid", "Lucid Trading" o
+  "lucid 1" por igual, pero no los fusiona; eso sigue pendiente, y es lo que necesitan
+  tanto la importación del extracto como el informe fiscal.
 - **Importar el extracto del banco (Revolut, Wise) en CSV**, procesado en el navegador y
   detectando cargos de LUCID/APEX/TOPSTEP y payouts. Es el PropFirm Sync de Tradezella sin
   Plaid, sin coste y sin pedir acceso al banco. Ataca el agujero grande: **35 de 54
@@ -716,6 +794,12 @@ sesión no vuelva a pisarlas.
   typecheck con dos `TS1109: Expression expected` en ficheros que no se habían tocado en
   ese grupo. El script de la tanda del 20 de septiembre está en el scratchpad de esa
   sesión, pero lo que hay que recordar es la constante `BASE`.
+- **En zsh, `$variable:letra` no es texto: es un modificador.** `git show $sha:web/src/...`
+  se convirtió en `git show b/src/...`, porque zsh leyó `:w` como modificador de la
+  variable y se comió la `w` y todo lo que la precedía. Con los dos puntos pegados a una
+  variable, escríbela siempre entre llaves: `"${sha}:web/src/..."`. El síntoma es un
+  `fatal: ambiguous argument` con una ruta mutilada, y como iba en una cadena de `&&`, lo
+  que venía detrás (un `git push`) no llegó a ejecutarse — por suerte, esa vez.
 
 ## El sistema de diseño — léelo antes de tocar `styles.css`
 
@@ -899,6 +983,18 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   contiene. La forma exacta es un worktree desechable por sha —`git worktree add -q
   --detach <dir> <sha>`, enlazar `node_modules` del principal con `ln -s`, typecheck, y
   `git worktree remove --force`—, que arranca del árbol limpio de ese commit y nada más.
+  **Cuando en el árbol hay trabajo de otra sesión mezclado en los mismos ficheros**
+  (pasó el 21 de septiembre de 2026: la vista de Eventos estaba a medias en los i18n y en
+  `styles.css` mientras se comiteaba Lucid), el reparto no puede escribir en el disco,
+  porque pisaría ese trabajo. La salida es el mismo script de reconstrucción, pero
+  escribiendo **solo al índice**: `git hash-object -w --stdin` con el contenido
+  reconstruido y `git update-index --cacheinfo 100644,<sha>,<ruta>`. Los hunks ajenos se
+  marcan como un grupo más que nunca entra. Dos comprobaciones hacen falta: antes, que
+  todos los grupos juntos —incluido el ajeno— reproducen el árbol byte a byte; y
+  después, que `git diff` (lo no preparado) mide exactamente lo mismo que medía el
+  trabajo ajeno antes de empezar. Al comitear se guarda el índice, así que el árbol no se
+  mueve y la otra sesión ni se entera. Primero, eso sí, hay que **darse cuenta**: mira
+  `git status` antes de tocar nada, no solo antes de comitear.
 - git: local manda sobre origin, push normal sin `--force` salvo que se pida explícito.
 - Antes de tocar el precio, la copia legal o cualquier texto contractual: es
   `web/public/legal.html` (se movió ahí al pasar el despliegue a Vite; se sirve igual en
