@@ -141,7 +141,9 @@ challenge (`openPromoteAccount`), abre el alta de la fondeada precargada con
 usuario y conviene mantenerlo si se toca algo: *copiar la estructura y la información del
 legado tal cual —qué widgets, qué datos, qué disposición— y respetar las decisiones de
 React donde el legado no cabría* (formatos compactos, escalas de espaciado y letra,
-paginación). Se cerraron cuatro huecos de contenido y se le dio el dinamismo que ya
+paginación). **Una excepción, fijada por el usuario el 21 de septiembre de 2026: el legado
+restaba los payouts del P&L del calendario, y eso NO se copia** — ver "Payouts, balance y
+P&L" más abajo. Se cerraron cuatro huecos de contenido y se le dio el dinamismo que ya
 tenían las gráficas de Finanzas:
 
 - Los tres KPIs del cockpit eran `MetricCard` planas: ahora son el gauge semicircular de
@@ -402,17 +404,44 @@ Verificado con **16 casos contra el código real** (compilando `metrics`, `accou
 retiro con el payout descontado, objetivo de ciclo que solo mira desde el último payout y
 planes que no se confunden.
 
-## Qué queda
+**Payouts, balance y P&L**, el mismo 21 de septiembre de 2026 (`ae1df69` y `1d28180`).
+La regla la fijó el usuario y es la que manda en toda la app: **el P&L es lo que se gana
+operando, y retirar dinero no lo cambia. Un payout baja el balance, nunca el P&L.** Si en
+un mes se ganan 1.000 y se retiran 500, el P&L de ese mes son 1.000, no 500. Había dos
+fallos, uno a cada lado de esa línea:
 
-**Lo primero, y es un fallo, no una función: el balance de una cuenta no descuenta los
-payouts.** `getAccountProgress` calcula el balance como tamaño + P&L del journal; el
-comentario de `getAccountPnl` deja fuera los movimientos para no restar la cuota del
-challenge, pero mete los payouts en el mismo saco. Resultado: en la demo, la Apex 50K
-cobró 1.250 $ y la barra sigue marcando 51.210 cuando el balance real es 49.960, y en
-cualquier fondeada que haya cobrado **la distancia al MLL sale más holgada de lo que es**
-— el número que se mira antes de operar. La regla de beneficio para retirar sí los
-descuenta; la barra, las tarjetas y el suelo trailing no. Arreglarlo toca los tres, y
-conviene pensar qué hace el trailing el día de un payout.
+- **El balance no descontaba los payouts.** Era tamaño + P&L del journal, y en cualquier
+  fondeada que hubiera cobrado la distancia al MLL salía más holgada de lo real: la demo
+  cobró 1.250 $ y seguía marcando 51.210 con 2.500 hasta el MLL, cuando tenía 49.960 y
+  1.460. Ahora es partida + P&L − payouts **en bruto** (lo que sale de la cuenta; el neto
+  es lo que te llega tras el reparto). El suelo trailing calcula su pico con los cierres
+  ya descontados; un payout no lo baja (el trailing solo sube), pero acerca el balance a
+  él. La línea del MLL del gráfico de P&L **sube lo retirado**, porque la curva es de
+  trading y no incluye los payouts, pero la cuenta sí los perdió. "Retirado" tiene una
+  sola definición para todo eso: `getAccountWithdrawn` en `metrics.ts`.
+- **El calendario del Journal sí restaba los payouts del P&L**: en los totales de semana y
+  de mes, en cada mes de la vista anual y en el total del año. Venía del legado. Ahora
+  suman solo P&L (mayo de la demo pasa de 180 a 1.430), y el payout se ve aparte, en la
+  celda de su día, en azul y **sin signo**, en la vista y en la imagen que se comparte
+  (`signDisplay: "never"` en los formatos compactos). Con "−1,3K" un día de cobro se leía
+  como un día en pérdidas.
+
+Lo que no cambia, a propósito: "Resultado" en las tarjetas, el P&L neto y el retorno del
+Journal siguen siendo resultado de operar. Y el **Panel de Finanzas** sigue tratando el
+payout como ingreso que suma: ahí se mide caja (lo cobrado contra lo gastado), no
+trading, y ahí es correcto.
+
+Un detalle que ahora se nota y se dejó así: la tarjeta de Cuentas enseña "Retirado" en
+**neto** (lo que te llegó, junto a "Gastado", que es lo que da el ROI), mientras el
+balance resta el **bruto**. Quien sume de cabeza no cuadrará la diferencia del reparto.
+Si molesta, lo limpio es una pista en esa cifra, no pasarla a bruto.
+
+Verificado con 30 casos contra el código real (los del catálogo más 14 de payouts: el
+caso de la demo, refunds, payouts de otra cuenta, drawdown estático y Lucid bloqueado)
+y, en la demo, midiendo la línea del MLL del gráfico: sus escalones salen en −2.500,
+−2.080 y −250 exactos.
+
+## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
 cabos: las siete pantallas de React están pulidas, Cuentas quedó cerrada y la severidad
