@@ -4471,6 +4471,15 @@ label > span > .info-hint-wrap .info-hint svg {
   white-space: nowrap;
 }
 
+/* Las cifras de debajo (cuanto queda hasta el MLL, balance, cuanto hasta el objetivo) son
+   orientativas: se deducen de la barra y de sus extremos. Un escalon por debajo de ellos
+   en tamano y peso, y en un tono algo apagado, para que no compitan con el MLL y el
+   objetivo, que son los limites de verdad. */
+.journal-account-bar-figures strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
 .journal-account-bar-ends .is-floor strong {
   color: var(--negative);
 }
@@ -4492,8 +4501,10 @@ label > span > .info-hint-wrap .info-hint svg {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--line);
+  /* En el span y no en el strong: asi "Limite superado" y "Objetivo alcanzado" siguen
+     tomando su rojo y su verde de .negative/.positive, que un color en el strong taparia
+     por especificidad. */
+  color: var(--strong-muted);
 }
 
 .journal-account-bar-figures span:nth-child(2) {
@@ -4506,7 +4517,7 @@ label > span > .info-hint-wrap .info-hint svg {
 
 .journal-account-bar-figures small {
   color: var(--muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   white-space: nowrap;
 }
@@ -4522,18 +4533,19 @@ label > span > .info-hint-wrap .info-hint svg {
    debajo de la barra de recorrido del Journal y una sola linea en la tarjeta de
    Cuentas. La insignia y los colores se comparten a proposito — es el mismo dato a dos
    niveles de detalle, y verlo distinto lo leeria como dos cosas.
-   La escalera de proximidad, de fuera hacia dentro: 16 entre la barra y este bloque (dos
-   piezas del mismo panel), 12 entre el ciclo y la lista, 8 entre la cabecera y el ciclo,
+   La escalera de proximidad, de fuera hacia dentro: 32 entre la barra y este bloque (dos
+   piezas del mismo panel, separadas solo por el hueco), 12 entre el ciclo y la lista, 8 entre la cabecera y el ciclo,
    4 dentro de una fila. Ningun nivel repite el de al lado, que es lo que deja leer la
    jerarquia sin subrayarla con negritas.
    Todos los colores salen de tokens que ya existen en los dos temas (--positive,
    --surface-muted, --strong-muted): sin pares nuevos que mantener. */
+/* Sin linea encima: la separa de la barra el hueco, 8 de margen sobre los 24 de gap del
+   panel, 32 en total. Es un peldano mas que los 24 entre la cabecera y la barra, que es
+   lo que hace que se lea como otro bloque sin subrayarlo. */
 .account-rules {
   display: grid;
   gap: var(--space-xs);
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--line);
+  margin-top: var(--space-xs);
 }
 
 .account-rules-head {
