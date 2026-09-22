@@ -70,6 +70,12 @@ create trigger subscriptions_set_updated_at
 
 -- Auto-create a 14-day trial row for every new signup, regardless of which
 -- frontend (legacy app.js or React) created the auth.users row.
+--
+-- OJO: esta es la version ORIGINAL, y ya no es la que corre en produccion.
+-- supabase-subscriptions-trial-claims.sql la reescribe para dar una sola prueba por
+-- email (borrar la cuenta y volver a registrarse regalaba otra). Si reejecutas este
+-- fichero, reejecuta aquel justo despues o volveras a abrir ese agujero sin que nada
+-- avise.
 create or replace function public.handle_new_user_subscription()
 returns trigger
 language plpgsql
