@@ -749,6 +749,23 @@ sesión no vuelva a pisarlas.
   que `matchMedia` ya acierta en la primera pintura y no habría parpadeo—, pero partiría el
   breakpoint entre el CSS y el JS, y el 560 vive hoy solo en la hoja de estilos, que es
   donde alguien lo va a buscar el día que lo mueva.
+  **Si lo que se queda sin sitio es un panel y no la pantalla, el corte va en una
+  container query, no en un `@media`.** Pasó con el mes del calendario del Journal
+  (`9a04aec`, 22 de septiembre de 2026): un `@media (max-width: 560px)` acertaba en el
+  teléfono y fallaba a 821px, donde vuelve la barra lateral y la pantalla es ancha pero
+  el calendario no (la fila pedía 333px en un panel de 331). El contenedor es
+  `.journal-calendar-panel > .panel-heading` (`container-type: inline-size`) y el corte,
+  `@container (max-width: 359px)`. Ojo: un elemento no puede consultar su propio ancho,
+  así que el contenedor tiene que ser un ancestro del texto que cambia.
+- **Un título que cambia de ancho entre flechas se sujeta con una reserva invisible, no
+  con un `min-width` a ojo.** El `h2` es una rejilla de una celda: dentro va, oculto con
+  `visibility: hidden`, el texto más ancho posible, y el real se pinta encima en la misma
+  celda y centrado. Cada parte variable de la reserva es una pila `inline-grid` con todas
+  sus opciones superpuestas (los doce meses, los diez dígitos por cifra del año), así que
+  la anchura la da la fuente de verdad y vale igual en los dos idiomas. Lo usan la fecha
+  de Eventos (`WidestLongDate`) y el mes del calendario (`WidestMonthLabel`). Si hay
+  formato corto, necesita **su propia reserva** corta: con la larga debajo, el corto no
+  ahorraría ni un píxel.
 - **Antes de decidir que algo "no cabe", mide el texto real, no uno parecido.** La cuenta
   del calendario se hizo primero con un `canvas.measureText` sobre `"-1.250"` con guion
   ASCII y daba 33px, dentro de los 35 disponibles; en pantalla seguía recortando, porque
