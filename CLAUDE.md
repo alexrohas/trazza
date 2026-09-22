@@ -482,6 +482,88 @@ producción que se deshace solo (ver "Cómo se ha estado trabajando") y, ya apli
 repitiendo las altas simuladas: 55 huellas para 55 emails, el alias de un usuario real
 hereda su fin exacto, un email nuevo recibe 14 días y borrar y volver no reinicia nada.
 
+**Importar el extracto del banco**, el **22 de septiembre de 2026** (`ae8f179`). En
+Movimientos, "Importar extracto" (también como atajo arriba de "Nuevo movimiento"): subes
+el CSV de **Revolut** (con la app en español o en inglés) o de **Wise** y la app saca los
+cargos y payouts de las firmas. Existe por el dato de la lista de abajo: 35 de 54 usuarios
+no crearon ni un registro. No hay cambios de esquema. Piezas: `lib/bankImport.ts` (leer,
+reconocer, duplicados), `lib/fxRates.ts` (cambio), `components/BankImportModal.tsx` (la
+vista previa) y el alta de varias cuentas de `AccountsView`.
+
+- **El fichero no sale del navegador**, y lo que no es de trading (el súper, los bizums)
+  se cuenta pero ni se enseña ni se guarda. Reconoce 16 firmas y 8 plataformas por patrón
+  (`FIRM_PATTERNS`, `PLATFORM_PATTERNS`), y además las empresas que el usuario ya tenga,
+  por su nombre. Cada patrón lleva dos expresiones: cómo sale en el banco ("apex trader",
+  no "apex" a secas, que también es un gimnasio) y cómo la habrá llamado el usuario (con
+  erratas reales, "apha futures"). **Los brókers no se importan a propósito**: VT Markets
+  es meter dinero propio en una cuenta, no un gasto.
+- **Otra divisa se pasa a la del perfil con el cambio del BCE del día**, vía Frankfurter
+  (`api.frankfurter.dev`: gratis, sin clave, CORS abierto; solo viajan dos divisas y un
+  rango de fechas). En fin de semana usa el último publicado. Es el cambio que pide
+  Hacienda, así que el informe fiscal dará la misma cifra. Comprobado al céntimo:
+  51,58 € × 1,1694 = 60,32 $. La nota del movimiento guarda el importe original
+  ("Revolut · Lucid Trading · 51,58 €"), porque si no el cargo no se reconoce luego en el
+  banco.
+- **Duplicados, y esto lo destapó probar con una cuenta real**: la primera versión solo
+  casaba mismo día e importe exacto, y con los extractos del usuario habría duplicado casi
+  todo, porque **nadie apunta a mano lo mismo que dice el banco**. Los payouts se apuntan
+  el día que se piden y llegan días después (2 y 7 días en esa cuenta), y los cargos en
+  euros se apuntan en dólares redondos (19,60 $ frente a 16,84 €, que al cambio del BCE
+  son 19,71 $). Ahora `findAlreadyImported`:
+  - Casa con margen: 3 días en gastos y 10 en payouts, e importe al céntimo o a un 3 % si
+    hubo cambio de divisa. Sale "Ya importado", desmarcado.
+  - Tiene un segundo nivel, "¿Ya apuntado?": misma empresa y tipo a un día como mucho,
+    aunque el importe no cuadre (Goat: 30 $ apuntados frente a 35,84 $ del banco).
+    También desmarcado.
+  - **Reparte por parejas de la más cercana a la más lejana, no fila a fila.** Fila a fila
+    en orden de fecha, con cargos los días 19, 20 y 23 y apuntados el 19 y el 23, el del 20
+    se quedaba el del 23 y el del 23, que casaba exacto, se duplicaba. Un emparejamiento
+    seguro nunca cede su movimiento a uno dudoso.
+
+  Con esto, los dos extractos reales de ese usuario (14 filas de trading en Revolut, 5 en
+  Wise) dan "Nada que importar", que es la respuesta correcta: lo tenía todo apuntado.
+- **Un cargo y su devolución se anulan** (`findReversedKeys`): las verificaciones de 1 € de
+  ATAS salen como "Devuelto", desmarcadas. Lo que Revolut marca como revertido ni aparece.
+- **Cada fila elige empresa, cuenta y categoría.** Las cuentas ofrecen también las
+  **ocultas y cerradas**, al revés que el formulario de un movimiento: un extracto trae
+  historia, y el payout de julio es de la fondeada que lo pagó aunque hoy esté cerrada (ese
+  usuario tiene sus diez cuentas ocultas). Un payout va solo a la única fondeada de la
+  firma, si solo hay una. Una compra de challenge propone la cuenta que ya exista de esa
+  firma comprada a ±3 días y sin cargo enlazado, o "crear cuenta nueva". Lo ya importado
+  no propone cuenta.
+- **"Crear cuenta nueva" abre en Cuentas el alta de varias** ("Crear las cuentas de tus
+  compras"), con una fila por compra, en orden de fecha y con su empresa y fecha de compra.
+  Viaja igual que `createRequest` (`bulkAccountRequest` en `App.tsx`, con un id que
+  sube). **"Copiar a las demás"** pone el plan y sus reglas en las otras filas de la
+  **misma empresa**, sin tocar su fecha ni su nombre, que se vuelve a proponer solo (el
+  botón de duplicar de siempre añade una fila, no copia). Al guardar, cada cuenta se enlaza
+  con su cargo: **el id del movimiento lo pone la app al importar** (`createUuid`, como la
+  importación del legado) para saber qué cargo va con qué cuenta sin depender del orden en
+  que Supabase devuelva las filas. Si se cierra sin guardar, los cargos quedan importados
+  sin cuenta.
+- **La guía para sacar el CSV** está en la propia ventana, con una pestaña por banco. Los
+  pasos de Revolut salen de help.revolut.com: en cuentas personales el formato se llama
+  "Excel", pero descarga un `.csv`. Los de Wise salen de wise.com/help: solo desde la web o
+  Android, y un año como mucho por extracto. **Los nombres de los menús de Wise en español
+  ("Extractos e informes", "Personalizado") no se han visto escritos**: si un usuario dice
+  que no los encuentra, es lo primero que mirar. Si un banco cambia sus menús, esto caduca.
+- Pasa por `guard()` como el resto de escrituras (la importación y el enlace), así que
+  respeta el paywall del navegador, con el límite que se cuenta en "Qué queda".
+
+Lo que no hace, por si hace falta: no fusiona los nombres de empresa duplicados (si hay
+"lucid" y "Lucid Trading", elige la que más movimientos tiene); los payouts entran con el
+importe que llega (el neto) y sin bruto ni reparto; y el extracto de Wise de **varias
+divisas a la vez** no se ha visto nunca (el probado era de una sola, USD), aunque el código
+ya trae un cambio por divisa.
+
+Verificado con los dos extractos reales del usuario y 10 casos de duplicados ejecutando el
+código real con Node, en la demo (375, 768, 923 y 1280 px, y tema oscuro) y **de punta a
+punta contra producción** con la cuenta del usuario: un extracto de prueba de una firma que
+no tenía (Bulenox) creó la empresa, los tres movimientos convertidos y las dos cuentas, cada
+una enlazada a su cargo, y al volver a subirlo salió "Nada que importar". Los datos de
+prueba los borró el usuario (ver "Cómo se ha estado trabajando") y se comprobó en Supabase
+que la cuenta quedó igual que al empezar: 7 empresas, 10 cuentas, 26 movimientos.
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -558,11 +640,12 @@ La lista, por orden de impacto entre esfuerzo:
   los nombres de empresa duplicados. El catálogo reconoce "lucid", "Lucid Trading" o
   "lucid 1" por igual, pero no los fusiona; eso sigue pendiente, y es lo que necesitan
   tanto la importación del extracto como el informe fiscal.
-- **Importar el extracto del banco (Revolut, Wise) en CSV**, procesado en el navegador y
-  detectando cargos de LUCID/APEX/TOPSTEP y payouts. Es el PropFirm Sync de Tradezella sin
-  Plaid, sin coste y sin pedir acceso al banco. Ataca el agujero grande: **35 de 54
-  usuarios no crearon ni un registro**, y hoy ver el gasto acumulado exige teclear 167
-  compras a mano.
+- ~~**Importar el extracto del banco (Revolut, Wise) en CSV.**~~ **Hecho el 22 de
+  septiembre de 2026** (ver "Qué está cerrado"). Es el PropFirm Sync de Tradezella sin
+  Plaid, sin coste y sin pedir acceso al banco, y ataca el agujero grande: **35 de 54
+  usuarios no crearon ni un registro**. Queda medir si de verdad lo usan quienes están a
+  cero, y añadir más bancos si alguien lo pide (N26, BBVA…): cada uno es un lector más en
+  `parseBankStatement`.
 - **Informe fiscal para España**: payouts por trimestre en euros al cambio del día, gastos
   por firma, exportación para la gestoría y estimación orientativa del modelo 130. Ningún
   competidor en inglés lo tiene, y desde febrero de 2026 Wise y Revolut informan a Hacienda
@@ -736,11 +819,16 @@ sesión no vuelva a pisarlas.
   rápida antes de cualquier commit que toque textos:
   ```bash
   node -e "
-  const es=require('fs').readFileSync('web/src/lib/i18n/es.ts','utf8').match(/\"[a-zA-Z.]+\":/g)||[];
-  const en=require('fs').readFileSync('web/src/lib/i18n/en.ts','utf8').match(/\"[a-zA-Z.]+\":/g)||[];
+  const es=require('fs').readFileSync('web/src/lib/i18n/es.ts','utf8').match(/\"[a-zA-Z0-9.]+\":/g)||[];
+  const en=require('fs').readFileSync('web/src/lib/i18n/en.ts','utf8').match(/\"[a-zA-Z0-9.]+\":/g)||[];
   const a=new Set(es),b=new Set(en);
   console.log(a.size,'/',b.size,'| desajustes:',[...a].filter(k=>!b.has(k)).concat([...b].filter(k=>!a.has(k))));"
   ```
+  Con los dígitos dentro (`0-9`): hasta el 22 de septiembre de 2026 la expresión era
+  `[a-zA-Z.]+` y no veía ninguna clave con números, así que los pasos de la guía de la
+  importación (`movement.import.guide.revolut1`…) quedaban fuera de la comprobación sin
+  que nada lo dijera. Si una clave nueva lleva otro carácter (un guion), vuelve a mirar
+  esto.
 - **Al borrar un componente/prop, busca claves de i18n que se queden huérfanas** y
   bórralas de los dos idiomas a la vez — se han acumulado varias por descuido.
 - **Un número en píxeles escrito a mano puede estar acoplado en silencio a un token.**
@@ -907,6 +995,14 @@ sesión no vuelva a pisarlas.
   variable, escríbela siempre entre llaves: `"${sha}:web/src/..."`. El síntoma es un
   `fatal: ambiguous argument` con una ruta mutilada, y como iba en una cadena de `&&`, lo
   que venía detrás (un `git push`) no llegó a ejecutarse — por suerte, esa vez.
+- **Una pantalla en blanco en el dev server a mitad de una tanda de cambios casi nunca es
+  un fallo del código: es la recarga en caliente.** Si un cambio añade un hook a un
+  componente que ya estaba montado (a `App` le entraron dos `useCallback` y un
+  `useState`), React se queja de que "cambió el orden de los hooks" y cae con "Should
+  have a queue"; y si Vite recarga un fichero entre dos ediciones, importa un nombre que
+  un instante después ya no existe. Las dos cosas dejan la página vacía, con errores que
+  parecen graves. Se arregla navegando otra vez a la URL (recarga completa), no tocando
+  código. Antes de depurar, recarga y mira si sigue.
 
 ## El sistema de diseño — léelo antes de tocar `styles.css`
 
@@ -1114,6 +1210,23 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   error. Después hay que comprobar que no queda nada **con un patrón específico**: buscar
   restos con `'%vuelta%'` devolvió dos usuarios reales de julio y pareció que el ensayo
   había dejado basura.
+- **Probar contra producción con la cuenta del usuario**, como se hizo con la importación
+  del extracto el 22 de septiembre de 2026: la sesión la inicia el usuario en el panel del
+  navegador (el dev server del 5174 va contra el Supabase real) y hay tres reglas.
+  1. **Antes de escribir nada, foto con SQL de solo lectura**: cuántas empresas, cuentas y
+     movimientos tiene, y la fecha del último. Al terminar se compara con eso.
+  2. **Todo lo que se cree tiene que ser reconocible**: una firma que el usuario no tenga
+     (se usó Bulenox), para que lo de prueba no se mezcle con lo suyo.
+  3. **El borrado del final lo hace el usuario, no Claude**: borrar datos de forma
+     permanente de una cuenta real no es algo que Claude haga aunque se le pida. Se le da
+     la lista y el orden (movimientos, luego cuentas, luego empresa, porque una cuenta con
+     movimientos no deja borrarse) y después se verifica con la misma consulta del
+     principio.
+
+  Para leer los ficheros reales del usuario desde la página sin subirlos a ningún sitio:
+  copiarlos un momento a una carpeta de `web/` (el dev server los sirve), leerlos con
+  `fetch` y crear un `File` para el `<input>`, y **borrar la carpeta nada más acabar**:
+  son extractos bancarios con nombres y comercios, y no pueden llegar a un commit.
 - git: local manda sobre origin, push normal sin `--force` salvo que se pida explícito.
 - Antes de tocar el precio, la copia legal o cualquier texto contractual: es
   `web/public/legal.html` (se movió ahí al pasar el despliegue a Vite; se sirve igual en
