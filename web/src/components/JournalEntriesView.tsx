@@ -2962,6 +2962,7 @@ function JournalPnlCurvePanel({
           .map((level) => ({ bottom: valueToY(level), top: valueToY(level) })),
       ];
     },
+    plotLeft: padding.left,
     points: scaledPoints,
     width,
   });

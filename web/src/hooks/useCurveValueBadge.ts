@@ -20,7 +20,12 @@ import { useLayoutEffect, useRef, useState, type RefObject } from "react";
    miden el marco y la insignia antes de pintar y cada vez que cambian de tamano. Hace falta
    observar tambien la insignia y no solo medirla al montar: la vista puede montarse sin
    tamano todavia (con 0 se ignora la medida), y entonces se quedaba con el ancho provisional
-   para siempre porque su texto no volvia a cambiar. */
+   para siempre porque su texto no volvia a cambiar.
+
+   Por la izquierda no pasa del borde del area de trazado (plotLeft). Alineada al ultimo
+   punto, con una sola operacion (el punto cae justo en ese borde) o con pocas, la insignia
+   se salia del marco, el overflow la cortaba por la mitad y ademas tapaba las cifras del
+   eje. En ese caso se desplaza a la derecha lo justo para empezar en el borde. */
 
 export type VerticalRange = { bottom: number; top: number };
 
@@ -36,6 +41,8 @@ type Options = {
    *  de la insignia y la escala vertical para las que dependen de eso (etiquetas en px, lineas
    *  escalonadas que solo importan en el tramo que ocupa la insignia). */
   obstacles: (geometry: { spanLeft: number; unitsPerPixelY: number }) => VerticalRange[];
+  /** Borde izquierdo del area de trazado (viewBox): a su izquierda van las cifras del eje. */
+  plotLeft: number;
   points: Array<{ x: number; y: number }>;
   width: number;
 };
@@ -48,7 +55,7 @@ const FRAME_EDGE_PX = 6;
    distancia vertical por unidad de desplazamiento. */
 const SHIFT_COST = 0.5;
 
-export function useCurveValueBadge({ bounds, frameRef, height, label, obstacles, points, width }: Options) {
+export function useCurveValueBadge({ bounds, frameRef, height, label, obstacles, plotLeft, points, width }: Options) {
   const badgeRef = useRef<HTMLSpanElement>(null);
   const [frameSize, setFrameSize] = useState({ height, width });
   const [badgeSize, setBadgeSize] = useState({ height: 28, width: 96 });
@@ -91,6 +98,7 @@ export function useCurveValueBadge({ bounds, frameRef, height, label, obstacles,
     badgeWidth: badgeSize.width * unitsPerPixelX,
     bounds,
     gap: BADGE_GAP_PX * unitsPerPixelY,
+    leftLimit: plotLeft,
     obstaclesFor: (spanLeft) => obstacles({ spanLeft, unitsPerPixelY }),
     points,
     rightLimit: width - FRAME_EDGE_PX * unitsPerPixelX,
@@ -104,6 +112,7 @@ function placeCurveValueBadge({
   badgeWidth,
   bounds,
   gap,
+  leftLimit,
   obstaclesFor,
   points,
   rightLimit,
@@ -112,13 +121,15 @@ function placeCurveValueBadge({
   badgeWidth: number;
   bounds: VerticalRange;
   gap: number;
+  leftLimit: number;
   obstaclesFor: (spanLeft: number) => VerticalRange[];
   points: Array<{ x: number; y: number }>;
   rightLimit: number;
 }) {
   const last = points[points.length - 1];
   const half = badgeHeight / 2;
-  const rights = rightLimit > last.x ? [last.x, rightLimit] : [last.x];
+  const nearest = Math.max(last.x, leftLimit + badgeWidth);
+  const rights = rightLimit > nearest ? [nearest, rightLimit] : [nearest];
   const candidates = rights.flatMap((right) => {
     const spanLeft = right - badgeWidth;
     const extent = getCurveExtent(points, spanLeft);
@@ -133,7 +144,7 @@ function placeCurveValueBadge({
       }));
   });
   const best = candidates.sort((left, right) => left.crossings - right.crossings || left.cost - right.cost)[0];
-  return best ? { center: best.center, right: best.right } : { center: last.y, right: last.x };
+  return best ? { center: best.center, right: best.right } : { center: last.y, right: nearest };
 }
 
 /* Alto que ocupa la curva desde spanLeft hasta su ultimo punto, incluido el tramo que entra

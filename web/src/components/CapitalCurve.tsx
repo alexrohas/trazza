@@ -108,6 +108,7 @@ export function CapitalCurve({ points, currency, movements = [] }: CapitalCurveP
     height,
     label: lastValueLabel,
     obstacles: () => [{ bottom: baselineY, top: baselineY }],
+    plotLeft: padding.left,
     points: scaledPoints,
     width,
   });
