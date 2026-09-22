@@ -1947,7 +1947,9 @@ button {
    contenido que filtra, no flotando en medio. */
 .dashboard-filter-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--space-sm);
   margin-bottom: -12px;
 }
 
@@ -2001,7 +2003,8 @@ button {
 .view-filters .custom-select-trigger,
 .settings-form input,
 .settings-form select,
-.settings-form .custom-select-trigger {
+.settings-form .custom-select-trigger,
+.bank-import-row .custom-select-trigger {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -2023,6 +2026,7 @@ button {
 .dashboard-filters .custom-select-trigger:focus-visible,
 .view-filters .custom-select-trigger:focus-visible,
 .settings-form .custom-select-trigger:focus-visible,
+.bank-import-row .custom-select-trigger:focus-visible,
 .journal-cockpit-account-filter .custom-select-trigger:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -2032,7 +2036,8 @@ button {
 .view-filters input:disabled,
 .dashboard-filters .custom-select-trigger:disabled,
 .view-filters .custom-select-trigger:disabled,
-.settings-form .custom-select-trigger:disabled {
+.settings-form .custom-select-trigger:disabled,
+.bank-import-row .custom-select-trigger:disabled {
   background: var(--surface-muted);
   color: var(--muted);
   opacity: 0.72;
@@ -2703,6 +2708,33 @@ button {
 }
 
 .bulk-account-row-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* "Copiar a las demas": con texto, no solo icono como sus vecinos, porque es la accion
+   que el alta abierta desde la importacion pide usar (rellenar una y copiarla) y un icono
+   suelto no se descubre. En el color de acento: no destruye nada, a diferencia de quitar. */
+.bulk-account-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-sm);
+  background: transparent;
+  color: var(--accent-strong);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.bulk-account-copy:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.bulk-account-copy:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -7729,6 +7761,295 @@ tbody tr:last-child td {
 
 .journal-import-preview-row > strong.negative {
   color: var(--negative);
+}
+
+/* IMPORTAR EXTRACTO (BankImportModal). Primero una zona para soltar el CSV; despues la
+   lista de filas reconocidas, cada una con su casilla, su empresa y su categoria, para
+   corregir lo que se haya adivinado mal antes de guardar nada. */
+/* Atajo a la importacion dentro de "Nuevo movimiento". Ocupa la fila entera de la
+   rejilla del formulario y se lee como una sugerencia, no como un campo: sin fondo
+   propio hasta el hover, y con el mismo borde discontinuo que la zona de soltar el CSV,
+   que es a donde lleva. */
+.movement-import-shortcut {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md) var(--space-base);
+  background: transparent;
+  color: var(--accent-strong);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.movement-import-shortcut:hover,
+.movement-import-shortcut:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: 0;
+}
+
+.movement-import-shortcut span {
+  display: grid;
+  gap: 2px;
+}
+
+.movement-import-shortcut strong {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.movement-import-shortcut small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.bank-import-pick {
+  display: grid;
+  gap: var(--space-base);
+}
+
+.bank-import-dropzone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-sm);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3xl) var(--space-base);
+  color: var(--strong-muted);
+  text-align: center;
+  cursor: pointer;
+  outline: 0;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.bank-import-dropzone strong {
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.bank-import-dropzone span,
+.bank-import-privacy,
+.bank-import-summary {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.bank-import-dropzone:hover,
+.bank-import-dropzone:focus-visible,
+.bank-import-dropzone.is-dragging {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.bank-import-privacy,
+.bank-import-summary {
+  margin: 0;
+  line-height: var(--leading-normal);
+}
+
+.bank-import-summary strong {
+  color: var(--text);
+}
+
+/* Guia para sacar el CSV: debajo de la zona de soltar, con una pestana por banco. Los
+   pasos numerados en texto corrido (14), no de etiqueta: se leen, no se escanean. */
+.bank-import-guide {
+  display: grid;
+  gap: var(--space-md);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-base);
+}
+
+.bank-import-guide-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.bank-import-guide-head strong {
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.bank-import-guide-tabs {
+  display: inline-flex;
+  gap: var(--space-3xs);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3xs);
+  background: var(--surface-muted);
+}
+
+.bank-import-guide-tabs button {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  padding: var(--space-xs) var(--space-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.bank-import-guide-tabs button.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-flat);
+}
+
+.bank-import-guide ol {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding-left: var(--space-lg);
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.bank-import-guide ol li::marker {
+  color: var(--accent-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.bank-import-guide-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.bank-import-list {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-base) 0;
+}
+
+/* Dos lineas: arriba lo que se lee (casilla, que y cuando, importe) y debajo los tres
+   selectores (empresa, cuenta, categoria) en columnas alineadas fila a fila, que es lo que
+   deja revisar de un vistazo si todas las de Lucid van a la misma empresa. Los tres en una
+   sola linea con el texto no cabian en los 780 del modal. La empresa, mas ancha: es el
+   texto mas largo ("Crear «Take Profit Trader»"). */
+.bank-import-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  grid-template-areas:
+    "check main main amount"
+    ". firm account category";
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.bank-import-row > input { grid-area: check; }
+.bank-import-row-main { grid-area: main; }
+.bank-import-row-amount { grid-area: amount; }
+.bank-import-row-firm { grid-area: firm; }
+.bank-import-row-account { grid-area: account; }
+.bank-import-row-category { grid-area: category; }
+
+.bank-import-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+/* Desmarcada se apaga lo que se lee, no los controles: se tiene que poder volver a
+   marcar y ajustar sin que parezca desactivada. */
+.bank-import-row:not(.is-selected) .bank-import-row-main,
+.bank-import-row:not(.is-selected) .bank-import-row-amount {
+  opacity: 0.5;
+}
+
+.bank-import-row-firm,
+.bank-import-row-account,
+.bank-import-row-category {
+  min-width: 0;
+}
+
+.bank-import-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Salta de linea en vez de recortarse: es el texto del banco, lo que permite reconocer
+   el cargo en el extracto, y cortado a medias ("Transfer from TOPS...") deja de servir. */
+.bank-import-row-main strong {
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.bank-import-row-main small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.bank-import-flag {
+  border-radius: 999px;
+  padding: 1px var(--space-sm);
+  background: var(--surface-muted);
+  color: var(--strong-muted);
+  font-style: normal;
+  font-weight: var(--weight-semibold);
+}
+
+.bank-import-row-amount {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-import-row-amount strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.bank-import-row-amount.expense strong {
+  color: var(--negative);
+}
+
+.bank-import-row-amount.income strong {
+  color: var(--positive);
+}
+
+.bank-import-row-amount small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* Estrecho: un selector por linea a todo el ancho. A tercios no cabia ni "Topstep" (67px
+   en un telefono de 375), y el nombre de la empresa es justo lo que hay que poder leer
+   para revisar. */
+@media (max-width: 720px) {
+  .bank-import-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check main amount"
+      "firm firm firm"
+      "account account account"
+      "category category category";
+  }
 }
 
 .journal-errors-field legend {

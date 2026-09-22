@@ -42,6 +42,14 @@ export default function App() {
      aqui (no en Supabase) mientras el usuario rellena el alta en Cuentas, y se guarda
      de verdad ya enlazado en cuanto esa cuenta se crea. Ver saveAccountAndLinkPendingMovement. */
   const [pendingMovementLink, setPendingMovementLink] = useState<{ input: MovementInput; movementId?: string } | null>(null);
+  /* Cuentas que crear para movimientos recien importados del banco: una por cada compra
+     que el usuario marco con "crear cuenta". Cada fila lleva el id de su movimiento, que
+     ya esta guardado, para enlazarlo en cuanto su cuenta exista. Mismo mecanismo de id
+     creciente que createRequest. */
+  const [bulkAccountRequest, setBulkAccountRequest] = useState<{
+    id: number;
+    rows: { movementId: string; firmId: string; purchasedAt: string }[];
+  } | null>(null);
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
   const subscription = useSubscription(auth.user);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -81,6 +89,8 @@ export default function App() {
       saveJournalErrorType: guard(dataState.saveJournalErrorType),
       saveJournalStrategy: guard(dataState.saveJournalStrategy),
       saveMovement: guard(dataState.saveMovement),
+      importMovements: guard(dataState.importMovements),
+      linkMovementsToAccounts: guard(dataState.linkMovementsToAccounts),
       deleteJournalErrorType: guard(dataState.deleteJournalErrorType),
       deleteJournalStrategy: guard(dataState.deleteJournalStrategy),
       setAccountVisible: guard(dataState.setAccountVisible),
@@ -97,6 +107,14 @@ export default function App() {
     setActiveView("accounts");
     setEditAccountRequest((current) => ({ id: (current?.id || 0) + 1, accountId }));
   }, []);
+
+  const requestAccountsForMovements = useCallback(
+    (rows: { movementId: string; firmId: string; purchasedAt: string }[]) => {
+      setActiveView("accounts");
+      setBulkAccountRequest((current) => ({ id: (current?.id || 0) + 1, rows }));
+    },
+    [],
+  );
 
   const requestAccountForMovement = useCallback((input: MovementInput, movementId?: string) => {
     setPendingMovementLink({ input, movementId });
@@ -257,12 +275,15 @@ export default function App() {
           journalEntries={journalEntries}
           movements={movements}
           editAccountRequest={editAccountRequest || undefined}
+          bulkAccountRequest={bulkAccountRequest || undefined}
           newAccountToken={createRequest?.target === "account" ? createRequest.id : 0}
           presetFirmId={pendingMovementLink?.input.firmId || undefined}
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
           onClose={handleAccountModalClosed}
+          onBulkAccountRequestHandled={() => setBulkAccountRequest(null)}
+          onBulkAccountsSaved={guarded.linkMovementsToAccounts}
           onDeleteAccount={guarded.deleteAccount}
           onEditAccountRequestHandled={() => setEditAccountRequest(null)}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
@@ -273,6 +294,7 @@ export default function App() {
       {activeView === "movements" && (
         <MovementsView
           accounts={accounts}
+          allMovements={movements}
           currency={currency}
           dataMode={dataState.mode}
           firms={firms}
@@ -282,8 +304,10 @@ export default function App() {
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
           onDeleteMovement={guarded.deleteMovement}
+          onImportMovements={guarded.importMovements}
           onNewMovementRequestHandled={() => setCreateRequest(null)}
           onRequestAccountForMovement={requestAccountForMovement}
+          onRequestAccountsForMovements={requestAccountsForMovements}
           onSaveMovement={guarded.saveMovement}
         />
       )}

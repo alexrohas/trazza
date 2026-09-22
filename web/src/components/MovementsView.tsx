@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { BankImportModal, type AccountRequestRow } from "./BankImportModal";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
 import { Modal } from "./Modal";
@@ -13,6 +14,7 @@ import type {
   Currency,
   DataMode,
   Firm,
+  FirmInput,
   Movement,
   MovementCategory,
   MovementInput,
@@ -22,6 +24,9 @@ import type {
 
 type MovementsViewProps = {
   accounts: TradingAccount[];
+  /** Todos los movimientos, sin el filtro de cuenta: la importacion del extracto los
+   *  necesita para no duplicar lo que ya esta guardado. */
+  allMovements: Movement[];
   currency: Currency;
   dataMode: DataMode;
   firms: Firm[];
@@ -31,6 +36,12 @@ type MovementsViewProps = {
   newMovementToken?: number;
   searchQuery: string;
   onDeleteMovement: (movementId: string) => Promise<boolean>;
+  onImportMovements: (
+    items: { id: string; input: MovementInput; newFirm?: FirmInput }[],
+  ) => Promise<Record<string, string> | false>;
+  /* Tras importar, las compras marcadas con "crear cuenta": App lleva a Cuentas con el
+     alta de varias abierta y una fila por compra. */
+  onRequestAccountsForMovements: (rows: AccountRequestRow[]) => void;
   onNewMovementRequestHandled?: () => void;
   /* No crea la cuenta aqui: lleva a Cuentas con el alta ya abierta y precargada, y esta
      misma entrada del movimiento en espera de la cuenta que salga de ahi. Reutiliza el
@@ -44,8 +55,8 @@ type MovementsViewProps = {
    coincidir con un id real (los ids de cuenta son uuid). */
 const NEW_ACCOUNT_OPTION = "__new_account__";
 
-const expenseCategories: MovementCategory[] = ["challenge", "reset", "activation", "subscription", "platform", "commission", "other"];
-const incomeCategories: MovementCategory[] = ["payout", "refund", "other"];
+export const expenseCategories: MovementCategory[] = ["challenge", "reset", "activation", "subscription", "platform", "commission", "other"];
+export const incomeCategories: MovementCategory[] = ["payout", "refund", "other"];
 const allCategories = [...expenseCategories, ...incomeCategories.filter((category) => !expenseCategories.includes(category))];
 
 export function getMovementCategoryLabels(t: ReturnType<typeof useT>): Record<MovementCategory, string> {
@@ -75,6 +86,7 @@ const emptyMovementInput: MovementInput = {
 
 export function MovementsView({
   accounts,
+  allMovements,
   currency,
   dataMode,
   firms,
@@ -84,14 +96,17 @@ export function MovementsView({
   newMovementToken = 0,
   searchQuery,
   onDeleteMovement,
+  onImportMovements,
   onNewMovementRequestHandled,
   onRequestAccountForMovement,
+  onRequestAccountsForMovements,
   onSaveMovement,
 }: MovementsViewProps) {
   const [draft, setDraft] = useState<MovementInput>(emptyMovementInput);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [categoryFilter, setCategoryFilter] = useState<"all" | MovementCategory>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [firmFilter, setFirmFilter] = useState("all");
   const [fromFilter, setFromFilter] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | MovementKind>("all");
@@ -259,6 +274,25 @@ export function MovementsView({
             if (saved) closeForm();
           }}
         >
+          {/* Solo al crear: quien viene a teclear un cargo suele tener mas en el banco, y
+              aqui es donde se da cuenta. Cierra el formulario y abre la importacion. */}
+          {!editingId && (
+            <button
+              className="movement-import-shortcut"
+              onClick={() => {
+                closeForm();
+                setImportOpen(true);
+              }}
+              type="button"
+            >
+              <FileUp size={16} strokeWidth={2.2} />
+              <span>
+                <strong>{t("movement.import.shortcutTitle")}</strong>
+                <small>{t("movement.import.shortcutText")}</small>
+              </span>
+            </button>
+          )}
+
           {/* Tipo primero y como segmentado, no desplegable: es binario, condiciona la lista
               de categorias y el signo del movimiento, asi que merece verse de un vistazo
               en vez de esconderse tras un clic. */}
@@ -456,7 +490,28 @@ export function MovementsView({
       {/* Sin tarjeta propia ni titulo: era una tarjeta suelta que solo decia
           "Movimientos", ya dicho por la vista misma, y no aportaba nada aparte del
           boton. Mismo patron que el dashboard de Finanzas (dashboard-filter-bar). */}
+      {importOpen && (
+        <BankImportModal
+          accounts={accounts}
+          canWrite={canWrite}
+          currency={currency}
+          firms={firms}
+          movements={allMovements}
+          mutating={mutating}
+          mutationError={mutationError}
+          onClose={() => setImportOpen(false)}
+          onImport={onImportMovements}
+          onRequestAccounts={onRequestAccountsForMovements}
+        />
+      )}
+
       <div className="dashboard-filter-bar">
+        {/* Abierto tambien en demo: la vista previa no guarda nada y se puede ver entera;
+            es el boton de importar de dentro el que respeta canWrite. */}
+        <button className="secondary-action" onClick={() => setImportOpen(true)} type="button">
+          <FileUp size={16} strokeWidth={2.2} />
+          {t("movement.import.open")}
+        </button>
         <FilterToggleButton active={hasActiveMovementFilters} isOpen={filtersOpen} onClick={() => setFiltersOpen((current) => !current)} />
       </div>
 

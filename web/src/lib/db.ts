@@ -211,6 +211,39 @@ export async function createCloudMovement(client: SupabaseClient, userId: string
   return fromSingleRow(result, fromDbMovement, "No se pudo crear el movimiento.");
 }
 
+/* Varios de una vez, para la importacion del extracto: un solo insert, no uno por fila.
+   El id lo pone quien llama (como hace ya la importacion del legado) para poder enlazar
+   despues cada movimiento con la cuenta que se cree para el. */
+export async function createCloudMovements(
+  client: SupabaseClient,
+  userId: string,
+  items: { id: string; input: MovementInput }[],
+): Promise<void> {
+  await insertRows(
+    client,
+    "transactions",
+    items.map((item) => ({ id: item.id, ...movementInputToDb(userId, item.input) })),
+    "No se pudieron importar los movimientos.",
+  );
+}
+
+/* Solo la cuenta, sin tocar el resto del movimiento: es lo que hace el alta de cuentas
+   que abre la importacion al guardar cada una. */
+export async function linkCloudMovementAccount(
+  client: SupabaseClient,
+  userId: string,
+  movementId: string,
+  accountId: string,
+): Promise<void> {
+  const result = await client
+    .from("transactions")
+    .update({ account_id: accountId })
+    .eq("id", movementId)
+    .eq("user_id", userId);
+
+  if (result.error) throw new Error(result.error.message || "No se pudo enlazar el movimiento con la cuenta.");
+}
+
 export async function updateCloudMovement(
   client: SupabaseClient,
   userId: string,
@@ -783,7 +816,7 @@ async function insertRows(client: SupabaseClient, table: string, rows: DbRow[], 
   }
 }
 
-function createUuid() {
+export function createUuid() {
   const runtimeCrypto = globalThis.crypto;
   if (runtimeCrypto?.randomUUID) return runtimeCrypto.randomUUID();
 

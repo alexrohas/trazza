@@ -5,6 +5,8 @@ import {
   createCloudFirm,
   createCloudJournalEntry,
   createCloudMovement,
+  createCloudMovements,
+  linkCloudMovementAccount,
   deleteCloudAccount,
   deleteCloudFirm,
   deleteCloudJournalEntry,
@@ -228,6 +230,83 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "No se pudo guardar el movimiento.";
         setMutationError(message);
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
+  /* Importacion del extracto del banco. Las empresas que el usuario aun no tiene se crean
+     primero (cada una una sola vez aunque varias filas la pidan) y sus movimientos se
+     enlazan con el id recien creado; despues entra todo en un solo insert y se recarga
+     una vez. Con saveMovement en bucle serian una recarga completa por fila.
+     Devuelve el id de cada empresa creada, por nombre: el alta de cuentas que se abre
+     despues las necesita para precargar la empresa de cada fila. */
+  const importMovements = useCallback(
+    async (items: { id: string; input: MovementInput; newFirm?: FirmInput }[]): Promise<Record<string, string> | false> => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para guardar movimientos reales.");
+        return false;
+      }
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        const createdFirmIds = new Map<string, string>();
+        for (const item of items) {
+          if (!item.newFirm || createdFirmIds.has(item.newFirm.name)) continue;
+          const firm = await createCloudFirm(supabaseClient, userId, item.newFirm);
+          createdFirmIds.set(item.newFirm.name, firm.id);
+        }
+        await createCloudMovements(
+          supabaseClient,
+          userId,
+          items.map((item) => ({
+            id: item.id,
+            input: item.newFirm ? { ...item.input, firmId: createdFirmIds.get(item.newFirm.name) || "" } : item.input,
+          })),
+        );
+        await reload();
+        return Object.fromEntries(createdFirmIds);
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudieron importar los movimientos.";
+        setMutationError(message);
+        /* Si fallo a medias (empresas creadas, movimientos no), que se vea lo que si entro. */
+        await reload();
+        return false;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [enabled, reload, userId],
+  );
+
+  /* Enlaza movimientos ya guardados con las cuentas recien creadas para ellos (el alta de
+     varias cuentas que abre la importacion). Una recarga al final, no una por cuenta. */
+  const linkMovementsToAccounts = useCallback(
+    async (links: { movementId: string; accountId: string }[]) => {
+      if (!enabled || !userId || !supabaseClient) {
+        setMutationError("Conecta Supabase para guardar movimientos reales.");
+        return false;
+      }
+      if (!links.length) return true;
+
+      setMutating(true);
+      setMutationError(null);
+
+      try {
+        for (const link of links) {
+          await linkCloudMovementAccount(supabaseClient, userId, link.movementId, link.accountId);
+        }
+        await reload();
+        return true;
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "No se pudo enlazar el movimiento con la cuenta.";
+        setMutationError(message);
+        await reload();
         return false;
       } finally {
         setMutating(false);
@@ -509,6 +588,8 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     deleteMovement,
     error,
     importData,
+    importMovements,
+    linkMovementsToAccounts,
     mode,
     mutationError,
     mutating,

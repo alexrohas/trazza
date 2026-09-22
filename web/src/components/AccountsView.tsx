@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
+import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, CopyCheck, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
 import { AccountRuleStatusLine } from "./AccountRuleStatus";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
@@ -50,6 +50,11 @@ type AccountsViewProps = {
      de una cuenta sin reglas de cobro. El id cambia en cada peticion para que pedir dos
      veces la misma cuenta la vuelva a abrir. */
   editAccountRequest?: { id: number; accountId: string };
+  /* Alta de varias cuentas que abre la importacion del extracto: una fila por compra,
+     con la empresa y la fecha del cargo, y el movimiento que enlazar al guardarla. */
+  bulkAccountRequest?: { id: number; rows: { movementId: string; firmId: string; purchasedAt: string }[] };
+  onBulkAccountRequestHandled?: () => void;
+  onBulkAccountsSaved?: (links: { movementId: string; accountId: string }[]) => Promise<boolean>;
   onClose?: () => void;
   onDeleteAccount: (accountId: string) => Promise<boolean>;
   onEditAccountRequestHandled?: () => void;
@@ -109,8 +114,29 @@ const emptyAccountInput: AccountInput = {
 
 /* Los mismos campos que AccountInput (el alta masiva rellena cuenta a cuenta con todo,
    no solo lo esencial), mas key para la lista de React y nameTouched para el
-   autorrelleno del nombre -- ver AccountFieldset y bulkSuggestedNames mas abajo. */
-type BulkAccountRow = AccountInput & { key: number; nameTouched: boolean };
+   autorrelleno del nombre -- ver AccountFieldset y bulkSuggestedNames mas abajo.
+   movementId solo lo traen las filas que vienen de la importacion del extracto: es el
+   cargo de esa compra, que se enlaza con la cuenta en cuanto se guarda. */
+type BulkAccountRow = AccountInput & { key: number; nameTouched: boolean; movementId?: string };
+
+/* Lo que "Copiar a las demas" lleva de una fila a otra: el plan y sus reglas. No la
+   empresa (solo se copia entre filas de la misma), ni la fecha de compra (cada cargo
+   tiene la suya), ni el nombre (se vuelve a proponer solo), ni el movimiento enlazado. */
+const bulkCopyFields = [
+  "status",
+  "kind",
+  "drawdownType",
+  "size",
+  "phaseTarget",
+  "maxDrawdown",
+  "dailyDrawdown",
+  "consistencyPct",
+  "minProfitDays",
+  "profitDayMin",
+  "payoutMin",
+  "withdrawMinProfit",
+  "trailLockOffset",
+] as const;
 
 export function AccountsView({
   accounts,
@@ -125,6 +151,9 @@ export function AccountsView({
   presetFirmId,
   searchQuery,
   editAccountRequest,
+  bulkAccountRequest,
+  onBulkAccountRequestHandled,
+  onBulkAccountsSaved,
   onClose,
   onDeleteAccount,
   onEditAccountRequestHandled,
@@ -144,6 +173,9 @@ export function AccountsView({
   const [bulkRows, setBulkRows] = useState<BulkAccountRow[]>([]);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkFailed, setBulkFailed] = useState(0);
+  /* El alta se abrio desde la importacion: cambia el subtitulo para explicar que hay una
+     fila por compra y como copiar la primera a las demas. */
+  const [bulkFromImport, setBulkFromImport] = useState(false);
   const bulkRowKey = useRef(0);
   const [firmFilter, setFirmFilter] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -376,6 +408,7 @@ export function AccountsView({
        abrir. "+ Añadir cuenta" cubre el resto. */
     setBulkRows([makeBulkRow(firmId), makeBulkRow(firmId)]);
     setBulkFailed(0);
+    setBulkFromImport(false);
     setBulkOpen(true);
   };
 
@@ -413,10 +446,26 @@ export function AccountsView({
       const index = current.findIndex((row) => row.key === key);
       if (index === -1) return current;
       const source = current[index];
-      const duplicate: BulkAccountRow = { ...source, key: newKey, name: "", nameTouched: false };
+      /* Sin movementId: ese cargo ya es de la original, la copia es otra compra. */
+      const duplicate: BulkAccountRow = { ...source, key: newKey, name: "", nameTouched: false, movementId: undefined };
       return [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)];
     });
   };
+
+  /* Pone en las demas filas de la misma empresa el plan y las reglas de esta. Es lo que
+     pide el caso real de la importacion: cinco compras de Lucid el mismo mes, cinco filas
+     con la empresa y la fecha ya puestas, y el plan elegido una sola vez. El nombre de las
+     de destino se suelta (nameTouched: false) para que se vuelva a proponer con el tamano
+     nuevo. */
+  const copyBulkRowToSiblings = (key: number) =>
+    setBulkRows((current) => {
+      const source = current.find((row) => row.key === key);
+      if (!source) return current;
+      const patch = Object.fromEntries(bulkCopyFields.map((field) => [field, source[field]])) as Partial<BulkAccountRow>;
+      return current.map((row) =>
+        row.key !== key && row.firmId === source.firmId ? { ...row, ...patch, name: "", nameTouched: false } : row,
+      );
+    });
 
   /* Mismo nombre propuesto que el alta individual (empresa + tamano, ver
      suggestedName/formatSizeForName mas abajo), pero recorriendo las filas de arriba a
@@ -479,11 +528,17 @@ export function AccountsView({
     setBulkSaving(true);
     setBulkFailed(0);
     const succeededKeys = new Set<number>();
+    const links: { movementId: string; accountId: string }[] = [];
     for (const row of validBulkRows) {
-      const { key, nameTouched, ...input } = row;
+      const { key, nameTouched, movementId, ...input } = row;
       const saved = await onSaveAccount({ ...input, name: input.name.trim(), size: input.size.trim() });
-      if (saved) succeededKeys.add(key);
+      if (saved) {
+        succeededKeys.add(key);
+        if (movementId) links.push({ movementId, accountId: saved.id });
+      }
     }
+    /* Los cargos importados, a sus cuentas: solo los de las filas que si se guardaron. */
+    if (links.length) await onBulkAccountsSaved?.(links);
     setBulkSaving(false);
     const failedCount = validBulkRows.length - succeededKeys.size;
     if (failedCount === 0) {
@@ -544,6 +599,24 @@ export function AccountsView({
     setCreationChoiceOpen(true);
     onNewAccountRequestHandled?.();
   }, [newAccountToken, onNewAccountRequestHandled]);
+
+  /* La importacion del extracto pide crear las cuentas de sus compras: una fila por cargo,
+     ya con su empresa y su fecha de compra, en orden de fecha para que los nombres salgan
+     numerados en el orden en que se compraron. */
+  useEffect(() => {
+    if (!bulkAccountRequest) return;
+    setBulkRows(
+      [...bulkAccountRequest.rows]
+        .sort((left, right) => left.purchasedAt.localeCompare(right.purchasedAt))
+        .map((row) => ({ ...makeBulkRow(row.firmId), purchasedAt: row.purchasedAt, movementId: row.movementId })),
+    );
+    setBulkFailed(0);
+    setBulkFromImport(true);
+    setBulkOpen(true);
+    onBulkAccountRequestHandled?.();
+    // makeBulkRow se redefine en cada render; la peticion es lo unico que debe disparar esto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkAccountRequest?.id]);
 
   /* Otra pantalla pide abrir una cuenta en edicion (el Journal, desde el aviso de "esta
      cuenta no tiene reglas de cobro"). Se atiende una vez y se da por atendida aunque la
@@ -644,7 +717,12 @@ export function AccountsView({
       )}
 
       {bulkOpen && (
-      <Modal onClose={() => setBulkOpen(false)} title={t("account.bulk.title")} subtitle={t("account.bulk.subtitle")} width="wide">
+      <Modal
+        onClose={() => setBulkOpen(false)}
+        title={bulkFromImport ? t("account.bulk.fromImportTitle") : t("account.bulk.title")}
+        subtitle={bulkFromImport ? t("account.bulk.fromImportSubtitle") : t("account.bulk.subtitle")}
+        width="wide"
+      >
         <div className="bulk-account-form">
           <div className="bulk-account-blocks">
             {bulkRows.map((row, index) => (
@@ -654,6 +732,19 @@ export function AccountsView({
                     {t("account.bulk.rowLabel")} {index + 1}
                   </span>
                   <div className="bulk-account-block-actions">
+                    {/* Solo si hay otra fila de la misma empresa a la que copiar. */}
+                    {row.firmId && bulkRows.some((other) => other.key !== row.key && other.firmId === row.firmId) && (
+                      <button
+                        className="bulk-account-copy"
+                        disabled={bulkSaving}
+                        onClick={() => copyBulkRowToSiblings(row.key)}
+                        title={t("account.bulk.copyToSiblingsHint")}
+                        type="button"
+                      >
+                        <CopyCheck size={15} strokeWidth={2.2} />
+                        {t("account.bulk.copyToSiblings")}
+                      </button>
+                    )}
                     <button
                       aria-label={t("account.bulk.duplicateRow")}
                       className="bulk-account-row-remove"
