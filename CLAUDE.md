@@ -94,6 +94,10 @@ Aviso relacionado para el Mac: si dentro de una sesión ya arrancada sale
 de que existiera el `.zshenv`. Antepón
 `export PATH="$HOME/.local/node/bin:$HOME/Library/pnpm:$PATH"` en la propia llamada.
 
+Y si otra sesión ya ocupa el 5174 (y la demo el 5175), `preview_start` de
+`trazza-web-mac` anuncia un puerto alto que no es el bueno: Vite hace su propia búsqueda
+y se queda en el 5176. El puerto real es el que sale en `preview_logs`.
+
 ## Qué está cerrado
 
 **Monetización con Stripe**, sobre el legado: trial de 14 días, checkout mensual/anual,
@@ -441,6 +445,43 @@ caso de la demo, refunds, payouts de otra cuenta, drawdown estático y Lucid blo
 y, en la demo, midiendo la línea del MLL del gráfico: sus escalones salen en −2.500,
 −2.080 y −250 exactos.
 
+**Una prueba gratuita por persona, no por cuenta**, el **22 de septiembre de 2026**
+(`supabase-subscriptions-trial-claims.sql`, **ya ejecutado en producción** como la
+migración `20260922133123`). El agujero lo vio el usuario: el trigger de alta regalaba 14
+días a cada fila nueva de `auth.users` sin mirar nada más, y `delete-account` borra la
+suscripción y el usuario sin dejar rastro. Exportar el JSON, borrar la cuenta,
+registrarse otra vez con el mismo email e importar devolvía una prueba nueva con todos
+los datos dentro: dos minutos cada 14 días.
+
+Ahora cada alta guarda en `trial_claims` el SHA-256 del email normalizado (nunca el
+email), en una tabla sin FK a `auth.users` para que sobreviva al borrado. Decisiones que
+conviene no deshacer:
+
+- **El reloj es del email, no de la cuenta.** Un alta con huella hereda el
+  `trial_ends_at` de la primera prueba: quien borra al tercer día conserva los once que
+  le quedaban, y quien ya la agotó nace en solo lectura con el aviso de siempre ("Tu
+  prueba gratuita ha terminado"). Borrar la cuenta ni se castiga ni se premia.
+- **La normalización es la mitad del arreglo.** 53 de 55 usuarios usan Gmail, que da por
+  buenos `a.lex@` y `alex+2@` como si fueran `alex@`: se quita el `+loquesea` en
+  cualquier dominio y los puntos solo en Gmail. Un email distinto de verdad sí recibe
+  prueba nueva; eso solo lo corta pedir tarjeta al empezar, y con la activación que hay
+  no compensa.
+- **El trigger es fail-open**: si la parte de la huella falla, el alta sigue con prueba
+  normal y deja un `warning`. Un error en un trigger de `auth.users` tumba el registro
+  entero, y dejar sin cuenta a alguien real es peor que regalar una prueba.
+- **`supabase-subscriptions.sql` conserva la versión vieja de la función** (lleva un aviso
+  encima): reejecutarlo sin reejecutar después el de `trial_claims` reabre el agujero.
+- **`legal.html` lo declara** en Conservación, Suscripciones y Eliminación: un hash de un
+  email sigue siendo dato personal, y la página prometía borrar "todos sus datos". La base
+  jurídica ya estaba (interés legítimo para prevenir abusos).
+- Desde la app nadie lee la tabla ni llama a `trial_email_hash`: sin permisos y con RLS
+  sin políticas. El asesor de Supabase lo marca como INFO, y es a propósito.
+
+Verificado con 33 casos en PGlite imitando los permisos de Supabase, con un ensayo contra
+producción que se deshace solo (ver "Cómo se ha estado trabajando") y, ya aplicado,
+repitiendo las altas simuladas: 55 huellas para 55 emails, el alias de un usuario real
+hereda su fin exacto, un email nuevo recibe 14 días y borrar y volver no reinicia nada.
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -463,6 +504,26 @@ www, la URL y la clave de Supabase incrustadas de verdad en el bundle (o sea, no
 modo demo) y los `.sql` ya devolviendo 404. Las dos Edge Functions de Stripe se
 redesplegaron después, con las URLs de retorno apuntando ya a `/app`, y responden
 correctamente.
+
+### Siguiente: el paywall solo vive en el navegador (visto el 22 de septiembre de 2026)
+
+**Es el agujero más grave que queda y el siguiente paso acordado con el usuario**, justo
+después de cerrar el de la prueba por persona. Las políticas RLS de las siete tablas de
+datos (`firms`, `accounts`, `transactions`, `journal_entries`, `journal_error_types`,
+`journal_strategies` y `journal_deleted_default_error_types`) solo comprueban que la fila
+sea tuya (`auth.uid() = user_id`), nunca la suscripción. El solo-lectura al caducar lo
+impone únicamente `canMutateData` en el navegador, así que quien sepa sobrescribir en las
+DevTools la respuesta de `subscriptions`, o escribir con su JWT contra la API, tiene la
+app entera gratis sin borrar nada. Y la importación de JSON de Ajustes ni siquiera pasa
+por `guard()`: `App.tsx` le pasa `dataState.importData` tal cual.
+
+El arreglo es una función `security definer` que diga si el usuario puede escribir —la
+misma regla que `isSubscriptionAccessActive`— metida en las políticas de escritura de esas
+siete tablas, con la lectura intacta (el solo-lectura sigue igual de generoso). Es
+delicado porque toca cada escritura de quien paga: antes hay que comprobar que la app no
+escribe nada sola al cargar (sembrar tipos de error por defecto, por ejemplo), porque eso
+rompería la primera carga de una cuenta caducada, y ensayarlo contra producción con el
+mismo `DO` que se deshace solo.
 
 ### Qué construir después (análisis de competencia, 17 de septiembre de 2026)
 
@@ -1041,6 +1102,18 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   trabajo ajeno antes de empezar. Al comitear se guarda el índice, así que el árbol no se
   mueve y la otra sesión ni se entera. Primero, eso sí, hay que **darse cuenta**: mira
   `git status` antes de tocar nada, no solo antes de comitear.
+- **Para probar SQL sin tocar producción, PGlite; para ensayar contra producción, un `DO`
+  que se deshace solo.** PGlite (`@electric-sql/pglite`, instalado en el scratchpad) es un
+  Postgres de verdad dentro de Node y admite roles: con un dueño `NOSUPERUSER BYPASSRLS`
+  (lo que es `postgres` en Supabase) y las altas hechas como `supabase_auth_admin`, se
+  reproduce el modelo de permisos real. Para ensayar en el Supabase de verdad: un solo
+  `DO` que ejecuta la migración con `EXECUTE` (el fichero tal cual, entre `$mig$`), simula
+  altas insertando en `auth.users` (solo exige `id`) y acaba en `RAISE EXCEPTION` con los
+  resultados en JSON dentro del mensaje. La excepción lo deshace todo, DDL incluido, sin
+  depender de cómo gestione el MCP las transacciones, y el resultado llega igual dentro del
+  error. Después hay que comprobar que no queda nada **con un patrón específico**: buscar
+  restos con `'%vuelta%'` devolvió dos usuarios reales de julio y pareció que el ensayo
+  había dejado basura.
 - git: local manda sobre origin, push normal sin `--force` salvo que se pida explícito.
 - Antes de tocar el precio, la copia legal o cualquier texto contractual: es
   `web/public/legal.html` (se movió ahí al pasar el despliegue a Vite; se sirve igual en
