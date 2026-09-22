@@ -5442,8 +5442,60 @@ label > span > .info-hint-wrap .info-hint svg {
    flechas y "Hoy" (todas cosas de navegacion, no un titular). --text-md es el mismo
    tamaño que llevaba "Calendario" antes de que el mes ocupara su sitio, asi que la fila
    entera pesa lo que pesaba un titulo de panel normal. */
+/* Hueco fijo entre las flechas, como en la fecha de Eventos: el mes que toca y el mas ancho
+   posible (invisible) comparten celda, asi que la celda mide siempre lo del ancho y el de
+   verdad va centrado dentro. Sin esto, de "abril de 2026" a "septiembre de 2026" la flecha
+   derecha y la pista se desplazaban. */
 .calendar-nav-label h2 {
+  display: grid;
   font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.calendar-nav-label h2 > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.calendar-nav-title-sizer {
+  visibility: hidden;
+}
+
+.calendar-nav-title-stack {
+  display: inline-grid;
+}
+
+.calendar-nav-title-stack > span {
+  grid-area: 1 / 1;
+}
+
+.calendar-nav-title.is-tight,
+.calendar-nav-title-sizer.is-tight {
+  display: none;
+}
+
+/* Cuando no cabe, el mes en corto con su propia reserva. Lo decide el ANCHO DE LA
+   CABECERA, no el de la ventana: en un telefono de 375 la cabecera deja 293px, pero a 821
+   (ya con la barra lateral) deja 331 aunque la pantalla sea "ancha", y la fila en largo
+   pide 333. Un @media por ancho de ventana acertaba en el telefono y se equivocaba ahi;
+   las dos veces el sintoma era "Hoy" saliendose del panel, y en los meses largos ya
+   pasaba antes de existir la reserva (a 821, septiembre iba a 2px del borde).
+   El umbral deja unos 25px de holgura sobre esos 333. Si cambia lo que va en la fila
+   (otro boton, otro tamano de letra), hay que volver a medirlo. */
+.journal-calendar-panel > .panel-heading {
+  container-type: inline-size;
+}
+
+@container (max-width: 359px) {
+  .calendar-nav-title,
+  .calendar-nav-title-sizer {
+    display: none;
+  }
+
+  .calendar-nav-title.is-tight,
+  .calendar-nav-title-sizer.is-tight {
+    display: block;
+  }
 }
 
 /* Mismo ajuste que arriba: --text-2xl (24px) competia demasiado con el resto de la fila.

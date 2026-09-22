@@ -631,6 +631,7 @@ export function JournalEntriesView({
      operaciones. Varios trades el mismo dia cuentan una vez. */
   const tradedDaysCount = useMemo(() => new Set(filteredEntries.map((entry) => entry.date)).size, [filteredEntries]);
   const visibleMonthLabel = useMemo(() => formatMonthLabel(visibleMonth, language), [visibleMonth, language]);
+  const visibleMonthLabelShort = useMemo(() => formatMonthLabel(visibleMonth, language, "short"), [visibleMonth, language]);
   const visibleYear = visibleMonth.slice(0, 4);
   const yearMonths = useMemo(
     () => buildYearMonths(visibleYear, filteredEntries, movements),
@@ -1010,7 +1011,24 @@ export function JournalEntriesView({
               <ChevronLeft size={15} strokeWidth={2.2} />
             </button>
             <div className="calendar-nav-label">
-              <h2>{calendarMode === "year" ? visibleYear : visibleMonthLabel}</h2>
+              {/* El hueco entre las flechas no depende del mes que toca: debajo, invisible,
+                  va el mes mas ancho que puede salir en este idioma, y la celda se queda con
+                  ese ancho. Si no, pasar de "abril" a "septiembre" movia la flecha derecha y
+                  la pista. Mismo metodo que la fecha de Eventos (WidestLongDate). La reserva
+                  es la misma en vista año, asi que cambiar de Mes a Año tampoco las mueve.
+                  Todo va dos veces, en largo y en corto, y el @media de 560 elige: en un
+                  telefono "septiembre de 2026" no cabe con las flechas y "Hoy" (ya se salia
+                  de la pantalla antes de la reserva), y "sept 2026" si. */}
+              <h2>
+                <span aria-hidden="true" className="calendar-nav-title-sizer">
+                  <WidestMonthLabel language={language} monthStyle="long" />
+                </span>
+                <span aria-hidden="true" className="calendar-nav-title-sizer is-tight">
+                  <WidestMonthLabel language={language} monthStyle="short" />
+                </span>
+                <span className="calendar-nav-title">{calendarMode === "year" ? visibleYear : visibleMonthLabel}</span>
+                <span className="calendar-nav-title is-tight">{calendarMode === "year" ? visibleYear : visibleMonthLabelShort}</span>
+              </h2>
               <InfoHint text={calendarMode === "year" ? t("journal.calendar.yearSubtitleSuffix") : t("journal.calendar.subtitleSuffix")} />
             </div>
             <button
@@ -4323,10 +4341,51 @@ function formatCompactValue(value: number, language: Language) {
   }).format(value);
 }
 
-function formatMonthLabel(month: string, language: Language) {
+function formatMonthLabel(month: string, language: Language, monthStyle: "long" | "short" = "long") {
   const [year, monthNumber] = normalizeMonth(month).split("-").map(Number);
   const date = new Date(year, monthNumber - 1, 1);
-  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: "long", year: "numeric" }).format(date);
+  /* En corto se quita el punto de la abreviatura, si el idioma lo pone, como en
+     formatMonthAbbrev: "sept 2026", no "sept. 2026". */
+  const label = new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: monthStyle, year: "numeric" }).format(date);
+  return monthStyle === "short" ? label.replace(".", "") : label;
+}
+
+/* El titulo de mes mas ancho que puede salir en este idioma, solo para reservar su hueco.
+   Cambian de ancho el nombre del mes y las cifras del año (DM Sans no trae cifras
+   tabulares: "2011" y "2088" no miden lo mismo), asi que el mes apila los doce nombres y
+   cada cifra del año apila del 0 al 9, cada grupo en una sola celda que se queda con el
+   mas ancho. Sale exacto sin medir nada y sin saber cual gana. Hermano de WidestLongDate
+   en EconomicEventsView. */
+function WidestMonthLabel({ language, monthStyle }: { language: Language; monthStyle: "long" | "short" }) {
+  const parts = useMemo(() => {
+    const format = new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { month: monthStyle, year: "numeric" });
+    /* Sin el punto de la abreviatura, igual que formatMonthLabel: la reserva tiene que
+       medir exactamente lo que se pinta. */
+    const months = Array.from({ length: 12 }, (_, index) =>
+      (format.formatToParts(new Date(2026, index, 1, 12)).find((part) => part.type === "month")?.value ?? "").replace(".", ""),
+    );
+    return format.formatToParts(new Date(2026, 0, 1, 12)).map((part) => {
+      if (part.type === "month") return [months];
+      if (part.type === "year") return part.value.split("").map(() => ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+      return [[part.value]];
+    });
+  }, [language, monthStyle]);
+
+  return (
+    <>
+      {parts.flat().map((options, index) =>
+        options.length === 1 ? (
+          <span key={index}>{options[0]}</span>
+        ) : (
+          <span className="calendar-nav-title-stack" key={index}>
+            {options.map((option) => (
+              <span key={option}>{option}</span>
+            ))}
+          </span>
+        ),
+      )}
+    </>
+  );
 }
 
 /* Nombre corto del mes para la esquina de cada tarjeta de la vista año (mismo hueco que
