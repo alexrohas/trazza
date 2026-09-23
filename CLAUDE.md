@@ -548,7 +548,8 @@ vista previa) y el alta de varias cuentas de `AccountsView`.
   ("Extractos e informes", "Personalizado") no se han visto escritos**: si un usuario dice
   que no los encuentra, es lo primero que mirar. Si un banco cambia sus menús, esto caduca.
 - Pasa por `guard()` como el resto de escrituras (la importación y el enlace), así que
-  respeta el paywall del navegador, con el límite que se cuenta en "Qué queda".
+  respeta el paywall — que desde el 23 de septiembre de 2026 también impone la base de
+  datos (ver "El solo-lectura, también en la base de datos").
 
 Lo que no hace, por si hace falta: no fusiona los nombres de empresa duplicados (si hay
 "lucid" y "Lucid Trading", elige la que más movimientos tiene); los payouts entran con el
@@ -563,6 +564,50 @@ no tenía (Bulenox) creó la empresa, los tres movimientos convertidos y las dos
 una enlazada a su cargo, y al volver a subirlo salió "Nada que importar". Los datos de
 prueba los borró el usuario (ver "Cómo se ha estado trabajando") y se comprobó en Supabase
 que la cuenta quedó igual que al empezar: 7 empresas, 10 cuentas, 26 movimientos.
+
+**El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
+(`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
+`rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
+más grave: las políticas RLS de las siete tablas solo miraban de quién era la fila, así
+que el solo-lectura al caducar lo imponía **solo el navegador**. Sobrescribiendo en las
+DevTools la respuesta de `subscriptions`, o escribiendo con el JWT contra la API, se tenía
+la app entera gratis sin borrar la cuenta ni nada.
+
+`can_write_data()` responde lo mismo que `isSubscriptionAccessActive` en
+`useSubscription.ts`, y cada política "for all" se parte en cuatro: SELECT sigue mirando
+solo la propiedad, e INSERT, UPDATE y DELETE le suman esa función. Detalles que conviene
+no deshacer:
+
+- **La regla está escrita dos veces, en SQL y en TS, y tiene que decir lo mismo.** Sin
+  fila de suscripción se deja escribir, igual que `canMutateData`: es el fail-open de
+  siempre, y por debajo no es alcanzable, porque el trigger de alta crea la fila y nadie
+  desde la app puede borrarla.
+- **En UPDATE, `can_write_data()` va en el WITH CHECK y no en el USING.** En el USING, RLS
+  filtra filas y la edición se iría en cero filas sin decir nada; en el WITH CHECK da un
+  error de verdad. En DELETE no hay WITH CHECK, así que ahí sí es un borrado de cero filas
+  en silencio; es el único caso, y solo lo ve quien se salta el navegador.
+- **Se borran TODAS las políticas de las siete tablas antes de crear las nuevas.** Las
+  permisivas se suman con OR: una sola que sobreviva deja escribir a cualquiera. Por eso
+  los cuatro ficheros que crean las políticas viejas (`supabase-rls.sql`,
+  `supabase-journal.sql`, `supabase-journal-strategies.sql` y
+  `supabase-journal-deleted-defaults.sql`) llevan un aviso encima: reejecutar cualquiera
+  reabre el agujero sin que nada lo diga.
+- **`subscriptions` pasa a ser de solo lectura también por permisos.** `authenticated`
+  tenía INSERT, UPDATE y DELETE concedidos por defecto y lo único que lo paraba era que no
+  hubiera política de escritura. La regla nueva se fía de esa tabla, así que ahora está
+  cerrada por los dos lados. Todo lo que escribe en ella (el trigger de alta y las tres
+  Edge Functions) usa `service_role` y no se entera.
+- **La importación de JSON de Ajustes ya pasa por `guard()`**: era la única escritura que
+  no pasaba, y sin eso un caducado vería el error crudo de RLS en vez del selector de
+  planes.
+- Las Edge Functions siguen igual: `delete-account` borra con `service_role`, así que una
+  cuenta caducada se puede seguir borrando entera.
+
+Verificado con 208 comprobaciones en PGlite (los ocho estados de suscripción posibles ×
+siete tablas × leer, insertar, editar, borrar, más cruces entre usuarios), con un ensayo
+contra producción que se deshace solo y, ya aplicado, repitiendo la prueba con cuatro
+usuarios reales: quien paga crea, edita y borra igual; el caducado lee sus 18 entradas y
+no escribe ninguna; nadie toca lo de otro ni su propia suscripción.
 
 ## Qué queda
 
@@ -587,25 +632,8 @@ modo demo) y los `.sql` ya devolviendo 404. Las dos Edge Functions de Stripe se
 redesplegaron después, con las URLs de retorno apuntando ya a `/app`, y responden
 correctamente.
 
-### Siguiente: el paywall solo vive en el navegador (visto el 22 de septiembre de 2026)
-
-**Es el agujero más grave que queda y el siguiente paso acordado con el usuario**, justo
-después de cerrar el de la prueba por persona. Las políticas RLS de las siete tablas de
-datos (`firms`, `accounts`, `transactions`, `journal_entries`, `journal_error_types`,
-`journal_strategies` y `journal_deleted_default_error_types`) solo comprueban que la fila
-sea tuya (`auth.uid() = user_id`), nunca la suscripción. El solo-lectura al caducar lo
-impone únicamente `canMutateData` en el navegador, así que quien sepa sobrescribir en las
-DevTools la respuesta de `subscriptions`, o escribir con su JWT contra la API, tiene la
-app entera gratis sin borrar nada. Y la importación de JSON de Ajustes ni siquiera pasa
-por `guard()`: `App.tsx` le pasa `dataState.importData` tal cual.
-
-El arreglo es una función `security definer` que diga si el usuario puede escribir —la
-misma regla que `isSubscriptionAccessActive`— metida en las políticas de escritura de esas
-siete tablas, con la lectura intacta (el solo-lectura sigue igual de generoso). Es
-delicado porque toca cada escritura de quien paga: antes hay que comprobar que la app no
-escribe nada sola al cargar (sembrar tipos de error por defecto, por ejemplo), porque eso
-rompería la primera carga de una cuenta caducada, y ensayarlo contra producción con el
-mismo `DO` que se deshace solo.
+El paywall que solo vivía en el navegador se cerró el **23 de septiembre de 2026** (tiene
+sección propia arriba): las escrituras las bloquea ya la base de datos.
 
 ### Qué construir después (análisis de competencia, 17 de septiembre de 2026)
 
