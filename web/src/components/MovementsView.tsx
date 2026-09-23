@@ -173,25 +173,33 @@ export function MovementsView({
   );
   const hasActiveMovementFilters =
     firmFilter !== "all" || kindFilter !== "all" || categoryFilter !== "all" || fromFilter !== "" || toFilter !== "";
+  /* La tabla se lee de lo mas nuevo a lo mas viejo: lo ultimo que apuntas es lo que vienes
+     a mirar, y con paginacion de 20 lo reciente ya no queda en la ultima pagina. El orden
+     se invierte SOLO aqui: loadCloudData sigue devolviendo los movimientos de mas antiguo
+     a mas nuevo porque las graficas y las metricas lo necesitan asi. El sort de JS es
+     estable, asi que dos movimientos del mismo dia conservan el orden que ya tenian entre
+     ellos (no hay hora que los separe: Movement solo guarda la fecha). */
   const filteredMovements = useMemo(
     () =>
-      movements.filter((movement) => {
-        if (firmFilter !== "all" && movement.firmId !== firmFilter) return false;
-        if (kindFilter !== "all" && movement.kind !== kindFilter) return false;
-        if (categoryFilter !== "all" && movement.category !== categoryFilter) return false;
-        if (fromFilter && movement.date < fromFilter) return false;
-        if (toFilter && movement.date > toFilter) return false;
-        return matchesSearch(searchQuery, [
-          movement.date,
-          movement.kind,
-          categoryLabels[movement.category],
-          movement.category,
-          movement.note,
-          movement.amount,
-          firmNameById.get(movement.firmId),
-          accountNameById.get(movement.accountId || ""),
-        ]);
-      }),
+      movements
+        .filter((movement) => {
+          if (firmFilter !== "all" && movement.firmId !== firmFilter) return false;
+          if (kindFilter !== "all" && movement.kind !== kindFilter) return false;
+          if (categoryFilter !== "all" && movement.category !== categoryFilter) return false;
+          if (fromFilter && movement.date < fromFilter) return false;
+          if (toFilter && movement.date > toFilter) return false;
+          return matchesSearch(searchQuery, [
+            movement.date,
+            movement.kind,
+            categoryLabels[movement.category],
+            movement.category,
+            movement.note,
+            movement.amount,
+            firmNameById.get(movement.firmId),
+            accountNameById.get(movement.accountId || ""),
+          ]);
+        })
+        .sort((left, right) => right.date.localeCompare(left.date)),
     [accountNameById, categoryFilter, firmFilter, firmNameById, fromFilter, kindFilter, movements, searchQuery, toFilter],
   );
 
