@@ -89,6 +89,7 @@ export default function App() {
       saveJournalErrorType: guard(dataState.saveJournalErrorType),
       saveJournalStrategy: guard(dataState.saveJournalStrategy),
       saveMovement: guard(dataState.saveMovement),
+      importData: guard(dataState.importData),
       importMovements: guard(dataState.importMovements),
       linkMovementsToAccounts: guard(dataState.linkMovementsToAccounts),
       deleteJournalErrorType: guard(dataState.deleteJournalErrorType),
@@ -354,7 +355,7 @@ export default function App() {
           profile={auth.profile}
           theme={themeState.theme}
           onDeleteAccount={auth.deleteAccount}
-          onImportData={dataState.importData}
+          onImportData={guarded.importData}
           onThemeChange={themeState.setTheme}
           onUpdateProfile={auth.updateProfile}
           subscription={subscription}

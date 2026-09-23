@@ -54,6 +54,11 @@ alter table public.journal_strategies force row level security;
 
 grant select, insert, update, delete on table public.journal_strategies to authenticated;
 
+-- OJO: estas politicas "for all" ya NO son las que corren en produccion.
+-- supabase-rls-subscription-writes.sql las parte en cuatro (SELECT libre; INSERT, UPDATE y
+-- DELETE solo con prueba viva o suscripcion). Reejecutar este fichero deja escribir otra
+-- vez a cualquiera, pague o no, y sin que nada avise: si lo ejecutas, ejecuta aquel justo
+-- despues.
 drop policy if exists "Journal strategies are private" on public.journal_strategies;
 create policy "Journal strategies are private"
   on public.journal_strategies

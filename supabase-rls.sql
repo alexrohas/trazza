@@ -41,6 +41,12 @@ grant select, insert, update, delete on table public.transactions to authenticat
 grant select, insert, update, delete on table public.journal_entries to authenticated;
 grant select, insert, update, delete on table public.journal_error_types to authenticated;
 
+-- OJO: estas politicas "for all" ya NO son las que corren en produccion.
+-- supabase-rls-subscription-writes.sql las parte en cuatro (SELECT libre; INSERT, UPDATE y
+-- DELETE solo con prueba viva o suscripcion). Reejecutar este fichero deja escribir otra
+-- vez a cualquiera, pague o no, y sin que nada avise: si lo ejecutas, ejecuta aquel justo
+-- despues.
+
 -- Remove any old policy on private app tables so no permissive policy remains.
 do $$
 declare

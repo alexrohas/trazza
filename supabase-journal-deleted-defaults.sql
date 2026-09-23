@@ -49,6 +49,11 @@ alter table public.journal_deleted_default_error_types force row level security;
 revoke all on table public.journal_deleted_default_error_types from anon;
 grant select, insert, delete on table public.journal_deleted_default_error_types to authenticated;
 
+-- OJO: estas politicas "for all" ya NO son las que corren en produccion.
+-- supabase-rls-subscription-writes.sql las parte en cuatro (SELECT libre; INSERT, UPDATE y
+-- DELETE solo con prueba viva o suscripcion). Reejecutar este fichero deja escribir otra
+-- vez a cualquiera, pague o no, y sin que nada avise: si lo ejecutas, ejecuta aquel justo
+-- despues.
 drop policy if exists "Deleted default error types are private" on public.journal_deleted_default_error_types;
 create policy "Deleted default error types are private"
   on public.journal_deleted_default_error_types

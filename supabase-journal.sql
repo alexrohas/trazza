@@ -76,6 +76,11 @@ alter table public.journal_entries force row level security;
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.journal_entries to authenticated;
 
+-- OJO: estas politicas "for all" ya NO son las que corren en produccion.
+-- supabase-rls-subscription-writes.sql las parte en cuatro (SELECT libre; INSERT, UPDATE y
+-- DELETE solo con prueba viva o suscripcion). Reejecutar este fichero deja escribir otra
+-- vez a cualquiera, pague o no, y sin que nada avise: si lo ejecutas, ejecuta aquel justo
+-- despues.
 drop policy if exists "Journal entries are private" on public.journal_entries;
 create policy "Journal entries are private"
   on public.journal_entries
@@ -140,6 +145,11 @@ alter table public.journal_error_types force row level security;
 
 grant select, insert, update, delete on table public.journal_error_types to authenticated;
 
+-- OJO: estas politicas "for all" ya NO son las que corren en produccion.
+-- supabase-rls-subscription-writes.sql las parte en cuatro (SELECT libre; INSERT, UPDATE y
+-- DELETE solo con prueba viva o suscripcion). Reejecutar este fichero deja escribir otra
+-- vez a cualquiera, pague o no, y sin que nada avise: si lo ejecutas, ejecuta aquel justo
+-- despues.
 drop policy if exists "Journal error types are private" on public.journal_error_types;
 create policy "Journal error types are private"
   on public.journal_error_types
