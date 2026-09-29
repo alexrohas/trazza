@@ -667,6 +667,34 @@ un fallo que en la demo no salía: pedir el tutorial desde "⋯" mientras el aut
 estaba abierto dejaba la petición pendiente, y al cerrarlo se volvía a abrir desde el paso
 1. Si hay uno abierto, la petición ya cuenta como atendida.
 
+**"Ver detalles" en Cuentas**, el **29 de septiembre de 2026** (`098d974`). Cada cuenta
+activa lleva un botón que abre el Dashboard del Journal con esa cuenta elegida, arriba del
+todo (`viewAccountDetails` en `App.tsx`). Tres cosas que no son obvias:
+
+- **La cuenta elegida en el Journal es global y filtra Cuentas, Movimientos y Trades**
+  (`selectedAccountId` en `App.tsx`, igual que en el legado). Eso ya era así, pero no lo
+  decía nada, y con el botón pasaba a menudo: se volvía a Cuentas y había una sola cuenta.
+  Ahora esas tres pantallas enseñan "Estás viendo solo «…»" con "Ver todas las cuentas"
+  (`AccountScopeNotice`, con la métrica exacta de `.subscription-notice`); en el Dashboard
+  no, porque ahí lo dice el propio selector. Y si la cuenta elegida se borra, la selección
+  vuelve sola a "todas", o esas pantallas se quedarían vacías sin explicación.
+- **Un solo botón con texto por tarjeta, y el resto iconos**: "Editar" pasó a lápiz, junto
+  a ocultar y borrar (`.card-edit`). Con dos botones de texto no cabían: "Ver detalles"
+  pide 130px en una línea y en la tarjeta mínima de la rejilla (320) a la fila le quedan
+  272, así que saltaba a dos líneas hasta a 1024px. Donde sigue sin caber pasa a
+  "Detalles", con la regla de emitir los dos textos y que elija el CSS.
+- **Ese corte es una container query sobre la tarjeta, y mide su CONTENIDO**, sin los 24px
+  de relleno por lado. Con el corte calculado sobre el ancho total salía "Detalles" en
+  tarjetas de 380 donde cabía la versión larga. Las cuentas están en el comentario de
+  `.account-details-short`: sale la corta por debajo de 312px de contenido.
+
+Se añadió también el paso "Ver detalles" al tutorial de Cuentas, **y es el primer paso
+añadido después de publicar los tutoriales**: comprobado que a quien ya había visto el de
+Cuentas le sale solo ese.
+
+Verificado a 360, 375, 414, 768, 896, 1024, 1440 y 1920px, en los dos idiomas: el botón
+en una línea siempre y sin salirse de la tarjeta.
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -1035,7 +1063,10 @@ sesión no vuelva a pisarlas.
   el calendario no (la fila pedía 333px en un panel de 331). El contenedor es
   `.journal-calendar-panel > .panel-heading` (`container-type: inline-size`) y el corte,
   `@container (max-width: 359px)`. Ojo: un elemento no puede consultar su propio ancho,
-  así que el contenedor tiene que ser un ancestro del texto que cambia.
+  así que el contenedor tiene que ser un ancestro del texto que cambia. **Y la consulta
+  mide el contenido del contenedor, no su caja entera**: si tiene relleno, el corte va
+  sobre el ancho menos el relleno. Con "Ver detalles" (29 de septiembre de 2026) se puso
+  sobre el ancho de la tarjeta y la versión corta salía en tarjetas donde cabía la larga.
 - **Un título que cambia de ancho entre flechas se sujeta con una reserva invisible, no
   con un `min-width` a ojo.** El `h2` es una rejilla de una celda: dentro va, oculto con
   `visibility: hidden`, el texto más ancho posible, y el real se pinta encima en la misma
@@ -1289,6 +1320,11 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   así que no cuentes con ella como plan B — el plan B es el script. Con él se puede además
   recorrer la app entera sola (pulsando `.nav-group button` por su texto) y auditar las
   siete pantallas de una pasada, que es como salieron casi todos los fallos de móvil.
+- **Para saber si un texto cabe en una línea, mide su alto (o sus líneas), no su ancho.**
+  Un botón con `flex: 1` que no cabe no se desborda: parte el texto en dos líneas y crece
+  en alto, y `scrollWidth > clientWidth` sigue diciendo que cabe. Así se dio por bueno
+  "Ver detalles" a 1024px cuando medía 43px de alto en vez de 38. Lo fiable: el alto
+  contra el de sus vecinos, o `getClientRects().length` de un `Range` sobre el texto.
 - **Al auditar por script, distingue el desborde real del que tú mismo has provocado.** Un
   pseudoelemento transparente que agranda una zona de pulsación infla el `scrollWidth` de
   su botón y el de todos sus contenedores, así que un chequeo ingenuo de
