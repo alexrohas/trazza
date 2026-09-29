@@ -1377,6 +1377,7 @@ export function JournalEntriesView({
           active={hasActiveJournalFilters}
           isOpen={filtersOpen}
           onClick={() => setFiltersOpen((current) => !current)}
+          tourId="journal-filters"
         />
       </div>
       {filtersOpen && (
@@ -1429,10 +1430,10 @@ export function JournalEntriesView({
                 selector que en Cuentas/Movimientos. Al elegir una cuenta aparece debajo
                 JournalAccountOverviewPanel (balance, net P&L, reglas de la cuenta), que
                 ya estaba construido y solo le faltaba este disparador. */}
-            <div className="journal-cockpit-account-filter">
+            <div className="journal-cockpit-account-filter" data-tour="journal-account">
               <Select onChange={onSelectedAccountIdChange} options={cockpitAccountOptions} value={selectedAccountId} />
             </div>
-            <button className="secondary-action" onClick={() => setCustomizeOpen(true)} type="button">
+            <button className="secondary-action" data-tour="journal-customize" onClick={() => setCustomizeOpen(true)} type="button">
               <LayoutGrid size={16} strokeWidth={2.2} />
               {t("journal.cockpit.customize")}
             </button>
@@ -1469,6 +1470,7 @@ export function JournalEntriesView({
                   className={`journal-dashboard-widget ${draggingWidgetId === id ? "is-dragging" : ""} ${
                     dragOverWidgetId === id && draggingWidgetId !== id ? "is-drag-over" : ""
                   }`}
+                  data-tour={`journal-widget-${id}`}
                   data-widget-size={journalWidgetSizes[id]}
                   key={id}
                   onDragEnd={() => {
@@ -2298,7 +2300,7 @@ export function JournalEntriesView({
           (.journal-card lleva borde y sombra), envolverlas todas en una tarjeta mas
           era una tarjeta dentro de otra. Mismo criterio que .account-card-grid en
           Cuentas, que tampoco va dentro de un .panel. */}
-      <section className="journal-gallery" aria-label={t("journal.list.title")}>
+      <section className="journal-gallery" aria-label={t("journal.list.title")} data-tour="journal-gallery">
         {filteredEntries.map((entry) => (
           <article
             aria-label={`${entry.symbol} ${entry.date}`}

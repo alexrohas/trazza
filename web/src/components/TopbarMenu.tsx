@@ -136,7 +136,7 @@ export function TopbarMenu({ items, label }: TopbarMenuProps) {
   };
 
   return (
-    <div className="topbar-menu" ref={rootRef}>
+    <div className="topbar-menu" data-tour="topbar-menu" ref={rootRef}>
       <button
         aria-expanded={isOpen}
         aria-haspopup="menu"

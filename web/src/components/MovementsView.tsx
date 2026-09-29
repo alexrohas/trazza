@@ -516,7 +516,7 @@ export function MovementsView({
       <div className="dashboard-filter-bar">
         {/* Abierto tambien en demo: la vista previa no guarda nada y se puede ver entera;
             es el boton de importar de dentro el que respeta canWrite. */}
-        <button className="secondary-action" onClick={() => setImportOpen(true)} type="button">
+        <button className="secondary-action" data-tour="movements-import" onClick={() => setImportOpen(true)} type="button">
           <FileUp size={16} strokeWidth={2.2} />
           {t("movement.import.open")}
         </button>
@@ -572,7 +572,7 @@ export function MovementsView({
       {/* Sin cabecera propia: la tabla es el resultado del panel de filtros de arriba, no
           otra seccion. Repetirla dejaba "Movimientos" tres veces en la misma pantalla
           (titulo de vista, filtros y tabla). Mismo criterio que la rejilla de Empresas. */}
-      <section className="panel table-panel">
+      <section className="panel table-panel" data-tour="movements-table">
         <div className="table-scroll">
           <table>
             <thead>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Download, FileDown, FileUp, Languages, Moon, Save, Sun, Trash2 } from "lucide-react";
+import { Check, CircleHelp, Copy, Download, FileDown, FileUp, Languages, Moon, Save, Sun, Trash2 } from "lucide-react";
 import {
   findLocalMigrationSource,
   hasImportData,
@@ -38,6 +38,8 @@ type SettingsViewProps = {
   theme: "light" | "dark";
   onDeleteAccount: () => Promise<boolean>;
   onImportData: (data: AppData) => Promise<boolean>;
+  /* "Volver a ver los tutoriales": todos, desde el principio (ver useTourState). */
+  onResetTours: () => void;
   onThemeChange: (theme: "light" | "dark") => void;
   onUpdateProfile: (input: UserProfileInput) => Promise<boolean>;
   onViewPlans: () => void;
@@ -53,6 +55,7 @@ export function SettingsView({
   mutating,
   onDeleteAccount,
   onImportData,
+  onResetTours,
   onThemeChange,
   onUpdateProfile,
   onViewPlans,
@@ -61,6 +64,7 @@ export function SettingsView({
   theme,
 }: SettingsViewProps) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [toursReset, setToursReset] = useState(false);
   const [draft, setDraft] = useState<UserProfileInput>({
     currency: profile?.currency ?? "EUR",
     displayName: profile?.displayName ?? "",
@@ -135,7 +139,7 @@ export function SettingsView({
     <div className="settings-grid">
       <SubscriptionPanel onViewPlans={onViewPlans} subscription={subscription} />
 
-      <section className="panel settings-panel">
+      <section className="panel settings-panel" data-tour="settings-profile">
         <div className="panel-heading">
           <div>
             <h2>{t("settings.profile.title")}</h2>
@@ -185,7 +189,7 @@ export function SettingsView({
         </form>
       </section>
 
-      <section className="panel settings-panel">
+      <section className="panel settings-panel" data-tour="settings-preferences">
         <div className="panel-heading">
           <div>
             <h2>{t("settings.preferences.title")}</h2>
@@ -218,6 +222,23 @@ export function SettingsView({
             </button>
           </div>
         </div>
+        {/* Deshace "No mostrar más" y los ya vistos de una vez. El de una sola pantalla se
+            ve desde el menú "⋯", sin tocar los demás. */}
+        <div className="preference-row">
+          <span className="preference-label">{t("settings.tutorials.title")}</span>
+          <button
+            className="secondary-action"
+            disabled={toursReset}
+            onClick={() => {
+              onResetTours();
+              setToursReset(true);
+            }}
+            type="button"
+          >
+            {toursReset ? <Check size={16} strokeWidth={2.6} /> : <CircleHelp size={16} strokeWidth={2.2} />}
+            {toursReset ? t("settings.tutorials.resetDone") : t("settings.tutorials.reset")}
+          </button>
+        </div>
       </section>
 
       <section className="panel settings-panel">
@@ -236,7 +257,7 @@ export function SettingsView({
         </div>
       </section>
 
-      <section className="panel settings-panel">
+      <section className="panel settings-panel" data-tour="settings-data">
         <div className="panel-heading">
           <div>
             <h2>{t("settings.data.title")}</h2>

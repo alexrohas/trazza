@@ -846,7 +846,7 @@ export function AccountsView({
             metricas: antes vivian en su propia tarjeta "Listado" debajo, que no aportaba
             nada por si sola y duplicaba el aire que ya daba esta. grid-column:1/-1 para
             que la fila ocupe las dos columnas del grid de arriba (copy + stats). */}
-        <div className="overview-tabs-row">
+        <div className="overview-tabs-row" data-tour="accounts-overview">
           <div className="account-status-tabs" role="tablist" aria-label={t("account.filter.tabsLabel")}>
             {accountStatusFilters.map((option) => {
               const count = option.value === "all" ? accounts.length : statusCounts[option.value];
@@ -927,7 +927,7 @@ export function AccountsView({
           sigue corriendo era el motivo real de que la pantalla se sintiera cargada: con
           8 de 9 cuentas terminadas, lo unico vivo quedaba enterrado entre lo muerto. */}
       <section className="account-card-grid" aria-label={t("account.card.gridLabel")}>
-        {liveAccounts.map((account) => {
+        {liveAccounts.map((account, accountIndex) => {
           const relatedMovements = movements.some((movement) => movement.accountId === account.id);
           const relatedJournal = journalEntries.some((entry) => entry.accountId === account.id);
           const deleteDisabled = !canWrite || mutating || relatedMovements || relatedJournal;
@@ -953,7 +953,11 @@ export function AccountsView({
           const isHidden = account.visible === false;
 
           return (
-            <article className={`account-card ${account.status} ${isHidden ? "is-hidden" : ""}`} key={account.id}>
+            <article
+              className={`account-card ${account.status} ${isHidden ? "is-hidden" : ""}`}
+              data-tour={accountIndex === 0 ? "account-card" : undefined}
+              key={account.id}
+            >
               <div className="account-card-head">
                 <div>
                   <span className={`account-status-pill ${account.status}`}>{accountStatusLabelByValue.get(account.status) || account.status}</span>

@@ -9,12 +9,14 @@ import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
 import { PlansModal } from "./components/PlansModal";
+import { ProductTour } from "./components/ProductTour";
 import { SettingsView } from "./components/SettingsView";
 import { SubscriptionNotice } from "./components/SubscriptionNotice";
 import { Wordmark } from "./components/Wordmark";
 import { useAuth } from "./hooks/useAuth";
 import { useSubscription } from "./hooks/useSubscription";
 import { useTheme } from "./hooks/useTheme";
+import { useTourState } from "./hooks/useTourState";
 import { useTrazzaData } from "./hooks/useTrazzaData";
 import { entryParams } from "./lib/entryParams";
 import { useI18n, useT } from "./lib/i18n/context";
@@ -53,6 +55,11 @@ export default function App() {
   const dataState = useTrazzaData(auth.user?.id, auth.status === "authenticated");
   const subscription = useSubscription(auth.user);
   const [plansOpen, setPlansOpen] = useState(false);
+  /* Tutoriales: qué se ha visto (en la cuenta, ver useTourState) y la petición de ver el
+     de la pantalla actual desde el menú "⋯". El id sube en cada petición, como en
+     createRequest, para que pedirlo dos veces lo vuelva a abrir. */
+  const tourState = useTourState(auth.user ?? null);
+  const [tourRequest, setTourRequest] = useState<{ id: number; view: NavigationView } | null>(null);
   const { accounts, deletedDefaultErrorTypeIds, firms, journalEntries, journalErrorTypes, journalStrategies, movements } = dataState.data;
   const currency = auth.profile?.currency ?? "EUR";
 
@@ -217,6 +224,7 @@ export default function App() {
       }}
       onPrivacyToggle={() => setPrivacyHidden((value) => !value)}
       onRefresh={() => void dataState.reload()}
+      onShowTour={() => setTourRequest((current) => ({ id: (current?.id || 0) + 1, view: activeView }))}
       onSignOut={auth.status === "authenticated" ? () => void auth.signOut() : undefined}
       onThemeToggle={() => themeState.setTheme(themeState.theme === "dark" ? "light" : "dark")}
       onViewChange={setActiveView}
@@ -356,12 +364,26 @@ export default function App() {
           theme={themeState.theme}
           onDeleteAccount={auth.deleteAccount}
           onImportData={guarded.importData}
+          onResetTours={tourState.resetAll}
           onThemeChange={themeState.setTheme}
           onUpdateProfile={auth.updateProfile}
           subscription={subscription}
           onViewPlans={() => setPlansOpen(true)}
         />
       )}
+
+      {/* Con sesión, cuando los datos ya han llegado (antes no hay nada que señalar). En el
+          servidor demo, siempre: ahí se prueba, y lo visto se guarda en el navegador. */}
+      <ProductTour
+        contentKey={`${firms.length}.${accounts.length}.${movements.length}.${journalEntries.length}`}
+        onDisableAll={tourState.disableAll}
+        onRequestHandled={() => setTourRequest(null)}
+        onSeen={tourState.markSeen}
+        ready={auth.status === "authenticated" ? dataState.status === "ready" : auth.status === "unconfigured"}
+        request={tourRequest}
+        state={tourState.state}
+        view={activeView}
+      />
 
       {plansOpen && (
         <PlansModal

@@ -81,7 +81,7 @@ export function EconomicEventsView() {
       <section className="panel economic-events-panel">
         <div className="panel-heading">
           {/* Las flechas y la fecha hacen de titulo: es lo que se mira y lo que se toca. */}
-          <div className="economic-events-nav">
+          <div className="economic-events-nav" data-tour="events-nav">
             <button aria-label={t("events.range.previous")} className="icon-control compact-icon" onClick={() => shift(-1)} type="button">
               <ChevronLeft size={17} strokeWidth={2.2} />
             </button>
@@ -107,7 +107,7 @@ export function EconomicEventsView() {
           {/* La pista sale dos veces y el @media elige: junto a la fecha en escritorio y
               junto a "Ajustes" en el movil, donde la fila de la fecha necesita su ancho. */}
           <div className="economic-events-actions">
-            <button className="secondary-action" onClick={() => setSettingsOpen(true)} type="button">
+            <button className="secondary-action" data-tour="events-settings" onClick={() => setSettingsOpen(true)} type="button">
               <SlidersHorizontal size={16} strokeWidth={2.2} />
               {t("events.settings.open")}
             </button>

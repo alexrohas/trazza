@@ -102,7 +102,7 @@ export function TaxSummaryPanel({ accounts, currency, firms, movements }: TaxSum
   };
 
   return (
-    <section className="panel tax-summary-panel">
+    <section className="panel tax-summary-panel" data-tour="tax-summary">
       <div className="panel-heading">
         <div className="panel-title-row">
           <h2>{t("tax.title")}</h2>

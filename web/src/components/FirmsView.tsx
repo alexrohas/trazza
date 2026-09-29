@@ -217,7 +217,7 @@ export function FirmsView({
       </Modal>
       )}
 
-      <section className="panel firm-overview-panel">
+      <section className="panel firm-overview-panel" data-tour="firms-overview">
         <div className="firm-overview-copy">
           <span className="section-kicker">{t("firm.overview.kicker")}</span>
           <h2>{t("firm.overview.title")}</h2>
@@ -271,14 +271,14 @@ export function FirmsView({
       </section>
 
       <section className="directory-grid firms-grid">
-        {filteredFirms.map((firm) => {
+        {filteredFirms.map((firm, firmIndex) => {
           const firmStats = firmStatsById.get(firm.id) || { active: 0, funded: 0, inactive: 0, total: 0 };
           const activeShare = firmStats.total ? Math.round((firmStats.active / firmStats.total) * 100) : 0;
           const deleteDisabled = !canWrite || mutating || firmStats.total > 0;
           const firmLogo = getFirmLogo(firm.name);
 
           return (
-            <article className="directory-card firm-card" key={firm.id}>
+            <article className="directory-card firm-card" data-tour={firmIndex === 0 ? "firm-card" : undefined} key={firm.id}>
               <div className="firm-card-header">
                 {/* Logo propio si existe uno en src/assets/firm-logos, y si no el
                     monograma con color derivado del nombre. El monograma no es un

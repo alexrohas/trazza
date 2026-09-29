@@ -5,9 +5,11 @@ type FilterToggleButtonProps = {
   active: boolean;
   isOpen: boolean;
   onClick: () => void;
+  /** Para que un tutorial lo señale (ver lib/tours.ts). */
+  tourId?: string;
 };
 
-export function FilterToggleButton({ active, isOpen, onClick }: FilterToggleButtonProps) {
+export function FilterToggleButton({ active, isOpen, onClick, tourId }: FilterToggleButtonProps) {
   const t = useT();
 
   return (
@@ -15,6 +17,7 @@ export function FilterToggleButton({ active, isOpen, onClick }: FilterToggleButt
       aria-expanded={isOpen}
       aria-label={t("common.filters")}
       className={`filter-toggle-button ${active ? "has-active-filters" : ""}`}
+      data-tour={tourId}
       onClick={onClick}
       type="button"
     >

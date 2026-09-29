@@ -2739,6 +2739,145 @@ button {
   cursor: not-allowed;
 }
 
+/* TUTORIAL (ProductTour). Tres capas por encima de todo, modales incluidos (que van en
+   el 120): una que tapa la pagina para que no se pueda pulsar nada de debajo, el hueco que
+   oscurece todo menos la zona de la que se habla, y la tarjeta con el texto. El oscuro es
+   el mismo que el fondo de los modales, para que se lea como parte de la app y no como
+   algo pegado encima. */
+.tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+}
+
+.tour-blocker {
+  position: absolute;
+  inset: 0;
+}
+
+/* Sin transicion en la posicion a proposito: la mueve el JS en cada fotograma, que es lo
+   que le deja seguir a la zona mientras la pagina se desplaza. Con una transicion CSS
+   encima iria siempre un poco por detras. El viaje entre un paso y otro tambien lo hace
+   el JS (ver TRAVEL_MS en ProductTour). La sombra de 200vmax es el oscuro de alrededor. */
+.tour-spotlight {
+  position: fixed;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 200vmax rgba(8, 9, 11, 0.62);
+  pointer-events: none;
+  animation: fade-in var(--dur) var(--ease) backwards;
+}
+
+.tour-spotlight.has-target {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+}
+
+/* Escalera propia, de fuera a dentro: el borde de la tarjeta (16), la cabecera del texto
+   (12), el texto de las acciones (16) y el titulo de su frase (4), que es lo que va mas
+   junto. Invisible hasta que el hueco llega a su sitio: si apareciera antes, saltaria. */
+.tour-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.tour-card.is-settled {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.tour-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.tour-progress {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-card h2 {
+  margin: 0 0 var(--space-3xs);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+}
+
+.tour-card p {
+  margin: 0;
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+/* El boton principal de la app mide 44 de alto; aqui va a los 38 de su vecino, para que
+   "Anterior" y "Siguiente" se lean como una pareja. */
+.tour-actions .primary-action {
+  min-height: 38px;
+  padding: 0 var(--space-base);
+  font-size: var(--text-sm);
+}
+
+/* "Saltar" y "No mostrar mas": texto y no boton, para que no compitan con "Siguiente",
+   que es lo que se quiere que se pulse. */
+.tour-link {
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.tour-link:hover {
+  color: var(--text);
+}
+
+.tour-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tour-disable {
+  justify-self: start;
+  margin-top: var(--space-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spotlight {
+    animation: none;
+  }
+
+  .tour-card {
+    transition: none;
+  }
+}
+
 .modal-layer {
   position: fixed;
   inset: 0;

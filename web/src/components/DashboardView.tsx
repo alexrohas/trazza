@@ -192,7 +192,7 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
       </section>
       )}
 
-      <section className="metric-grid" aria-label={t("dashboard.metrics.label")}>
+      <section className="metric-grid" aria-label={t("dashboard.metrics.label")} data-tour="dashboard-metrics">
         <MetricCard
           hint={scopeLabel}
           icon={<TrendingUp size={16} strokeWidth={2.2} />}

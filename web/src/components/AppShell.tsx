@@ -3,6 +3,7 @@ import {
   BookOpenText,
   Building2,
   CalendarClock,
+  CircleHelp,
   CircleDollarSign,
   Eye,
   EyeOff,
@@ -36,6 +37,8 @@ type AppShellProps = {
   theme: "dark" | "light";
   onPrimaryAction?: () => void;
   onRefresh?: () => void;
+  /* "Ver el tutorial de esta pantalla" (ver ProductTour). */
+  onShowTour?: () => void;
   onSignOut?: () => void;
   onThemeToggle: () => void;
   onPrivacyToggle: () => void;
@@ -97,6 +100,7 @@ export function AppShell({
   onPrimaryAction,
   onPrivacyToggle,
   onRefresh,
+  onShowTour,
   onSignOut,
   onThemeToggle,
   onViewChange,
@@ -195,6 +199,14 @@ export function AppShell({
         keepOpen: true,
       },
     ];
+    if (onShowTour) {
+      items.push({
+        id: "tour",
+        label: t("tour.menuItem"),
+        icon: CircleHelp,
+        onSelect: onShowTour,
+      });
+    }
     if (onRefresh) {
       items.push({
         id: "sync",
@@ -213,7 +225,7 @@ export function AppShell({
       });
     }
     return items;
-  }, [t, language, setLanguage, onRefresh, onSignOut, isSyncing]);
+  }, [t, language, setLanguage, onShowTour, onRefresh, onSignOut, isSyncing]);
 
   return (
     <div
@@ -248,7 +260,7 @@ export function AppShell({
             interruptor, los dos grupos se ven siempre (antes cambiar de area escondia
             el otro grupo entero), y el encabezado de cada grupo ya no es redundante
             porque es la unica vez que aparece ese nombre. */}
-        <nav className="nav-list" aria-label={t("appShell.sidebar.menuLabel")}>
+        <nav className="nav-list" aria-label={t("appShell.sidebar.menuLabel")} data-tour="nav">
           <div className="nav-group">
             <p>{t("appShell.nav.finance")}</p>
             {financeItems.map((item) => {
@@ -309,6 +321,7 @@ export function AppShell({
               aria-expanded={mobileNavOpen}
               aria-label={t("appShell.sidebar.open")}
               className="nav-trigger"
+              data-tour="nav-trigger"
               onClick={() => setMobileNavOpen(true)}
               type="button"
             >
@@ -330,7 +343,7 @@ export function AppShell({
             {/* Mantiene la etiqueta visible; solo iguala la altura (38) a la de los
                 controles de al lado, sin ser mas alto como antes. */}
             {!viewsWithoutPrimaryAction.has(activeView) && (
-              <button aria-label={activeCopy.primary} className="primary-action topbar-primary" onClick={onPrimaryAction} type="button">
+              <button aria-label={activeCopy.primary} className="primary-action topbar-primary" data-tour="primary-action" onClick={onPrimaryAction} type="button">
                 <Plus size={17} strokeWidth={2.3} />
                 <span>{activeCopy.primary}</span>
               </button>
