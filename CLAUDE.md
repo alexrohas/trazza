@@ -195,7 +195,7 @@ por página) donde antes se pintaban todas las filas de golpe.
 **El corte a React y la landing nueva**, el **7 de septiembre de 2026**. El legado salió
 de la raíz a `legacy/`, el dominio pasó a servir el build de Vite (ver la primera sección)
 y la landing se rehízo entera sobre los tokens de la app: mismo morado, misma letra,
-mismas sombras y la misma cinta de colores que hay detrás de la tarjeta de acceso, que es
+mismas sombras y la misma cinta de colores que hay detrás del formulario de acceso, que es
 lo que hace que entrar en el producto no parezca cambiar de sitio. Es un archivo estático
 (`web/index.html` + `src/landing/`) y **no arrastra el bundle de React**: 22 kB de CSS y
 7 kB de JS, frente a los 692 de la app.
@@ -719,6 +719,64 @@ clic en el texto ya no toca la negrita; negrita, cursiva sobre selección, lista
 los botones y deshacer funcionan; y los tres casos de pegado (sin foco, texto con imagen en
 las notas, solo imagen en las notas) hacen lo que deben.
 
+**El login sin tarjeta**, el **30 de septiembre de 2026** (`afb661e`). Lo pidió el usuario a
+partir del login de otra web: sin tarjeta ni bordes, las cosas "flotando", un botón para ver
+la contraseña, los enlaces legales en color en vez de subrayados, y el cambio a registro
+como una frase con enlace ("¿No tienes cuenta? Regístrate gratis") y no como un botón.
+`AuthScreen.tsx`, `PasswordField.tsx` (nuevo) y la zona `.auth-*` de `styles.css`.
+
+Lo que no es obvio y conviene no deshacer:
+
+- **En pantalla ancha la cinta pasa por detrás del formulario sin nada en medio, y eso lo
+  eligió el usuario sabiendo lo que cuesta.** Hasta 820px (el corte del cajón del menú)
+  hay un halo del color del fondo al 85 %; por encima, nada. Se probaron, midiendo el
+  contraste sobre la captura, el halo opaco, al 70, 75, 80, 85 y 90 %, al 10 % y sin halo. En
+  el móvil no hay discusión: la cinta cruza el formulario por el medio y sin halo "política
+  de privacidad" se quedaba en 1,8:1 en claro y en 1:1 en oscuro (morado sobre naranja).
+  En escritorio solo roza su borde derecho, y el usuario prefirió verla entera aunque el
+  final de "¿Olvidaste tu contraseña?" y de la línea legal pierdan contraste: entre 1,8 y
+  3,5:1 de 1280 a 1536px, y peor cuanto más estrecha es la pantalla, porque la cinta se
+  coloca en % del ancho y el formulario no. Si alguien lo reporta, lo limpio es subir el
+  corte del halo, no oscurecer los textos. Un resplandor en los propios textos
+  (`text-shadow` del color del fondo) se probó y no mejoraba casi nada.
+- **El halo es la sombra de una caja más pequeña que el formulario** (`.auth-layout::before`,
+  60px hacia dentro), no una caja más grande: la sombra no cuenta como desbordamiento, y
+  una caja que se saliera sacaba barra horizontal en el teléfono. Su color es
+  `--auth-bg`, la misma variable que pinta el fondo de la pantalla (blanco puro, negro
+  puro): si no coincidieran se vería el contorno. Y su transparencia va en `opacity` y no
+  en el color, por la trampa de la sombra translúcida (ver "Trampas ya pisadas"). Las
+  cuentas de por qué no se ve el canto de la caja están en el comentario.
+- **`PasswordField` vuelve a ocultar la contraseña al enviar**, a mano sobre el DOM además
+  de con el estado: React repinta después del envío, y con el campo aún en `text` el
+  navegador puede guardarla en el historial de los campos de texto normales. El botón va
+  **después** del campo dentro del `<label>` (el label pasa sus clics al primer control,
+  ver la trampa del editor de notas) y lleva `onMouseDown` con `preventDefault` para no
+  quitarle el foco al campo. Edge pinta su propio ojo en los campos de contraseña y se
+  oculta (`::-ms-reveal`) para que no salgan dos.
+- **En el móvil (620px o menos) el logo y los botones de idioma y tema van en su propia
+  fila**, no fijos en las esquinas: con el título centrado, el registro a 375×667 no cabía
+  de sobra y el título se metía debajo de los botones.
+- **La cinta pasó a `position: fixed`.** En `absolute`, dentro de `.auth-screen` (que hace
+  scroll), su 150 % de alto contaba como contenido y la pantalla de acceso se podía
+  desplazar 214px con la rueda. Venía de antes y no lo había visto nadie.
+- Los enlaces legales van en `--accent-strong` y no en `--accent`: a 12px sobre blanco,
+  `--accent` da 4,2:1 y `--accent-strong` 5,8. "Regístrate gratis" crece a 44px de zona
+  de pulsación con un pseudoelemento, y el foco de teclado de los enlaces y del "Mostrar"
+  va en morado, como `.tour-link`.
+
+De paso: las tildes que faltaban en la pantalla de acceso ("Contrasena", "Iniciar sesion",
+"terminos"…), el ejemplo de email traducido al inglés, y fuera 14 claves de i18n y las
+reglas `.auth-provider*` de un diseño anterior que ya no usaba nadie.
+
+Verificado con un Chrome sin ventana y un perfil limpio contra el 5174 (ver "Cómo se ha
+estado trabajando"): escritorio y móvil (320, 375, 390, 414, 820/821, 1280 y 1440px), claro
+y oscuro, los dos idiomas y los tres modos, sin nada fuera de la pantalla ni solapado; el
+botón de mostrar con ratón y teclado de verdad (eventos de CDP), y el envío con la petición a
+Supabase cortada en el propio navegador para no tocar producción. **La pantalla de nueva
+contraseña (`ResetPasswordScreen` en `App.tsx`) usa las mismas piezas pero no se ha visto**:
+solo se abre desde un enlace de recuperación real. Queda un detalle a 320px (el iPhone SE de
+2016): "Mínimo 6 caracteres" no cabe entero junto al "Mostrar".
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -1192,6 +1250,11 @@ sesión no vuelva a pisarlas.
   variable, escríbela siempre entre llaves: `"${sha}:web/src/..."`. El síntoma es un
   `fatal: ambiguous argument` con una ruta mutilada, y como iba en una cadena de `&&`, lo
   que venía detrás (un `git push`) no llegó a ejecutarse — por suerte, esa vez.
+  Dos más de zsh, del 30 de septiembre de 2026: **no parte en palabras una variable sin
+  comillas** (`set -- $size` con `size="375 667"` deja un solo argumento, y las medidas
+  salieron basura sin dar error), y **un comodín que no encuentra nada es un error**
+  (`rm -f g*.txt` en una carpeta sin esos ficheros corta la cadena de `&&`, en vez de no
+  hacer nada como en bash).
 - **Un `<label>` que envuelve algo con botones dentro reenvía los clics al primero.** Un
   clic en una etiqueta que no cae sobre un control (y un `div` editable no cuenta como
   control) el navegador lo convierte en un clic sobre el primer control que hay dentro. El
@@ -1204,6 +1267,15 @@ sesión no vuelva a pisarlas.
   abrir; con un editor, un grupo de botones o cualquier cosa cuyo primer botón no sea "el
   campo", usa un `div` y nómbralo con `aria-labelledby`. El comentario de
   `RichTextEditor.tsx` lo avisa.
+- **Un fondo con sombra del mismo color, si el color es translúcido, deja una línea de 1px
+  en las esquinas redondeadas.** Con fondo opaco, Chrome pinta la sombra de `box-shadow`
+  también por debajo de la caja y no hay unión que ver; con un color translúcido la
+  recorta justo en su borde, y en una esquina redondeada el suavizado de ese recorte y el
+  del fondo no suman opaco: queda un arco de 1px por el que asoma lo de detrás. Pasó con
+  el halo del login (30 de septiembre de 2026). La transparencia va en `opacity` del
+  elemento entero, con el color opaco. Solo se nota si hay color detrás, y leyendo los
+  píxeles de la captura se ve como un salto de 13-22 niveles entre vecinos donde el
+  degradado de alrededor cambia 1 o 2.
 - **Una pantalla en blanco en el dev server a mitad de una tanda de cambios casi nunca es
   un fallo del código: es la recarga en caliente.** Si un cambio añade un hook a un
   componente que ya estaba montado (a `App` le entraron dos `useCallback` y un
@@ -1429,6 +1501,20 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   una llamada: se parte en dos o tres. Para *ver* con el panel oculto, el script de CDP
   sigue siendo la salida (hay uno en el scratchpad de la sesión de los tutoriales,
   `tour-shots.mjs`: Chrome sin ventana, `deviceScaleFactor` 2 y avanzar pasos por JS).
+- **La pantalla de acceso solo se ve sin sesión**: la demo no la pinta y el panel del
+  navegador tiene la sesión del usuario, que no se cierra. La salida es la misma: Chrome
+  sin ventana con un perfil nuevo (`--user-data-dir` en una carpeta temporal) contra el
+  5174. Para probar un envío sin tocar producción, `Fetch.enable` de CDP con el patrón
+  `*supabase.co*` y `Fetch.failRequest` a lo que llegue: la petición se corta en el propio
+  navegador.
+- **Para medir el contraste de un texto sobre un fondo con degradado, lee los píxeles de
+  la captura**, no el CSS: con una cinta difuminada detrás, cada letra tiene un fondo
+  distinto. Node descomprime un PNG con `zlib` en unas 30 líneas, sin dependencias; las
+  cajas de cada línea de texto salen de un `Range`, se muestrea el fondo justo por encima y
+  por debajo, y se calcula el contraste contra el color del texto. Así se eligió el 85 %
+  del halo del login. A `deviceScaleFactor` 1 hay cuatro veces menos píxeles que
+  descomprimir: una tanda de nueve medidas a 2 se pasó de los 5 minutos que aguanta una
+  llamada de Bash.
 - **Probar contra producción con la cuenta del usuario**, como se hizo con la importación
   del extracto el 22 de septiembre de 2026: la sesión la inicia el usuario en el panel del
   navegador (el dev server del 5174 va contra el Supabase real) y hay tres reglas.
