@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ClipboardEvent, type DragEvent, type ReactElement } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement } from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
@@ -842,12 +842,31 @@ export function JournalEntriesView({
     }
   };
 
-  const handleOperationPaste = (event: ClipboardEvent<HTMLDivElement>) => {
-    const file = getImageFileFromList(event.clipboardData.files);
-    if (!file) return;
-    event.preventDefault();
-    void setOperationMediaFromFile(file);
-  };
+  /* Pegar una imagen en cualquier sitio del formulario la pone como captura. Antes solo
+     la recogía la zona de la captura, y solo si tenía el foco: al abrir una entrada
+     nueva el foco está en la página, así que Ctrl/Cmd+V no hacía nada, justo el primer
+     gesto que invita a hacer el texto de la zona ("Pega una imagen..."). Con una
+     excepción: escribiendo en un campo de texto, si lo pegado trae texto, es el texto lo
+     que se quiere (Excel o Word copian también una imagen de lo copiado). En captura,
+     para llegar antes que el editor de notas, que no admite imágenes y la perdería. */
+  const pasteImageRef = useRef(setOperationMediaFromFile);
+  pasteImageRef.current = setOperationMediaFromFile;
+  const mediaFieldVisible = formFields.isVisible("media");
+  useEffect(() => {
+    if (journalMode !== "entryForm" || !mediaFieldVisible || !canWrite) return;
+    const handlePaste = (event: globalThis.ClipboardEvent) => {
+      const file = getImageFileFromList(event.clipboardData?.files);
+      if (!file) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const typing = target?.closest("input, textarea, [contenteditable='true']");
+      if (typing && (event.clipboardData?.getData("text/plain") || "").trim()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void pasteImageRef.current(file);
+    };
+    document.addEventListener("paste", handlePaste, true);
+    return () => document.removeEventListener("paste", handlePaste, true);
+  }, [canWrite, journalMode, mediaFieldVisible]);
 
   const handleOperationDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -2209,7 +2228,6 @@ export function JournalEntriesView({
                     operationFileInputRef.current?.click();
                   }
                 }}
-                onPaste={handleOperationPaste}
                 role="button"
                 tabIndex={canWrite && !mutating ? 0 : -1}
               >
@@ -2279,15 +2297,18 @@ export function JournalEntriesView({
           )}
         </div>
         {formFields.isVisible("notes") && (
-          <label className="journal-entry-page-notes">
-            <span>{t("journal.entryForm.notes")}</span>
+          /* Un div y no un <label>: dentro de un label, cada clic en el texto pulsaba la
+             negrita de la barra (ver RichTextEditor). */
+          <div className="journal-entry-page-notes">
+            <span id="journal-entry-notes-label">{t("journal.entryForm.notes")}</span>
             <RichTextEditor
+              ariaLabelledBy="journal-entry-notes-label"
               disabled={!canWrite || mutating}
               onChange={(html) => setDraft((current) => ({ ...current, notes: html }))}
               placeholder={t("journal.entryForm.notesPlaceholder")}
               value={draft.notes || ""}
             />
-          </label>
+          </div>
         )}
         <RequiredLegend />
         </form>

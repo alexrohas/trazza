@@ -7,6 +7,9 @@ import { useT } from "../lib/i18n/context";
 import { notesToHtml } from "../lib/richText";
 
 type RichTextEditorProps = {
+  /** Id del texto que lo nombra ("Notas"). Hace falta porque el editor NO puede ir
+   *  dentro de un <label>: ver el comentario del componente. */
+  ariaLabelledBy?: string;
   disabled?: boolean;
   /* false = solo lectura, sin barra de herramientas (detalle de una entrada). */
   editable?: boolean;
@@ -18,8 +21,15 @@ type RichTextEditorProps = {
 /* Editor generico de texto enriquecido (Tiptap por debajo), con barra propia en vez de
    la UI de fabrica de la libreria, que no pegaria con el resto de la app. Deliberadamente
    corto de opciones: negrita, cursiva, subrayado, tachado y listas — nada de titulos,
-   citas, codigo ni enlaces, que no pedia el diario de trading que esto sustituye. */
-export function RichTextEditor({ disabled = false, editable = true, onChange, placeholder, value }: RichTextEditorProps) {
+   citas, codigo ni enlaces, que no pedia el diario de trading que esto sustituye.
+
+   NO LO METAS DENTRO DE UN <label>. Un clic en una etiqueta que no cae sobre un control
+   el navegador lo reenvia al primer control que hay dentro, y el area de texto (un div
+   editable) no cuenta como control: cada clic para colocar el cursor pulsaba el primer
+   boton de la barra, que es la negrita. Se activaba y desactivaba sola al pinchar en el
+   texto, y asi estuvo en el formulario de las entradas (29 de septiembre de 2026). Para
+   nombrarlo, un texto con id y `ariaLabelledBy`. */
+export function RichTextEditor({ ariaLabelledBy, disabled = false, editable = true, onChange, placeholder, value }: RichTextEditorProps) {
   const t = useT();
   const isInteractive = editable && !disabled;
   const editor = useEditor({
@@ -36,7 +46,17 @@ export function RichTextEditor({ disabled = false, editable = true, onChange, pl
       Placeholder.configure({ placeholder: placeholder || "" }),
     ],
     content: notesToHtml(value),
-    onUpdate: ({ editor: current }) => onChange?.(current.getHTML()),
+    editorProps: {
+      attributes: {
+        role: "textbox",
+        "aria-multiline": "true",
+        ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}),
+      },
+    },
+    /* Vacío es "", no "<p></p>": si no, una entrada a la que se le borran las notas se
+       guardaba con un parrafo vacio y su detalle enseñaba un recuadro en blanco en vez de
+       "Sin notas". */
+    onUpdate: ({ editor: current }) => onChange?.(current.isEmpty ? "" : current.getHTML()),
     /* Sin esto el estado activo de los botones (negrita pulsada, etc.) no se
        actualizaba al mover el cursor: v3 dejo de re-renderizar en cada transaccion por
        defecto. La barra es el unico sitio que depende de ese estado, asi que el coste
@@ -49,6 +69,7 @@ export function RichTextEditor({ disabled = false, editable = true, onChange, pl
      onUpdate ya deja value igual al contenido del editor en cuanto el usuario teclea. */
   useEffect(() => {
     const next = notesToHtml(value);
+    if (!next && editor.isEmpty) return;
     if (editor.getHTML() !== next) editor.commands.setContent(next, { emitUpdate: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, value]);
@@ -100,6 +121,10 @@ function RichTextToolbar({ disabled, editor, t }: { disabled: boolean; editor: E
           disabled={disabled}
           key={label}
           onClick={onClick}
+          /* Sin esto, pulsar el boton le quitaba el foco al texto antes de aplicar el
+             formato, y la seleccion dependia de que focus() la recuperase bien. Asi el foco
+             no se mueve: es lo que recomienda Tiptap para las barras propias. */
+          onMouseDown={(event) => event.preventDefault()}
           title={label}
           type="button"
         >
