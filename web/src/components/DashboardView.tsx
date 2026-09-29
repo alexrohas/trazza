@@ -7,6 +7,7 @@ import { InfoHint } from "./InfoHint";
 import { MetricCard } from "./MetricCard";
 import { MovementsTable } from "./MovementsTable";
 import { Select } from "./Select";
+import { TaxSummaryPanel } from "./TaxSummaryPanel";
 import {
   calculateDashboardModel,
   formatMoney,
@@ -292,6 +293,10 @@ export function DashboardView({ accounts, currency, firms, journalEntries, movem
         />
         <MovementsTable accounts={filteredAccounts} currency={currency} movements={dashboardModel.scopedMovements} />
       </section>
+
+      {/* Fuera de los filtros del Panel a proposito: un año fiscal es el año entero, y un
+          resumen que cambiara con el filtro de periodo de arriba no serviria para nada. */}
+      <TaxSummaryPanel accounts={accounts} currency={currency} firms={firms} movements={movements} />
     </div>
   );
 }

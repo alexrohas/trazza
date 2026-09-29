@@ -7775,6 +7775,101 @@ tbody tr:last-child td {
   color: var(--negative);
 }
 
+/* RESUMEN POR TRIMESTRE (TaxSummaryPanel). Cifras y nada mas: el panel ensena cobros y
+   gastos por trimestre en euros, y la linea de abajo dice explicitamente que no calcula
+   impuestos. Esa linea va siempre visible, no en una pista. */
+.tax-summary-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tax-summary-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Mismo caso que .journal-cockpit-account-filter: dentro de una cabecera de panel el
+   selector no tiene ancestro que ya lo vista (.dashboard-filters/.view-filters/
+   .settings-form, ver Select.tsx), asi que se quedaba con el gris del navegador. Se le
+   da la misma ropa que al boton de exportar que tiene al lado, para que los dos
+   controles de la cabecera se lean como un grupo y no como dos piezas de sitios
+   distintos. Ancho fijo: son cuatro cifras, no hay nada que negociar. */
+.tax-summary-controls .custom-select {
+  width: 108px;
+}
+
+.tax-summary-controls .custom-select-trigger {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-base);
+  background: var(--surface);
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  transition: transform 90ms var(--ease);
+}
+
+/* Los mismos tres estados que .secondary-action, que es su vecino. */
+.tax-summary-controls .custom-select-trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.tax-summary-controls .custom-select-trigger:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 0;
+}
+
+.tax-summary-controls .custom-select-trigger:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* Cuatro columnas, no las siete de la tabla de movimientos: el minimo general de 760
+   sobraba y forzaba scroll horizontal en paneles estrechos. */
+.tax-summary-table {
+  min-width: 460px;
+}
+
+.tax-summary-table tfoot th,
+.tax-summary-table tfoot td {
+  border-bottom: 0;
+  border-top: 1px solid var(--line-strong);
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.tax-summary-table tbody td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.tax-summary-disclaimer {
+  margin: var(--space-base) 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+@media (max-width: 820px) {
+  /* En ficha, la fecha de cada trimestre va junto a su nombre, no debajo. */
+  .tax-summary-table tbody td small {
+    display: inline;
+    margin-left: var(--space-xs);
+  }
+
+  .tax-summary-table tfoot tr {
+    border-color: var(--line-strong);
+  }
+}
+
 /* IMPORTAR EXTRACTO (BankImportModal). Primero una zona para soltar el CSV; despues la
    lista de filas reconocidas, cada una con su casilla, su empresa y su categoria, para
    corregir lo que se haya adivinado mal antes de guardar nada. */
