@@ -695,6 +695,30 @@ Cuentas le sale solo ese.
 Verificado a 360, 375, 414, 768, 896, 1024, 1440 y 1920px, en los dos idiomas: el botón
 en una línea siempre y sin salirse de la tarjeta.
 
+**Dos arreglos del formulario de entradas del Journal**, el **29 de septiembre de 2026**
+(`8086ee3`), los dos avisados por el usuario:
+
+- **La negrita se activaba sola al pinchar en las notas**: el editor iba dentro de un
+  `<label>` (ver la trampa en "Trampas ya pisadas"). Ahora va en un `div`, y los botones de
+  la barra llevan `onMouseDown` con `preventDefault` para no quitarle el foco al texto, que
+  es lo que recomienda Tiptap para las barras propias. El párrafo vacío que aparece detrás
+  de una lista es de Tiptap (su `TrailingNode` deja siempre uno al final para poder salir
+  de ella) y no es un fallo.
+- **Pegar una imagen nada más abrir una entrada nueva no hacía nada**: solo la recogía la
+  zona de la captura, y solo si tenía el foco. Ahora escucha el documento entero mientras
+  el formulario está abierto y el campo de captura visible, en fase de captura para llegar
+  antes que el editor de notas (que no admite imágenes y la perdería). La excepción:
+  escribiendo en un campo de texto, si lo pegado trae además texto, gana el texto, porque
+  Excel o Word copian también una imagen de lo copiado.
+
+Y unas notas vaciadas se guardan como `""`, no como `<p></p>`, que en el detalle salía como
+un recuadro en blanco en vez de "Sin notas".
+
+Probado en la cuenta real del usuario sin guardar nada (una entrada nueva cancelada): el
+clic en el texto ya no toca la negrita; negrita, cursiva sobre selección, listas, estado de
+los botones y deshacer funcionan; y los tres casos de pegado (sin foco, texto con imagen en
+las notas, solo imagen en las notas) hacen lo que deben.
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -1168,6 +1192,18 @@ sesión no vuelva a pisarlas.
   variable, escríbela siempre entre llaves: `"${sha}:web/src/..."`. El síntoma es un
   `fatal: ambiguous argument` con una ruta mutilada, y como iba en una cadena de `&&`, lo
   que venía detrás (un `git push`) no llegó a ejecutarse — por suerte, esa vez.
+- **Un `<label>` que envuelve algo con botones dentro reenvía los clics al primero.** Un
+  clic en una etiqueta que no cae sobre un control (y un `div` editable no cuenta como
+  control) el navegador lo convierte en un clic sobre el primer control que hay dentro. El
+  editor de notas del Journal iba dentro de un `<label>` junto a su título, y su primer
+  control es el botón de negrita de la barra: cada clic para poner el cursor en el texto
+  activaba o desactivaba la negrita. Así estuvo hasta el 29 de septiembre de 2026, y las
+  notas de ese tiempo tienen negritas que nadie puso (no se pueden distinguir de las
+  buscadas, así que no se tocaron). Con `Select` o `DatePicker` dentro de un `<label>` no
+  pasa nada malo porque su primer botón es el propio desplegable, que es lo que se quiere
+  abrir; con un editor, un grupo de botones o cualquier cosa cuyo primer botón no sea "el
+  campo", usa un `div` y nómbralo con `aria-labelledby`. El comentario de
+  `RichTextEditor.tsx` lo avisa.
 - **Una pantalla en blanco en el dev server a mitad de una tanda de cambios casi nunca es
   un fallo del código: es la recarga en caliente.** Si un cambio añade un hook a un
   componente que ya estaba montado (a `App` le entraron dos `useCallback` y un
