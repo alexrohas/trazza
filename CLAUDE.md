@@ -604,6 +604,69 @@ julio → 401,47 €, los trimestres en su sitio, el año anterior fuera, y el c
 sin cambios), interceptando el CSV antes de descargarlo, y en la cuenta real del usuario
 (26 movimientos en USD, 783,15 € cobrados y 712,39 € gastados en 2026).
 
+**Los tutoriales**, el **29 de septiembre de 2026** (`83bc2ef`). La primera vez que se
+entra en cada pantalla, un recorrido de 2 a 6 pasos oscurece todo menos la zona de la que
+habla y pone al lado una tarjeta con "Siguiente", "Anterior" y "Saltar". Existe por el dato
+de siempre: 31 de 55 usuarios entraron y no crearon nada. El contenido está en
+`lib/tours.ts`, lo visto en `hooks/useTourState.ts` y el recorrido en
+`components/ProductTour.tsx`.
+
+Lo que fijó el usuario, y conviene mantener: **claro y corto** (un título de dos o tres
+palabras y una o dos frases por paso), lo ven **todos los usuarios, también los que ya
+existían**, y **"Saltar" cierra el de esa pantalla**, con un "No mostrar más tutoriales"
+aparte para apagarlos todos. El menú "⋯" enseña entero el de la pantalla actual aunque
+estén apagados, y en Ajustes → Preferencias "Volver a verlos" los reinicia.
+
+Decisiones que no son obvias:
+
+- **Lo visto se recuerda paso a paso, no pantalla a pantalla.** La primera versión
+  guardaba pantallas, y el usuario lo vio al probarla: quien entra en Cuentas sin cuentas
+  activas ve dos pasos y, el día que tiene una, el paso de su tarjeta ya no le salía nunca.
+  Ahora al entrar salen los pasos que **se pueden enseñar ahora y aún no se han visto**, y
+  el recorrido vuelve a mirar cuando cambia el número de empresas, cuentas, movimientos o
+  trades (`contentKey` en `App.tsx`): crear la primera cuenta estando en Cuentas saca
+  "Cada cuenta" en cuanto se cierra el formulario. De regalo, **un paso nuevo que se añada
+  más adelante le sale solo a quien ya había visto el resto**, que sirve para anunciar una
+  novedad en su sitio. Por eso mismo **el `id` de un paso no se renombra**: para quien ya
+  lo vio contaría como nuevo.
+- **"Saltar" da por vistos los pasos que se enseñaron**, no los que no salieron porque su
+  zona aún no existía: esos siguen pendientes.
+- **Vive en los metadatos de Supabase Auth** (`trazza_tours`), donde la app ya guarda
+  nombre y divisa: se recuerda en la cuenta y no en el navegador, sin tabla ni migración.
+  Como **lista de claves sin fechas** (`"accounts.card"`), porque los metadatos viajan
+  dentro del token de sesión en cada petición: con los 28 pasos son 604 bytes. Se escribe
+  solo esa clave, no el objeto de metadatos entero, porque Supabase fusiona las de primer
+  nivel. Guardar dispara un `USER_UPDATED` que relee la suscripción, igual que la
+  renovación del token de cada hora; no hace parpadear nada. Sin sesión (la demo), va a
+  `localStorage`.
+- **Los pasos señalan por `data-tour`, no por clase.** Un paso que apunta a una clase
+  renombrada no avisa: se queda señalando a la nada. Si una zona no está en pantalla, el
+  paso no sale (así funcionan las cuentas vacías y los paneles ocultos del Journal).
+- **Hecho a mano y no con una librería**, por lo mismo que `Select` o `DatePicker`: el
+  oscurecido es el mismo que el de los modales, la tarjeta sale de los tokens y el tema
+  oscuro funciona sin tocar nada.
+- **El hueco sigue a la zona fotograma a fotograma desde JS**, sin transición CSS en la
+  posición (con transición iba siempre por detrás al desplazarse la página), y viaja de
+  una zona a la siguiente interpolando contra la posición que la nueva tiene *en ese
+  fotograma*. Con la pestaña oculta el navegador no da fotogramas; ahí sigue por tiempo.
+- **Colocación de la tarjeta**: en ancho, debajo, encima, al lado, y si la zona no cabe
+  entera con ella, en el lado con más sitio. En un teléfono va a lo ancho y **abajo salvo
+  que la zona quepa entera por encima**: probar "donde tape menos área" tapaba justo la
+  cabecera de las zonas altas, que es lo que hay que ver. Al traer la zona a la vista se le
+  deja sitio a la tarjeta.
+- **Espera sin límite a que no haya nada encima** (un modal, un desplegable, el cajón del
+  móvil), mirando cada medio segundo: lo normal es que sea un formulario abierto un buen
+  rato.
+
+Verificado midiendo los 28 pasos a 1024 y a 375 px (ninguna tarjeta fuera de la pantalla
+ni tapando la cabecera de su zona; solo pisan por abajo, y poco, las zonas más altas que la
+propia pantalla), todos los botones y teclas, la zona que aparece después (el calendario
+del Journal oculto y vuelto a mostrar), y **con la cuenta real del usuario**: se guarda en
+Supabase sin tocar el resto del perfil y no vuelve a salir al recargar. Esa prueba destapó
+un fallo que en la demo no salía: pedir el tutorial desde "⋯" mientras el automático ya
+estaba abierto dejaba la petición pendiente, y al cerrarlo se volvía a abrir desde el paso
+1. Si hay uno abierto, la petición ya cuenta como atendida.
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -1042,6 +1105,18 @@ sesión no vuelva a pisarlas.
   (Aviso del 19 de septiembre de 2026: el panel puede estar oculto **y** con otra pestaña
   al frente, y entonces las capturas de la tuya salen en blanco aunque el DOM mida bien.
   Medir por JS siguió funcionando toda la sesión; solo se pierde el *ver*.)
+  **Y con el panel oculto la página está en `document.hidden`, lo que para dos cosas más,
+  sin error** (29 de septiembre de 2026, con los tutoriales): `requestAnimationFrame` no
+  dispara nunca, y `window.scrollTo({ behavior: "smooth" })` no avanza (el instantáneo sí).
+  Cualquier cosa animada por fotogramas se queda congelada en su primer estado y parece
+  rota. Los temporizadores sí corren, pero frenados, y la carga de datos puede tardar 7
+  segundos: esperar solo 6 hizo creer que el tutorial no salía.
+- **En el móvil la barra de arriba no se queda fija aunque su CSS diga `sticky`.** El
+  `@media` de 820 pone `overflow-x: hidden` en `.app-shell`, y eso convierte al armazón en
+  el contenedor del sticky; como lo que se desplaza es la ventana y no el armazón, la barra
+  se va con la página (tras bajar 600px está en −584). No se tocó —con 153px de alto,
+  fija se comería un quinto de la pantalla— pero no te fíes de `position`: el tutorial
+  comprueba los ancestros (`stickyTopbarHeight` en `ProductTour.tsx`).
 - **En modo demo los formularios son de solo lectura, así que no se pueden probar ahí.**
   `canWrite` es `dataMode === "cloud" && ...`, y con él a `false` los `Select` propios
   llegan `disabled`: al pincharlos no se abre el panel de opciones y **el síntoma parece
@@ -1277,6 +1352,11 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   error. Después hay que comprobar que no queda nada **con un patrón específico**: buscar
   restos con `'%vuelta%'` devolvió dos usuarios reales de julio y pareció que el ensayo
   había dejado basura.
+- **`javascript_tool` corta a los 45 segundos**, y el script se pierde entero sin
+  devolver nada. Un recorrido por las ocho pantallas esperando a cada tutorial no cabe en
+  una llamada: se parte en dos o tres. Para *ver* con el panel oculto, el script de CDP
+  sigue siendo la salida (hay uno en el scratchpad de la sesión de los tutoriales,
+  `tour-shots.mjs`: Chrome sin ventana, `deviceScaleFactor` 2 y avanzar pasos por JS).
 - **Probar contra producción con la cuenta del usuario**, como se hizo con la importación
   del extracto el 22 de septiembre de 2026: la sesión la inicia el usuario en el panel del
   navegador (el dev server del 5174 va contra el Supabase real) y hay tres reglas.
