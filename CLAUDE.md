@@ -565,6 +565,45 @@ una enlazada a su cargo, y al volver a subirlo salió "Nada que importar". Los d
 prueba los borró el usuario (ver "Cómo se ha estado trabajando") y se comprobó en Supabase
 que la cuenta quedó igual que al empezar: 7 empresas, 10 cuentas, 26 movimientos.
 
+**El resumen por trimestre**, el **29 de septiembre de 2026** (`a5b393c`). Al final del
+Panel de Finanzas: cobros, devoluciones y gastos agrupados por trimestre del año elegido,
+cada movimiento pasado a euros con el cambio del BCE de su día, y un CSV con una fila por
+movimiento (importe original, divisa, cambio aplicado, importe en euros) para que una
+gestoría pueda rehacer cualquier cifra. `lib/taxSummary.ts` y `components/TaxSummaryPanel.tsx`.
+
+**Enseña lo que hay y ahí se para, y esto es una decisión del usuario, no una omisión.**
+La lista de "qué construir" proponía una estimación del modelo 130; al pedirlo dijo que no
+quería "incitar a nadie a declarar, solo que sirva como ayuda". Así que no estima cuotas,
+no dice que haya que declarar nada y **no decide qué gastos son deducibles** — las fuentes
+se contradicen sobre si el coste de un challenge lo es, y responder eso es de quien lleve
+los impuestos de cada uno. La línea que lo dice va debajo de las cifras y **siempre
+visible**, no escondida en una pista, y el porqué está escrito en `taxSummary.ts` para que
+nadie lo convierta en una calculadora sin darse cuenta. Si algún día se añade una cifra "a
+pagar", eso ya es otra cosa y hay que pensarlo.
+
+Detalles que no son obvios:
+
+- **El cambio es el mismo que usa la importación del extracto** (`fxRates.ts`, BCE vía
+  Frankfurter), a propósito: si el informe usara otro, un payout importado y el mismo
+  payout en el resumen dirían cifras distintas.
+- **No depende de los filtros del Panel.** Un año fiscal es el año entero; un resumen que
+  cambiara con el filtro de periodo de arriba no serviría para llevárselo a nadie.
+- **Los cobros se cuentan por lo que llega (el neto)**, que es lo que entró en el banco. El
+  bruto —lo que salió de la cuenta de la firma— va solo en su columna del CSV: esa
+  diferencia es el reparto, que nunca pasó por la cuenta del usuario.
+- **Sin cambio publicado para una fecha, la fila se queda fuera y se dice** ("N movimientos
+  se han quedado fuera"), en vez de inventar un cambio o colar un cero.
+- **El selector de año se viste a mano** (`.tax-summary-controls .custom-select-trigger`).
+  Dentro de una cabecera de panel no hay ancestro que vista a los `Select` propios, así que
+  salía con el gris del navegador; es el mismo caso que `.journal-cockpit-account-filter` y
+  se resuelve igual, copiando el aspecto del botón que tiene al lado.
+
+Verificado con los totales de la demo recalculados por un script que no usa el código de la
+app, con el código real ejecutado en Node contra cambios reales del BCE (459 $ del 7 de
+julio → 401,47 €, los trimestres en su sitio, el año anterior fuera, y el caso de quedarse
+sin cambios), interceptando el CSV antes de descargarlo, y en la cuenta real del usuario
+(26 movimientos en USD, 783,15 € cobrados y 712,39 € gastados en 2026).
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -674,12 +713,12 @@ La lista, por orden de impacto entre esfuerzo:
   usuarios no crearon ni un registro**. Queda medir si de verdad lo usan quienes están a
   cero, y añadir más bancos si alguien lo pide (N26, BBVA…): cada uno es un lector más en
   `parseBankStatement`.
-- **Informe fiscal para España**: payouts por trimestre en euros al cambio del día, gastos
-  por firma, exportación para la gestoría y estimación orientativa del modelo 130. Ningún
-  competidor en inglés lo tiene, y desde febrero de 2026 Wise y Revolut informan a Hacienda
-  (DAC8 / modelo 196), así que el tema aprieta. **Cuidado: las fuentes se contradicen sobre
-  si el coste de los challenges es deducible** — no darlo por hecho, dejar que lo decida la
-  gestoría y avisarlo. Sirve además como contenido SEO en español con intención de compra.
+- ~~**Informe fiscal para España.**~~ **Hecho el 29 de septiembre de 2026** como "Resumen
+  por trimestre" (ver "Qué está cerrado"), **sin la estimación del modelo 130 que esta
+  lista proponía**: la quitó el usuario, y con razón — ver esa sección. Queda, si algún
+  día se quiere, desglosar los gastos por firma dentro de cada trimestre, y el contenido
+  SEO en español, que era la otra mitad del valor de esto (desde febrero de 2026 Wise y
+  Revolut informan a Hacienda vía DAC8 / modelo 196, así que la gente lo busca).
 - **Avisos de cargos y fechas.** Apex y Topstep renuevan la evaluación cada mes aunque la
   hayas suspendido. Preguntar "¿has cancelado la suscripción?" al marcar una cuenta como
   fallada, calendario de próximos cargos, aviso de ventana de payout. Por email sería
