@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, CopyCheck, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
+import { ArrowUpRight, BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, CopyCheck, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
 import { AccountRuleStatusLine } from "./AccountRuleStatus";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
@@ -61,6 +61,8 @@ type AccountsViewProps = {
   onNewAccountRequestHandled?: () => void;
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
   onSetAccountVisible: (accountId: string, visible: boolean) => Promise<boolean>;
+  /* "Ver detalles": abre el Dashboard del Journal con esta cuenta elegida (ver App.tsx). */
+  onViewDetails?: (accountId: string) => void;
 };
 
 function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountStatus }> {
@@ -160,6 +162,7 @@ export function AccountsView({
   onNewAccountRequestHandled,
   onSaveAccount,
   onSetAccountVisible,
+  onViewDetails,
 }: AccountsViewProps) {
   const [draft, setDraft] = useState<AccountInput>(emptyAccountInput);
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -1088,15 +1091,37 @@ export function AccountsView({
                 </span>
               </div>
 
+              {/* Un solo botón con texto, "Ver detalles", y el resto en iconos. Con "Editar"
+                  también en texto no cabían: "Ver detalles" pide 130px en una línea y en una
+                  tarjeta de 320 (el mínimo de la rejilla) a la fila le quedan 272, así que
+                  saltaba a dos líneas hasta a 1024px de ventana. */}
               <div className="account-card-actions">
+                {/* Primero, porque en una cuenta viva es lo que más se pulsa: su día a día
+                    (balance, P&L, reglas de cobro) vive en el Dashboard del Journal. Solo
+                    navega, así que no se apaga en solo lectura. Lleva los dos textos y el
+                    CSS elige según el ancho de la tarjeta (ver .account-details-short). */}
+                {onViewDetails && (
+                  <button
+                    aria-label={`${t("account.card.viewDetails")} ${account.name}`}
+                    className="secondary-action account-details-action"
+                    data-tour={accountIndex === 0 ? "account-details" : undefined}
+                    onClick={() => onViewDetails(account.id)}
+                    type="button"
+                  >
+                    <ArrowUpRight size={16} strokeWidth={2.2} />
+                    <span className="account-details-long">{t("account.card.viewDetails")}</span>
+                    <span className="account-details-short">{t("account.card.viewDetailsShort")}</span>
+                  </button>
+                )}
                 <button
-                  className="secondary-action"
+                  aria-label={`${t("common.edit")} ${account.name}`}
+                  className="card-edit"
                   disabled={!canWrite || mutating}
                   onClick={() => openEditAccount(account)}
+                  title={t("common.edit")}
                   type="button"
                 >
-                  <Pencil size={16} strokeWidth={2.2} />
-                  {t("common.edit")}
+                  <Pencil size={15} strokeWidth={2.2} />
                 </button>
                 {/* Ocultar no archiva ni borra: solo saca la cuenta de los desplegables
                     (dashboard del Journal, formulario de entrada, movimientos...). Sigue

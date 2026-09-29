@@ -3119,7 +3119,10 @@ button {
    Los tonos salen solo de tokens que ya estan en los dos temas (--negative,
    --negative-soft, --warning, --surface), asi que este bloque no necesita su pareja en
    :root[data-theme="dark"]. Si algun dia se le mete un color a pelo, si la necesitara. */
-.subscription-notice {
+/* El aviso de "Estás viendo solo «cuenta»" (App.tsx) comparte con este la métrica y
+   la disposición entera: los dos se pintan en el mismo sitio y pueden verse apilados. */
+.subscription-notice,
+.account-scope-notice {
   display: flex;
   align-items: center;
   gap: var(--space-base);
@@ -3131,25 +3134,33 @@ button {
   box-shadow: 0 12px 34px rgba(17, 24, 39, 0.05);
 }
 
-.subscription-notice > svg {
+.subscription-notice > svg,
+.account-scope-notice > svg {
   flex-shrink: 0;
+}
+
+.account-scope-notice > svg {
+  color: var(--accent-strong);
 }
 
 /* flex + min-width:0 para que un texto largo se reparta en varias lineas en vez de
    empujar al boton fuera de la caja. */
-.subscription-notice > div {
+.subscription-notice > div,
+.account-scope-notice > div {
   flex: 1;
   min-width: 0;
 }
 
-.subscription-notice strong {
+.subscription-notice strong,
+.account-scope-notice strong {
   display: block;
   color: var(--text);
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
 }
 
-.subscription-notice p {
+.subscription-notice p,
+.account-scope-notice p {
   margin: var(--space-3xs) 0 0;
   color: var(--strong-muted);
   font-size: var(--text-base);
@@ -3157,7 +3168,8 @@ button {
   line-height: var(--leading-snug);
 }
 
-.subscription-notice-cta {
+.subscription-notice-cta,
+.account-scope-notice > button {
   flex-shrink: 0;
 }
 
@@ -3184,11 +3196,13 @@ button {
 @media (max-width: 560px) {
   /* El boton baja a su propia linea entera. Con el texto a flex:1 el wrap cae justo ahi,
      asi que no hace falta reordenar nada. */
-  .subscription-notice {
+  .subscription-notice,
+  .account-scope-notice {
     flex-wrap: wrap;
   }
 
-  .subscription-notice-cta {
+  .subscription-notice-cta,
+  .account-scope-notice > button {
     width: 100%;
     justify-content: center;
   }
@@ -7067,6 +7081,36 @@ label > span > .info-hint-wrap .info-hint svg {
   flex: 1;
 }
 
+/* "Ver detalles" nunca salta de línea: en una tarjeta estrecha pasa a "Detalles". La
+   tarjeta es el contenedor (un elemento no puede consultar su propio ancho, así que la
+   consulta la hace el botón, que va dentro). Ojo: la consulta mide el CONTENIDO de la
+   tarjeta, sin sus 24px de relleno por lado, no la tarjeta entera; con el corte puesto
+   sobre el ancho total salía "Detalles" en tarjetas de 380 donde cabía la versión larga.
+   Las cuentas, sobre el contenido: la versión larga pide 130px (132 en inglés), y los tres
+   iconos con sus huecos se llevan 150 en escritorio y 168 en un teléfono, donde crecen a
+   44. Hacen falta 282 y 300; el corte en 312 deja margen a los dos. */
+.account-card {
+  container-type: inline-size;
+}
+
+.account-details-action {
+  white-space: nowrap;
+}
+
+.account-details-short {
+  display: none;
+}
+
+@container (max-width: 311px) {
+  .account-details-long {
+    display: none;
+  }
+
+  .account-details-short {
+    display: inline;
+  }
+}
+
 /* Un limite sin definir se lee como texto, no como cifra: tipografia normal y color
    apagado para que no compita con los valores reales de al lado. */
 .account-card-rules strong.is-unset {
@@ -9022,6 +9066,7 @@ tbody tr:last-child td {
 }
 
 .card-delete,
+.card-edit,
 .card-visibility {
   display: inline-grid;
   place-items: center;
@@ -9043,7 +9088,8 @@ tbody tr:last-child td {
 }
 
 /* Acento y no rojo: a diferencia de borrar, ocultar no es destructivo ni irreversible —
-   el mismo boton la vuelve a mostrar. */
+   el mismo boton la vuelve a mostrar. Editar, igual. */
+.card-edit:hover:not(:disabled),
 .card-visibility:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent) 32%, transparent);
   background: var(--accent-soft);
@@ -9051,6 +9097,7 @@ tbody tr:last-child td {
 }
 
 .card-delete:disabled,
+.card-edit:disabled,
 .card-visibility:disabled {
   cursor: not-allowed;
   opacity: 0.4;
@@ -10028,6 +10075,7 @@ tbody tr:last-child td {
   .journal-calendar-snapshot.icon-control,
   .compact-icon,
   .card-delete,
+  .card-edit,
   .card-visibility,
   .rich-text-toolbar button {
     width: 44px;

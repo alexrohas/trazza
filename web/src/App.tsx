@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { Languages, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Languages, Moon, Sun, WalletCards } from "lucide-react";
 import { AccountsView } from "./components/AccountsView";
 import { AppShell } from "./components/AppShell";
 import { AuthScreen } from "./components/AuthScreen";
@@ -115,6 +115,23 @@ export default function App() {
     setActiveView("accounts");
     setEditAccountRequest((current) => ({ id: (current?.id || 0) + 1, accountId }));
   }, []);
+
+  /* "Ver detalles" en una cuenta viva: el Dashboard del Journal con ella elegida, que es
+     donde vive su día a día (balance, P&L, reglas de cobro). Arriba del todo: la vista
+     cambia pero la ventana conserva el desplazamiento, y se abriría a la altura a la que
+     se estaba en Cuentas. */
+  const viewAccountDetails = useCallback((accountId: string) => {
+    setSelectedAccountId(accountId);
+    setActiveView("journalDashboard");
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  /* La cuenta elegida filtra también Cuentas, Movimientos y Trades. Si deja de existir
+     (se borra), esas pantallas se quedarían vacías sin explicación: se vuelve a "todas". */
+  useEffect(() => {
+    if (selectedAccountId === "all" || (dataState.status !== "ready" && dataState.status !== "demo")) return;
+    if (!accounts.some((account) => account.id === selectedAccountId)) setSelectedAccountId("all");
+  }, [accounts, dataState.status, selectedAccountId]);
 
   const requestAccountsForMovements = useCallback(
     (rows: { movementId: string; firmId: string; purchasedAt: string }[]) => {
@@ -252,6 +269,18 @@ export default function App() {
         />
       )}
 
+      {/* La cuenta elegida en el Dashboard del Journal (o con "Ver detalles") recorta
+          también estas tres pantallas, y hasta ahora no lo decía nada: se volvía a Cuentas
+          y había una sola cuenta sin saber por qué. En el Dashboard no hace falta, porque
+          ahí el propio selector ya lo enseña. */}
+      {selectedAccountId !== "all" &&
+        (activeView === "accounts" || activeView === "movements" || activeView === "journalEntries") && (
+          <AccountScopeNotice
+            accountName={accounts.find((account) => account.id === selectedAccountId)?.name}
+            onShowAll={() => setSelectedAccountId("all")}
+          />
+        )}
+
       {activeView === "overview" && (
         <DashboardView
           accounts={accounts}
@@ -298,6 +327,7 @@ export default function App() {
           onNewAccountRequestHandled={() => setCreateRequest(null)}
           onSaveAccount={saveAccountAndLinkPendingMovement}
           onSetAccountVisible={guarded.setAccountVisible}
+          onViewDetails={viewAccountDetails}
         />
       )}
       {activeView === "movements" && (
@@ -505,6 +535,23 @@ function LoadingScreen({ label }: { label: string }) {
       <Wordmark />
       <strong>{label}</strong>
     </main>
+  );
+}
+
+function AccountScopeNotice({ accountName, onShowAll }: { accountName?: string; onShowAll: () => void }) {
+  const t = useT();
+  if (!accountName) return null;
+  return (
+    <section className="account-scope-notice" role="status">
+      <WalletCards size={19} strokeWidth={2.2} />
+      <div>
+        <strong>{t("account.scope.text").replace("{name}", accountName)}</strong>
+        <p>{t("account.scope.hint")}</p>
+      </div>
+      <button className="secondary-action" onClick={onShowAll} type="button">
+        {t("account.scope.showAll")}
+      </button>
+    </section>
   );
 }
 

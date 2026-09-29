@@ -524,6 +524,13 @@ export const en: Record<TranslationKey, string> = {
   "settings.tutorials.reset": "Show them again",
   "settings.tutorials.resetDone": "Done: they'll show again",
 
+  "account.card.viewDetails": "View details",
+  "account.card.viewDetailsShort": "Details",
+  "account.scope.text": "You're only seeing «{name}».",
+  "account.scope.hint": "It's the account picked on the Journal dashboard.",
+  "account.scope.showAll": "Show all accounts",
+  "tour.accounts.details.title": "View details",
+  "tour.accounts.details.body": "Opens the account in the Journal: its balance, its P&L and what's left before you can get paid.",
   "dashboard.filter.firm": "Firm",
   "dashboard.filter.account": "Account",
   "dashboard.filter.period": "Period",

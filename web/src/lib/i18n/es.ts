@@ -522,6 +522,13 @@ export const es = {
   "settings.tutorials.reset": "Volver a verlos",
   "settings.tutorials.resetDone": "Listo: saldrán otra vez",
 
+  "account.card.viewDetails": "Ver detalles",
+  "account.card.viewDetailsShort": "Detalles",
+  "account.scope.text": "Estás viendo solo «{name}».",
+  "account.scope.hint": "Es la cuenta elegida en el Dashboard del Journal.",
+  "account.scope.showAll": "Ver todas las cuentas",
+  "tour.accounts.details.title": "Ver detalles",
+  "tour.accounts.details.body": "Abre la cuenta en el Journal: su balance, su P&L y lo que le falta para poder cobrar.",
   "dashboard.filter.firm": "Empresa",
   "dashboard.filter.account": "Cuenta",
   "dashboard.filter.period": "Periodo",

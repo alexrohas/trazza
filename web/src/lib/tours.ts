@@ -52,6 +52,9 @@ export const tours: Record<NavigationView, TourStep[]> = {
     { id: "primary", target: "primary-action", title: "tour.accounts.primary.title", body: "tour.accounts.primary.body" },
     { id: "overview", target: "accounts-overview", title: "tour.accounts.overview.title", body: "tour.accounts.overview.body" },
     { id: "card", target: "account-card", title: "tour.accounts.card.title", body: "tour.accounts.card.body" },
+    /* Añadido el 29 de septiembre de 2026, después de publicar los tutoriales: quien ya
+       había visto el de Cuentas ve solo este paso. */
+    { id: "details", target: "account-details", title: "tour.accounts.details.title", body: "tour.accounts.details.body" },
   ],
   movements: [
     { id: "primary", target: "primary-action", title: "tour.movements.primary.title", body: "tour.movements.primary.body" },
