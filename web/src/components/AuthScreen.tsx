@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LockKeyhole, Languages, Mail, Moon, Sun, UserRound } from "lucide-react";
 import { useI18n, useT } from "../lib/i18n/context";
+import { PasswordField } from "./PasswordField";
 import { Wordmark } from "./Wordmark";
 
 type AuthScreenProps = {
@@ -111,7 +112,7 @@ export function AuthScreen({
                 <input
                   autoComplete="email"
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder={t("auth.field.emailPlaceholder")}
                   required
                   type="email"
                   value={email}
@@ -122,18 +123,15 @@ export function AuthScreen({
             {!isForgot && (
               <label>
                 <span>{t("auth.field.password")}</span>
-                <div className="auth-field">
-                  <LockKeyhole size={17} strokeWidth={2.2} />
-                  <input
-                    autoComplete={isSignup ? "new-password" : "current-password"}
-                    minLength={6}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder={t("auth.field.passwordPlaceholder")}
-                    required
-                    type="password"
-                    value={password}
-                  />
-                </div>
+                <PasswordField
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  icon={<LockKeyhole size={17} strokeWidth={2.2} />}
+                  minLength={6}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={t("auth.field.passwordPlaceholder")}
+                  required
+                  value={password}
+                />
               </label>
             )}
 
@@ -227,17 +225,20 @@ export function AuthScreen({
             </>
           )}
 
-          <button
-            className="auth-switch"
-            disabled={busy}
-            onClick={() => {
-              setTermsAccepted(false);
-              setMode(isForgot ? "signin" : isSignup ? "signin" : "signup");
-            }}
-            type="button"
-          >
-            {isForgot ? t("auth.switch.backToSignin") : isSignup ? t("auth.switch.haveAccount") : t("auth.switch.createAccount")}
-          </button>
+          <p className="auth-switch">
+            {isForgot ? t("auth.switch.remembered") : isSignup ? t("auth.switch.haveAccount") : t("auth.switch.noAccount")}{" "}
+            <button
+              className="auth-switch-link"
+              disabled={busy}
+              onClick={() => {
+                setTermsAccepted(false);
+                setMode(isForgot || isSignup ? "signin" : "signup");
+              }}
+              type="button"
+            >
+              {isForgot || isSignup ? t("auth.switch.signin") : t("auth.switch.signup")}
+            </button>
+          </p>
         </section>
       </section>
     </main>

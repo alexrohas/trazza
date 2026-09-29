@@ -216,8 +216,8 @@
 }
 
 :root[data-theme="dark"] .auth-screen {
-  /* Negro puro, mismo criterio que el blanco puro de arriba. */
-  background: #000000;
+  /* Negro puro, mismo criterio que el blanco puro de .auth-screen. */
+  --auth-bg: #000000;
 }
 
 :root[data-theme="dark"] .auth-field,
@@ -942,8 +942,11 @@ button {
   z-index: 0;
   /* Blanco puro y no var(--bg) (#f6f6f7, casi blanco pero no del todo): a peticion
      expresa, tras ver la cinta diagonal contra el fondo liso. var(--bg) se queda para
-     .loading-screen, que no cambio en este pase. */
-  background: #ffffff;
+     .loading-screen, que no cambio en este pase.
+     Es una variable y no el color a secas porque el halo de .auth-layout tiene que ser
+     exactamente este mismo color en los dos temas: si no, se veria su contorno. */
+  --auth-bg: #ffffff;
+  background: var(--auth-bg);
 }
 
 /* Columna diagonal de color, calcada de una captura real del login de Stripe (el
@@ -970,10 +973,15 @@ button {
 
    Reutiliza los tokens de color ya existentes (--accent/--negative/--warning/--positive)
    en vez de clonar la paleta azul-naranja-rosa de Stripe, mismo criterio de siempre. Sin
-   mix-blend-mode ni override de tema oscuro: la transparencia ya esta en el degradado. */
+   mix-blend-mode ni override de tema oscuro: la transparencia ya esta en el degradado.
+
+   fixed y no absolute: .auth-screen hace scroll, y en absolute la cinta (150 % de alto,
+   25 % por debajo del borde) contaba como contenido, asi que la pantalla de acceso se
+   podia desplazar 214px hacia abajo con la rueda. En fixed mide contra la ventana, que
+   es lo mismo que mide .auth-screen, y no desborda nada. */
 .auth-screen::after {
   content: "";
-  position: absolute;
+  position: fixed;
   top: -25%;
   left: 58%;
   width: 30%;
@@ -1026,10 +1034,61 @@ button {
   overflow-y: auto;
 }
 
+/* Sin tarjeta: el formulario flota sobre la pagina (a peticion expresa el 29 de
+   septiembre de 2026, a partir del login de otra web).
+   En pantalla ancha no hay nada detras del formulario y la cinta se ve entera, tambien a
+   peticion expresa: ahi solo roza su borde derecho, y lo que queda encima de ella es el
+   final de "¿Olvidaste tu contraseña?" y de la linea legal. Se probo con el halo de abajo
+   al 85 % y se prefirio asi, sabiendo que esos finales pierden contraste (medido sobre la
+   captura: entre 1,8 y 3,5:1 de 1280 a 1536px) y que el efecto es mayor cuanto mas
+   estrecha es la pantalla, porque la cinta se coloca en % del ancho y el formulario no.
+   En un movil o una tablet en vertical (820px o menos, el mismo corte que el cajon del
+   menu) la cinta cruza el formulario por el medio: sin nada detras, "politica de
+   privacidad" se quedaba en 1,8:1 en claro y en 1:1 en oscuro, morado sobre naranja. Ahi
+   hace lo que hacia la tarjeta de cristal —que la cinta no pase por debajo del texto— un
+   halo del color del fondo que se desvanece hacia fuera, sin ningun borde que ver.
+   El halo es la sombra de una caja MAS PEQUEÑA que el formulario, no una caja mas
+   grande: la sombra no cuenta como desbordamiento, y una caja que se saliera del bloque
+   si, con lo que sacaria barra horizontal en un telefono, donde el formulario va casi de
+   borde a borde. Y el fondo de esa caja, que es lo unico con canto duro, queda 60px
+   dentro del formulario, donde la sombra esta entera: con el halo como fondo mas sombra
+   del propio bloque, ese canto caia justo en el borde, con la sombra a un 95 %, y contra
+   una cinta tan saturada se veia la silueta de la tarjeta que se queria quitar.
+   Las cuentas, con el difuminado de 80 (sigma 40): la sombra se extiende 80 mas alla del
+   formulario, asi que en su borde ya esta al 98 % y se desvanece en los 160 siguientes;
+   el canto de la caja queda a 140 del final de la extension (3,5 sigmas), al 99,98 %. Si
+   tocas un numero, conserva esas dos distancias. El radio grande redondea la silueta
+   del halo, para que no se lea como un rectangulo: las esquinas del formulario quedan
+   algo menos cubiertas, pero no hay nada en ellas.
+   El halo deja ver un poco la cinta (a peticion expresa). 0,85 y no menos: donde la cinta
+   cruza por detras, los enlaces pequeños del pie ("politica de privacidad", "Registrate
+   gratis") se quedan en un movil justo en el 4,5:1 que pide la letra pequeña, medido
+   sobre la captura; al 0,75 bajaban a 4. La transparencia va en opacity, sobre el halo
+   entero, y no en un color translucido: con el color opaco el navegador pinta la sombra
+   tambien por debajo de la caja, pero con uno translucido la recorta justo en su borde,
+   y el suavizado de la esquina redondeada dejaba un arco de 1px a la vista. El blur(8px)
+   es un seguro para los navegadores que recorten siempre la sombra: en Chrome no hace
+   falta, y no habia otro a mano para comprobarlo. */
 .auth-layout {
+  position: relative;
   display: grid;
-  width: min(100%, 430px);
+  width: min(100%, 380px);
   z-index: 1;
+}
+
+@media (max-width: 820px) {
+  .auth-layout::before {
+    content: "";
+    position: absolute;
+    inset: 60px;
+    z-index: -1;
+    border-radius: 80px;
+    background: var(--auth-bg);
+    box-shadow: 0 0 80px 140px var(--auth-bg);
+    opacity: 0.85;
+    filter: blur(8px);
+    pointer-events: none;
+  }
 }
 
 /* Logo persistente en la esquina, fuera del flujo centrado: no ocupa espacio en el
@@ -1105,24 +1164,9 @@ button {
 }
 
 
-.auth-card {
-  width: min(100%, 440px);
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: clamp(28px, 4.5vh, 40px);
-  /* 96% -> 55%: a peticion expresa, para que la cinta de fondo se vea a traves de la
-     tarjeta (efecto cristal esmerilado) en vez de quedar tapada por una tarjeta casi
-     opaca. Los campos y el texto siguen legibles porque backdrop-filter (mas abajo) ya
-     desenfoca lo que hay detras antes de que la tarjeta lo deje pasar, y los inputs
-     (.auth-field) llevan su propio fondo solido — no dependen de la transparencia de la
-     tarjeta. Probado en vivo en los dos temas antes de fijar el numero. */
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
-  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.13);
-  backdrop-filter: blur(20px);
-}
-
 .auth-heading {
   margin: 0 0 clamp(22px, 3.4vh, 30px);
+  text-align: center;
 }
 
 .auth-heading h2 {
@@ -1132,79 +1176,6 @@ button {
   font-weight: var(--weight-bold);
   letter-spacing: -0.01em;
   line-height: var(--leading-tight);
-}
-
-/* Acceso con proveedor (Google). Mismo alto y radio que .auth-card .primary-action (50px
-   / 12px) para que la pila de botones de la tarjeta quede pareja. No usa tokens de color
-   nuevos: --surface / --line / --text ya son pares de tema, asi que funciona en claro y
-   oscuro sin regla extra. El fondo solido (no la tarjeta translucida) lo empareja con los
-   campos .auth-field, que tambien van opacos sobre el cristal esmerilado. */
-.auth-provider {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-md);
-  width: 100%;
-  min-height: 50px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
-}
-
-.auth-provider:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
-  background: var(--surface-muted);
-}
-
-.auth-provider:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.auth-provider svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-}
-
-/* Consentimiento para el alta por Google: el registro por email tiene su checkbox
-   obligatorio mas abajo, pero quien entra por Google no pasa por el, asi que la
-   aceptacion se deja escrita aqui como letra pequena (patron habitual de los botones de
-   proveedor). */
-.auth-provider-fineprint {
-  margin: var(--space-sm) 0 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-  text-align: center;
-}
-
-.auth-provider-fineprint a {
-  color: var(--strong-muted);
-}
-
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin: var(--space-lg) 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  text-transform: lowercase;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
 }
 
 .auth-form {
@@ -1247,6 +1218,35 @@ button {
   background: transparent;
   color: var(--text);
   font-size: var(--text-md);
+}
+
+/* Edge pinta su propio ojo dentro de los campos de contraseña, y con el nuestro saldrian
+   dos. */
+.auth-field input::-ms-reveal {
+  display: none;
+}
+
+/* "Mostrar" dentro del campo de contraseña (PasswordField). Ocupa el alto entero del
+   campo y llega hasta su borde derecho, para que sea facil de acertar con el dedo, y su
+   texto queda a la misma distancia del borde que el icono del otro lado: el margen
+   negativo cancela el relleno del campo con el mismo token. Mismo trato de color que
+   "¿Olvidaste tu contraseña?". */
+.auth-field-toggle {
+  align-self: stretch;
+  flex-shrink: 0;
+  margin-right: calc(var(--space-lg) * -1);
+  border: 0;
+  border-radius: 0 12px 12px 0;
+  padding: 0 var(--space-lg) 0 var(--space-sm);
+  background: transparent;
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  transition: color 160ms ease;
+}
+
+.auth-field-toggle:hover {
+  color: var(--accent);
 }
 
 .auth-forgot-link {
@@ -1292,18 +1292,16 @@ button {
   color: var(--positive);
 }
 
-.primary-action,
-.auth-switch {
+.primary-action {
   min-height: 44px;
   border-radius: var(--radius-sm);
   font-size: var(--text-base);
   font-weight: var(--weight-bold);
 }
 
-/* La tarjeta de acceso usa un radio de borde mayor que el resto de la app (22px en la
-   tarjeta, 12px en campos), asi que sus botones se redondean a juego solo aqui. */
-.auth-card .primary-action,
-.auth-card .auth-switch {
+/* En las pantallas de acceso el boton principal va a la medida de sus campos (50px de
+   alto, 12 de radio) y no a la del resto de la app. */
+.auth-card .primary-action {
   min-height: 50px;
   border-radius: 12px;
   font-size: var(--text-md);
@@ -1325,8 +1323,7 @@ button {
   background: var(--accent-strong);
 }
 
-.primary-action:disabled,
-.auth-switch:disabled {
+.primary-action:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -1344,19 +1341,57 @@ button {
   white-space: nowrap;
 }
 
+/* Cambiar entre entrar y registrarse: una frase con un enlace, no un boton (a peticion
+   expresa, con el mismo login de referencia que el halo). */
 .auth-switch {
-  width: 100%;
-  margin-top: var(--space-base);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--strong-muted);
-  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+  margin: var(--space-2xl) 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
 }
 
-.auth-switch:hover {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
-  color: var(--text);
-  background: var(--surface-muted);
+.auth-switch-link {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: var(--weight-bold);
+  transition: color 160ms ease;
+}
+
+/* Agranda la zona de pulsacion a 44px de alto (con el dedo, un enlace de 20 se falla)
+   sin mover la linea ni agrandar el anillo de foco, que sigue rodeando solo el texto. */
+.auth-switch-link::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-md) * -1) 0;
+}
+
+.auth-switch-link:hover {
+  color: var(--accent);
+}
+
+/* Foco de teclado en morado, como .tour-link, y no con el azul del navegador: dentro del
+   anillo morado del campo, el de "Mostrar" se leia como si fuera otro componente. Ese va
+   hacia dentro porque por fuera pisaria el anillo del propio campo. */
+.auth-forgot-link:focus-visible,
+.auth-switch-link:focus-visible,
+.auth-terms a:focus-visible,
+.auth-google-legal a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.auth-field-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.auth-switch-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Separador entre el submit del formulario y el acceso con Google: "o" centrado con una
@@ -1380,9 +1415,9 @@ button {
   background: var(--line);
 }
 
-/* Mismo lenguaje que .auth-switch (superficie + borde de linea): es una alternativa al
-   submit, no la accion principal. La altura y el radio salen de .auth-card .auth-switch
-   (50 / 12), que aqui se repiten porque este boton no hereda de esa regla. */
+/* Superficie + borde de linea: es una alternativa al submit, no la accion principal. La
+   altura y el radio (50 / 12) son los de .auth-card .primary-action, que aqui se repiten
+   porque este boton no hereda de esa regla. */
 .auth-google-button {
   display: inline-flex;
   align-items: center;
@@ -1426,9 +1461,19 @@ button {
   text-align: center;
 }
 
+/* Los enlaces legales van en color y sin subrayar (a peticion expresa). --accent-strong y
+   no --accent porque es texto de 12px: sobre blanco, --accent se queda en 4,2:1 y no
+   llega al 4,5 que pide la letra pequeña; --accent-strong da 5,8. En oscuro es el morado
+   claro, que sobre negro sobra. La regla gemela, la del checkbox, es .auth-terms a. */
 .auth-google-legal a {
-  color: var(--strong-muted);
+  color: var(--accent-strong);
   font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.auth-google-legal a:hover {
+  color: var(--accent);
 }
 
 .loading-screen {
@@ -1454,24 +1499,35 @@ button {
   color: var(--accent);
 }
 
-:root[data-theme="dark"] .auth-card {
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
-}
-
 @media (max-width: 620px) {
+  /* En un telefono el logo y los botones de arriba ocupan su propia fila en vez de flotar
+     fijos en las esquinas, y el formulario se centra en lo que queda debajo. Con el titulo
+     centrado, en cuanto el formulario no cabia de sobra (el registro a 375x667) el titulo
+     se metia debajo de los botones. En fila no pueden solaparse, y no hace falta reservar
+     un hueco con los altos de la cabecera escritos a mano. */
   .auth-screen {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto 1fr;
+    row-gap: var(--space-lg);
     padding: var(--space-2xl);
+  }
+
+  .auth-logo,
+  .auth-top-actions {
+    position: static;
   }
 
   .auth-logo {
-    top: 20px;
-    left: 20px;
+    justify-self: start;
     font-size: clamp(22px, 6vw, 32px);
   }
 
-  .auth-card {
-    padding: var(--space-2xl);
+  .auth-top-actions {
+    justify-self: end;
+  }
+
+  .auth-layout {
+    grid-column: 1 / -1;
   }
 
   .modal-layer {
@@ -3063,9 +3119,16 @@ button {
   accent-color: var(--accent);
 }
 
+/* Mismo trato que .auth-google-legal a (el porque del color esta alli). */
 .auth-terms a {
-  color: var(--strong-muted);
+  color: var(--accent-strong);
   font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.auth-terms a:hover {
+  color: var(--accent);
 }
 
 .subscription-badge {
@@ -9662,7 +9725,6 @@ tbody tr:last-child td {
 .metric-card,
 .panel,
 .directory-card,
-.auth-card,
 .modal-card,
 .empty-panel,
 .state-notice,

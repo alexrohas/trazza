@@ -46,8 +46,9 @@
   --landing-heading: clamp(24px, 2.8vw, 36px);
   --landing-lede: clamp(16px, 1.15vw, 20px);
 
-  /* La tarjeta grande de la landing usa el mismo radio generoso que .auth-card (22px),
-     que ya era la excepcion declarada de la app para superficies grandes. */
+  /* La tarjeta grande de la landing usa el radio generoso que tenia la tarjeta de acceso
+     (22px) hasta que el login se quedo sin tarjeta, el 29 de septiembre de 2026: era la
+     excepcion declarada de la app para superficies grandes. */
   --landing-radius: 20px;
 
   /* Capas decorativas. Son las unicas superficies con color propio de la pagina, y aun

@@ -8,6 +8,7 @@ import { EconomicEventsView } from "./components/EconomicEventsView";
 import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
+import { PasswordField } from "./components/PasswordField";
 import { PlansModal } from "./components/PlansModal";
 import { ProductTour } from "./components/ProductTour";
 import { SettingsView } from "./components/SettingsView";
@@ -489,31 +490,25 @@ function ResetPasswordScreen({
           >
             <label>
               <span>{t("auth.reset.newPassword")}</span>
-              <div className="auth-field">
-                <input
-                  autoComplete="new-password"
-                  minLength={6}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder={t("auth.field.passwordPlaceholder")}
-                  required
-                  type="password"
-                  value={password}
-                />
-              </div>
+              <PasswordField
+                autoComplete="new-password"
+                minLength={6}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={t("auth.field.passwordPlaceholder")}
+                required
+                value={password}
+              />
             </label>
             <label>
               <span>{t("auth.reset.confirmPassword")}</span>
-              <div className="auth-field">
-                <input
-                  autoComplete="new-password"
-                  minLength={6}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder={t("auth.reset.confirmPlaceholder")}
-                  required
-                  type="password"
-                  value={confirmPassword}
-                />
-              </div>
+              <PasswordField
+                autoComplete="new-password"
+                minLength={6}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder={t("auth.reset.confirmPlaceholder")}
+                required
+                value={confirmPassword}
+              />
             </label>
 
             {validationError && <p className="auth-message error">{validationError}</p>}
