@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, CopyCheck, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
+import { ArrowUpRight, BadgeCheck, Banknote, Building2, CalendarDays, Check, CircleAlert, Copy, CopyCheck, Eye, EyeOff, Flag, ListPlus, Pencil, Plus, RotateCcw, Shield, Trash2, TrendingDown, TrendingUp, Wallet, WalletCards, X } from "lucide-react";
 import { AccountRuleStatusLine } from "./AccountRuleStatus";
 import { DatePicker } from "./DatePicker";
 import { FilterToggleButton } from "./FilterToggle";
@@ -16,6 +16,7 @@ import {
   formatMoney,
   getAccountProgress,
   getAccountTradingDays,
+  localIsoDate,
 } from "../lib/metrics";
 import { useI18n, useT, type Language } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
@@ -29,11 +30,16 @@ import type {
   Firm,
   JournalEntry,
   Movement,
+  MovementInput,
   TradingAccount,
 } from "../types";
 
 type AccountsViewProps = {
   accounts: TradingAccount[];
+  /* Todas las cuentas, aunque haya una elegida en el Journal (entonces `accounts` llega
+     recortada a esa): un nombre propuesto tiene que mirar si ya lo tiene cualquier cuenta,
+     no solo las que se estan viendo, o saldria un "#6" repetido. */
+  allAccounts?: TradingAccount[];
   currency: Currency;
   dataMode: DataMode;
   firms: Firm[];
@@ -60,9 +66,14 @@ type AccountsViewProps = {
   onEditAccountRequestHandled?: () => void;
   onNewAccountRequestHandled?: () => void;
   onSaveAccount: (input: AccountInput, accountId?: string) => Promise<TradingAccount | false>;
+  /* Solo para el coste de un reset, que se apunta como gasto de la cuenta nueva. */
+  onSaveMovement?: (input: MovementInput) => Promise<boolean>;
   onSetAccountVisible: (accountId: string, visible: boolean) => Promise<boolean>;
   /* "Ver detalles": abre el Dashboard del Journal con esta cuenta elegida (ver App.tsx). */
   onViewDetails?: (accountId: string) => void;
+  /* Una cuenta se ha reseteado en otra nueva: si era la elegida en el Journal, la eleccion
+     pasa a la nueva, que es donde se va a seguir operando. */
+  onAccountReset?: (fromAccountId: string, toAccountId: string) => void;
 };
 
 function getAccountStatusOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: AccountStatus }> {
@@ -142,6 +153,7 @@ const bulkCopyFields = [
 
 export function AccountsView({
   accounts,
+  allAccounts = accounts,
   currency,
   dataMode,
   firms,
@@ -161,8 +173,10 @@ export function AccountsView({
   onEditAccountRequestHandled,
   onNewAccountRequestHandled,
   onSaveAccount,
+  onSaveMovement,
   onSetAccountVisible,
   onViewDetails,
+  onAccountReset,
 }: AccountsViewProps) {
   const [draft, setDraft] = useState<AccountInput>(emptyAccountInput);
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -188,6 +202,12 @@ export function AccountsView({
      formulario se abrio desde el aviso de objetivo superado: al guardar la cuenta
      nueva, esta evaluacion pasa a status "passed" con una segunda llamada. */
   const [promotingFromId, setPromotingFromId] = useState<string | undefined>();
+  /* La ventana de reset: la cuenta que se resetea y lo que pide, la fecha (que es la de
+     compra de la cuenta nueva) y lo que costo el reset, si costo algo. */
+  const [resetSource, setResetSource] = useState<TradingAccount | undefined>();
+  const [resetDate, setResetDate] = useState("");
+  const [resetFee, setResetFee] = useState<number | undefined>();
+  const [resetSaving, setResetSaving] = useState(false);
   const [screen, setScreen] = useState<"list" | "form">("list");
   const [statusFilter, setStatusFilter] = useState<"all" | AccountStatus>("all");
   const t = useT();
@@ -345,12 +365,12 @@ export function AccountsView({
     const firmName = draft.kind === "own" ? t("account.kind.own") : firmNameById.get(draft.firmId);
     if (!firmName || !draft.size.trim()) return "";
     const base = `${firmName} ${planProgramFor(firmName, draft)}${formatSizeForName(draft.size)}`.trim();
-    const taken = accounts.filter((account) => account.id !== editingId).map((account) => account.name.toLowerCase());
+    const taken = allAccounts.filter((account) => account.id !== editingId).map((account) => account.name.toLowerCase());
     if (!taken.includes(base.toLowerCase())) return base;
     let index = 2;
     while (taken.includes(`${base} #${index}`.toLowerCase())) index += 1;
     return `${base} #${index}`;
-  }, [accounts, draft, editingId, firmNameById, t]);
+  }, [allAccounts, draft, editingId, firmNameById, t]);
 
   useEffect(() => {
     /* Solo se rellena solo mientras el nombre no se haya tocado. Al editar una cuenta
@@ -478,7 +498,7 @@ export function AccountsView({
      ha tocado a mano sigue contando su nombre actual como "ocupado" para las de abajo,
      para no proponer dos filas iguales. */
   const bulkSuggestedNames = useMemo(() => {
-    const takenExisting = new Set(accounts.map((account) => account.name.toLowerCase()));
+    const takenExisting = new Set(allAccounts.map((account) => account.name.toLowerCase()));
     const usedInBatch = new Set<string>();
     const suggestions = new Map<number, string>();
     bulkRows.forEach((row) => {
@@ -500,7 +520,7 @@ export function AccountsView({
       suggestions.set(row.key, candidate);
     });
     return suggestions;
-  }, [accounts, bulkRows, firmNameById, t]);
+  }, [allAccounts, bulkRows, firmNameById, t]);
 
   useEffect(() => {
     if (bulkSuggestedNames.size === 0) return;
@@ -586,7 +606,7 @@ export function AccountsView({
       maxDrawdown: account.maxDrawdown || undefined,
       dailyDrawdown: account.dailyDrawdown || undefined,
       drawdownType: account.drawdownType,
-      purchasedAt: new Date().toISOString().slice(0, 10),
+      purchasedAt: localIsoDate(new Date()),
       /* Si la evaluacion seguia un plan del catalogo, la fondeada nace con las reglas de
          la fase fondeada de ese mismo plan: en Lucid Flex eso es quitar el objetivo y la
          consistencia del 50 % y poner los 5 dias rentables y el minimo para retirar. Es
@@ -595,6 +615,63 @@ export function AccountsView({
     });
     setPromotingFromId(account.id);
     setScreen("form");
+  };
+
+  /* Limite de perdida alcanzado: la otra salida de una evaluacion, al lado de la de
+     objetivo cumplido. Las dos cambian el estado y mandan la cuenta al archivo, asi que
+     nada ocurre solo: lo pide un boton. */
+  const markAccountFailed = async (account: TradingAccount) => {
+    const confirmed = await confirm({
+      title: t("account.markFailed.title").replace("{name}", account.name),
+      description: t("account.markFailed.description"),
+      confirmLabel: t("account.card.markFailed"),
+    });
+    if (!confirmed) return;
+    await onSaveAccount({ ...accountToInput(account), status: "failed" }, account.id);
+  };
+
+  const openResetAccount = (account: TradingAccount) => {
+    setResetSource(account);
+    setResetDate(localIsoDate(new Date()));
+    setResetFee(undefined);
+  };
+
+  const closeReset = () => {
+    if (!resetSaving) setResetSource(undefined);
+  };
+
+  const resetName = resetSource ? nextResetName(resetSource.name, allAccounts.map((account) => account.name)) : "";
+
+  /* Reset: la misma cuenta, con el mismo tamano y las mismas reglas, empezando de cero y
+     con el numero siguiente. Es una cuenta nueva y no la misma puesta a cero: la vieja se
+     queda en el archivo con sus trades y sus gastos, que pasaron de verdad y cuentan en lo
+     que llevas gastado. Primero se crea la nueva, para que si falla no se haya tocado nada. */
+  const submitReset = async () => {
+    if (!resetSource || resetSaving) return;
+    setResetSaving(true);
+    const saved = await onSaveAccount({
+      ...accountToInput(resetSource),
+      name: resetName,
+      status: resetSource.status === "evaluation" ? "evaluation" : "active",
+      parentAccountId: undefined,
+      purchasedAt: resetDate,
+    });
+    if (saved) {
+      if (resetFee && resetFee > 0) {
+        await onSaveMovement?.({
+          date: resetDate,
+          kind: "expense",
+          category: "reset",
+          amount: resetFee,
+          firmId: resetSource.firmId,
+          accountId: saved.id,
+        });
+      }
+      await onSaveAccount({ ...accountToInput(resetSource), status: "failed" }, resetSource.id);
+      onAccountReset?.(resetSource.id, saved.id);
+      setResetSource(undefined);
+    }
+    setResetSaving(false);
   };
 
   useEffect(() => {
@@ -814,6 +891,43 @@ export function AccountsView({
             </button>
           </div>
         </div>
+      </Modal>
+      )}
+
+      {resetSource && (
+      <Modal onClose={closeReset} title={t("account.reset.title")} width="narrow">
+        <form
+          className="confirm-dialog"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitReset();
+          }}
+        >
+          <p>{t("account.reset.description").replace("{name}", resetSource.name).replace("{newName}", resetName)}</p>
+          <div className="entity-form">
+            <label>
+              <span>{t("account.reset.date")}</span>
+              <DatePicker clearable={false} disabled={resetSaving} onChange={setResetDate} value={resetDate} />
+            </label>
+            <NumberField
+              disabled={resetSaving}
+              hint={t("account.reset.feeHint")}
+              label={t("account.reset.fee")}
+              onChange={setResetFee}
+              value={resetFee}
+            />
+          </div>
+          {mutationError && <p className="mutation-message error">{mutationError}</p>}
+          <div className="form-action-row">
+            <button className="ghost-action" disabled={resetSaving} onClick={closeReset} type="button">
+              {t("common.cancel")}
+            </button>
+            <button className="primary-action" disabled={!canWrite || resetSaving || !resetDate} type="submit">
+              <RotateCcw size={17} strokeWidth={2.2} />
+              {resetSaving ? t("common.saving") : t("account.reset.submit")}
+            </button>
+          </div>
+        </form>
       </Modal>
       )}
 
@@ -1080,6 +1194,39 @@ export function AccountsView({
                   <BadgeCheck size={15} strokeWidth={2.2} />
                   {t("account.card.targetReached")}
                 </button>
+              )}
+
+              {/* El balance ha tocado el limite de perdida. Dos salidas: darla por fallada,
+                  o resetearla, que solo existe en evaluaciones (una fondeada que revienta
+                  se pierde, no se resetea). Capital propio no tiene firma que la de por
+                  fallada, asi que ahi no sale. */}
+              {progress.breachedFloor && kind !== "own" && (
+                <div className="account-card-breach">
+                  <p>
+                    <CircleAlert size={15} strokeWidth={2.2} />
+                    {t("account.card.lossLimitReached")}
+                  </p>
+                  <div className="account-card-breach-actions">
+                    <button
+                      aria-label={`${t("account.card.markFailed")} ${account.name}`}
+                      disabled={!canWrite || mutating}
+                      onClick={() => void markAccountFailed(account)}
+                      type="button"
+                    >
+                      {t("account.card.markFailed")}
+                    </button>
+                    {kind === "challenge" && (
+                      <button
+                        aria-label={`${t("account.card.reset")} ${account.name}`}
+                        disabled={!canWrite || mutating}
+                        onClick={() => openResetAccount(account)}
+                        type="button"
+                      >
+                        {t("account.card.reset")}
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
 
               <div className="account-card-meta">
@@ -1601,4 +1748,19 @@ function formatSizeForName(size: string) {
     return `${Number.isInteger(thousands) ? thousands : thousands.toFixed(1)}K`;
   }
   return String(numeric);
+}
+
+/* El nombre del reset: el de la cuenta con el numero siguiente, como numeran las firmas
+   ("Apex 50K #5" -> "Apex 50K #6"; sin numero, esa era la #1 y el reset es la #2). Si ese
+   nombre ya lo tiene otra cuenta, otra compra de la misma firma, el primero libre por
+   encima: dos cuentas con el mismo nombre no se distinguirian en ningun desplegable. */
+function nextResetName(name: string, takenNames: string[]) {
+  const trimmed = name.trim();
+  const match = trimmed.match(/^(.*?)\s*#(\d+)$/);
+  const base = match ? match[1] : trimmed;
+  const taken = new Set(takenNames.map((takenName) => takenName.trim().toLowerCase()));
+  const compose = (index: number) => (base ? `${base} #${index}` : `#${index}`);
+  let index = match ? Number(match[2]) + 1 : 2;
+  while (taken.has(compose(index).toLowerCase())) index += 1;
+  return compose(index);
 }

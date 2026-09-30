@@ -7060,6 +7060,63 @@ label > span > .info-hint-wrap .info-hint svg {
   cursor: not-allowed;
 }
 
+/* Limite de perdida alcanzado. Mismo sitio, misma caja y misma letra que el aviso de
+   objetivo cumplido de arriba, en rojo; pero con dos salidas en vez de una (fallada o
+   reset), asi que es una frase con dos botones y no un boton entero. Los botones van en
+   blanco sobre el rosa para que se lean como botones y no como parte del aviso, y sin
+   icono (ya lo lleva la frase): con icono no cabian los dos en una fila en la tarjeta de
+   336px que sale a 1280, y se apilaban con dos anchos distintos. */
+.account-card-breach {
+  display: grid;
+  gap: var(--space-sm);
+  border: 1px solid color-mix(in srgb, var(--negative) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-base);
+  background: var(--negative-soft);
+}
+
+.account-card-breach p {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0;
+  color: var(--negative);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.account-card-breach-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.account-card-breach-actions button {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, var(--negative) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-md);
+  background: var(--surface);
+  color: var(--negative);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.account-card-breach-actions button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--negative) 50%, transparent);
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface));
+}
+
+.account-card-breach-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* En linea, no en bloque: apilar el objetivo debajo dejaba esta caja mas alta que las
    otras tres de la fila, y con una cuenta recien creada (sin objetivo que mostrar,
    "Nada" en una sola linea) la tarjeta entera quedaba mas baja que las que si tienen
@@ -10155,7 +10212,8 @@ tbody tr:last-child td {
   .journal-cockpit-account-filter .custom-select-trigger,
   .account-status-tabs button,
   .firm-type-tabs button,
-  .journal-same-day button {
+  .journal-same-day button,
+  .account-card-breach-actions button {
     min-height: 44px;
   }
 

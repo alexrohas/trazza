@@ -127,6 +127,12 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, []);
 
+  /* Una cuenta reseteada sigue en otra nueva ("#5" -> "#6"): si era la elegida, la
+     eleccion la sigue, que es donde se van a apuntar los trades a partir de ahora. */
+  const followAccountReset = useCallback((fromAccountId: string, toAccountId: string) => {
+    setSelectedAccountId((current) => (current === fromAccountId ? toAccountId : current));
+  }, []);
+
   /* La cuenta elegida filtra también Cuentas, Movimientos y Trades. Si deja de existir
      (se borra), esas pantallas se quedarían vacías sin explicación: se vuelve a "todas". */
   useEffect(() => {
@@ -308,6 +314,7 @@ export default function App() {
       {activeView === "accounts" && (
         <AccountsView
           accounts={visibleAccounts}
+          allAccounts={accounts}
           currency={currency}
           dataMode={dataState.mode}
           firms={firms}
@@ -327,8 +334,10 @@ export default function App() {
           onEditAccountRequestHandled={() => setEditAccountRequest(null)}
           onNewAccountRequestHandled={() => setCreateRequest(null)}
           onSaveAccount={saveAccountAndLinkPendingMovement}
+          onSaveMovement={guarded.saveMovement}
           onSetAccountVisible={guarded.setAccountVisible}
           onViewDetails={viewAccountDetails}
+          onAccountReset={followAccountReset}
         />
       )}
       {activeView === "movements" && (

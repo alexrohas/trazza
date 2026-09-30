@@ -78,7 +78,7 @@ export type AccountProgress = {
 
 /* Fecha local, no UTC: las entradas guardan el dia del usuario, y toISOString daria
    todavia el dia anterior entre medianoche y las dos de la madrugada en Espana. */
-function localIsoDate(date: Date) {
+export function localIsoDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
