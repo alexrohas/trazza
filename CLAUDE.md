@@ -777,6 +777,56 @@ contraseña (`ResetPasswordScreen` en `App.tsx`) usa las mismas piezas pero no s
 solo se abre desde un enlace de recuperación real. Queda un detalle a 320px (el iPhone SE de
 2016): "Mínimo 6 caracteres" no cabe entero junto al "Mostrar".
 
+**Límite de pérdida alcanzado: fallada o reset**, el **30 de septiembre de 2026**
+(`6076b60`). Lo pidió el usuario como el gemelo del botón de promocionar a fondeada: cuando
+el balance de una cuenta toca su MLL, su tarjeta en Cuentas enseña "Límite de pérdida
+alcanzado" con "Marcar como fallada" y, en evaluaciones, "Resetear". Sin cambios de
+esquema: la condición ya la calculaba `getAccountProgress` (`breachedFloor`, balance ≤
+suelo, el mismo cálculo que la barra) y la categoría de movimiento `reset` ya existía.
+
+Decisiones que conviene no deshacer:
+
+- **Un reset es una cuenta nueva, no la misma puesta a cero.** Mismo tamaño, tipo de
+  drawdown y reglas (se copia con `accountToInput`), la fecha del reset como fecha de
+  compra, y la vieja pasa a `failed` y se queda en el Histórico con sus trades y sus
+  gastos: pasaron de verdad, cuentan en lo gastado, y reescribir la cuenta los habría
+  mezclado con los de la nueva. Es también como numera el usuario: "si reseteas una #5,
+  el reset pasa a ser #6". El coste del reset, si se rellena, se apunta como gasto
+  `reset` de la cuenta nueva.
+- **La numeración** (`nextResetName`): el número siguiente al del nombre; sin número, la
+  cuenta era la #1 implícita y el reset es la #2; y si ese nombre ya lo tiene otra cuenta
+  (otra compra de la misma firma), el primero libre por encima.
+- **Todo lo que mira si un nombre está cogido usa `allAccounts`, no `accounts`.**
+  `AccountsView` recibe `accounts` recortada a la cuenta elegida en el Journal
+  (`visibleAccounts`), y con una elegida el nombre propuesto no veía las demás: podía
+  repetir un "#6". Pasaba igual con el nombre del alta individual y masiva
+  (`suggestedName`, `bulkSuggestedNames`), que ahora miran también todas.
+- **El reset no usa `parentAccountId`.** Ese campo significa "la evaluación de la que sale
+  esta fondeada": un reset enlazado ahí haría creer a `hasFundedChild` que la evaluación
+  ya tiene fondeada, y rompería el botón de promocionar y el paso al Histórico.
+- **Orden de escrituras**: primero la cuenta nueva, después el coste si lo hay y al final
+  la vieja a fallada. Si falla la primera, no se ha tocado nada.
+- **Solo las evaluaciones se resetean**: una fondeada que revienta se pierde, así que ahí
+  sale solo "Marcar como fallada". En capital propio no sale nada: no hay firma que la dé
+  por fallada.
+- **Si la cuenta era la elegida en el Journal, la elección pasa a la nueva**
+  (`followAccountReset` en `App.tsx`): es donde se van a apuntar los trades desde ahí.
+- **Los dos botones van sin icono** (lo lleva la frase de arriba): con icono no cabían en
+  una fila en la tarjeta de 336px que sale a 1280 y se apilaban con dos anchos distintos.
+  Medido en 11 anchos y los dos idiomas: la tarjeta más estrecha (323px, a 1920) los
+  lleva en una fila.
+
+De paso: `localIsoDate` se exporta de `metrics.ts` y la usa también la promoción a
+fondeada, que ponía la fecha en UTC (entre las 00:00 y las 02:00 en España salía el día
+anterior); y "Límite de pérdida" de la barra lleva ya sus tildes.
+
+Verificado en la demo metiendo a propósito una pérdida que rompía el MLL de una evaluación
+y de una fondeada, y forzando `canWrite` para abrir las dos ventanas (deshecho después y
+comprobado contra `HEAD`), y la numeración con 9 casos ejecutando la función real. **El
+guardado de verdad —la cuenta nueva, el coste y la vieja a fallada— no se ha probado contra
+Supabase**, porque la demo es de solo lectura: si el primer reset real da algo raro, es lo
+primero que mirar.
+
 **El solo-lectura, también en la base de datos**, el **23 de septiembre de 2026**
 (`supabase-rls-subscription-writes.sql`, **ya ejecutado en producción** como la migración
 `rls_subscription_writes`). Es la otra mitad del agujero de la prueba gratuita, y era la
@@ -895,7 +945,9 @@ La lista, por orden de impacto entre esfuerzo:
 - **Avisos de cargos y fechas.** Apex y Topstep renuevan la evaluación cada mes aunque la
   hayas suspendido. Preguntar "¿has cancelado la suscripción?" al marcar una cuenta como
   fallada, calendario de próximos cargos, aviso de ventana de payout. Por email sería
-  además la primera razón para volver a entrar.
+  además la primera razón para volver a entrar. Desde el 30 de septiembre de 2026 hay un
+  "Marcar como fallada" en la tarjeta de una cuenta que toca su MLL (`markAccountFailed`
+  en `AccountsView`): su confirmación es el sitio natural para esa pregunta.
 - **Tarjetas para compartir** un payout o el mes: `journalCalendarImage.ts` ya hace la del
   calendario, y es difusión gratis en Discord y Telegram.
 - **Códigos de descuento de afiliado** (el modelo de PropFirmMatch): ingresos que no
@@ -1515,6 +1567,10 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   del halo del login. A `deviceScaleFactor` 1 hay cuatro veces menos píxeles que
   descomprimir: una tanda de nueve medidas a 2 se pasó de los 5 minutos que aguanta una
   llamada de Bash.
+- **El `clip` de `Page.captureScreenshot` va en coordenadas del documento, no de la
+  ventana.** A lo que devuelve `getBoundingClientRect` hay que sumarle `scrollX` y
+  `scrollY`: con la página desplazada, el recorte de un modal salió corrido y solo se veía
+  el fondo oscurecido.
 - **Probar contra producción con la cuenta del usuario**, como se hizo con la importación
   del extracto el 22 de septiembre de 2026: la sesión la inicia el usuario en el panel del
   navegador (el dev server del 5174 va contra el Supabase real) y hay tres reglas.
