@@ -472,7 +472,6 @@ export default function App() {
           accounts={accounts}
           currency={currency}
           firms={firms}
-          mutating={dataState.mutating}
           mutationError={dataState.mutationError}
           onAccountCreated={markOnboardingDone}
           onClose={closeOnboarding}

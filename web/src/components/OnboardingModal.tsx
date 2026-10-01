@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Check, FileUp, Landmark, Wallet } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { Building2, Check, FileUp, Landmark, Minus, Plus, Wallet, X } from "lucide-react";
 import { Modal } from "./Modal";
 import { formatSizeForName } from "../lib/db";
 import { applyCatalogPlan, findCatalogFirm, formatCatalogDate, formatPlanLabel } from "../lib/firmCatalog";
@@ -7,7 +7,7 @@ import { getFirmLogo } from "../lib/firmLogos";
 import { useI18n, useT } from "../lib/i18n/context";
 import type { TranslationKey } from "../lib/i18n/es";
 import { formatMoney } from "../lib/metrics";
-import type { AccountInput, Currency, Firm, FirmInput, TradingAccount } from "../types";
+import type { AccountInput, AccountKind, Currency, Firm, FirmInput, TradingAccount } from "../types";
 
 /**
  * Primer arranque: empresa -> cuenta (con el plan del catálogo si lo hay) -> operaciones.
@@ -33,15 +33,30 @@ const SIZE_CHIPS = ["25K", "50K", "100K", "150K"];
 
 type Step = "firm" | "account" | "next";
 
+/* Un tipo de cuenta y cuántas iguales: "3 × Challenge Flex 50K". Lo normal es tener varias
+   (cinco evaluaciones del mismo plan, o evaluaciones y fondeadas a la vez), y darlas de
+   alta una a una en Cuentas era justo el trabajo que este paso quiere ahorrar. */
+type AccountGroup = {
+  key: number;
+  kind: AccountKind;
+  planId: string;
+  size: string;
+  quantity: number;
+};
+
+type PlannedAccount = { groupKey: number; input: AccountInput };
+
+/* Apex deja tener 20 cuentas a la vez, y es la que más permite de las que usan. */
+const MAX_QUANTITY = 20;
+
 type OnboardingModalProps = {
   accounts: TradingAccount[];
   currency: Currency;
   firms: Firm[];
-  mutating: boolean;
   mutationError: string | null;
   /** Cerrar en cualquier paso (la X, Escape, "Ahora no"): no vuelve a salir. */
   onClose: () => void;
-  /** La cuenta ya existe: a partir de aquí, aunque se cierre, no vuelve a salir. */
+  /** Ya hay alguna cuenta: a partir de aquí, aunque se cierre, no vuelve a salir. */
   onAccountCreated: () => void;
   onSaveAccount: (input: AccountInput) => Promise<TradingAccount | false>;
   onSaveFirm: (input: FirmInput) => Promise<Firm | false>;
@@ -52,7 +67,6 @@ export function OnboardingModal({
   accounts,
   currency,
   firms,
-  mutating,
   mutationError,
   onClose,
   onAccountCreated,
@@ -72,8 +86,18 @@ export function OnboardingModal({
   const [size, setSize] = useState("");
   const [customSize, setCustomSize] = useState("");
   const [customOpen, setCustomOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  /* Las ya añadidas con "Añadir otra distinta". La que está a medio elegir arriba no entra
+     aquí hasta que se añade, pero sí se crea al pulsar "Crear". */
+  const [groups, setGroups] = useState<AccountGroup[]>([]);
+  const groupKey = useRef(0);
+  const [saving, setSaving] = useState(false);
+  /* Lo que se está creando, congelado: cada cuenta guardada recarga los datos y, sin esto,
+     los nombres propuestos se irían corriendo ("#2" pasaría a "#3") mientras se guardan. */
+  const [frozen, setFrozen] = useState<PlannedAccount[] | null>(null);
   const [attempted, setAttempted] = useState(false);
-  const [created, setCreated] = useState<TradingAccount>();
+  const [created, setCreated] = useState<TradingAccount[]>([]);
+  const [createdWithRules, setCreatedWithRules] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const [quoteOpen, quoteClose] = language === "en" ? ["“", "”"] : ["«", "»"];
 
@@ -85,72 +109,169 @@ export function OnboardingModal({
 
   const catalogFirm = own ? undefined : findCatalogFirm(firmName);
   const plan = catalogFirm?.plans.find((item) => item.id === planId);
-  const accountKind = own ? "own" : kind;
+  const accountKind: AccountKind = own ? "own" : kind;
   const sizeLabel = plan ? `${plan.size / 1000}K` : customOpen ? formatSizeForName(customSize) : size;
+  const current: AccountGroup | undefined = sizeLabel
+    ? { key: -1, kind: accountKind, planId: plan?.id || "", size: sizeLabel, quantity }
+    : undefined;
+  const allGroups = current ? [...groups, current] : groups;
 
-  /* El mismo nombre que propone el alta de Cuentas: empresa + programa del plan + tamaño,
-     con "#2" si ya existe. Capital propio no tiene empresa y usa su etiqueta de tipo. */
-  const accountName = useMemo(() => {
+  /* El mismo nombre que propone el alta de Cuentas (empresa + programa del plan + tamaño, y
+     "#2", "#3"… si ya existe), repartido entre todas las que se van a crear. Capital propio
+     no tiene empresa y usa su etiqueta de tipo. */
+  const livePlanned = (() => {
     const base = own ? t("account.kind.own") : firmName.trim();
-    if (!base || !sizeLabel) return "";
-    const program = plan && !base.toLowerCase().includes(plan.program.toLowerCase()) ? `${plan.program} ` : "";
-    const name = `${base} ${program}${sizeLabel}`;
-    const taken = accounts.map((account) => account.name.toLowerCase());
-    if (!taken.includes(name.toLowerCase())) return name;
-    let index = 2;
-    while (taken.includes(`${name} #${index}`.toLowerCase())) index += 1;
-    return `${name} #${index}`;
-  }, [accounts, firmName, own, plan, sizeLabel, t]);
+    const taken = new Set(accounts.map((account) => account.name.toLowerCase()));
+    return allGroups.flatMap((group) => {
+      const groupPlan = catalogFirm?.plans.find((item) => item.id === group.planId);
+      const program = groupPlan && !base.toLowerCase().includes(groupPlan.program.toLowerCase()) ? `${groupPlan.program} ` : "";
+      const root = `${base} ${program}${group.size}`;
+      return Array.from({ length: group.quantity }, (): PlannedAccount => {
+        let name = root;
+        let index = 2;
+        while (taken.has(name.toLowerCase())) {
+          name = `${root} #${index}`;
+          index += 1;
+        }
+        taken.add(name.toLowerCase());
+        return {
+          groupKey: group.key,
+          input: {
+            firmId: "",
+            name,
+            status: "active",
+            kind: group.kind,
+            drawdownType: "static",
+            size: group.size,
+            ...(groupPlan ? applyCatalogPlan(groupPlan, group.kind) : {}),
+          },
+        };
+      });
+    });
+  })();
+  const planned = frozen ?? livePlanned;
 
-  const input: AccountInput = {
-    firmId: "",
-    name: accountName,
-    status: "active",
-    kind: accountKind,
-    drawdownType: "static",
-    size: sizeLabel,
-    ...(plan ? applyCatalogPlan(plan, accountKind) : {}),
+  const ruleItems = plan
+    ? getRuleItems(
+        { firmId: "", name: "", status: "active", kind: accountKind, drawdownType: "static", size: sizeLabel, ...applyCatalogPlan(plan, accountKind) },
+        currency,
+        t,
+      )
+    : [];
+
+  const resetEditor = () => {
+    setPlanId("");
+    setSize("");
+    setCustomSize("");
+    setCustomOpen(false);
+    setQuantity(1);
   };
-  const ruleItems = getRuleItems(input, currency, t);
 
   const chooseFirm = (name: string, isOwn = false) => {
+    /* Otra empresa, otro catálogo: un plan de Lucid no tiene sentido en Apex. Volver atrás
+       y elegir la misma conserva lo que ya se había añadido. */
+    if (name !== firmName || isOwn !== own) {
+      setGroups([]);
+      resetEditor();
+    }
     setFirmName(name);
     setOwn(isOwn);
-    /* Otra empresa, otro catálogo: un plan de Lucid no tiene sentido en Apex. El tamaño
-       sí se conserva, por si se vuelve atrás solo para corregir una errata. */
-    setPlanId("");
     setAttempted(false);
     setStep("account");
   };
 
-  const createAccount = async () => {
-    if (!accountName || mutating) return;
-    setAttempted(true);
-
-    let firmId = "";
-    if (!own) {
-      /* Si la empresa ya existe (un intento anterior creó la empresa y falló la cuenta, o se
-         volvió atrás), se reutiliza: repetir no debe dejar dos "Lucid Trading". */
-      const key = firmName.trim().toLowerCase();
-      const existing = firms.find((firm) => firm.name.trim().toLowerCase() === key);
-      if (existing) {
-        firmId = existing.id;
-      } else {
-        const firm = await onSaveFirm({
-          name: firmName.trim(),
-          type: SUGGESTED_FIRMS.includes(firmName) || catalogFirm ? "futures" : "other",
-        });
-        if (!firm) return;
-        firmId = firm.id;
-      }
-    }
-
-    const account = await onSaveAccount({ ...input, firmId });
-    if (!account) return;
-    setCreated(account);
-    onAccountCreated();
-    setStep("next");
+  const addAnother = () => {
+    if (!current) return;
+    groupKey.current += 1;
+    setGroups((list) => [...list, { ...current, key: groupKey.current }]);
+    resetEditor();
   };
+
+  const createAccounts = async () => {
+    if (!livePlanned.length || saving) return;
+    const batch = livePlanned;
+    /* La que estaba a medio elegir entra en el lote con una clave propia, para poder
+       descontar sus cuentas si el guardado se corta a mitad. */
+    let currentKey = -1;
+    if (current) {
+      groupKey.current += 1;
+      currentKey = groupKey.current;
+    }
+    const batchGroups = current ? [...groups, { ...current, key: currentKey }] : groups;
+    const keyed = batch.map((item) => (item.groupKey === -1 ? { ...item, groupKey: currentKey } : item));
+    setAttempted(true);
+    setSaving(true);
+    setFrozen(batch);
+
+    try {
+      let firmId = "";
+      if (!own) {
+        /* Si la empresa ya existe (un intento anterior creó la empresa y falló una cuenta, o
+           se volvió atrás), se reutiliza: repetir no debe dejar dos "Lucid Trading". */
+        const key = firmName.trim().toLowerCase();
+        const existing = firms.find((firm) => firm.name.trim().toLowerCase() === key);
+        if (existing) {
+          firmId = existing.id;
+        } else {
+          const firm = await onSaveFirm({
+            name: firmName.trim(),
+            type: SUGGESTED_FIRMS.includes(firmName) || catalogFirm ? "futures" : "other",
+          });
+          if (!firm) return;
+          firmId = firm.id;
+        }
+      }
+
+      /* Una a una, como el alta de varias de Cuentas: si una falla se para ahí, y las que ya
+         se guardaron salen de la lista para que reintentar no las duplique. */
+      const saved: TradingAccount[] = [];
+      const done = new Map<number, number>();
+      for (const item of keyed) {
+        const account = await onSaveAccount({ ...item.input, firmId });
+        if (!account) break;
+        saved.push(account);
+        done.set(item.groupKey, (done.get(item.groupKey) || 0) + 1);
+      }
+
+      if (saved.length) {
+        onAccountCreated();
+        setCreated((list) => [...list, ...saved]);
+        if (batchGroups.some((group) => group.planId && done.has(group.key))) setCreatedWithRules(true);
+      }
+      if (saved.length === keyed.length) {
+        setGroups([]);
+        resetEditor();
+        setStep("next");
+        return;
+      }
+      if (saved.length) {
+        setGroups(
+          batchGroups
+            .map((group) => ({ ...group, quantity: group.quantity - (done.get(group.key) || 0) }))
+            .filter((group) => group.quantity > 0),
+        );
+        resetEditor();
+      }
+    } finally {
+      setSaving(false);
+      setFrozen(null);
+    }
+  };
+
+  const groupLabel = (group: AccountGroup) => {
+    const groupPlan = catalogFirm?.plans.find((item) => item.id === group.planId);
+    const what = groupPlan ? formatPlanLabel(groupPlan) : group.size;
+    return group.kind === "own" ? what : `${t(`account.kind.${group.kind}`)} · ${what}`;
+  };
+
+  const quoted = (name: string) => `${quoteOpen}${name}${quoteClose}`;
+  const names = planned.map((item) => item.input.name);
+  const namesText =
+    names.length <= 3
+      ? names.length === 1
+        ? quoted(names[0])
+        : `${names.slice(0, -1).map(quoted).join(", ")} ${t("onboarding.and")} ${quoted(names[names.length - 1])}`
+      : `${names.slice(0, 2).map(quoted).join(", ")} ${t("onboarding.account.andMore").replace("{n}", String(names.length - 2))}`;
 
   const stepNumber = step === "firm" ? 1 : step === "account" ? 2 : 3;
   const title =
@@ -222,10 +343,9 @@ export function OnboardingModal({
         {step === "account" && (
           <form
             className="onboarding"
-         
             onSubmit={(event) => {
               event.preventDefault();
-              void createAccount();
+              void createAccounts();
             }}
           >
             <div className="onboarding-chosen">
@@ -237,10 +357,30 @@ export function OnboardingModal({
                 <FirmMark name={firmName} />
               )}
               <strong>{own ? t("account.kind.own") : firmName}</strong>
-              <button className="tour-link" disabled={mutating} onClick={() => setStep("firm")} type="button">
+              <button className="tour-link" disabled={saving} onClick={() => setStep("firm")} type="button">
                 {t("onboarding.change")}
               </button>
             </div>
+
+            {groups.length > 0 && (
+              <ul className="onboarding-groups" aria-label={t("onboarding.account.added")}>
+                {groups.map((group) => (
+                  <li key={group.key}>
+                    <span>
+                      <strong>{group.quantity} ×</strong> {groupLabel(group)}
+                    </span>
+                    <button
+                      aria-label={`${t("onboarding.account.remove")}: ${groupLabel(group)}`}
+                      disabled={saving}
+                      onClick={() => setGroups((list) => list.filter((item) => item.key !== group.key))}
+                      type="button"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {!own && (
               <div className="onboarding-field">
@@ -343,41 +483,81 @@ export function OnboardingModal({
               </section>
             )}
 
-            {accountName && (
+            <div className="onboarding-quantity">
+              <div className="onboarding-field">
+                <span id="onboarding-quantity-label">{t("onboarding.account.quantity")}</span>
+                <div className="onboarding-stepper" role="group" aria-labelledby="onboarding-quantity-label">
+                  <button
+                    aria-label={t("onboarding.account.fewer")}
+                    disabled={quantity <= 1}
+                    onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                    type="button"
+                  >
+                    <Minus size={16} strokeWidth={2.4} />
+                  </button>
+                  <output aria-live="polite">{quantity}</output>
+                  <button
+                    aria-label={t("onboarding.account.more")}
+                    disabled={quantity >= MAX_QUANTITY}
+                    onClick={() => setQuantity((value) => Math.min(MAX_QUANTITY, value + 1))}
+                    type="button"
+                  >
+                    <Plus size={16} strokeWidth={2.4} />
+                  </button>
+                </div>
+              </div>
+              <button className="ghost-action" disabled={!current || saving} onClick={addAnother} type="button">
+                <Plus size={16} strokeWidth={2.2} />
+                {t("onboarding.account.addAnother")}
+              </button>
+            </div>
+
+            {names.length > 0 && (
               <p className="onboarding-note">
-                {t("onboarding.account.name")}{" "}
-                <strong>
-                  {quoteOpen}
-                  {accountName}
-                  {quoteClose}
-                </strong>
-                .{" "}
+                {names.length === 1 ? t("onboarding.account.name") : t("onboarding.account.names")} <strong>{namesText}</strong>.{" "}
                 {!own && !catalogFirm ? t("onboarding.account.noRules") : t("onboarding.account.nameHint")}
               </p>
             )}
 
-            {attempted && !mutating && mutationError && <p className="mutation-message error">{mutationError}</p>}
+            {attempted && !saving && mutationError && (
+              <p className="mutation-message error">
+                {created.length > 0 && `${t("onboarding.account.partial").replace("{n}", String(created.length))} `}
+                {mutationError}
+              </p>
+            )}
 
             <div className="form-action-row">
-              <button className="ghost-action" disabled={mutating} onClick={() => setStep("firm")} type="button">
+              <button className="ghost-action" disabled={saving} onClick={() => setStep("firm")} type="button">
                 {t("onboarding.back")}
               </button>
-              <button className="primary-action" disabled={!accountName || mutating} type="submit">
+              <button className="primary-action" disabled={!planned.length || saving} type="submit">
                 <Check size={17} strokeWidth={2.2} />
-                {mutating ? t("common.saving") : t("onboarding.account.create")}
+                {saving
+                  ? t("common.saving")
+                  : planned.length > 1
+                    ? t("onboarding.account.createMany").replace("{n}", String(planned.length))
+                    : t("onboarding.account.create")}
               </button>
             </div>
           </form>
         )}
 
-        {step === "next" && created && (
+        {step === "next" && created.length > 0 && (
           <div className="onboarding">
             <div className="onboarding-done">
               <span aria-hidden="true">
                 <Check size={18} strokeWidth={2.4} />
               </span>
               <p>
-                {(plan ? t("onboarding.next.createdRules") : t("onboarding.next.created")).replace("{name}", created.name)}
+                {created.length === 1
+                  ? (createdWithRules ? t("onboarding.next.createdRules") : t("onboarding.next.created")).replace(
+                      "{name}",
+                      created[0].name,
+                    )
+                  : (createdWithRules ? t("onboarding.next.createdManyRules") : t("onboarding.next.createdMany")).replace(
+                      "{n}",
+                      String(created.length),
+                    )}
               </p>
             </div>
             <div className="journal-entry-mode-grid onboarding-options">

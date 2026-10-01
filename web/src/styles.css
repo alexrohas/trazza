@@ -8183,6 +8183,96 @@ tbody tr:last-child td {
   color: var(--accent-strong);
 }
 
+/* Lo ya añadido con "Añadir otra distinta", arriba del todo: así el selector de abajo se
+   lee como "y además, otra", no como un formulario que empieza de cero. */
+.onboarding-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboarding-groups li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 36px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2xs) 0 var(--space-md);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.onboarding-groups li strong {
+  color: var(--accent-strong);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-groups button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--strong-muted);
+}
+
+.onboarding-groups button:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.onboarding-quantity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.onboarding-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.onboarding-stepper button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--strong-muted);
+}
+
+.onboarding-stepper button:hover:not(:disabled) {
+  color: var(--accent-strong);
+}
+
+.onboarding-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.onboarding-stepper output {
+  min-width: 32px;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .onboarding-summary {
   display: grid;
   gap: var(--space-md);
@@ -8297,6 +8387,21 @@ tbody tr:last-child td {
   .onboarding-chip {
     min-width: 0;
     padding: 0 var(--space-2xs);
+  }
+
+  /* Zonas de pulsación a 44, como el resto de la app en un teléfono. */
+  .onboarding-stepper button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .onboarding-groups li {
+    min-height: 44px;
+  }
+
+  .onboarding-groups button {
+    width: 40px;
+    height: 40px;
   }
 
   .onboarding-options {
