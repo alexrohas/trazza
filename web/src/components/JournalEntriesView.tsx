@@ -84,6 +84,7 @@ import {
 } from "../lib/journalErrors";
 import { getJournalStrategyLabel } from "../lib/journalStrategies";
 import { matchesSearch } from "../lib/search";
+import { isInlineImage, isJournalMediaUrl } from "../lib/journalMedia";
 import { parseTradovatePerformanceCsv, type TradovateImportResult } from "../lib/tradovateImport";
 import type {
   Currency,
@@ -2254,7 +2255,11 @@ export function JournalEntriesView({
                 }}
                 placeholder="O pega una URL de imagen / referencia"
                 type="text"
-                value={draft.operationUrl || ""}
+                /* La captura propia (base64 recién pegada o la URL firmada de Storage) se ve
+                   arriba; aquí solo estorbaría: son miles de caracteres, y la firmada caduca
+                   en un día, así que copiarla de aquí no sirve. Escribir encima la sustituye
+                   por un enlace, igual que antes. */
+                value={isInlineImage(draft.operationUrl) || isJournalMediaUrl(draft.operationUrl) ? "" : draft.operationUrl || ""}
               />
               {mediaMessage && <p className={`mutation-message ${mediaMessage.type}`}>{mediaMessage.text}</p>}
             </div>
