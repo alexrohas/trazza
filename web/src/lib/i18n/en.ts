@@ -149,6 +149,8 @@ export const en: Record<TranslationKey, string> = {
   "settings.export.errorTypes": "error types",
   "settings.export.strategies": "strategies",
   "settings.export.button": "Export JSON",
+  "settings.export.preparing": "Preparing the backup with your screenshots…",
+  "settings.export.mediaError": "Some screenshots could not be downloaded for the backup. Try again in a few seconds.",
   "settings.migration.title": "Migration",
   "settings.migration.subtitle": "Upload legacy data or a JSON copy to Supabase.",
   "settings.migration.importJson": "Import JSON",

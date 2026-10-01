@@ -13,6 +13,7 @@ import {
   deleteCloudMovement,
   loadCloudData,
   markDefaultErrorTypeDeleted,
+  migrateInlineJournalMedia,
   replaceCloudData,
   deleteCloudJournalErrorType,
   deleteCloudJournalStrategy,
@@ -26,6 +27,7 @@ import {
   upsertCloudJournalErrorType,
   upsertCloudJournalStrategy,
 } from "../lib/db";
+import { JOURNAL_MEDIA_STORAGE_ENABLED, isInlineImage } from "../lib/journalMedia";
 import { supabaseClient } from "../lib/supabase";
 import type {
   AccountInput,
@@ -52,6 +54,10 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
   /* De quién son los datos reales que hay en pantalla, si los hay. Decide si una recarga
      es la primera (pantalla de carga, y datos demo si falla) o un refresco de fondo. */
   const loadedForRef = useRef<string | null>(null);
+  /* Usuario cuyas capturas en base64 ya se intentaron pasar a Storage en esta sesión (ver
+     migrateInlineJournalMedia). Una vez por sesión basta: si se corta, la próxima sigue. */
+  const mediaMigratedForRef = useRef<string | null>(null);
+  const reloadRef = useRef<() => Promise<void>>(async () => {});
 
   const reload = useCallback(async () => {
     if (!enabled || !userId || !supabaseClient) {
@@ -75,11 +81,26 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     setError(null);
 
     try {
-      const cloudData = await loadCloudData(supabaseClient, userId);
+      const client = supabaseClient;
+      const cloudData = await loadCloudData(client, userId);
       loadedForRef.current = userId;
       setData(cloudData);
       setMode("cloud");
       setStatus("ready");
+
+      /* Capturas antiguas en base64: se pasan a Storage en segundo plano, sin bloquear nada,
+         y al acabar se recarga para que la fila ya no las traiga. */
+      if (
+        JOURNAL_MEDIA_STORAGE_ENABLED &&
+        mediaMigratedForRef.current !== userId &&
+        cloudData.journalEntries.some((entry) => !entry.mediaPath && isInlineImage(entry.operationUrl))
+      ) {
+        mediaMigratedForRef.current = userId;
+        void migrateInlineJournalMedia(client, userId, cloudData.journalEntries).then(({ moved, error }) => {
+          if (error) console.warn("No se pudieron mover todas las capturas a Storage.", error);
+          if (moved > 0) void reloadRef.current();
+        });
+      }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "No se pudieron cargar los datos.";
       setError(message);
@@ -593,6 +614,8 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     },
     [enabled, reload, userId],
   );
+
+  reloadRef.current = reload;
 
   useEffect(() => {
     void reload();

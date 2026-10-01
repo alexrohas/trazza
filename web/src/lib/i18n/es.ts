@@ -147,6 +147,8 @@ export const es = {
   "settings.export.errorTypes": "tipos error",
   "settings.export.strategies": "estrategias",
   "settings.export.button": "Exportar JSON",
+  "settings.export.preparing": "Preparando la copia con tus capturas…",
+  "settings.export.mediaError": "No se pudo descargar alguna captura para la copia. Inténtalo de nuevo en unos segundos.",
   "settings.migration.title": "Migracion",
   "settings.migration.subtitle": "Sube datos antiguos o una copia JSON a Supabase.",
   "settings.migration.importJson": "Importar JSON",

@@ -171,7 +171,11 @@ export type JournalEntry = {
   emotion: JournalEmotion;
   errors?: string[];
   strategyId?: string;
+  /* Lo que se pinta como captura o enlace: una URL firmada si la imagen está en Storage
+     (entonces mediaPath dice cuál), un enlace externo, o base64 en filas sin migrar.
+     Ver lib/journalMedia.ts. */
   operationUrl?: string;
+  mediaPath?: string;
   result?: JournalResult;
   sessionType?: JournalSessionType;
   tradingSession?: JournalTradingSession;

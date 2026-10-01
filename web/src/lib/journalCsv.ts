@@ -1,4 +1,5 @@
 import type { useT } from "./i18n/context";
+import { isInlineImage } from "./journalMedia";
 import { mergeJournalErrorTypes, getJournalErrorDefinition, sanitizeErrorIds } from "./journalErrors";
 import { getAccountName } from "./metrics";
 import { stripHtmlToText } from "./richText";
@@ -139,7 +140,9 @@ export function exportJournalEntriesCsv(
       entry.discipline,
       entry.pnl,
       entryErrors.map((id) => getJournalErrorDefinition(effectiveErrorTypes, id).label).join(" | "),
-      entry.operationUrl || "",
+      /* Solo enlaces externos: una captura en base64 son cien mil caracteres en una celda y
+         la URL firmada de una en Storage caduca en un día. Las imágenes viajan en el JSON. */
+      entry.mediaPath || isInlineImage(entry.operationUrl) ? "" : entry.operationUrl || "",
       stripHtmlToText(entry.notes),
       entry.lesson || "",
     ]
