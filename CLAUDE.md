@@ -279,10 +279,10 @@ propaga**, para que el handler devuelva 500 y Stripe reintente: `supabase-js` no
 devuelve `{ error }`, y tragárselo era contestar 200 a un cobro no registrado, que Stripe
 ya no repite. Desplegado como v16.
 
-Los otros dos escritores del webhook (`customer.subscription.deleted` e
-`invoice.payment_failed`) siguen sin comprobar el error **a propósito**: quitan acceso en
-vez de darlo, así que un fallo ahí deja a alguien con acceso de más, mucho menos grave que
-dejar fuera a quien ha pagado. Si algún día se tocan, ese es el criterio.
+Hasta el 1 de octubre de 2026 los otros dos escritores (`customer.subscription.deleted` e
+`invoice.payment_failed`) no comprobaban el error a propósito. Desde ese día todos los
+eventos pasan por el mismo camino y todos propagan el error: reintentar un evento que quita
+acceso no hace daño. Ver "La auditoría del 30 de septiembre", más abajo.
 
 **Las reglas de cobro**, cerradas el **20 de septiembre de 2026** en tres commits
 (`70b8cc9`, `bee80d4`, `fcc717a`). La app ya guardaba las reglas que miden el *recorrido*
@@ -871,6 +871,63 @@ contra producción que se deshace solo y, ya aplicado, repitiendo la prueba con 
 usuarios reales: quien paga crea, edita y borra igual; el caducado lee sus 18 entradas y
 no escribe ninguna; nadie toca lo de otro ni su propia suscripción.
 
+**La auditoría del 30 de septiembre**, con sus arreglos urgentes publicados el **1 de
+octubre de 2026** ([alexrohas/trazza#1](https://github.com/alexrohas/trazza/pull/1), cinco
+commits de `d5e432d` a `7d984fa`). El usuario pidió revisar todo; lo urgente fue esto:
+
+- **SEO.** `trazzajournal.com` redirige a `www`, pero el canonical, `og:url`, el JSON-LD, el
+  sitemap y `robots.txt` apuntaban al dominio sin `www`. Ahora todo dice `www`, y el
+  comentario junto al canonical dice qué más cambia si algún día se invierte la redirección.
+- **`legal.html`.** Estaba entero sin tildes ("42 € al ano"), con el dominio mal escrito
+  (`trazajournal.com`) y hablando de "beta gratuita". Ahora lleva tildes, el **NIF y el
+  domicilio** que pide la LSSI (los dio el usuario el 1 de octubre), declara **Vercel Web
+  Analytics** y el margen ante un cobro fallido. El IVA de los precios queda para el gestor.
+- **Vercel Web Analytics se activó el 1 de octubre.** El paquete llevaba meses en el código
+  (`inject()` en la landing, `<Analytics />` en la app) pero el interruptor del panel de
+  Vercel estaba apagado: el script daba 404 y **no hay ningún dato de tráfico anterior**.
+  Funciona sin cookies, así que no hace falta banner (ver la trampa de abajo sobre el
+  despliegue que necesita).
+- **Cobro fallido.** `past_due` conserva el acceso mientras Stripe reintenta, en
+  `isSubscriptionAccessActive` y en `can_write_data()` a la vez (migración
+  `can_write_data_past_due_grace`). Antes quien pagaba quedaba en solo lectura al primer
+  fallo de la tarjeta, aunque el aviso decía "para no perder el acceso".
+- **El webhook escribe el estado ACTUAL de la suscripción**, leído de Stripe con
+  `subscriptions.retrieve`, y no el que trae el evento: Stripe no garantiza el orden y un
+  `created` en `incomplete` que llegaba tarde pisaba un `active`. Además: `incomplete` no
+  toca la fila (un 3D Secure a medias se comía la prueba), `unpaid` cierra el acceso, un
+  evento que quita acceso solo cuenta si es de la suscripción que la fila tiene apuntada (el
+  `deleted` de una vieja no pisa a la nueva) y ninguno baja un `lifetime`. Desplegado como
+  **v17, con `verify_jwt: false`**, y comprobado desde el navegador (400 "Missing
+  stripe-signature header"). El checkout (**v18**) se niega si ya hay una suscripción viva, y
+  Ajustes ofrece el portal en vez de los planes con un pago pendiente: antes se podían
+  acabar pagando dos.
+- **Carga de datos.** `loadCloudData` pide por páginas de 1.000 (`fetchAllRows` en
+  `db.ts`): PostgREST corta en `max_rows` sin error y una tabla más grande llegaba truncada.
+  Cada orden lleva un desempate único (`id`, o `type_id` en la tabla de tipos borrados). Y
+  la recarga que sigue a cada guardado va **de fondo** (`refreshing` en `useTrazzaData`):
+  ya no pinta el aviso "Sincronizando" encima del contenido ni cambia los datos del usuario
+  por los de demo si falla. La demo solo sale si falla la primera carga.
+- **Capturas del Journal en Storage, preparadas pero APAGADAS**
+  (`JOURNAL_MEDIA_STORAGE_ENABLED = false` en `web/src/lib/journalMedia.ts`). Hoy cada
+  captura va en base64 dentro de `operation_url` (77 kB de media, el 72 % de las entradas
+  tiene una) y la app recarga todas las entradas tras cada guardado: el usuario con más
+  capturas se bajaba 6,4 MB cada vez que guardaba algo. Con el interruptor apagado la app
+  hace exactamente lo de siempre y **ninguna consulta nombra `media_path`**, que aún no
+  existe. Para encenderlo, en este orden: ejecutar `supabase-journal-media.sql` (columna,
+  bucket privado `journal-media` y cuatro políticas: cada usuario solo su carpeta, y subir
+  o borrar exige `can_write_data()`), hacer que `delete-account` borre la carpeta del
+  usuario, y entonces poner el interruptor a `true`. Al encenderlo, cada usuario migra sus
+  capturas antiguas en segundo plano la primera vez que entra. El diseño entero está en el
+  comentario de `journalMedia.ts`; lo que no es obvio es que **la ruta de una captura se
+  saca de su propia URL firmada**, no de un campo del borrador, para que el formulario no
+  tenga que saber nada de Storage.
+
+Verificado sin poder abrir la app contra producción (ver la trampa de la red, abajo): el
+`index.ts` real del webhook ejecutado con Deno y Stripe y Supabase simulados (15 casos; la
+versión anterior falla en 3 que eran bugs reales), `loadCloudData` real contra un PostgREST
+simulado con 2.500 filas y fechas repetidas, y `db.ts` contra un cliente que falla si
+aparece `media_path` o se toca Storage (apagado pasa todo; encendido falla, como debe).
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -896,6 +953,40 @@ correctamente.
 
 El paywall que solo vivía en el navegador se cerró el **23 de septiembre de 2026** (tiene
 sección propia arriba): las escrituras las bloquea ya la base de datos.
+
+### Lo que dejó abierto la auditoría del 30 de septiembre de 2026
+
+Los números que la motivaron, medidos en Supabase ese día: **ninguna alta orgánica desde el
+10 de agosto** (las dos de septiembre se dieron a mano), 3 usuarios con actividad en 30
+días, 2 de pago, 11 `lifetime` y 42 con la prueba caducada, de los que 26 no crearon nada.
+El dato bueno: de los que metieron 10 registros o más sin ser `lifetime`, pagaron 2 de 8.
+**Quien llega a usar Trazza paga; lo que falla es que llegue gente y que empiece.** Ojo al
+medir actividad: `last_sign_in_at` no se mueve cuando se renueva la sesión, y los dos que
+pagan salían con cero accesos en 30 días aunque apuntaban trades.
+
+- **Encender las capturas en Storage** (ver arriba). Lo único que toca la base de datos.
+- **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
+  `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
+  bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
+  `searchQuery` llega a cuatro pantallas pero `setSearchQuery` no se llama nunca; unas 23
+  clases de `styles.css` sin uso; 69 mensajes de error escritos a mano en castellano en
+  `useTrazzaData` y `db.ts`; el esquema no se puede reconstruir desde el repo (no hay
+  `CREATE TABLE` de `firms`, `accounts` ni `transactions`); y los avisos del asesor de
+  Supabase (`handle_new_user_subscription` ejecutable por `anon`, dos funciones sin
+  `search_path`, cinco claves foráneas sin índice, protección de contraseñas filtradas).
+- **Añadir, por activación:** un primer arranque de dos minutos (empresa → plan del catálogo
+  → importar Tradovate) en vez del Panel lleno de ceros; una demo pública sin registro (el
+  modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
+  la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
+  checkout para códigos de creadores; y "cuánto puedes pedir ya" (Lucid limita cada payout
+  y el catálogo solo guarda mínimos).
+- **Captar:** hablar uno a uno con los 6 enganchados que no pagaron, los 2 de pago y los 11
+  `lifetime`; la tabla `waitlist_emails` tiene **20 emails con consentimiento** para avisos
+  de lanzamiento; creadores hispanos de fondeo de futuros, que ya viven de códigos de
+  descuento de Lucid (su programa de afiliados está cerrado); una calculadora gratuita de
+  "¿puedo cobrar ya?" sobre `accountRules` y `firmCatalog`; y rehacer el mensaje de la
+  landing, que sigue vendiendo "journal y finanzas" cuando todo lo que la diferencia
+  (reglas de cobro, Lucid, extracto del banco, resumen fiscal) se construyó después de ella.
 
 ### Qué construir después (análisis de competencia, 17 de septiembre de 2026)
 
@@ -1077,6 +1168,20 @@ tocas esto, ojo con la trampa de cascada de más abajo — el override de una fi
 final del archivo, no junto a la regla base, y hay una razón concreta para eso.
 
 ## Trampas ya pisadas — no las repitas
+
+- **Desde una sesión en la nube no hay salida a `supabase.co`** (ni con curl, ni con el
+  Chromium del contenedor, ni con WebFetch): no se puede abrir la app contra producción ni
+  llamar a una Edge Function. Lo que sí funciona: el MCP de Supabase para SQL, logs y
+  despliegues; el MCP de Vercel (`web_fetch_vercel_url`) para leer el dominio y los previews;
+  y probar el código real con simulaciones. Deno no está instalado, pero `npx -y
+  deno@2.9.6` funciona: `deno check` sobre las Edge Functions, y `deno run --import-map`
+  con un mapa que cambie `npm:stripe@17` y `npm:@supabase/supabase-js@2` por módulos
+  simulados ejecuta el `index.ts` real (atrapando el handler con
+  `Object.defineProperty(Deno, "serve", ...)` antes de importarlo). Para `db.ts`, `deno run
+  --sloppy-imports` lo importa directamente, porque solo trae tipos de fuera.
+- **Activar Web Analytics en Vercel no basta: hace falta un despliegue nuevo.** La ruta
+  `/_vercel/insights/script.js` solo existe en los despliegues hechos después de encenderlo;
+  en los anteriores sigue dando 404.
 
 Cada una de estas costó una ronda de depuración real. Están aquí para que la próxima
 sesión no vuelva a pisarlas.
