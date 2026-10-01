@@ -72,8 +72,9 @@ function describeNotice({
   t: ReturnType<typeof useT>;
   trialDaysLeft: number;
 }) {
-  // Va antes que el bloqueo general: past_due tambien deja `accessActive` en false, pero
-  // aqui el arreglo no es comprar un plan, es corregir el metodo de pago.
+  // past_due conserva el acceso mientras Stripe reintenta (ver isSubscriptionAccessActive),
+  // pero hay que decirlo: el arreglo no es comprar un plan, es corregir el metodo de pago,
+  // y si no se corrige el acceso se pierde al acabar los reintentos.
   if (status === "past_due") {
     return {
       cta: canManageBilling ? t("subscription.manage") : t("subscription.viewPlans"),

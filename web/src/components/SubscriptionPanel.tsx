@@ -35,7 +35,10 @@ export function SubscriptionPanel({ onViewPlans, subscription }: SubscriptionPan
     trialDaysLeft,
   });
 
-  const showPlans = status !== "lifetime" && status !== "active";
+  /* Con un pago pendiente la suscripción sigue viva y Stripe la reintenta: elegir un plan
+     crearía una segunda. Lo que toca es arreglar la tarjeta desde el portal. Solo si no
+     hay portal (sin cliente de Stripe, que no debería pasar) se ofrecen los planes. */
+  const showPlans = status !== "lifetime" && status !== "active" && !(status === "past_due" && canManageBilling);
 
   return (
     <section className="panel settings-panel">

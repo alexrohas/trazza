@@ -13,8 +13,8 @@
 --
 -- EL ARREGLO
 -- can_write_data() da la misma respuesta que isSubscriptionAccessActive en
--- web/src/hooks/useSubscription.ts: active y lifetime escriben; trialing, mientras no haya
--- pasado trial_ends_at (sin fecha, sin limite); past_due y canceled, no. Sin fila, si: es
+-- web/src/hooks/useSubscription.ts: active, lifetime y past_due escriben; trialing,
+-- mientras no haya pasado trial_ends_at (sin fecha, sin limite); canceled, no. Sin fila, si: es
 -- el fail-open de canMutateData, y aqui ademas no se puede provocar, porque el trigger de
 -- alta crea la fila siempre y desde la app nadie puede borrarla. Si cambias la regla en un
 -- sitio, cambiala en el otro.
@@ -57,7 +57,11 @@ set search_path = ''
 as $$
   select coalesce(
     (select case
-              when s.status in ('active', 'lifetime') then true
+              -- past_due desde el 1 de octubre de 2026: Stripe sigue reintentando el
+              -- cobro, y quien paga no se queda en solo lectura al primer fallo de la
+              -- tarjeta. Lo cierra el final de los reintentos, que el webhook escribe
+              -- como canceled.
+              when s.status in ('active', 'lifetime', 'past_due') then true
               when s.status = 'trialing' then s.trial_ends_at is null or s.trial_ends_at > now()
               else false
             end

@@ -166,7 +166,14 @@ export function useSubscription(user: User | null) {
 
 export function isSubscriptionAccessActive(subscription: Subscription | null | undefined) {
   if (!subscription) return false;
-  if (subscription.status === "active" || subscription.status === "lifetime") return true;
+  /* past_due conserva el acceso: Stripe sigue reintentando el cobro durante días, y quien
+     paga no debería quedarse en solo lectura al primer fallo de la tarjeta. Lo cierra el
+     final de los reintentos, que el webhook escribe como canceled. Misma regla que
+     can_write_data() en supabase-rls-subscription-writes.sql: si cambias una, cambia la
+     otra. */
+  if (subscription.status === "active" || subscription.status === "lifetime" || subscription.status === "past_due") {
+    return true;
+  }
   if (subscription.status === "trialing") {
     if (!subscription.trialEndsAt) return true;
     return new Date(subscription.trialEndsAt).getTime() > Date.now();
