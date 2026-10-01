@@ -33,6 +33,7 @@ import type {
   AccountInput,
   AppData,
   DataMode,
+  Firm,
   FirmInput,
   JournalEntryInput,
   JournalErrorTypeInput,
@@ -114,8 +115,10 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     }
   }, [enabled, userId]);
 
+  /* Devuelve la empresa guardada, como saveAccount: el primer arranque crea la empresa y
+     acto seguido su primera cuenta, y para eso necesita el id nuevo. */
   const saveFirm = useCallback(
-    async (input: FirmInput, firmId?: string) => {
+    async (input: FirmInput, firmId?: string): Promise<Firm | false> => {
       if (!enabled || !userId || !supabaseClient) {
         setMutationError("Conecta Supabase para guardar empresas reales.");
         return false;
@@ -125,13 +128,11 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
       setMutationError(null);
 
       try {
-        if (firmId) {
-          await updateCloudFirm(supabaseClient, userId, firmId, input);
-        } else {
-          await createCloudFirm(supabaseClient, userId, input);
-        }
+        const firm = firmId
+          ? await updateCloudFirm(supabaseClient, userId, firmId, input)
+          : await createCloudFirm(supabaseClient, userId, input);
         await reload();
-        return true;
+        return firm;
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : "No se pudo guardar la empresa.";
         setMutationError(message);

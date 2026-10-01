@@ -232,6 +232,7 @@
 :root[data-theme="dark"] .entity-form select,
 :root[data-theme="dark"] .entity-form textarea,
 :root[data-theme="dark"] .entity-form .custom-select-trigger,
+:root[data-theme="dark"] .onboarding input,
 :root[data-theme="dark"] .journal-breakdown-empty,
 :root[data-theme="dark"] .journal-day,
 :root[data-theme="dark"] .journal-detail-copy,
@@ -7569,7 +7570,8 @@ tbody tr:last-child td {
 .entity-form input,
 .entity-form select,
 .entity-form textarea,
-.entity-form .custom-select-trigger {
+.entity-form .custom-select-trigger,
+.onboarding input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -7586,7 +7588,8 @@ tbody tr:last-child td {
 .firm-form .custom-select-trigger,
 .entity-form input,
 .entity-form select,
-.entity-form .custom-select-trigger {
+.entity-form .custom-select-trigger,
+.onboarding input {
   min-height: 36px;
   padding: var(--space-sm) var(--space-base);
 }
@@ -7605,7 +7608,8 @@ tbody tr:last-child td {
 .entity-form select:focus,
 .entity-form textarea:focus,
 .firm-form .custom-select-trigger:focus-visible,
-.entity-form .custom-select-trigger:focus-visible {
+.entity-form .custom-select-trigger:focus-visible,
+.onboarding input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -8036,6 +8040,268 @@ tbody tr:last-child td {
   color: var(--muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
+}
+
+/* ---- Primer arranque (OnboardingModal) ----
+   Tres pasos en el mismo modal. La escalera es la de siempre: 24 entre bloques del paso,
+   12 entre tarjetas de elegir, 8 entre una etiqueta y su control. Las tarjetas del tercer
+   paso son las del selector de trades del Journal (.journal-entry-mode-option), que es a
+   donde lleva una de ellas: así se reconoce al llegar. */
+.onboarding {
+  display: grid;
+  gap: var(--space-2xl);
+}
+
+.onboarding-intro {
+  margin: 0;
+  color: var(--strong-muted);
+  font-size: var(--text-base);
+}
+
+.onboarding-firms {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.onboarding-firm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  min-height: 60px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.onboarding-firm:hover,
+.onboarding-firm:focus-visible,
+.onboarding-firm.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 0;
+}
+
+/* El avatar de Empresas (42) baja a 36: aquí van nueve en una rejilla, no uno por tarjeta. */
+.onboarding .firm-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+
+.onboarding-firm > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.onboarding-inline {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.onboarding-inline input {
+  flex: 1;
+}
+
+.onboarding-inline .primary-action {
+  min-height: 38px;
+}
+
+.onboarding-chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.onboarding-chosen strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.onboarding-field {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.onboarding-field > span {
+  color: var(--strong-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-plan-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.onboarding-plan-row > strong {
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.onboarding-chip {
+  min-width: 64px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-lg);
+  background: var(--surface);
+  color: var(--strong-muted);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.onboarding-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--text);
+}
+
+.onboarding-chip.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.onboarding-summary {
+  display: grid;
+  gap: var(--space-md);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  background: var(--surface-muted);
+}
+
+.onboarding-summary > strong {
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-summary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+}
+
+.onboarding-summary dt {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.onboarding-summary dd {
+  margin: var(--space-2xs) 0 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.onboarding-note strong {
+  color: var(--strong-muted);
+  font-weight: var(--weight-bold);
+}
+
+.onboarding-done {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.onboarding-done > span {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.onboarding-done p {
+  margin: 0;
+  color: var(--strong-muted);
+  font-size: var(--text-base);
+  align-self: center;
+}
+
+.onboarding-options {
+  margin-top: 0;
+}
+
+.onboarding-footer {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 620px) {
+  /* Una columna y filas de 48: a dos columnas al nombre le quedaban 70px a 375, y
+     "MyFundedFutures" o "Take Profit Trader" se partían en tres líneas. En lista todos
+     caben en una, y 48 sigue por encima de los 44 de zona de pulsación. */
+  .onboarding-firms {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .onboarding-firm {
+    min-height: 48px;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .onboarding .firm-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Los cuatro tamaños de un plan no caben en fila al lado de su nombre (pedían 280px de
+     los 245 que quedan a 375): el nombre sube encima y los tamaños se reparten el ancho. A
+     320 la fila de tamaños libres, que lleva "Otro", pasa a dos líneas, y es lo único. */
+  .onboarding-plan-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .onboarding-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  }
+
+  .onboarding-chip {
+    min-width: 0;
+    padding: 0 var(--space-2xs);
+  }
+
+  .onboarding-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .journal-import-preview-list {

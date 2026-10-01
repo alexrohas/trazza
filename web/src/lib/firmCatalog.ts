@@ -1,4 +1,5 @@
 import { parseAccountSizeAmount } from "./db";
+import type { Language } from "./i18n/context";
 import type { AccountInput, AccountKind, DrawdownType } from "../types";
 
 /**
@@ -230,4 +231,14 @@ export function matchCatalogPlan(firm: CatalogFirm, input: AccountInput): Catalo
        los tres limites antiguos (objetivo y drawdowns) se guardan a 0 cuando no hay. */
     return ruleFields.every((field) => (expected[field] || undefined) === (input[field] || undefined));
   });
+}
+
+/* La fecha de revision del catalogo, en largo y en el idioma de la interfaz (la ensenan el
+   alta de Cuentas y el primer arranque). Mediodia y no medianoche, para que el desfase
+   horario no devuelva el dia anterior. */
+export function formatCatalogDate(date: string, language: Language) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { day: "numeric", month: "long", year: "numeric" }).format(
+    new Date(year, (month || 1) - 1, day || 1, 12),
+  );
 }
