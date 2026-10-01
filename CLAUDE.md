@@ -947,6 +947,59 @@ editar sin tocar, cambiar, quitar, borrar, URL ajena, subida rechazada, migrar, 
 importar, 20 casos) y `delete-account` real con Stripe y Supabase simulados (9 casos: orden
 de borrado, 1.500 ficheros, fallos de Storage). Lo que falta es verlo con una cuenta real.
 
+**El primer arranque**, el **1 de octubre de 2026**. Quien entra con la cuenta vacía ya no
+cae en un Panel lleno de ceros: un modal de tres pasos (`OnboardingModal.tsx`) le lleva de
+la empresa a una cuenta con sus reglas puestas y de ahí a meter sus operaciones. Existe por
+el dato de la auditoría: 26 de los 42 con la prueba caducada no crearon nada, y lo que
+diferencia a Trazza (reglas de cobro, catálogo de Lucid, extracto del banco) quedaba a tres
+pantallas y un formulario de trece campos.
+
+1. **Empresa**: las siete firmas de futuros que usan los usuarios (Lucid primero), "Otra
+   empresa" con su nombre, o capital propio. Un clic y pasa al siguiente.
+2. **Cuenta**: Challenge o Fondeada, y con una firma del catálogo los ocho planes (Flex y
+   Pro × 25-150K) en vez del tamaño. Elegir uno **enseña las reglas que carga** y la fecha
+   en que se revisaron: es la razón de elegir un plan, y lo que ninguna otra pantalla
+   enseña antes de tener trades. Fuera del catálogo, tamaño y "sus reglas, desde Cuentas".
+3. **Operaciones**: "Tus trades" abre el selector del Journal (manual o CSV de Tradovate) y
+   "Extracto del banco" la importación de Movimientos, cada uno en su pantalla y con su
+   ventana ya abierta (`createRequest` con `journalEntry` o `bankImport`). "Ahora no" lleva
+   a Cuentas, donde está la cuenta nueva y su paso del tutorial.
+
+Decisiones que conviene no deshacer:
+
+- **No escribe nada por su cuenta**: usa `saveFirm` y `saveAccount`, envueltas en
+  `guard()`. `saveFirm` devuelve ahora la empresa (como `saveAccount` la cuenta), porque la
+  cuenta necesita su id. Si la cuenta falla después de crear la empresa, reintentar reusa
+  la empresa por nombre en vez de crear otra "Lucid Trading".
+- **Cuándo sale** (`onboardingDue` en `App.tsx`): con sesión, datos cargados, **la
+  suscripción ya resuelta** y pudiendo escribir, sin empresas, cuentas, movimientos ni
+  trades. Esperar a la suscripción es a propósito: mientras no llega, `canMutateData` deja
+  escribir (fail-open), y a una prueba caducada se le ofrecería un alta que acaba en el
+  selector de planes. Por lo mismo, **los tutoriales esperan también a la suscripción y a
+  que el primer arranque se cierre**: van detrás, señalando lo que este acaba de crear.
+- **Una vez abierto se queda abierto** aunque deje de cumplirse (`onboardingOpen`): la
+  empresa y la cuenta que crea a mitad de camino ya hacen que la cuenta no esté vacía.
+- **Lo visto se guarda con los tutoriales** (`onboarding.start` en `trazza_tours`, ver
+  `useTourState`): cerrarlo en cualquier paso cuenta, y crear la cuenta también. "No
+  mostrar más tutoriales" lo apaga, y "Volver a verlos" en Ajustes lo devuelve si la cuenta
+  sigue vacía. La clave no se renombra, por lo mismo que los pasos de los tutoriales.
+- **El nombre de la cuenta** es el que propone Cuentas (empresa + programa + tamaño, "#2"
+  si existe), y se enseña antes de crear. `formatSizeForName` vive ya en `db.ts` y
+  `formatCatalogDate` en `firmCatalog.ts`, compartidas con `AccountsView`.
+- **En un teléfono, la lista de firmas es de una columna**: a dos, al nombre le quedaban
+  70px a 375 y "MyFundedFutures" se partía letra a letra. Los nombres llevan `<wbr>` en los
+  cambios de mayúscula para que, en ancho, se partan donde la marca separa las palabras.
+
+Verificado en la demo con el modal forzado y las escrituras simuladas (deshecho después y
+comprobado contra la versión buena), con 83 comprobaciones: los tres pasos a 1280, 375 y
+320px, claro y oscuro, en los dos idiomas, sin nada fuera de la pantalla ni texto partido;
+los cuatro caminos (Lucid, Otra empresa, capital propio, una firma sin catálogo), los
+nombres y las reglas cargadas (Fondeada Flex 50K sin objetivo y con cinco días de 150;
+Challenge Pro 100K con límite diario y sin consistencia), que "Tus trades" y "Extracto del
+banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar. **El guardado
+de verdad no se ha probado contra Supabase**: el primer alta real es lo primero que mirar
+(una empresa y una cuenta con sus reglas, y nada duplicado).
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -996,9 +1049,9 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   `CREATE TABLE` de `firms`, `accounts` ni `transactions`); y los avisos del asesor de
   Supabase (`handle_new_user_subscription` ejecutable por `anon`, dos funciones sin
   `search_path`, cinco claves foráneas sin índice, protección de contraseñas filtradas).
-- **Añadir, por activación:** un primer arranque de dos minutos (empresa → plan del catálogo
-  → importar Tradovate) en vez del Panel lleno de ceros; una demo pública sin registro (el
-  modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
+- **Añadir, por activación:** ~~un primer arranque de dos minutos~~ (**hecho el 1 de
+  octubre de 2026**, ver "El primer arranque"; queda medir si lo terminan); una demo
+  pública sin registro (el modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
   la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
   checkout para códigos de creadores; y "cuánto puedes pedir ya" (Lucid limita cada payout
   y el catálogo solo guarda mínimos).
