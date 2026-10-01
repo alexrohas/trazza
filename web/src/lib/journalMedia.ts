@@ -26,13 +26,13 @@ import type { AppData, JournalEntry } from "../types";
  */
 export const JOURNAL_MEDIA_BUCKET = "journal-media";
 
-/* Interruptor. Apagado, la app guarda y lee las capturas exactamente como antes (base64 en
-   operation_url) y no menciona media_path en ninguna consulta, así que funciona con la base
-   de datos tal como está. Encenderlo SOLO después de ejecutar supabase-journal-media.sql en
-   Supabase: sin la columna media_path, cualquier guardado del Journal fallaría, y sin el
-   bucket fallaría la subida. Con él encendido se migran solas las capturas antiguas de
-   cada usuario la primera vez que entra. */
-export const JOURNAL_MEDIA_STORAGE_ENABLED = false;
+/* Interruptor, encendido el 1 de octubre de 2026 tras ejecutar supabase-journal-media.sql
+   en producción. Encendido, las capturas nuevas se suben a Storage y las antiguas de cada
+   usuario se migran solas la primera vez que entra. Apagado, no se sube ni se migra nada y
+   las consultas de escritura no nombran media_path; las ya migradas se siguen viendo,
+   porque firmar las rutas al cargar no depende de él. Apagarlo solo tendría sentido sin
+   la columna media_path, y ahora ya existe. */
+export const JOURNAL_MEDIA_STORAGE_ENABLED = true;
 
 /* La URL firmada da acceso a quien la tenga hasta que caduca, así que no conviene que
    dure semanas; un día cubre de sobra una sesión. Se reutiliza mientras le queden más de
@@ -159,8 +159,11 @@ export async function listJournalMedia(client: SupabaseClient, userId: string): 
 export async function embedJournalMediaForExport(data: AppData): Promise<AppData> {
   const journalEntries = await Promise.all(
     data.journalEntries.map(async (entry) => {
-      const { mediaPath: _mediaPath, ...rest } = entry;
-      if (!isJournalMediaUrl(entry.operationUrl)) return rest;
+      const { mediaPath, ...rest } = entry;
+      /* Solo las capturas propias, las que tienen ruta. Un enlace guardado como enlace se
+         copia tal cual aunque parezca de este bucket: si fuera una URL firmada ajena y ya
+         caducada, descargarla haría fallar todas las exportaciones de ese usuario. */
+      if (!mediaPath || !isJournalMediaUrl(entry.operationUrl)) return rest;
       const response = await fetch(entry.operationUrl as string);
       if (!response.ok) throw new Error("No se pudo descargar una captura para la copia.");
       return { ...rest, operationUrl: await blobToDataUrl(await response.blob()) };
