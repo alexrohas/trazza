@@ -1008,9 +1008,17 @@ nombres y las reglas cargadas (Fondeada Flex 50K sin objetivo y con cinco días 
 Challenge Pro 100K con límite diario y sin consistencia), varias a la vez (3 iguales, y
 3 challenge + 2 fondeadas con sus reglas y los nombres de #2 a #5), un guardado que falla
 en la tercera de cinco y al reintentar crea solo las tres que faltaban, que "Tus trades" y
-"Extracto del banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar. **El guardado
-de verdad no se ha probado contra Supabase**: el primer alta real es lo primero que mirar
-(una empresa y sus cuentas con sus reglas, y nada duplicado).
+"Extracto del banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar.
+
+**Y probado en producción el mismo 1 de octubre**, con un alta de prueba del usuario nada
+más desplegarlo: una sola "Lucid Trading" y siete cuentas guardadas en dos segundos (3 ×
+Flex 50K, Pro 50K y 3 × Flex 25K), con los nombres seguidos y las reglas de cada plan
+(objetivo, MLL, consistencia del 50 % en Flex, límite diario de 1.200 en la Pro 50K y el
+bloqueo de 100). Otra alta de esa noche, con un email que ya había tenido prueba, heredó la
+prueba caducada y **no vio el primer arranque**, que es lo correcto: para probarlo hace falta
+un email que no se haya usado nunca, y en Gmail un `+algo` o unos puntos no cuentan como
+nuevos (ver "Una prueba gratuita por persona"). Esas dos altas son de prueba: cuentan en
+cualquier métrica de usuarios hasta que el usuario las borre.
 
 ## Qué queda
 
@@ -1051,7 +1059,17 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
 - **Ver que la migración de capturas acaba.** A 1 de octubre de 2026 había 324 en base64;
   `select count(*) from journal_entries where operation_url like 'data:image%'` dice
   cuántas quedan. Las de usuarios con la prueba caducada no se migran solas (no pueden
-  subir), y eso es lo esperado.
+  subir), y eso es lo esperado. Esa noche quedaban 245 de 16 usuarios: 88 de 9 que no
+  pueden subir, y 157 de 7 que sí pueden pero no habían vuelto a abrir la app desde que se
+  encendió Storage. Se migran solas la próxima vez que entren.
+- **Las primeras renovaciones con el webhook v17**: las dos suscripciones de pago renuevan
+  el 8 y el 10 de octubre de 2026, y serán los primeros eventos reales que pasen por él.
+  Al día siguiente, su `current_period_end` tiene que haber saltado un mes; si no, mirar
+  los logs de `stripe-webhook`. El acceso no se pierde aunque falle (depende de `status`,
+  no de la fecha), así que el fallo sería silencioso.
+- **Tráfico**: desde que se encendió Web Analytics (1 de octubre) hasta esa noche, **un
+  visitante**, y con toda probabilidad era el propio usuario. Unida a las cero altas
+  orgánicas desde agosto, es la cifra que dice dónde está el problema: no llega nadie.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
