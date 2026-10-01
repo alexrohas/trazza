@@ -11,7 +11,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", { apiVersion: "2024-06-20" });
+// La cuenta de Stripe esta fijada en 2024-06-20. Los tipos de stripe@17 solo admiten la
+// version con la que se publico el paquete, de ahi el cast: no cambia nada al ejecutar.
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
+  apiVersion: "2024-06-20" as Stripe.LatestApiVersion,
+});
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -45,9 +49,20 @@ Deno.serve(async (req) => {
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: existing } = await adminClient
       .from("subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id, status")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    // Con una suscripcion viva, un checkout nuevo crearia una segunda y se cobrarian las
+    // dos. past_due cuenta como viva: Stripe sigue reintentando la primera, y lo que hay
+    // que arreglar es la tarjeta, desde el portal. La app ya no ofrece los planes en estos
+    // casos; esto es la red por si se llega igualmente.
+    if (existing?.status === "lifetime") {
+      throw new Error("Tu cuenta ya tiene acceso de por vida.");
+    }
+    if ((existing?.status === "active" || existing?.status === "past_due") && existing.stripe_subscription_id) {
+      throw new Error("Ya tienes una suscripcion. Gestionala desde Ajustes > Suscripcion.");
+    }
 
     let customerId = existing?.stripe_customer_id as string | undefined;
     if (!customerId) {

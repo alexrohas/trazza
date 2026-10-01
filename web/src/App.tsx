@@ -226,7 +226,7 @@ export default function App() {
     <AppShell
       activeView={activeView}
       dataMode={dataState.mode}
-      isSyncing={dataState.status === "loading"}
+      isSyncing={dataState.status === "loading" || dataState.refreshing}
       privacyHidden={privacyHidden}
       profile={auth.profile}
       syncError={dataState.error}

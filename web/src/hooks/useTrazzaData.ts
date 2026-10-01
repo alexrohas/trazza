@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { demoData } from "../lib/demoState";
 import {
   createCloudAccount,
@@ -13,6 +13,7 @@ import {
   deleteCloudMovement,
   loadCloudData,
   markDefaultErrorTypeDeleted,
+  migrateInlineJournalMedia,
   replaceCloudData,
   deleteCloudJournalErrorType,
   deleteCloudJournalStrategy,
@@ -26,6 +27,7 @@ import {
   upsertCloudJournalErrorType,
   upsertCloudJournalStrategy,
 } from "../lib/db";
+import { JOURNAL_MEDIA_STORAGE_ENABLED, isInlineImage } from "../lib/journalMedia";
 import { supabaseClient } from "../lib/supabase";
 import type {
   AccountInput,
@@ -48,9 +50,18 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
   const [error, setError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [mutating, setMutating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  /* De quién son los datos reales que hay en pantalla, si los hay. Decide si una recarga
+     es la primera (pantalla de carga, y datos demo si falla) o un refresco de fondo. */
+  const loadedForRef = useRef<string | null>(null);
+  /* Usuario cuyas capturas en base64 ya se intentaron pasar a Storage en esta sesión (ver
+     migrateInlineJournalMedia). Una vez por sesión basta: si se corta, la próxima sigue. */
+  const mediaMigratedForRef = useRef<string | null>(null);
+  const reloadRef = useRef<() => Promise<void>>(async () => {});
 
   const reload = useCallback(async () => {
     if (!enabled || !userId || !supabaseClient) {
+      loadedForRef.current = null;
       setData(demoData);
       setMode("demo");
       setStatus("demo");
@@ -58,20 +69,48 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
       return;
     }
 
-    setStatus("loading");
+    /* Cada guardado recarga todo. Antes eso volvía a poner el estado en "loading", que pinta
+       el aviso grande de "Sincronizando" encima del contenido y lo empuja hacia abajo
+       después de cada cambio; y si esa recarga fallaba, cambiaba los datos del usuario por
+       los de demo. Con datos reales ya en pantalla, la recarga va de fondo: solo enciende
+       el indicador pequeño de la barra y, si falla, deja lo que había y lo dice ahí. Los
+       datos demo quedan solo para cuando la primera carga falla y no hay nada que enseñar. */
+    const background = loadedForRef.current === userId;
+    if (background) setRefreshing(true);
+    else setStatus("loading");
     setError(null);
 
     try {
-      const cloudData = await loadCloudData(supabaseClient, userId);
+      const client = supabaseClient;
+      const cloudData = await loadCloudData(client, userId);
+      loadedForRef.current = userId;
       setData(cloudData);
       setMode("cloud");
       setStatus("ready");
+
+      /* Capturas antiguas en base64: se pasan a Storage en segundo plano, sin bloquear nada,
+         y al acabar se recarga para que la fila ya no las traiga. */
+      if (
+        JOURNAL_MEDIA_STORAGE_ENABLED &&
+        mediaMigratedForRef.current !== userId &&
+        cloudData.journalEntries.some((entry) => !entry.mediaPath && isInlineImage(entry.operationUrl))
+      ) {
+        mediaMigratedForRef.current = userId;
+        void migrateInlineJournalMedia(client, userId, cloudData.journalEntries).then(({ moved, error }) => {
+          if (error) console.warn("No se pudieron mover todas las capturas a Storage.", error);
+          if (moved > 0) void reloadRef.current();
+        });
+      }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "No se pudieron cargar los datos.";
       setError(message);
-      setData(demoData);
-      setMode("demo");
-      setStatus("error");
+      if (!background) {
+        setData(demoData);
+        setMode("demo");
+        setStatus("error");
+      }
+    } finally {
+      if (background) setRefreshing(false);
     }
   }, [enabled, userId]);
 
@@ -576,6 +615,8 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     [enabled, reload, userId],
   );
 
+  reloadRef.current = reload;
+
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -593,6 +634,7 @@ export function useTrazzaData(userId: string | undefined, enabled: boolean) {
     mode,
     mutationError,
     mutating,
+    refreshing,
     reload,
     saveAccount,
     saveFirm,

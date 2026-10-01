@@ -10,6 +10,7 @@ import {
 } from "../lib/legacyImport";
 import { useI18n, useT } from "../lib/i18n/context";
 import { exportJournalEntriesCsv } from "../lib/journalCsv";
+import { embedJournalMediaForExport } from "../lib/journalMedia";
 import { Select } from "./Select";
 import { SubscriptionPanel } from "./SubscriptionPanel";
 import { useConfirm } from "./confirm";
@@ -71,6 +72,7 @@ export function SettingsView({
     email: profile?.email ?? "",
   });
   const [migrationMessage, setMigrationMessage] = useState<{ text: string; type: "error" | "info" | "success" } | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [localMigrationSource, setLocalMigrationSource] = useState<LocalMigrationSource | null>(null);
   const [supportEmailCopied, setSupportEmailCopied] = useState(false);
   const t = useT();
@@ -122,7 +124,15 @@ export function SettingsView({
     }
 
     if (currentHasData) {
-      exportJson(data, dataMode, `trazza-backup-before-migration-${new Date().toISOString().slice(0, 10)}.json`);
+      /* La copia de seguridad es la red de esta operación (sustituye todo), así que si no
+         sale entera, con sus capturas, no se sigue. */
+      setMigrationMessage({ type: "info", text: t("settings.export.preparing") });
+      try {
+        await exportJson(data, dataMode, `trazza-backup-before-migration-${new Date().toISOString().slice(0, 10)}.json`);
+      } catch {
+        setMigrationMessage({ type: "error", text: t("settings.export.mediaError") });
+        return;
+      }
     }
     setMigrationMessage({ type: "info", text: `Importando ${summary}...` });
     const imported = await onImportData(nextData);
@@ -273,7 +283,23 @@ export function SettingsView({
           <span>{data.journalStrategies.length} {t("settings.export.strategies")}</span>
         </div>
         <div className="migration-actions">
-          <button className="secondary-action" onClick={() => exportJson(data, dataMode)} type="button">
+          <button
+            className="secondary-action"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              setMigrationMessage({ type: "info", text: t("settings.export.preparing") });
+              try {
+                await exportJson(data, dataMode);
+                setMigrationMessage(null);
+              } catch {
+                setMigrationMessage({ type: "error", text: t("settings.export.mediaError") });
+              } finally {
+                setExporting(false);
+              }
+            }}
+            type="button"
+          >
             <Download size={17} strokeWidth={2.2} />
             {t("settings.export.button")}
           </button>
@@ -366,10 +392,12 @@ export function SettingsView({
   );
 }
 
-function exportJson(data: AppData, dataMode: DataMode, filename?: string) {
+/* Asíncrona porque las capturas que viven en Storage se descargan y se meten en la copia
+   (embedJournalMediaForExport): una URL firmada caduca en un día y la copia no valdría. */
+async function exportJson(data: AppData, dataMode: DataMode, filename?: string) {
   const payload = {
     app: "trazza-react",
-    data,
+    data: await embedJournalMediaForExport(data),
     exportedAt: new Date().toISOString(),
     mode: dataMode,
     version: 1,

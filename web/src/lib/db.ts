@@ -25,6 +25,16 @@ import type {
   MovementKind,
   TradingAccount,
 } from "../types";
+import {
+  JOURNAL_MEDIA_STORAGE_ENABLED,
+  extensionForImage,
+  isInlineImage,
+  listJournalMedia,
+  mediaPathFromSignedUrl,
+  removeJournalMedia,
+  signJournalMedia,
+  uploadJournalMedia,
+} from "./journalMedia";
 
 type DbRow = Record<string, unknown>;
 
@@ -82,20 +92,24 @@ export async function loadCloudData(client: SupabaseClient, userId: string): Pro
     deletedDefaultsResult,
     journalStrategiesResult,
   ] = await Promise.all([
-    client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
-    client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-    client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
+    fetchAllRows(() => client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }).order("id")),
+    fetchAllRows(() =>
+      client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("id"),
+    ),
+    fetchAllRows(() =>
+      client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }).order("id"),
+    ),
     fetchOptionalTable(client, userId, "journal_entries", "date", false),
     fetchOptionalTable(client, userId, "journal_error_types", "position", true),
-    fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true),
+    fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true, "type_id"),
     fetchOptionalTable(client, userId, "journal_strategies", "position", true),
   ]);
 
   return {
-    firms: unwrapRows(firmsResult as QueryResult).map(fromDbFirm),
-    accounts: unwrapRows(accountsResult as QueryResult).map(fromDbAccount),
-    movements: unwrapRows(movementsResult as QueryResult).map(fromDbMovement),
-    journalEntries: unwrapRows(journalEntriesResult).map(fromDbJournalEntry),
+    firms: unwrapRows(firmsResult).map(fromDbFirm),
+    accounts: unwrapRows(accountsResult).map(fromDbAccount),
+    movements: unwrapRows(movementsResult).map(fromDbMovement),
+    journalEntries: await signJournalMedia(client, unwrapRows(journalEntriesResult).map(fromDbJournalEntry)),
     journalErrorTypes: unwrapRows(journalErrorTypesResult).map(fromDbJournalErrorType),
     deletedDefaultErrorTypeIds: unwrapRows(deletedDefaultsResult).map((row) => String(row.type_id)),
     journalStrategies: unwrapRows(journalStrategiesResult).map(fromDbJournalStrategy),
@@ -272,12 +286,14 @@ export async function createCloudJournalEntry(
   userId: string,
   input: JournalEntryInput,
 ): Promise<JournalEntry> {
+  const media = await resolveJournalMedia(client, userId, input.operationUrl);
   const result = await client
     .from("journal_entries")
-    .insert(journalEntryInputToDb(userId, input))
+    .insert({ ...journalEntryInputToDb(userId, input), ...media.columns })
     .select("*")
     .single();
 
+  if (result.error) await removeJournalMedia(client, [media.uploadedPath]);
   return fromSingleRow(result, fromDbJournalEntry, "No se pudo crear el trade del journal.");
 }
 
@@ -287,21 +303,113 @@ export async function updateCloudJournalEntry(
   entryId: string,
   input: JournalEntryInput,
 ): Promise<JournalEntry> {
+  const previous = JOURNAL_MEDIA_STORAGE_ENABLED
+    ? await client.from("journal_entries").select("media_path").eq("id", entryId).eq("user_id", userId).maybeSingle()
+    : { data: null };
+  const previousPath = previous.data ? text((previous.data as DbRow).media_path) : "";
+
+  const media = await resolveJournalMedia(client, userId, input.operationUrl);
   const result = await client
     .from("journal_entries")
-    .update(journalEntryInputToDb(userId, input, false))
+    .update({ ...journalEntryInputToDb(userId, input, false), ...media.columns })
     .eq("id", entryId)
     .eq("user_id", userId)
     .select("*")
     .single();
 
+  if (result.error) {
+    await removeJournalMedia(client, [media.uploadedPath]);
+  } else if (previousPath && previousPath !== (media.columns.media_path ?? null)) {
+    await removeJournalMedia(client, [previousPath]);
+  }
   return fromSingleRow(result, fromDbJournalEntry, "No se pudo actualizar el trade del journal.");
 }
 
 export async function deleteCloudJournalEntry(client: SupabaseClient, userId: string, entryId: string): Promise<void> {
-  const result = await client.from("journal_entries").delete().eq("id", entryId).eq("user_id", userId);
+  if (!JOURNAL_MEDIA_STORAGE_ENABLED) {
+    const result = await client.from("journal_entries").delete().eq("id", entryId).eq("user_id", userId);
+    if (result.error) throw new Error(result.error.message || "No se pudo eliminar el trade del journal.");
+    return;
+  }
+
+  const result = await client
+    .from("journal_entries")
+    .delete()
+    .eq("id", entryId)
+    .eq("user_id", userId)
+    .select("media_path");
 
   if (result.error) throw new Error(result.error.message || "No se pudo eliminar el trade del journal.");
+  await removeJournalMedia(
+    client,
+    (result.data || []).map((row) => text((row as DbRow).media_path)),
+  );
+}
+
+/* Pasa las capturas que siguen en base64 dentro de la fila a Storage, una a una. Lo lanza
+   useTrazzaData en segundo plano tras la primera carga, así que cada usuario migra lo suyo
+   con sus propios permisos la primera vez que entra con esta versión. Quien no puede
+   escribir (prueba caducada) falla en la primera subida y se para: sus capturas se quedan
+   donde estaban y se siguen viendo igual. La ruta es fija por entrada, así que si se corta
+   a medias la siguiente vez sobrescribe en vez de duplicar. No lanza: devuelve cuántas
+   movió y, si se paró, por qué. */
+export async function migrateInlineJournalMedia(
+  client: SupabaseClient,
+  userId: string,
+  entries: JournalEntry[],
+): Promise<{ moved: number; error?: unknown }> {
+  if (!JOURNAL_MEDIA_STORAGE_ENABLED) return { moved: 0 };
+  let moved = 0;
+  try {
+    for (const entry of entries) {
+      if (entry.mediaPath || !isInlineImage(entry.operationUrl)) continue;
+      const path = `${userId}/inline-${entry.id}.${extensionForImage(entry.operationUrl)}`;
+      await uploadJournalMedia(client, path, entry.operationUrl);
+      const result = await client
+        .from("journal_entries")
+        .update({ media_path: path, operation_url: null })
+        .eq("id", entry.id)
+        .eq("user_id", userId);
+      if (result.error) throw new Error(result.error.message || "No se pudo mover la captura a Storage.");
+      moved += 1;
+    }
+    return { moved };
+  } catch (error) {
+    return { moved, error };
+  }
+}
+
+/* Qué columnas guarda una captura según lo que traiga operationUrl (ver journalMedia.ts):
+   base64 se sube y se guarda su ruta; una URL firmada propia conserva su ruta; lo demás es
+   un enlace. Con keepInlineOnUploadError (importar un JSON) una imagen que Storage rechaza
+   se queda en base64 en vez de tumbar la importación entera. */
+async function resolveJournalMedia(
+  client: SupabaseClient,
+  userId: string,
+  value: string | undefined,
+  options: { keepInlineOnUploadError?: boolean } = {},
+): Promise<{ columns: { media_path?: string | null; operation_url: string | null }; uploadedPath?: string }> {
+  const trimmed = value?.trim() || "";
+
+  /* Con Storage apagado, lo de siempre y sin nombrar media_path: la columna puede no
+     existir todavía, y mencionarla haría fallar el guardado. */
+  if (!JOURNAL_MEDIA_STORAGE_ENABLED) return { columns: { operation_url: trimmed || null } };
+
+  if (isInlineImage(trimmed)) {
+    const path = `${userId}/${createUuid()}.${extensionForImage(trimmed)}`;
+    try {
+      await uploadJournalMedia(client, path, trimmed);
+    } catch (error) {
+      if (options.keepInlineOnUploadError) return { columns: { media_path: null, operation_url: trimmed } };
+      throw error;
+    }
+    return { columns: { media_path: path, operation_url: null }, uploadedPath: path };
+  }
+
+  const ownPath = mediaPathFromSignedUrl(trimmed, userId);
+  if (ownPath) return { columns: { media_path: ownPath, operation_url: null } };
+
+  return { columns: { media_path: null, operation_url: trimmed || null } };
 }
 
 export async function upsertCloudJournalErrorType(
@@ -412,6 +520,14 @@ export async function setCloudJournalStrategyActive(
 export async function replaceCloudData(client: SupabaseClient, userId: string, imported: AppData): Promise<void> {
   const mapped = mapImportedDataForCloud(userId, imported);
 
+  /* Las capturas del JSON vienen en base64 (la exportación las incrusta): se suben a
+     Storage antes de borrar nada, para que un fallo de subida no deje la cuenta vacía. */
+  const journalEntries: DbRow[] = [];
+  for (const row of mapped.journalEntries) {
+    const media = await resolveJournalMedia(client, userId, row.operation_url ?? undefined, { keepInlineOnUploadError: true });
+    journalEntries.push({ ...row, ...media.columns });
+  }
+
   await deleteOptionalUserRows(client, "journal_error_types", userId, mapped.journalErrorTypes.length > 0);
   await deleteOptionalUserRows(client, "journal_strategies", userId, mapped.journalStrategies.length > 0);
   await deleteOptionalUserRows(client, "journal_entries", userId, mapped.journalEntries.length > 0);
@@ -426,7 +542,7 @@ export async function replaceCloudData(client: SupabaseClient, userId: string, i
     await insertRows(client, "firms", mapped.firms, "No se pudieron importar las empresas.");
     await insertRows(client, "accounts", mapped.accounts, "No se pudieron importar las cuentas.");
     await insertRows(client, "transactions", mapped.movements, "No se pudieron importar los movimientos.");
-    await insertRows(client, "journal_entries", mapped.journalEntries, "No se pudieron importar los trades del journal.");
+    await insertRows(client, "journal_entries", journalEntries, "No se pudieron importar los trades del journal.");
     await insertRows(client, "journal_error_types", mapped.journalErrorTypes, "No se pudieron importar los tipos de error.");
     await insertRows(client, "journal_strategies", mapped.journalStrategies, "No se pudieron importar las estrategias.");
   } catch (error) {
@@ -434,6 +550,21 @@ export async function replaceCloudData(client: SupabaseClient, userId: string, i
     throw new Error(
       `La importacion fallo despues de borrar los datos anteriores. Vuelve a importar el archivo de copia que se descargo automaticamente al empezar. Detalle: ${detail}`,
     );
+  }
+
+  /* Las entradas anteriores ya no existen: sus capturas, salvo las que el JSON reutiliza,
+     se quedarían en Storage sin que nada las apunte. Va a mejor esfuerzo, como todo
+     borrado de capturas: la importación ya ha terminado bien. */
+  if (!JOURNAL_MEDIA_STORAGE_ENABLED) return;
+  try {
+    const referenced = new Set(journalEntries.map((row) => text(row.media_path)).filter(Boolean));
+    const stored = await listJournalMedia(client, userId);
+    await removeJournalMedia(
+      client,
+      stored.filter((path) => !referenced.has(path)),
+    );
+  } catch (error) {
+    console.warn("No se pudieron limpiar las capturas sin uso tras importar.", error);
   }
 }
 
@@ -452,20 +583,43 @@ function fromSingleRow<T>(
   return mapper(result.data);
 }
 
+/* PostgREST corta cada respuesta en max_rows (1.000 por defecto en Supabase) sin dar
+   ningún error: una tabla con más filas llegaba truncada en silencio, y una importación
+   grande de Tradovate o del banco lo alcanza. Se pide por páginas hasta que una vuelve
+   incompleta. Si algún día se baja max_rows en Supabase, PAGE_SIZE tiene que bajar con
+   él: con una página más corta que PAGE_SIZE el bucle creería haber llegado al final.
+   El orden de cada consulta lleva un desempate único (id), o una fila podría salir en
+   dos páginas, o en ninguna, cuando varias comparten fecha. */
+const PAGE_SIZE = 1000;
+
+type RangeableQuery = {
+  range: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: QueryResult["error"] }>;
+};
+
+async function fetchAllRows(build: () => RangeableQuery): Promise<QueryResult> {
+  const rows: DbRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const result = await build().range(from, from + PAGE_SIZE - 1);
+    if (result.error) return { data: null, error: result.error };
+    const page = (result.data || []) as DbRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
 async function fetchOptionalTable(
   client: SupabaseClient,
   userId: string,
   table: string,
   orderColumn: string,
   ascending: boolean,
+  tieBreaker = "id",
 ): Promise<QueryResult> {
-  const result = await client
-    .from(table)
-    .select("*")
-    .eq("user_id", userId)
-    .order(orderColumn, { ascending });
+  const result = await fetchAllRows(() =>
+    client.from(table).select("*").eq("user_id", userId).order(orderColumn, { ascending }).order(tieBreaker),
+  );
 
-  if (!result.error || !isMissingTableError(result.error)) return result as QueryResult;
+  if (!result.error || !isMissingTableError(result.error)) return result;
 
   return { data: [], error: null };
 }
@@ -553,6 +707,7 @@ function fromDbJournalEntry(row: DbRow): JournalEntry {
     errors: stringArray(row.errors),
     strategyId: text(row.strategy_id) || undefined,
     operationUrl: text(row.operation_url),
+    mediaPath: text(row.media_path) || undefined,
     result: normalizeJournalResult(row.result),
     sessionType: normalizeJournalSessionType(row.session_type),
     tradingSession: normalizeJournalTradingSession(row.trading_session),
