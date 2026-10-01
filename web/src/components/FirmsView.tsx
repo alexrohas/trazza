@@ -20,7 +20,7 @@ type FirmsViewProps = {
   searchQuery: string;
   onDeleteFirm: (firmId: string) => Promise<boolean>;
   onNewFirmRequestHandled?: () => void;
-  onSaveFirm: (input: FirmInput, firmId?: string) => Promise<boolean>;
+  onSaveFirm: (input: FirmInput, firmId?: string) => Promise<Firm | false>;
 };
 
 function getFirmTypeOptions(t: ReturnType<typeof useT>): Array<{ label: string; value: FirmType }> {

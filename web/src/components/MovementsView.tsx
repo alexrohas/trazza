@@ -34,6 +34,9 @@ type MovementsViewProps = {
   mutationError?: string | null;
   mutating?: boolean;
   newMovementToken?: number;
+  /** Abre la importación del extracto, como newMovementToken abre el alta (lo pide el
+   *  primer arranque). */
+  importStatementToken?: number;
   searchQuery: string;
   onDeleteMovement: (movementId: string) => Promise<boolean>;
   onImportMovements: (
@@ -43,6 +46,7 @@ type MovementsViewProps = {
      alta de varias abierta y una fila por compra. */
   onRequestAccountsForMovements: (rows: AccountRequestRow[]) => void;
   onNewMovementRequestHandled?: () => void;
+  onImportStatementRequestHandled?: () => void;
   /* No crea la cuenta aqui: lleva a Cuentas con el alta ya abierta y precargada, y esta
      misma entrada del movimiento en espera de la cuenta que salga de ahi. Reutiliza el
      formulario completo de cuenta (tipo, drawdown, objetivo) en vez de duplicar un
@@ -94,10 +98,12 @@ export function MovementsView({
   mutationError,
   mutating = false,
   newMovementToken = 0,
+  importStatementToken = 0,
   searchQuery,
   onDeleteMovement,
   onImportMovements,
   onNewMovementRequestHandled,
+  onImportStatementRequestHandled,
   onRequestAccountForMovement,
   onRequestAccountsForMovements,
   onSaveMovement,
@@ -253,6 +259,12 @@ export function MovementsView({
     openNewMovement();
     onNewMovementRequestHandled?.();
   }, [newMovementToken, onNewMovementRequestHandled]);
+
+  useEffect(() => {
+    if (!importStatementToken) return;
+    setImportOpen(true);
+    onImportStatementRequestHandled?.();
+  }, [importStatementToken, onImportStatementRequestHandled]);
 
   return (
     <div className="firms-workspace">

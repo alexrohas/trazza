@@ -9,7 +9,8 @@ import { RequiredLegend } from "./RequiredLegend";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus } from "../lib/accountRules";
-import { applyCatalogPlan, findCatalogFirm, formatPlanLabel, matchCatalogPlan } from "../lib/firmCatalog";
+import { formatSizeForName } from "../lib/db";
+import { applyCatalogPlan, findCatalogFirm, formatCatalogDate, formatPlanLabel, matchCatalogPlan } from "../lib/firmCatalog";
 import {
   formatAccountSize,
   formatAmount,
@@ -18,7 +19,7 @@ import {
   getAccountTradingDays,
   localIsoDate,
 } from "../lib/metrics";
-import { useI18n, useT, type Language } from "../lib/i18n/context";
+import { useI18n, useT } from "../lib/i18n/context";
 import { matchesSearch } from "../lib/search";
 import type {
   AccountInput,
@@ -1726,28 +1727,6 @@ function planProgramFor(firmName: string, input: AccountInput) {
   const plan = firm ? matchCatalogPlan(firm, input) : undefined;
   if (!plan || firmName.toLowerCase().includes(plan.program.toLowerCase())) return "";
   return `${plan.program} `;
-}
-
-/* La fecha de revision del catalogo, en largo y en el idioma de la interfaz. Mediodia y
-   no medianoche, para que el desfase horario no devuelva el dia anterior. */
-function formatCatalogDate(date: string, language: Language) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "es-ES", { day: "numeric", month: "long", year: "numeric" }).format(
-    new Date(year, (month || 1) - 1, day || 1, 12),
-  );
-}
-
-/** "25000" -> "25K" para el nombre automatico. Si ya viene escrito como etiqueta
- *  ("25K", "Flex 25K") se respeta tal cual: el usuario ya eligio como llamarlo. */
-function formatSizeForName(size: string) {
-  const raw = size.trim();
-  const numeric = Number(raw.replace(/[^\d.-]/g, ""));
-  if (!/^[\d.,\s]+$/.test(raw) || !Number.isFinite(numeric) || numeric <= 0) return raw;
-  if (numeric >= 1000) {
-    const thousands = numeric / 1000;
-    return `${Number.isInteger(thousands) ? thousands : thousands.toFixed(1)}K`;
-  }
-  return String(numeric);
 }
 
 /* El nombre del reset: el de la cuenta con el numero siguiente, como numeran las firmas

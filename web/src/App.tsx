@@ -8,6 +8,7 @@ import { EconomicEventsView } from "./components/EconomicEventsView";
 import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
+import { OnboardingModal } from "./components/OnboardingModal";
 import { PasswordField } from "./components/PasswordField";
 import { PlansModal } from "./components/PlansModal";
 import { ProductTour } from "./components/ProductTour";
@@ -25,6 +26,10 @@ import { isSupabaseConfigured } from "./lib/supabase";
 import { filterJournalByAccount, filterMovementsByAccount } from "./lib/metrics";
 import type { AccountInput, MovementInput, NavigationView } from "./types";
 
+/* Clave del primer arranque entre los pasos vistos de los tutoriales (ver useTourState). No
+   se renombra: para quien ya lo vio contaría como nuevo. */
+const ONBOARDING_STEP = "onboarding.start";
+
 export default function App() {
   const auth = useAuth();
   const themeState = useTheme();
@@ -33,7 +38,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<NavigationView>("overview");
   const [createRequest, setCreateRequest] = useState<{
     id: number;
-    target: "account" | "firm" | "journalEntry" | "movement";
+    target: "account" | "firm" | "journalEntry" | "movement" | "bankImport";
   } | null>(null);
   /* Cuenta que otra pantalla pide abrir en edicion (el Journal, desde el aviso de "sin
      reglas de cobro"). El id sube en cada peticion, como en createRequest, para que pedir
@@ -65,6 +70,27 @@ export default function App() {
   const currency = auth.profile?.currency ?? "EUR";
 
   const { canMutateData } = subscription;
+
+  /* Primer arranque (OnboardingModal): sale a quien entra con la cuenta vacía y puede
+     escribir. Espera a que la suscripción se resuelva, porque mientras tanto canMutateData
+     deja escribir (fail-open) y se le enseñaría a una prueba caducada un alta que acabaría
+     en el selector de planes. Lo visto se guarda con los tutoriales (useTourState), así
+     que "Volver a verlos" en Ajustes también lo devuelve, si la cuenta sigue vacía.
+     Una vez abierto se queda abierto aunque deje de cumplirse: la empresa y la cuenta
+     que crea a mitad de camino ya hacen que la cuenta no esté vacía. */
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const onboardingDue =
+    auth.status === "authenticated" &&
+    dataState.status === "ready" &&
+    subscription.subscription !== undefined &&
+    canMutateData &&
+    !tourState.state.disabled &&
+    !tourState.state.steps.includes(ONBOARDING_STEP) &&
+    firms.length + accounts.length + movements.length + journalEntries.length === 0;
+  const showOnboarding = onboardingOpen || onboardingDue;
+  useEffect(() => {
+    if (onboardingDue) setOnboardingOpen(true);
+  }, [onboardingDue]);
 
   /**
    * Paywall en un unico punto: en vez de repetir la comprobacion en cada vista, se
@@ -176,6 +202,33 @@ export default function App() {
      deja de estarlo: si se guardo, ya se enlazo arriba; si se cancelo, no debe quedar
      colgado esperando una cuenta que nunca llego. */
   const handleAccountModalClosed = useCallback(() => setPendingMovementLink(null), []);
+
+  const { markSeen } = tourState;
+  const closeOnboarding = useCallback(() => {
+    markSeen([ONBOARDING_STEP]);
+    setOnboardingOpen(false);
+  }, [markSeen]);
+  const markOnboardingDone = useCallback(() => markSeen([ONBOARDING_STEP]), [markSeen]);
+
+  /* El tercer paso lleva a la pantalla de lo que se quiera meter, con su ventana ya
+     abierta: el selector de trades del Journal (manual o CSV de Tradovate) o la
+     importación del extracto. "Ahora no" lleva a Cuentas, donde está la cuenta nueva. */
+  const finishOnboarding = useCallback(
+    (destination: "trades" | "statement" | "account") => {
+      closeOnboarding();
+      window.scrollTo({ top: 0 });
+      if (destination === "account") {
+        setActiveView("accounts");
+        return;
+      }
+      setActiveView(destination === "trades" ? "journalEntries" : "movements");
+      setCreateRequest((current) => ({
+        id: (current?.id || 0) + 1,
+        target: destination === "trades" ? "journalEntry" : "bankImport",
+      }));
+    },
+    [closeOnboarding],
+  );
 
   const visibleAccounts = useMemo(
     () => (selectedAccountId === "all" ? accounts : accounts.filter((account) => account.id === selectedAccountId)),
@@ -349,12 +402,14 @@ export default function App() {
           firms={firms}
           movements={visibleMovements}
           newMovementToken={createRequest?.target === "movement" ? createRequest.id : 0}
+          importStatementToken={createRequest?.target === "bankImport" ? createRequest.id : 0}
           searchQuery={searchQuery}
           mutationError={dataState.mutationError}
           mutating={dataState.mutating}
           onDeleteMovement={guarded.deleteMovement}
           onImportMovements={guarded.importMovements}
           onNewMovementRequestHandled={() => setCreateRequest(null)}
+          onImportStatementRequestHandled={() => setCreateRequest(null)}
           onRequestAccountForMovement={requestAccountForMovement}
           onRequestAccountsForMovements={requestAccountsForMovements}
           onSaveMovement={guarded.saveMovement}
@@ -412,14 +467,34 @@ export default function App() {
         />
       )}
 
-      {/* Con sesión, cuando los datos ya han llegado (antes no hay nada que señalar). En el
-          servidor demo, siempre: ahí se prueba, y lo visto se guarda en el navegador. */}
+      {showOnboarding && (
+        <OnboardingModal
+          accounts={accounts}
+          currency={currency}
+          firms={firms}
+          mutationError={dataState.mutationError}
+          onAccountCreated={markOnboardingDone}
+          onClose={closeOnboarding}
+          onFinish={finishOnboarding}
+          onSaveAccount={guarded.saveAccount}
+          onSaveFirm={guarded.saveFirm}
+        />
+      )}
+
+      {/* Con sesión, cuando los datos ya han llegado (antes no hay nada que señalar) y se
+          sabe si toca el primer arranque, que va antes: es lo que crea lo que los tutoriales
+          señalan. En el servidor demo, siempre: ahí se prueba, y lo visto se guarda en el
+          navegador. */}
       <ProductTour
         contentKey={`${firms.length}.${accounts.length}.${movements.length}.${journalEntries.length}`}
         onDisableAll={tourState.disableAll}
         onRequestHandled={() => setTourRequest(null)}
         onSeen={tourState.markSeen}
-        ready={auth.status === "authenticated" ? dataState.status === "ready" : auth.status === "unconfigured"}
+        ready={
+          auth.status === "authenticated"
+            ? dataState.status === "ready" && subscription.subscription !== undefined && !showOnboarding
+            : auth.status === "unconfigured"
+        }
         request={tourRequest}
         state={tourState.state}
         view={activeView}

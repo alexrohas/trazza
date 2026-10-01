@@ -1099,6 +1099,20 @@ function undefinedNumber(value: unknown) {
   return nullableNumber(value) ?? undefined;
 }
 
+/** La vuelta de parseAccountSizeAmount, para el nombre automatico de una cuenta: "25000"
+ *  -> "25K". Si ya viene escrito como etiqueta ("25K", "Flex 25K") se respeta tal cual: el
+ *  usuario ya eligio como llamarlo. */
+export function formatSizeForName(size: string) {
+  const raw = size.trim();
+  const numeric = Number(raw.replace(/[^\d.-]/g, ""));
+  if (!/^[\d.,\s]+$/.test(raw) || !Number.isFinite(numeric) || numeric <= 0) return raw;
+  if (numeric >= 1000) {
+    const thousands = numeric / 1000;
+    return `${Number.isInteger(thousands) ? thousands : thousands.toFixed(1)}K`;
+  }
+  return String(numeric);
+}
+
 export function parseAccountSizeAmount(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   const source = text(value);
