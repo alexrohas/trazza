@@ -8,7 +8,12 @@
       name="description"
       content="Trazza une journal de trading, finanzas de prop firm, reglas de cuenta y métricas reales en un workspace visual. Prueba gratis 14 días, sin tarjeta."
     />
-    <link rel="canonical" href="https://trazzajournal.com/" />
+    <!-- Con www porque es el dominio que sirve: en Vercel, trazzajournal.com redirige a
+         www.trazzajournal.com. Un canonical (o un sitemap) que apunta a una URL que
+         redirige le da a Google dos respuestas distintas sobre cuál es la buena. Si algún
+         día se invierte la redirección, cambian a la vez este, og:url, el JSON-LD,
+         sitemap.xml y robots.txt. -->
+    <link rel="canonical" href="https://www.trazzajournal.com/" />
     <!-- Cuadrados y en múltiplos de 48px porque es lo que pide Google para el icono que
          acompaña al resultado de búsqueda; el logo apaisado que había antes (677×369) no
          cumple ninguna de las dos cosas. `trazza.png` sigue existiendo, pero solo como
@@ -19,7 +24,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://trazzajournal.com/" />
+    <meta property="og:url" content="https://www.trazzajournal.com/" />
     <meta property="og:title" content="Trazza — Journal y finanzas de trading" />
     <meta
       property="og:description"
@@ -31,7 +36,7 @@
          `summary_large_image`, o sea que se pinta a unos 1200px de ancho, y esa imagen
          llegaba escalada casi al doble y enseñando solo el logo. Declarar ancho y alto
          evita además que la vista previa salte de tamaño mientras la imagen carga. -->
-    <meta property="og:image" content="https://trazzajournal.com/trazza-og.png" />
+    <meta property="og:image" content="https://www.trazzajournal.com/trazza-og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
@@ -41,7 +46,7 @@
     <meta property="og:locale" content="es_ES" />
     <meta name="twitter:card" content="summary_large_image" />
     <!-- X usa og:image si falta, pero declararlo explícito evita depender de ese respaldo. -->
-    <meta name="twitter:image" content="https://trazzajournal.com/trazza-og.png" />
+    <meta name="twitter:image" content="https://www.trazzajournal.com/trazza-og.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -74,7 +79,7 @@
         "name": "Trazza",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "url": "https://trazzajournal.com/",
+        "url": "https://www.trazzajournal.com/",
         "description": "Journal de trading y control financiero de cuentas de prop firm.",
         "offers": { "@type": "Offer", "price": "4.99", "priceCurrency": "EUR" }
       }

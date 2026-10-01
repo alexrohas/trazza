@@ -5,4 +5,4 @@ Allow: /legal.html
 # la landing, que es la pagina que si queremos que se encuentre.
 Disallow: /app
 
-Sitemap: https://trazzajournal.com/sitemap.xml
+Sitemap: https://www.trazzajournal.com/sitemap.xml
