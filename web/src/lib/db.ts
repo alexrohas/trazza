@@ -82,19 +82,23 @@ export async function loadCloudData(client: SupabaseClient, userId: string): Pro
     deletedDefaultsResult,
     journalStrategiesResult,
   ] = await Promise.all([
-    client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }),
-    client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-    client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }),
+    fetchAllRows(() => client.from("firms").select("*").eq("user_id", userId).order("name", { ascending: true }).order("id")),
+    fetchAllRows(() =>
+      client.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("id"),
+    ),
+    fetchAllRows(() =>
+      client.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true }).order("id"),
+    ),
     fetchOptionalTable(client, userId, "journal_entries", "date", false),
     fetchOptionalTable(client, userId, "journal_error_types", "position", true),
-    fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true),
+    fetchOptionalTable(client, userId, "journal_deleted_default_error_types", "deleted_at", true, "type_id"),
     fetchOptionalTable(client, userId, "journal_strategies", "position", true),
   ]);
 
   return {
-    firms: unwrapRows(firmsResult as QueryResult).map(fromDbFirm),
-    accounts: unwrapRows(accountsResult as QueryResult).map(fromDbAccount),
-    movements: unwrapRows(movementsResult as QueryResult).map(fromDbMovement),
+    firms: unwrapRows(firmsResult).map(fromDbFirm),
+    accounts: unwrapRows(accountsResult).map(fromDbAccount),
+    movements: unwrapRows(movementsResult).map(fromDbMovement),
     journalEntries: unwrapRows(journalEntriesResult).map(fromDbJournalEntry),
     journalErrorTypes: unwrapRows(journalErrorTypesResult).map(fromDbJournalErrorType),
     deletedDefaultErrorTypeIds: unwrapRows(deletedDefaultsResult).map((row) => String(row.type_id)),
@@ -452,20 +456,43 @@ function fromSingleRow<T>(
   return mapper(result.data);
 }
 
+/* PostgREST corta cada respuesta en max_rows (1.000 por defecto en Supabase) sin dar
+   ningún error: una tabla con más filas llegaba truncada en silencio, y una importación
+   grande de Tradovate o del banco lo alcanza. Se pide por páginas hasta que una vuelve
+   incompleta. Si algún día se baja max_rows en Supabase, PAGE_SIZE tiene que bajar con
+   él: con una página más corta que PAGE_SIZE el bucle creería haber llegado al final.
+   El orden de cada consulta lleva un desempate único (id), o una fila podría salir en
+   dos páginas, o en ninguna, cuando varias comparten fecha. */
+const PAGE_SIZE = 1000;
+
+type RangeableQuery = {
+  range: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: QueryResult["error"] }>;
+};
+
+async function fetchAllRows(build: () => RangeableQuery): Promise<QueryResult> {
+  const rows: DbRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const result = await build().range(from, from + PAGE_SIZE - 1);
+    if (result.error) return { data: null, error: result.error };
+    const page = (result.data || []) as DbRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
 async function fetchOptionalTable(
   client: SupabaseClient,
   userId: string,
   table: string,
   orderColumn: string,
   ascending: boolean,
+  tieBreaker = "id",
 ): Promise<QueryResult> {
-  const result = await client
-    .from(table)
-    .select("*")
-    .eq("user_id", userId)
-    .order(orderColumn, { ascending });
+  const result = await fetchAllRows(() =>
+    client.from(table).select("*").eq("user_id", userId).order(orderColumn, { ascending }).order(tieBreaker),
+  );
 
-  if (!result.error || !isMissingTableError(result.error)) return result as QueryResult;
+  if (!result.error || !isMissingTableError(result.error)) return result;
 
   return { data: [], error: null };
 }
