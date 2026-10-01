@@ -907,26 +907,45 @@ commits de `d5e432d` a `7d984fa`). El usuario pidió revisar todo; lo urgente fu
   la recarga que sigue a cada guardado va **de fondo** (`refreshing` en `useTrazzaData`):
   ya no pinta el aviso "Sincronizando" encima del contenido ni cambia los datos del usuario
   por los de demo si falla. La demo solo sale si falla la primera carga.
-- **Capturas del Journal en Storage, preparadas pero APAGADAS**
-  (`JOURNAL_MEDIA_STORAGE_ENABLED = false` en `web/src/lib/journalMedia.ts`). Hoy cada
-  captura va en base64 dentro de `operation_url` (77 kB de media, el 72 % de las entradas
-  tiene una) y la app recarga todas las entradas tras cada guardado: el usuario con más
-  capturas se bajaba 6,4 MB cada vez que guardaba algo. Con el interruptor apagado la app
-  hace exactamente lo de siempre y **ninguna consulta nombra `media_path`**, que aún no
-  existe. Para encenderlo, en este orden: ejecutar `supabase-journal-media.sql` (columna,
-  bucket privado `journal-media` y cuatro políticas: cada usuario solo su carpeta, y subir
-  o borrar exige `can_write_data()`), hacer que `delete-account` borre la carpeta del
-  usuario, y entonces poner el interruptor a `true`. Al encenderlo, cada usuario migra sus
-  capturas antiguas en segundo plano la primera vez que entra. El diseño entero está en el
-  comentario de `journalMedia.ts`; lo que no es obvio es que **la ruta de una captura se
-  saca de su propia URL firmada**, no de un campo del borrador, para que el formulario no
-  tenga que saber nada de Storage.
+- **Capturas del Journal en Supabase Storage**, encendidas el mismo 1 de octubre
+  (`JOURNAL_MEDIA_STORAGE_ENABLED = true` en `web/src/lib/journalMedia.ts`). Hasta entonces
+  cada captura iba en base64 dentro de `operation_url` (77 kB de media, el 72 % de las
+  entradas tiene una) y la app recarga todas las entradas tras cada guardado: el usuario
+  con más capturas se bajaba 6,4 MB cada vez que guardaba algo. Ahora la imagen vive en el
+  bucket privado `journal-media`, la fila guarda su ruta en `media_path` y al cargar se
+  firman todas en una sola petición, con las URLs cacheadas para que el navegador no las
+  vuelva a bajar en cada recarga. `supabase-journal-media.sql` lo ejecutó el usuario y se
+  comprobó contra el fichero (columna, bucket y las cuatro políticas: cada usuario solo su
+  carpeta, y subir o borrar exige `can_write_data()`). Piezas que no son obvias:
+  - **Cada usuario migra sus capturas antiguas** en segundo plano la primera vez que entra
+    (`migrateInlineJournalMedia`), con sus propios permisos: quien tiene la prueba
+    caducada no puede subir y sus capturas se quedan en base64, viéndose igual. La ruta de
+    las migradas es fija (`<user_id>/inline-<entry_id>.jpg`), así que una migración
+    cortada se repite sin duplicar.
+  - **La ruta de una captura se saca de su propia URL firmada**, no de un campo del
+    borrador: el formulario no sabe nada de Storage, y si la firma se renueva con el
+    formulario abierto, la URL vieja sigue apuntando a la misma ruta. Una URL firmada de
+    OTRA cuenta se guarda como enlace, no como ruta.
+  - Cambiar o quitar una imagen, o borrar la entrada, borra su fichero. Importar un JSON
+    sube las capturas antes de borrar nada y al final limpia los ficheros que no apunta
+    ninguna entrada.
+  - **La copia JSON incrusta las imágenes** (las descarga y las pasa a base64), porque una
+    URL firmada caduca en un día; si alguna no baja, la exportación se para en vez de
+    salir incompleta. Solo se incrustan las que tienen ruta: un enlace externo se copia
+    tal cual aunque parezca del bucket. El CSV del journal no lleva imágenes.
+  - **`delete-account` (v4) borra la carpeta del usuario antes que sus filas**: si eso
+    falla, no se ha borrado nada y se puede reintentar.
+  - El campo de texto del formulario ya no enseña la URL de la captura (miles de
+    caracteres, y la firmada caduca); escribir en él la sustituye por un enlace.
 
 Verificado sin poder abrir la app contra producción (ver la trampa de la red, abajo): el
 `index.ts` real del webhook ejecutado con Deno y Stripe y Supabase simulados (15 casos; la
 versión anterior falla en 3 que eran bugs reales), `loadCloudData` real contra un PostgREST
-simulado con 2.500 filas y fechas repetidas, y `db.ts` contra un cliente que falla si
-aparece `media_path` o se toca Storage (apagado pasa todo; encendido falla, como debe).
+simulado con 2.500 filas y fechas repetidas, el ciclo entero de las capturas (`db.ts` y
+`journalMedia.ts` reales contra un Supabase en memoria con tablas y Storage: crear, cargar,
+editar sin tocar, cambiar, quitar, borrar, URL ajena, subida rechazada, migrar, exportar e
+importar, 20 casos) y `delete-account` real con Stripe y Supabase simulados (9 casos: orden
+de borrado, 1.500 ficheros, fallos de Storage). Lo que falta es verlo con una cuenta real.
 
 ## Qué queda
 
@@ -964,7 +983,10 @@ El dato bueno: de los que metieron 10 registros o más sin ser `lifetime`, pagar
 medir actividad: `last_sign_in_at` no se mueve cuando se renueva la sesión, y los dos que
 pagan salían con cero accesos en 30 días aunque apuntaban trades.
 
-- **Encender las capturas en Storage** (ver arriba). Lo único que toca la base de datos.
+- **Ver que la migración de capturas acaba.** A 1 de octubre de 2026 había 324 en base64;
+  `select count(*) from journal_entries where operation_url like 'data:image%'` dice
+  cuántas quedan. Las de usuarios con la prueba caducada no se migran solas (no pueden
+  subir), y eso es lo esperado.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
