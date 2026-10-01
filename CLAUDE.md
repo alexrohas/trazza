@@ -956,10 +956,14 @@ pantallas y un formulario de trece campos.
 
 1. **Empresa**: las siete firmas de futuros que usan los usuarios (Lucid primero), "Otra
    empresa" con su nombre, o capital propio. Un clic y pasa al siguiente.
-2. **Cuenta**: Challenge o Fondeada, y con una firma del catálogo los ocho planes (Flex y
+2. **Cuentas**: Challenge o Fondeada, y con una firma del catálogo los ocho planes (Flex y
    Pro × 25-150K) en vez del tamaño. Elegir uno **enseña las reglas que carga** y la fecha
    en que se revisaron: es la razón de elegir un plan, y lo que ninguna otra pantalla
    enseña antes de tener trades. Fuera del catálogo, tamaño y "sus reglas, desde Cuentas".
+   **Se pueden crear varias de una vez**, porque es lo normal (lo avisó el usuario al
+   verlo): un contador "Cuántas" (hasta 20, lo que permite Apex) y "Añadir otra distinta",
+   que guarda la elección en una lista arriba y deja el selector libre para otra, de modo
+   que "3 × Challenge Flex 50K" y "2 × Fondeada Flex 50K" salen en una sola pasada.
 3. **Operaciones**: "Tus trades" abre el selector del Journal (manual o CSV de Tradovate) y
    "Extracto del banco" la importación de Movimientos, cada uno en su pantalla y con su
    ventana ya abierta (`createRequest` con `journalEntry` o `bankImport`). "Ahora no" lleva
@@ -983,22 +987,30 @@ Decisiones que conviene no deshacer:
   `useTourState`): cerrarlo en cualquier paso cuenta, y crear la cuenta también. "No
   mostrar más tutoriales" lo apaga, y "Volver a verlos" en Ajustes lo devuelve si la cuenta
   sigue vacía. La clave no se renombra, por lo mismo que los pasos de los tutoriales.
-- **El nombre de la cuenta** es el que propone Cuentas (empresa + programa + tamaño, "#2"
-  si existe), y se enseña antes de crear. `formatSizeForName` vive ya en `db.ts` y
+- **El nombre de cada cuenta** es el que propone Cuentas (empresa + programa + tamaño, y
+  "#2", "#3"… seguidos entre todas las del lote), y se enseñan antes de crear. Mientras se
+  guardan, la lista se congela (`frozen`): cada cuenta recarga los datos y los nombres se
+  irían corriendo.
+- **Se guardan una a una, como el alta de varias de Cuentas**, y si una falla se para
+  ahí: las guardadas salen de la lista (se descuentan de su grupo) y "Crear" reintenta solo
+  las que faltan, sin duplicar. Las fondeadas no se enlazan a ninguna evaluación
+  (`parentAccountId`): eso sigue siendo cosa del botón de promocionar. `formatSizeForName` vive ya en `db.ts` y
   `formatCatalogDate` en `firmCatalog.ts`, compartidas con `AccountsView`.
 - **En un teléfono, la lista de firmas es de una columna**: a dos, al nombre le quedaban
   70px a 375 y "MyFundedFutures" se partía letra a letra. Los nombres llevan `<wbr>` en los
   cambios de mayúscula para que, en ancho, se partan donde la marca separa las palabras.
 
 Verificado en la demo con el modal forzado y las escrituras simuladas (deshecho después y
-comprobado contra la versión buena), con 83 comprobaciones: los tres pasos a 1280, 375 y
+comprobado contra la versión buena), con 107 comprobaciones: los tres pasos a 1280, 375 y
 320px, claro y oscuro, en los dos idiomas, sin nada fuera de la pantalla ni texto partido;
 los cuatro caminos (Lucid, Otra empresa, capital propio, una firma sin catálogo), los
 nombres y las reglas cargadas (Fondeada Flex 50K sin objetivo y con cinco días de 150;
-Challenge Pro 100K con límite diario y sin consistencia), que "Tus trades" y "Extracto del
-banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar. **El guardado
+Challenge Pro 100K con límite diario y sin consistencia), varias a la vez (3 iguales, y
+3 challenge + 2 fondeadas con sus reglas y los nombres de #2 a #5), un guardado que falla
+en la tercera de cinco y al reintentar crea solo las tres que faltaban, que "Tus trades" y
+"Extracto del banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar. **El guardado
 de verdad no se ha probado contra Supabase**: el primer alta real es lo primero que mirar
-(una empresa y una cuenta con sus reglas, y nada duplicado).
+(una empresa y sus cuentas con sus reglas, y nada duplicado).
 
 ## Qué queda
 
