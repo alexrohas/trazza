@@ -1085,8 +1085,11 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
   checkout para códigos de creadores; y "cuánto puedes pedir ya" (Lucid limita cada payout
   y el catálogo solo guarda mínimos).
-- **Captar:** hablar uno a uno con los 6 enganchados que no pagaron, los 2 de pago y los 11
-  `lifetime`; la tabla `waitlist_emails` tiene **20 emails con consentimiento** para avisos
+- **Captar:** hablar uno a uno con los 6 enganchados que no pagaron (**hecho el 2 de
+  octubre de 2026**: un correo corto a cada uno, firmado como "El equipo de Trazza",
+  preguntando qué les faltó y ofreciendo un mes más de prueba si responden; quien acepte
+  se amplía cambiando su `trial_ends_at`, y solo cuando el usuario lo pida), los 2 de pago
+  y los 11 `lifetime`; la tabla `waitlist_emails` tiene **20 emails con consentimiento** para avisos
   de lanzamiento; creadores hispanos de fondeo de futuros, que ya viven de códigos de
   descuento de Lucid (su programa de afiliados está cerrado); una calculadora gratuita de
   "¿puedo cobrar ya?" sobre `accountRules` y `firmCatalog`; y rehacer el mensaje de la
