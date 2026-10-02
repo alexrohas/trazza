@@ -23,6 +23,10 @@
     {
       "source": "/app/:path*",
       "destination": "/app/index.html"
+    },
+    {
+      "source": "/calculadora-lucid",
+      "destination": "/calculadora-lucid/index.html"
     }
   ]
 }

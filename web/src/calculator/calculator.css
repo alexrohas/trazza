@@ -1,0 +1,508 @@
+/* CALCULADORA DE LUCID — la pagina de /calculadora-lucid.
+ *
+ * Se apoya entera en landing.css (cabecera, pie, botones, bloques, la maqueta de reglas
+ * .rules-list) y en los tokens. Lo de aqui es solo lo que la landing no tiene: un
+ * formulario y el panel de resultado. Los controles copian a los de la app (el
+ * .segmented-control, los chips del primer arranque, los campos de .entity-form) para
+ * que pasar de la calculadora al producto no cambie el lenguaje visual.
+ */
+
+/* ─── CABECERA DE LA PAGINA ─────────────────────────────────────────────────── */
+
+.calc-hero {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+  padding-block: clamp(40px, 5vw, 72px) var(--space-6xl);
+}
+
+.calc-hero-inner {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-lg);
+}
+
+.calc-hero h1 {
+  max-width: 18ch;
+  font-size: var(--landing-display);
+}
+
+/* ─── DISPOSICION ───────────────────────────────────────────────────────────── */
+
+.calc-section {
+  padding-bottom: var(--landing-block);
+}
+
+.calc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: start;
+  gap: var(--space-2xl);
+}
+
+.calc-card {
+  display: grid;
+  gap: var(--space-2xl);
+  min-width: 0;
+  padding: var(--space-2xl);
+  border: 1px solid var(--line);
+  border-radius: var(--landing-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+/* El resultado acompaña al formulario mientras se apuntan dias: en escritorio se queda
+   a la vista aunque la lista crezca. 92 = cabecera sticky (68) + 24 de aire, el mismo
+   colchon que scroll-padding-top de la landing. */
+.calc-result {
+  position: sticky;
+  top: 92px;
+  gap: var(--space-lg);
+}
+
+/* ─── CAMPOS ────────────────────────────────────────────────────────────────── */
+
+/* Todo lo que la calculadora enseña u oculta va con el atributo hidden, y casi todo lleva
+   un display propio (grid, flex) que le gana a la hoja del navegador. Una sola regla con
+   mas especificidad que cualquier clase suelta, en vez de un parche por clase: con el
+   parche, la casilla de payout de .calc-field salia tambien en evaluacion. */
+.calc-layout [hidden] {
+  display: none;
+}
+
+.calc-field {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.calc-field legend,
+.calc-label,
+.calc-input-row > span {
+  padding: 0 0 var(--space-sm);
+  color: var(--strong-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.calc-label,
+.calc-input-row > span {
+  padding: 0;
+}
+
+.calc-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs);
+  padding: var(--space-2xs);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.calc-segmented button,
+.calc-chips button {
+  min-height: 40px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.calc-segmented button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--strong-muted);
+}
+
+.calc-segmented button[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06);
+}
+
+.calc-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.calc-chips button {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--strong-muted);
+}
+
+.calc-chips button:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--text);
+}
+
+.calc-chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.calc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.calc-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.calc-input-row {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.calc-form input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  outline: 0;
+}
+
+.calc-form input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.calc-form input[aria-invalid="true"] {
+  border-color: var(--negative);
+}
+
+.calc-days {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calc-days li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: var(--space-sm);
+}
+
+.calc-day {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.calc-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.calc-remove:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--negative) 42%, var(--line));
+  color: var(--negative);
+}
+
+.calc-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.calc-remove svg,
+.calc-add svg,
+.calc-share svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.calc-add,
+.calc-share {
+  justify-self: start;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.calc-add {
+  margin-top: var(--space-2xs);
+}
+
+.calc-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/* ─── RESULTADO ─────────────────────────────────────────────────────────────── */
+
+/* El veredicto es lo primero que se lee: verde si puedes, rojo si la cuenta se perdio, y
+   neutro mientras falte algo (el ambar sobre fondo claro no llega a contraste legible
+   en texto, y "todavia no" no es una alarma). */
+.calc-verdict {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.calc-verdict strong {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-black);
+  letter-spacing: -0.01em;
+}
+
+.calc-verdict p {
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+}
+
+.calc-verdict[data-tone="ready"] {
+  background: var(--positive-soft);
+}
+
+.calc-verdict[data-tone="ready"] strong {
+  color: var(--positive);
+}
+
+.calc-verdict[data-tone="breached"] {
+  background: var(--negative-soft);
+}
+
+.calc-verdict[data-tone="breached"] strong {
+  color: var(--negative);
+}
+
+.calc-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.calc-summary b {
+  color: var(--text);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Las filas son las de la maqueta de la landing (.rules-list); aqui solo cambia que el
+   minimo de un dia rentable va pegado a su regla, como en la app. */
+.calc-rules span small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  opacity: 0.85;
+}
+
+.calc-fine {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.calc-fine a {
+  margin-left: var(--space-2xs);
+  color: var(--accent-strong);
+  font-weight: var(--weight-bold);
+}
+
+.calc-fine a:hover {
+  text-decoration: underline;
+}
+
+.calc-cta {
+  display: grid;
+  gap: var(--space-md);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--line);
+}
+
+.calc-cta p {
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+}
+
+/* ─── TABLAS DE REGLAS ──────────────────────────────────────────────────────── */
+
+/* Con .landing delante: el reinicio de landing.css (.landing h3, margen 0) es (0,1,1) y
+   a una clase suelta le ganaba sin decir nada, con los titulos pegados a sus tablas. */
+.landing .calc-table-title {
+  margin: var(--space-2xl) 0 var(--space-md);
+  font-size: var(--text-md);
+}
+
+.landing .calc-table-title:first-of-type {
+  margin-top: 0;
+}
+
+/* Siete columnas no caben en un telefono: la tabla se desplaza dentro de su caja y la
+   pagina no. */
+.calc-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.calc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calc-table th,
+.calc-table td {
+  padding: var(--space-md) var(--space-lg);
+  text-align: right;
+}
+
+.calc-table th:first-child {
+  text-align: left;
+}
+
+.calc-table thead th {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  border-bottom: 1px solid var(--line);
+}
+
+.calc-table tbody th {
+  font-weight: var(--weight-bold);
+}
+
+.calc-table tbody tr + tr > * {
+  border-top: 1px solid var(--line);
+}
+
+.calc-table caption {
+  caption-side: bottom;
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+#reglas > .shell > .calc-hint {
+  margin-top: var(--space-lg);
+  max-width: 80ch;
+}
+
+/* ─── PREGUNTAS ─────────────────────────────────────────────────────────────── */
+
+.calc-faq {
+  max-width: 780px;
+}
+
+.calc-faq details {
+  border-bottom: 1px solid var(--line);
+}
+
+.calc-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-lg) 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  list-style: none;
+}
+
+.calc-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.calc-faq summary::after {
+  content: "+";
+  flex: none;
+  color: var(--accent);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.calc-faq details[open] summary::after {
+  content: "−";
+}
+
+.calc-faq details p {
+  max-width: 70ch;
+  padding-bottom: var(--space-lg);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────────────────────────────── */
+
+/* Mismo corte que el hero de la landing: por debajo, formulario y resultado uno encima
+   del otro, y el resultado deja de ser sticky (taparia el formulario). */
+@media (max-width: 920px) {
+  .calc-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calc-result {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .calc-card {
+    padding: var(--space-lg);
+    gap: var(--space-lg);
+  }
+
+  .calc-day {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+}
