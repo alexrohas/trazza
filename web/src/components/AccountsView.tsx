@@ -9,7 +9,7 @@ import { RequiredLegend } from "./RequiredLegend";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus } from "../lib/accountRules";
-import { formatSizeForName } from "../lib/db";
+import { formatSizeForName } from "../lib/accountSize";
 import { applyCatalogPlan, findCatalogFirm, formatCatalogDate, formatPlanLabel, matchCatalogPlan } from "../lib/firmCatalog";
 import {
   formatAccountSize,

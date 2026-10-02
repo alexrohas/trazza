@@ -1,4 +1,4 @@
-import { parseAccountSizeAmount } from "./db";
+import { parseAccountSizeAmount } from "./accountSize";
 import type { Language } from "./i18n/context";
 import type { AccountInput, AccountKind, DrawdownType } from "../types";
 
