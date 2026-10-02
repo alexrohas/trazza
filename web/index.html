@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trazza — Journal y finanzas de trading</title>
+    <title>Trazza — Sabe cuándo puedes cobrar en tus cuentas fondeadas</title>
     <meta
       name="description"
-      content="Trazza une journal de trading, finanzas de prop firm, reglas de cuenta y métricas reales en un workspace visual. Prueba gratis 14 días, sin tarjeta."
+      content="Trazza te dice qué te falta para cobrar en tus cuentas de Lucid y otras prop firms de futuros, importa tu extracto de Revolut o Wise y te prepara el resumen por trimestre. 14 días gratis, sin tarjeta."
     />
     <!-- Con www porque es el dominio que sirve: en Vercel, trazzajournal.com redirige a
          www.trazzajournal.com. Un canonical (o un sitemap) que apunta a una URL que
@@ -25,10 +25,10 @@
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.trazzajournal.com/" />
-    <meta property="og:title" content="Trazza — Journal y finanzas de trading" />
+    <meta property="og:title" content="Trazza — Sabe cuándo puedes cobrar en tus cuentas fondeadas" />
     <meta
       property="og:description"
-      content="Journal, cuentas fondeadas y finanzas en un solo sitio. Ve tu resultado real, no solo tus operaciones."
+      content="Las reglas de cobro de tu firma, tus gastos y tus payouts en un solo sitio. Sabe qué te falta para el próximo payout y cuánto ganas de verdad."
     />
     <meta property="og:site_name" content="Trazza" />
     <!-- 1200×630 es la proporción que esperan X, WhatsApp, Telegram, Discord y LinkedIn.
@@ -80,7 +80,7 @@
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
         "url": "https://www.trazzajournal.com/",
-        "description": "Journal de trading y control financiero de cuentas de prop firm.",
+        "description": "Reglas de cobro, journal y finanzas para cuentas fondeadas de futuros.",
         "offers": { "@type": "Offer", "price": "4.99", "priceCurrency": "EUR" }
       }
     </script>
@@ -96,10 +96,11 @@
         </a>
 
         <nav class="site-nav" data-i18n-aria="nav.sectionsAria" aria-label="Secciones">
-          <a href="#journal" data-i18n="nav.journal">Journal</a>
-          <a href="#producto" data-i18n="nav.product">Producto</a>
+          <a href="#cobrar" data-i18n="nav.payout">Cobrar</a>
           <a href="#finanzas" data-i18n="nav.finance">Finanzas</a>
+          <a href="#journal" data-i18n="nav.journal">Journal</a>
           <a href="#precios" data-i18n="nav.pricing">Precios</a>
+          <a href="/calculadora-lucid" data-i18n="nav.calculator">Calculadora</a>
         </nav>
 
         <div class="site-actions">
@@ -142,13 +143,14 @@
             </p>
 
             <h1>
-              <span data-i18n="hero.titleA">Journal y finanzas de trading</span>
-              <em data-i18n="hero.titleB">en un solo lugar.</em>
+              <span data-i18n="hero.titleA">Sabe cuándo puedes cobrar</span>
+              <em data-i18n="hero.titleB">y cuánto ganas de verdad.</em>
             </h1>
 
             <p class="lede" data-i18n="hero.lede">
-              Registra operaciones, controla cuentas, gastos, payouts y disciplina. Trazza suma lo
-              que ganas y resta lo que te cuesta, para que veas el resultado que de verdad te queda.
+              Trazza lleva tus cuentas fondeadas con las reglas de su firma y te dice qué te falta
+              para pedir el payout. Y pone en limpio lo que gastas y lo que cobras, del extracto del
+              banco al resumen para tu gestoría.
             </p>
 
             <div class="hero-cta">
@@ -158,8 +160,8 @@
                   <path d="M5 12h13M13 6l6 6-6 6" />
                 </svg>
               </a>
-              <a class="ghost-link is-large" href="#producto" data-i18n="hero.ctaSecondary">
-                Ver cómo funciona
+              <a class="ghost-link is-large" href="/calculadora-lucid" data-i18n="hero.ctaSecondary">
+                ¿Puedo cobrar ya?
               </a>
             </div>
 
@@ -251,8 +253,145 @@
         </div>
       </section>
 
+      <!-- ── COBRAR ────────────────────────────────────────────────────────────── -->
+      <!-- Lo primero después del hero porque es lo que distingue a Trazza: "ver cuánto gastas
+           y cuánto cobras" ya lo regalan otras herramientas, saber si puedes pedir el payout
+           con las reglas de tu firma no (ver CLAUDE.md, análisis de competencia). -->
+      <section class="block is-tinted" id="cobrar">
+        <div class="shell split">
+          <div class="split-copy">
+            <p class="kicker" data-i18n="payout.kicker">Reglas de cobro</p>
+            <h2 data-i18n="payout.title">Deja de adivinar si puedes pedir el payout.</h2>
+            <p class="block-lede" data-i18n="payout.lede">
+              Elige el plan de tu cuenta y Trazza carga sus reglas oficiales. Con lo que apuntas en
+              el journal te dice qué te falta: días rentables, consistencia, objetivo del ciclo y
+              beneficio mínimo para retirar.
+            </p>
+
+            <ul class="check-list">
+              <li data-i18n="payout.b1">Planes de Lucid precargados: Flex y Pro, de 25K a 150K</li>
+              <li data-i18n="payout.b2">Cualquier otra firma: pones sus reglas una vez y listo</li>
+              <li data-i18n="payout.b3">Drawdown trailing y margen hasta el límite, siempre a la vista</li>
+              <li data-i18n="payout.b4">Si una cuenta toca su límite, la das por fallada o la reseteas en un clic</li>
+            </ul>
+
+            <a class="ghost-link split-cta" href="/calculadora-lucid">
+              <span data-i18n="payout.cta">Pruébalo sin registrarte</span>
+              <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h13M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+
+          <div class="split-figure">
+            <!-- Las mismas filas que pinta AccountRuleStatus en el Journal: valor actual sobre
+                 lo que pide la regla, y lo que falta con "+". Cifras de una Pro 50K fondeada
+                 reales según el catálogo (objetivo del ciclo 500, retiro con MLL + 600 = 2.600,
+                 consistencia del 40 %): 294 / 640 = 46 %, y 294 / 0,40 − 640 = 95. -->
+            <div class="mock mock-rules" aria-hidden="true">
+              <div class="rules-head">
+                <div>
+                  <strong>Lucid Trading Pro 50K</strong>
+                  <small data-i18n="payout.mock.since">Fondeada · desde el último payout</small>
+                </div>
+                <span class="rules-badge" data-i18n="payout.mock.pending">1 pendiente</span>
+              </div>
+
+              <div class="rules-track">
+                <div class="rules-track-labels">
+                  <span>MLL 50.100 $</span>
+                  <b>52.840 $</b>
+                </div>
+                <i style="--v: 72%"></i>
+              </div>
+
+              <ul class="rules-list">
+                <li class="is-met">
+                  <span data-i18n="payout.mock.cycle">Objetivo del ciclo</span>
+                  <b>640 / 500 $</b>
+                  <em></em>
+                </li>
+                <li class="is-met">
+                  <span data-i18n="payout.mock.withdraw">Beneficio para retirar</span>
+                  <b>2.840 / 2.600 $</b>
+                  <em></em>
+                </li>
+                <li class="is-pending">
+                  <span data-i18n="payout.mock.consistency">Consistencia</span>
+                  <b data-i18n="payout.mock.consistencyValue">46 % · límite 40 %</b>
+                  <em>+95 $</em>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── FINANZAS ──────────────────────────────────────────────────────────── -->
+      <section class="block" id="finanzas">
+        <div class="shell">
+          <header class="block-head">
+            <p class="kicker" data-i18n="finance.kicker">Finanzas</p>
+            <h2 data-i18n="finance.title">Tu dinero de trading, en limpio y sin teclearlo.</h2>
+            <p class="block-lede" data-i18n="finance.lede">
+              Sube el extracto de Revolut o Wise y Trazza saca tus compras de cuentas y tus payouts,
+              los pasa a tu moneda con el cambio oficial del BCE y no duplica lo que ya tenías.
+              Gastos y cobros, uno al lado del otro.
+            </p>
+          </header>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <span data-i18n="finance.s1.label">Neto real</span>
+              <strong>+4.820,00 €</strong>
+              <small data-i18n="finance.s1.text">Lo que queda después de gastos y retiros.</small>
+            </div>
+            <div class="stat">
+              <span data-i18n="finance.s2.label">ROI</span>
+              <strong>78,2 %</strong>
+              <small data-i18n="finance.s2.text">Rentabilidad sobre lo que has invertido.</small>
+            </div>
+            <div class="stat">
+              <span data-i18n="finance.s3.label">Break-even</span>
+              <strong>0,00 €</strong>
+              <small data-i18n="finance.s3.text">Cuánto te falta para estar plano.</small>
+            </div>
+            <div class="stat">
+              <span data-i18n="finance.s4.label">Tercer trimestre</span>
+              <strong>+1.820,00 €</strong>
+              <small data-i18n="finance.s4.text">Cobros menos gastos, en euros, listos para tu gestoría.</small>
+            </div>
+          </div>
+
+          <div class="ledger">
+            <div class="ledger-row">
+              <span><i class="ledger-source">Revolut</i><span data-i18n="finance.l1">Compra de challenge · Lucid Flex 50K</span></span>
+              <b class="negative">−145,00 €</b>
+            </div>
+            <div class="ledger-row">
+              <span><i class="ledger-source">Wise</i><span data-i18n="finance.l2">Payout · Lucid Flex 50K #2</span></span>
+              <b class="positive">+1.180,00 €</b>
+            </div>
+            <div class="ledger-row">
+              <span><i class="ledger-source">Revolut</i><span data-i18n="finance.l3">Reset · Topstep 100K</span></span>
+              <b class="negative">−99,00 €</b>
+            </div>
+            <div class="ledger-row">
+              <span><i class="ledger-source is-manual" data-i18n="finance.manual">A mano</i><span data-i18n="finance.l4">Activación · Topstep 100K</span></span>
+              <b class="negative">−149,00 €</b>
+            </div>
+          </div>
+
+          <ul class="hero-trust ledger-trust">
+            <li data-i18n="finance.t1">El extracto no sale de tu navegador</li>
+            <li data-i18n="finance.t2">Cambio oficial del BCE de cada día</li>
+            <li data-i18n="finance.t3">Resumen por trimestre con CSV para tu gestoría</li>
+          </ul>
+        </div>
+      </section>
+
       <!-- ── JOURNAL ───────────────────────────────────────────────────────────── -->
-      <section class="block" id="journal">
+      <section class="block is-tinted" id="journal">
         <div class="shell">
           <header class="block-head">
             <p class="kicker" data-i18n="journal.kicker">Journal</p>
@@ -334,7 +473,7 @@
       </section>
 
       <!-- ── PRODUCTO ──────────────────────────────────────────────────────────── -->
-      <section class="block is-tinted" id="producto">
+      <section class="block" id="producto">
         <div class="shell split">
           <div class="split-copy">
             <p class="kicker" data-i18n="product.kicker">Producto</p>
@@ -346,7 +485,7 @@
 
             <ul class="check-list">
               <li data-i18n="product.b1">Filtros por empresa, cuenta, periodo y activo</li>
-              <li data-i18n="product.b2">Reglas de la cuenta, target y drawdown, siempre a la vista</li>
+              <li data-i18n="product.b2">Reglas de cobro, objetivo y drawdown de cada cuenta, siempre a la vista</li>
               <li data-i18n="product.b3">Evaluación y fondeada enlazadas, con su historia junta</li>
               <li data-i18n="product.b4">Modo privacidad para revisar en público sin enseñar cifras</li>
             </ul>
@@ -379,62 +518,6 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── FINANZAS ──────────────────────────────────────────────────────────── -->
-      <section class="block" id="finanzas">
-        <div class="shell">
-          <header class="block-head">
-            <p class="kicker" data-i18n="finance.kicker">Finanzas</p>
-            <h2 data-i18n="finance.title">También mide el dinero que sale de la cuenta.</h2>
-            <p class="block-lede" data-i18n="finance.lede">
-              Compras de challenge, resets, activaciones, mensualidades y comisiones no aparecen en
-              el P&amp;L, pero salen de tu bolsillo. Trazza los pone al lado del resultado.
-            </p>
-          </header>
-
-          <div class="stat-grid">
-            <div class="stat">
-              <span data-i18n="finance.s1.label">Neto real</span>
-              <strong>+4.820,00 €</strong>
-              <small data-i18n="finance.s1.text">Lo que queda después de gastos y retiros.</small>
-            </div>
-            <div class="stat">
-              <span data-i18n="finance.s2.label">ROI</span>
-              <strong>78,2 %</strong>
-              <small data-i18n="finance.s2.text">Rentabilidad sobre lo que has invertido.</small>
-            </div>
-            <div class="stat">
-              <span data-i18n="finance.s3.label">Break-even</span>
-              <strong>0,00 €</strong>
-              <small data-i18n="finance.s3.text">Cuánto te falta para estar plano.</small>
-            </div>
-            <div class="stat">
-              <span data-i18n="finance.s4.label">Drawdown</span>
-              <strong>1.850,00 €</strong>
-              <small data-i18n="finance.s4.text">Margen que te queda antes de romper la regla.</small>
-            </div>
-          </div>
-
-          <div class="ledger">
-            <div class="ledger-row">
-              <span data-i18n="finance.l1">Compra de challenge · Alpha Futures 50K</span>
-              <b class="negative">−320,00 €</b>
-            </div>
-            <div class="ledger-row">
-              <span data-i18n="finance.l2">Payout · Alpha Futures 50K</span>
-              <b class="positive">+2.140,00 €</b>
-            </div>
-            <div class="ledger-row">
-              <span data-i18n="finance.l3">Reset · Topstep 100K</span>
-              <b class="negative">−99,00 €</b>
-            </div>
-            <div class="ledger-row">
-              <span data-i18n="finance.l4">Activación · Topstep 100K</span>
-              <b class="negative">−149,00 €</b>
             </div>
           </div>
         </div>
@@ -475,10 +558,12 @@
             <p class="price-note" data-price-note>Equivale a 3,50 € al mes</p>
 
             <ul class="check-list">
-              <li data-i18n="pricing.f1">Cuentas, empresas y movimientos sin límite</li>
-              <li data-i18n="pricing.f2">Journal completo con calendario y métricas</li>
-              <li data-i18n="pricing.f3">Exportación de tus datos cuando quieras</li>
-              <li data-i18n="pricing.f4">Cancelas desde la propia app, sin escribir a nadie</li>
+              <li data-i18n="pricing.f1">Reglas de cobro, con los planes de Lucid precargados</li>
+              <li data-i18n="pricing.f2">Importación del extracto de Revolut y Wise</li>
+              <li data-i18n="pricing.f3">Resumen por trimestre en euros para tu gestoría</li>
+              <li data-i18n="pricing.f4">Journal completo con calendario y métricas</li>
+              <li data-i18n="pricing.f5">Cuentas, empresas y movimientos sin límite</li>
+              <li data-i18n="pricing.f6">Cancelas desde la propia app, sin escribir a nadie</li>
             </ul>
 
             <a class="primary-link is-large is-block" href="/app?mode=signup" data-i18n="pricing.cta">
@@ -493,10 +578,10 @@
       <section class="closing">
         <div class="shell closing-inner">
           <div class="closing-ribbon" aria-hidden="true"></div>
-          <h2 data-i18n="closing.title">Empieza a mirar tu trading con datos.</h2>
+          <h2 data-i18n="closing.title">Sabe qué te falta para el próximo payout.</h2>
           <p data-i18n="closing.text">
-            Catorce días para meter tus cuentas, registrar tus sesiones y ver, por fin, cuál es tu
-            resultado real.
+            Catorce días para meter tus cuentas, apuntar tus días y ver, por fin, cuándo puedes
+            cobrar y cuánto te queda de verdad.
           </p>
           <a class="primary-link is-large" href="/app?mode=signup">
             <span data-i18n="closing.cta">Prueba gratis 14 días</span>
@@ -512,9 +597,10 @@
       <div class="shell site-footer-inner">
         <div class="footer-brand">
           <span class="wordmark">trazza</span>
-          <p data-i18n="footer.tagline">Journal y finanzas de trading.</p>
+          <p data-i18n="footer.tagline">Reglas de cobro, journal y finanzas para cuentas fondeadas.</p>
         </div>
-        <nav class="footer-nav" data-i18n-aria="footer.navAria" aria-label="Legal">
+        <nav class="footer-nav" data-i18n-aria="footer.navAria" aria-label="Enlaces">
+          <a href="/calculadora-lucid" data-i18n="footer.calculator">Calculadora de payout de Lucid</a>
           <a href="/legal.html#aviso-legal" data-i18n="footer.legal">Aviso legal</a>
           <a href="/legal.html#privacidad" data-i18n="footer.privacy">Privacidad</a>
           <a href="/legal.html#cookies" data-i18n="footer.cookies">Cookies</a>
