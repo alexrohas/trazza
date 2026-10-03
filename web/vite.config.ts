@@ -60,6 +60,10 @@ export default defineConfig({
         landing: "index.html",
         app: "app/index.html",
         calculator: "calculadora-lucid/index.html",
+        /* La pagina legal vive en /legal.html (esa url esta en el sitemap, en el login, en
+           Stripe y en los correos), asi que su entrada es un .html en la raiz y no una
+           carpeta: la posicion del fichero ES la url, como con la landing. */
+        legal: "legal.html",
       },
     },
   },

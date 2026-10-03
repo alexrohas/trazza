@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aviso legal, privacidad, cookies y términos · Trazza</title>
+    <meta name="description" content="Aviso legal, política de privacidad, cookies, términos de uso y disclaimer financiero de Trazza." />
+    <!-- Con www por lo mismo que la landing (ver el comentario del canonical de index.html). -->
+    <link rel="canonical" href="https://www.trazzajournal.com/legal.html" />
+    <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
+    <link rel="icon" href="/favicon-96.png" sizes="96x96" type="image/png" />
+    <link rel="icon" href="/favicon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Baloo+2:wght@700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      /* El tema se decide antes del primer pintado, igual que en la landing y la app. */
+      (() => {
+        try {
+          const stored = localStorage.getItem("trazza:theme");
+          const theme = stored === "dark" || stored === "light" ? stored : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch {
+          /* Almacenamiento bloqueado: se queda en claro. */
+        }
+      })();
+    </script>
+  </head>
+
+  <!-- Esta pagina es de la landing (comparte cabecera, pie y tokens) pero NO se traduce: un
+       texto contractual vale en el idioma en que esta redactado. Por eso no lleva data-i18n
+       ni boton de idioma, y legal.ts fuerza lang="es" aunque el visitante haya elegido
+       ingles en otra pagina. Cambiar el contenido de abajo es cambiar lo que firma el
+       usuario: no es una edicion estetica. -->
+  <body class="landing legal">
+    <a class="skip-link" href="#documentos">Saltar al contenido</a>
+
+    <header class="site-header">
+      <div class="shell site-header-inner">
+        <a class="brand" href="/" aria-label="Trazza">
+          <span class="wordmark">trazza</span>
+        </a>
+
+        <nav class="site-nav" aria-label="Secciones">
+          <a href="/">Qué es Trazza</a>
+          <a href="/calculadora-lucid">Calculadora de Lucid</a>
+        </nav>
+
+        <div class="site-actions">
+          <button class="icon-toggle" type="button" data-theme-toggle aria-label="Cambiar de tema"></button>
+          <a class="ghost-link" href="/app">Entrar</a>
+          <a class="primary-link" href="/app?mode=signup">Crear cuenta</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="legal-hero">
+        <div class="hero-ribbon" aria-hidden="true"></div>
+        <div class="shell legal-hero-inner">
+          <p class="kicker">Base legal</p>
+          <h1>Documentos legales de Trazza</h1>
+          <p class="lede">
+            Esta página reúne el aviso legal, la política de privacidad, la de cookies, los términos de uso y el
+            disclaimer financiero de Trazza.
+          </p>
+          <p class="legal-callout" role="note">
+            Trazza ofrece un periodo de prueba gratuito y después requiere una suscripción de pago. Este documento
+            recoge la información legal básica del servicio, pero no sustituye una revisión profesional.
+          </p>
+        </div>
+      </section>
+
+      <div class="shell legal-layout" id="documentos">
+        <nav class="legal-toc" aria-label="Secciones legales">
+          <ol>
+            <li><a href="#aviso-legal">Aviso legal</a></li>
+            <li><a href="#privacidad">Privacidad</a></li>
+            <li><a href="#cookies">Cookies</a></li>
+            <li><a href="#terminos">Términos</a></li>
+            <li><a href="#disclaimer">Disclaimer financiero</a></li>
+          </ol>
+        </nav>
+
+        <div class="legal-docs">
+          <section class="legal-section" id="aviso-legal" aria-labelledby="aviso-legal-title">
+            <h2 id="aviso-legal-title">Aviso legal</h2>
+            <p class="legal-updated">Última actualización: 1 de octubre de 2026.</p>
+            <h3>Titular del sitio</h3>
+            <dl class="legal-facts">
+              <div>
+                <dt>Titular</dt>
+                <dd>Alejandro Rojas García</dd>
+              </div>
+              <div>
+                <dt>NIF</dt>
+                <dd>77692498Q</dd>
+              </div>
+              <div>
+                <dt>Domicilio</dt>
+                <dd>Camino Sierra Mágina, 20, La Guardia de Jaén (Jaén), España</dd>
+              </div>
+              <div>
+                <dt>Dominio</dt>
+                <dd>trazzajournal.com</dd>
+              </div>
+              <div>
+                <dt>Email de contacto</dt>
+                <dd><a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a></dd>
+              </div>
+            </dl>
+            <h3>Objeto</h3>
+            <p>Trazza es una aplicación web para registrar, organizar y analizar información de trading: entradas de journal, cuentas, movimientos económicos, métricas, capturas, CSV importados y notas personales.</p>
+            <h3>Responsabilidad</h3>
+            <p>El usuario es responsable de la información que introduce en Trazza y de sus decisiones de trading. Trazza no ejecuta operaciones, no gestiona cuentas y no garantiza resultados.</p>
+          </section>
+
+          <section class="legal-section" id="privacidad" aria-labelledby="privacidad-title">
+            <h2 id="privacidad-title">Política de privacidad</h2>
+            <h3>Responsable del tratamiento</h3>
+            <p>Responsable: Alejandro Rojas García. Contacto de privacidad: <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>.</p>
+            <h3>Datos tratados</h3>
+            <ul>
+              <li>Datos de cuenta: nombre, email, identificador de usuario, fecha de alta y datos técnicos asociados a la autenticación. La contraseña se gestiona mediante Supabase y no se almacena en texto legible por Trazza.</li>
+              <li>Datos introducidos por el usuario: empresas o cuentas de fondeo, cuentas, movimientos, entradas de journal, capturas o imágenes de trades, notas, errores, disciplina, P&amp;L, CSV importados, idioma, tema, divisa y configuración del dashboard.</li>
+              <li>Waitlist: email, fecha de alta, origen, consentimiento de comunicaciones y datos técnicos básicos como el user agent.</li>
+              <li>Emails transaccionales: datos necesarios para enviar confirmaciones de cuenta, avisos de acceso y comunicaciones operativas.</li>
+              <li>Medición de visitas: página visitada, página de procedencia, país, tipo de dispositivo, sistema operativo y navegador, sin cookies (ver "Proveedores").</li>
+            </ul>
+            <h3>Finalidades</h3>
+            <ul>
+              <li>Prestar el servicio y sincronizar los datos del usuario.</li>
+              <li>Gestionar el registro, el inicio de sesión, el soporte, la seguridad y las comunicaciones necesarias.</li>
+              <li>Enviar avisos de lanzamiento a los usuarios apuntados en la waitlist.</li>
+              <li>Analizar incidencias, prevenir abusos y mantener la integridad técnica de la plataforma.</li>
+              <li>Conocer de forma agregada cuántas visitas recibe el sitio y de dónde llegan, para mejorarlo.</li>
+              <li>Cumplir las obligaciones legales, fiscales y contables derivadas de los cobros y la facturación.</li>
+            </ul>
+            <h3>Base jurídica</h3>
+            <p>La base jurídica principal es la ejecución del servicio solicitado por el usuario. Para la waitlist y las comunicaciones no estrictamente necesarias se utiliza el consentimiento. Para la seguridad, la prevención de abusos, la mejora técnica y la medición agregada de visitas se utiliza el interés legítimo. Para las obligaciones fiscales y contables derivadas de los cobros se utiliza el cumplimiento de obligaciones legales.</p>
+            <h3>Proveedores</h3>
+            <p>Trazza utiliza Supabase para autenticación, base de datos y almacenamiento; Vercel para alojamiento web y para la medición de visitas (Vercel Web Analytics); Brevo para emails transaccionales; Stripe para el procesamiento de pagos y la gestión de suscripciones; y Porkbun como proveedor del dominio. Stripe trata los datos necesarios para procesar el pago (email, datos de la tarjeta y facturación); Trazza no almacena datos de tarjetas.</p>
+            <p>Vercel Web Analytics cuenta las visitas sin cookies y sin guardar nada en el dispositivo. Distingue visitas mediante un identificador temporal calculado a partir de la propia petición, que se descarta a las 24 horas, de modo que no permite seguir a una persona entre días ni entre sitios. Trazza solo consulta cifras agregadas. No se usan herramientas de publicidad.</p>
+            <h3>Derechos</h3>
+            <p>El usuario puede solicitar el acceso, la rectificación, la eliminación, la oposición, la limitación o la portabilidad de sus datos, o retirar su consentimiento, escribiendo a <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>. En la práctica, esto significa que puede pedir saber qué datos se guardan, corregirlos, exportarlos o solicitar la eliminación de su cuenta y de los datos asociados.</p>
+            <h3 id="conservacion">Conservación</h3>
+            <p>Los datos se conservarán mientras exista la cuenta, mientras sean necesarios para prestar el servicio o durante los plazos legales aplicables. Al eliminar la cuenta solo se conserva una huella irreversible (hash) del email y la fecha en que terminaba su periodo de prueba, con el único fin de que la prueba gratuita no se reutilice registrándose de nuevo con el mismo email. Se conserva mientras Trazza ofrezca periodo de prueba. La waitlist se conservará hasta gestionar el lanzamiento, la apertura de acceso o la retirada del consentimiento.</p>
+            <h3>Usuarios menores de edad</h3>
+            <p>Trazza no está dirigida específicamente a menores. Si una persona menor de edad utiliza la aplicación, debe contar con autorización de sus padres, tutores o representantes legales cuando sea necesario.</p>
+            <h3>Usuarios internacionales</h3>
+            <p>Trazza puede ser utilizada por usuarios de distintos países, pero el responsable del servicio se encuentra en España. El usuario es responsable de utilizar la aplicación conforme a la normativa que le resulte aplicable en su jurisdicción.</p>
+          </section>
+
+          <section class="legal-section" id="cookies" aria-labelledby="cookies-title">
+            <h2 id="cookies-title">Política de cookies</h2>
+            <p>Trazza puede utilizar almacenamiento local y cookies técnicas para mantener la sesión, el idioma, el tema visual, las preferencias del dashboard y el funcionamiento básico de la aplicación.</p>
+            <p>No se utilizan cookies de analítica, publicidad, seguimiento o medición no estrictamente necesarias: la medición de visitas descrita en la política de privacidad funciona sin cookies. Si en el futuro se activan herramientas que las usen, se mostrará un banner de consentimiento y se permitirá aceptar, rechazar o configurar su uso.</p>
+          </section>
+
+          <section class="legal-section" id="terminos" aria-labelledby="terminos-title">
+            <h2 id="terminos-title">Términos y condiciones</h2>
+            <h3>Uso permitido</h3>
+            <p>El usuario se compromete a usar Trazza de forma lícita, sin intentar acceder a datos de terceros, alterar la plataforma, introducir contenido malicioso, automatizar abusivamente peticiones, revender accesos, suplantar identidades o utilizar la app para actividades ilegales.</p>
+            <h3>Cuenta y seguridad</h3>
+            <p>El usuario debe custodiar sus credenciales. Trazza puede suspender o limitar cuentas si detecta uso abusivo, fraude, riesgo técnico o incumplimiento de estos términos.</p>
+            <h3>Suscripciones y pagos</h3>
+            <p>Trazza ofrece un periodo de prueba gratuito de 14 días sin necesidad de tarjeta. El periodo de prueba es uno por persona: eliminar la cuenta y registrarse de nuevo con el mismo email no inicia uno nuevo. Al finalizar el periodo de prueba, el acceso para crear, editar o eliminar datos requiere una suscripción de pago activa; los datos ya introducidos permanecen visibles en modo de solo lectura hasta que el usuario se suscriba. El precio de lanzamiento actual es de 4,99&nbsp;&euro; al mes o 42&nbsp;&euro; al año, facturado por Stripe de forma recurrente hasta que el usuario cancele. Este precio de lanzamiento puede incrementarse en el futuro; cualquier cambio de precio se comunicará con antelación y no afectará a periodos ya facturados. La suscripción se renueva automáticamente al final de cada periodo salvo cancelación. El usuario puede cancelar en cualquier momento desde el portal de gestión de Stripe accesible desde su perfil; la cancelación detiene la renovación pero no genera reembolsos de periodos ya iniciados, salvo que la ley aplicable disponga lo contrario. Si un cobro de renovación falla, el acceso se mantiene mientras Stripe reintenta el pago; si los reintentos no se completan, la suscripción se cancela y la cuenta pasa a solo lectura. Algunos usuarios pueden disponer de una licencia de acceso gratuita concedida individualmente por Trazza, revocable en caso de uso abusivo.</p>
+            <h3>Disponibilidad</h3>
+            <p>Se intentará mantener el servicio disponible, pero pueden existir paradas por mantenimiento, incidencias de proveedores o mejoras técnicas. El soporte se prestará por email en un plazo razonable, sin garantía de disponibilidad continua.</p>
+            <h3>Eliminación y exportación</h3>
+            <p>El usuario puede eliminar su cuenta y todos sus datos en cualquier momento desde la opción "Eliminar mi cuenta" en su perfil dentro de la aplicación. Tras la eliminación solo se conserva la huella del email descrita en el apartado <a href="#conservacion">Conservación</a>. También puede solicitar la eliminación de su cuenta o la exportación de sus datos escribiendo a <a href="mailto:alexrgsbj@gmail.com">alexrgsbj@gmail.com</a>, gestionándose estas solicitudes manualmente en un plazo razonable.</p>
+          </section>
+
+          <section class="legal-section" id="disclaimer" aria-labelledby="disclaimer-title">
+            <h2 id="disclaimer-title">Disclaimer financiero</h2>
+            <p>Trazza es una herramienta de registro, organización y análisis personal de trading. No presta asesoramiento financiero, no recomienda comprar o vender instrumentos financieros, no gestiona capital de terceros y no ejecuta órdenes.</p>
+            <p>Las métricas, gráficos y cálculos se muestran para ayudar al usuario a revisar su propio historial. No constituyen recomendación de inversión ni garantizan resultados futuros.</p>
+            <p>El trading implica un riesgo elevado. El usuario es el único responsable de sus decisiones, de su gestión del riesgo y del cumplimiento de las normas de sus cuentas o proveedores.</p>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell site-footer-inner">
+        <div class="footer-brand">
+          <span class="wordmark">trazza</span>
+          <p>Reglas de cobro, journal y finanzas para cuentas fondeadas.</p>
+        </div>
+        <nav class="footer-nav" aria-label="Enlaces">
+          <a href="/">Inicio</a>
+          <a href="#aviso-legal">Aviso legal</a>
+          <a href="#privacidad">Privacidad</a>
+          <a href="#cookies">Cookies</a>
+          <a href="#terminos">Términos</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/legal/legal.ts"></script>
+  </body>
+</html>
