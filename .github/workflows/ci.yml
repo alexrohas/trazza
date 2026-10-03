@@ -1,0 +1,40 @@
+# Comprobaciones de cada PR y de main. Dos trabajos independientes:
+#
+# - web: typecheck y tests de Vitest (web/src/**/*.test.ts). Los comandos entran en web/ y
+#   usan `corepack pnpm`, por lo mismo que vercel.json: el lockfile vive en web/ y la
+#   version exacta de pnpm sale del packageManager de web/package.json.
+# - functions: `deno check` de las cuatro Edge Functions de verdad y sus tests con Stripe y
+#   Supabase simulados (supabase/functions/_tests/run.sh).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web · typecheck y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm typecheck
+      - run: corepack pnpm test
+
+  functions:
+    name: Edge Functions · deno check y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.6
+      - run: deno check supabase/functions/*/index.ts
+      - run: sh supabase/functions/_tests/run.sh

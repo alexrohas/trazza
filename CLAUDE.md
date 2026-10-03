@@ -50,8 +50,9 @@ despliegue anterior desde el panel de Vercel**, que reactiva el legado tal cual 
 - **React** (`web/`, Vite + TS): es el producto. `cd web && pnpm install && pnpm dev`
   (puerto 5174, ver `.claude/launch.json`). Ojo: el dev server sirve **la landing en `/`
   y la app en `/app/`**, igual que producción — esa equivalencia es deliberada, no la
-  "arregles" devolviendo la app a la raíz. `pnpm typecheck` antes de dar nada por bueno —
-  no hay tests, typecheck es la única red.
+  "arregles" devolviendo la app a la raíz. Antes de dar nada por bueno, `pnpm typecheck`
+  y `pnpm test` (Vitest); y si se tocan Edge Functions, `sh supabase/functions/_tests/run.sh`.
+  GitHub los pasa en cada PR (ver "Los tests en el repo").
 - **Legado** (`legacy/`: `app.html` + `app.js` + `styles.css` + `i18n.js`, más
   `index.html`, que fue la landing hasta septiembre de 2026). **Archivado, ya no se
   despliega ni se toca.** Está ahí para consultar cómo hacía algo la versión anterior.
@@ -948,7 +949,7 @@ editar sin tocar, cambiar, quitar, borrar, URL ajena, subida rechazada, migrar, 
 importar, 20 casos) y `delete-account` real con Stripe y Supabase simulados (9 casos: orden
 de borrado, 1.500 ficheros, fallos de Storage). Lo que falta es verlo con una cuenta real.
 
-**El primer arranque**, el **1 de octubre de 2026**. Quien entra con la cuenta vacía ya no
+**El primer arranque**, el **1 de octubre de 2026** ([alexrohas/trazza#4](https://github.com/alexrohas/trazza/pull/4)). Quien entra con la cuenta vacía ya no
 cae en un Panel lleno de ceros: un modal de tres pasos (`OnboardingModal.tsx`) le lleva de
 la empresa a una cuenta con sus reglas puestas y de ahí a meter sus operaciones. Existe por
 el dato de la auditoría: 26 de los 42 con la prueba caducada no crearon nada, y lo que
@@ -1022,7 +1023,7 @@ un email que no se haya usado nunca, y en Gmail un `+algo` o unos puntos no cuen
 nuevos (ver "Una prueba gratuita por persona"). Esas dos altas son de prueba: cuentan en
 cualquier métrica de usuarios hasta que el usuario las borre.
 
-**La landing nueva y la calculadora de Lucid**, el **2 de octubre de 2026**. Las dos salen
+**La landing nueva y la calculadora de Lucid**, el **2 de octubre de 2026** ([alexrohas/trazza#5](https://github.com/alexrohas/trazza/pull/5)). Las dos salen
 de la auditoría: la landing seguía vendiendo "journal y finanzas" cuando lo que diferencia
 a Trazza se construyó después de ella, y no llegaba nadie (un visitante el primer día de
 Web Analytics, cero altas orgánicas desde agosto). La calculadora es la pieza para atraer:
@@ -1111,7 +1112,7 @@ numérico marcado, inglés…) y 64 combinaciones de disposición (la landing a 
 calculadora a 8, en claro y oscuro y en los dos idiomas) sin nada fuera de la ventana, con
 DM Sans cargada de verdad (ver la trampa de las fuentes). **Falta verlo desplegado.**
 
-**El retiro disponible en la app**, el **3 de octubre de 2026**, justo después de la
+**El retiro disponible en la app**, el **3 de octubre de 2026** ([alexrohas/trazza#6](https://github.com/alexrohas/trazza/pull/6)), justo después de la
 calculadora. Lo mismo, dentro: al pie del panel de reglas del Journal ("Retiro disponible
 715,00 €" con de dónde sale y lo que llega tras el reparto) y, en la tarjeta de Cuentas,
 junto a "Listo para cobrar". Sin esquema nuevo:
@@ -1137,6 +1138,46 @@ que no coincide, evaluación y firma fuera del catálogo) y en la demo con la fo
 cambiada a una Flex 50K de Lucid a mano (deshecho y comprobado contra `HEAD`): por debajo
 del mínimo (0 € en gris) y lista para cobrar (715 € en verde), a 1280 y 375, en claro y
 oscuro y en los dos idiomas.
+
+**Los tests en el repo y la CI**, el **3 de octubre de 2026**. Hasta ese día cada tanda se
+verificaba con casos que ejecutaban el código real, pero desde el scratchpad de la sesión:
+se perdían con ella, y en el repo solo quedaba "verificado con N casos". Ahora están en el
+repo y GitHub los pasa en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
+
+- **Vitest** (`web/`, `corepack pnpm test`), junto al código como `*.test.ts`:
+  `payoutCalculator` (el motor de la calculadora y `parseAmount`), `withdrawal` (los topes
+  de los ocho planes, el primer payout y los siguientes, y que el mínimo del motor coincide
+  con el del retiro plan a plan), `db` (la carga por páginas con un `max_rows` de 1.000) y
+  `journalMedia` (el ciclo entero de las capturas en Storage). Se apoyan en
+  `src/test/fakeSupabase.ts`, un Supabase en memoria que imita lo que ya mordió: corta en
+  `max_rows` sin error y da error con columnas en camelCase. Está dentro de `src`, así que
+  el typecheck también los compila.
+- **Deno** (`sh supabase/functions/_tests/run.sh`) para las Edge Functions:
+  `stripe-webhook` (14 casos) y `delete-account` (5). Ejecutan el `index.ts` real
+  cambiando `npm:stripe` y `npm:@supabase/supabase-js` por los simulados de `mocks/` con un
+  import map por función, y atrapando el handler de `Deno.serve` (`harness.ts`). Van con
+  `--no-check` porque los simulados no tienen los tipos de Stripe; los tipos de las cuatro
+  funciones los comprueba `deno check` en la CI. La carpeta empieza por `_` para que el
+  CLI de Supabase no la despliegue como función.
+- **Comprobado que fallan cuando deben**, rompiendo el código a propósito: la paginación
+  (página de 2.000 con `max_rows` de 1.000), los topes del primer y segundo payout al revés,
+  no borrar ficheros de Storage y el webhook contestando 200 a una escritura fallida. Cada
+  rotura tumba al menos un test; después se deshizo y se comprobó contra `HEAD`.
+- `deno check` destapó un error de tipos que ya estaba en producción:
+  `create-portal-session` era la única función sin el `as Stripe.LatestApiVersion` que
+  llevan las otras tres. Solo afecta a los tipos (en ejecución es idéntico), así que no
+  hace falta redesplegarla.
+- `journalMedia.test.ts` trae un `FileReader` mínimo: la exportación lo usa para pasar las
+  imágenes a base64 y Node no lo tiene.
+
+**La regla desde ahora: lo que se verifica se queda en el repo como test**, no en el
+scratchpad. Faltan por reescribir los de antes de esta sesión, que se perdieron: los 30
+casos de reglas de cobro y payouts (`accountRules`, `metrics`, `firmCatalog`), los 10 de
+duplicados del extracto (`bankImport`), los del resumen por trimestre (`taxSummary`), la
+numeración de los resets (`nextResetName`) y las 208 comprobaciones de RLS en PGlite. Las
+comprobaciones de disposición con Playwright (anchos, temas, idiomas) tampoco están: piden
+el servidor de desarrollo y las fuentes de Google bajadas a mano (ver la trampa de las
+fuentes), y de momento siguen siendo de cada sesión.
 
 ## Qué queda
 
@@ -1179,15 +1220,27 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   cuántas quedan. Las de usuarios con la prueba caducada no se migran solas (no pueden
   subir), y eso es lo esperado. Esa noche quedaban 245 de 16 usuarios: 88 de 9 que no
   pueden subir, y 157 de 7 que sí pueden pero no habían vuelto a abrir la app desde que se
-  encendió Storage. Se migran solas la próxima vez que entren.
+  encendió Storage. Se migran solas la próxima vez que entren. El 3 de octubre quedaban
+  169.
 - **Las primeras renovaciones con el webhook v17**: las dos suscripciones de pago renuevan
   el 8 y el 10 de octubre de 2026, y serán los primeros eventos reales que pasen por él.
   Al día siguiente, su `current_period_end` tiene que haber saltado un mes; si no, mirar
   los logs de `stripe-webhook`. El acceso no se pierde aunque falle (depende de `status`,
-  no de la fecha), así que el fallo sería silencioso.
+  no de la fecha), así que el fallo sería silencioso. **Hay un recordatorio programado**
+  (una Routine de claude.ai, `trig_019wvxaiwJWs2KcTqB14JHJV`) para el 10 de octubre de
+  2026 a las 12:00 UTC, que vuelve a la sesión del 2 de octubre a comprobarlo; se ve y se
+  borra desde la lista de Routines de claude.ai.
 - **Tráfico**: desde que se encendió Web Analytics (1 de octubre) hasta esa noche, **un
   visitante**, y con toda probabilidad era el propio usuario. Unida a las cero altas
   orgánicas desde agosto, es la cifra que dice dónde está el problema: no llega nadie.
+  **El 3 de octubre seguía igual**: 56 usuarios, y las dos altas desde la auditoría son
+  las pruebas del usuario del 1 de octubre; 2 de pago, 11 `lifetime` y 3 usuarios con
+  trades en los últimos 7 días. Ya existen la landing nueva y la calculadora; lo que
+  falta es difundirlas, y eso no es código.
+- ~~**Tests en el repo**~~ (**hechos el 3 de octubre de 2026**, ver "Los tests en el
+  repo"; quedan por reescribir los de las tandas anteriores, que se perdieron). Lo
+  siguiente de solidez, por este orden: un `ErrorBoundary` (hoy un error en una pantalla
+  deja la app en blanco), los avisos del asesor de Supabase y las rutas en la URL.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
