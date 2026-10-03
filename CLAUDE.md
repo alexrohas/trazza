@@ -1081,6 +1081,18 @@ línea en el sitemap. Pesa 16 kB de JS más los 10 del catálogo. Lo que no es o
   otra divisa con la que confundirlo, y en un móvil esos dos caracteres partían en dos
   líneas los nombres de las reglas. `parseAmount` acepta lo que la gente escribe de
   verdad ("1.234,5", "1,234.5", "+250 $", el signo menos tipográfico).
+- **En una fondeada dice cuánto se puede retirar** (lo pidió el usuario el 3 de octubre
+  de 2026). Flex: el 50 % del beneficio de la cuenta; Pro: lo que pasa del colchón (MLL +
+  100 $). Los dos con 500 $ de mínimo y un tope por payout, que en Pro es menor en el
+  primero (1.000-3.000 $ y luego 1.500-3.500 $), y lo que llega tras el reparto del 90 %.
+  Los topes viven en el catálogo (`withdrawal` en la fase fondeada), **pero no van a la
+  cuenta**: `applyCatalogPlan` no los copia y no hay columnas, así que la app aún no lo
+  enseña. Con reglas pendientes la cifra sale igual, como "Retiro al cumplir las reglas",
+  porque es lo que se viene a buscar; si ya cobró y no ha escrito el balance, no sale,
+  porque el beneficio de antes del ciclo es desconocido. Al céntimo y hacia abajo.
+  **Los topes se sacaron de los resultados de búsqueda de los artículos oficiales de
+  payouts** (dos búsquedas que coinciden), no leyendo la página: desde el contenedor
+  `support.lucidtrading.com` está bloqueado. Si algún día se puede abrir, compruébalos.
 - Dice que Trazza no está afiliada a Lucid y enlaza a su soporte. Del nombre de la firma
   no pasa: ni logo ni colores.
 
@@ -1091,7 +1103,9 @@ calculadora. Y dos fallos que ya había en la landing a 320px: la cabecera se sa
 cabecera se queda fija al bajar) y `.split` pedía 320px de mínimo en un contenedor de 288.
 
 Verificado con 13 casos del motor ejecutados con Deno (el de la maqueta, la rotura el día
-2, el bloqueo en 50.100 y un día de 149 $ que no cuenta como rentable), 13 comprobaciones
+2, el bloqueo en 50.100 y un día de 149 $ que no cuenta como rentable), 26 más del retiro
+(los topes de los ocho planes, el primer payout y los siguientes, el mínimo, y que el
+mínimo que ya guardaba el motor coincide plan a plan con el nuevo cálculo), 21 comprobaciones
 de comportamiento con Playwright (la URL restaura el cálculo, Intro añade un día, texto no
 numérico marcado, inglés…) y 64 combinaciones de disposición (la landing a 8 anchos y la
 calculadora a 8, en claro y oscuro y en los dos idiomas) sin nada fuera de la ventana, con
@@ -1160,8 +1174,10 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   octubre de 2026**, ver "El primer arranque"; queda medir si lo terminan); una demo
   pública sin registro (el modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
   la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
-  checkout para códigos de creadores; y "cuánto puedes pedir ya" (Lucid limita cada payout
-  y el catálogo solo guarda mínimos).
+  checkout para códigos de creadores; y "cuánto puedes pedir ya" en la app: la calculadora
+  ya lo dice desde el 3 de octubre de 2026 y los topes están en el catálogo, pero la cuenta
+  no los guarda. Lo barato es deducirlo del plan (`matchCatalogPlan`) cuando la cuenta
+  sigue uno, sin columnas nuevas.
 - **Captar:** hablar uno a uno con los 6 enganchados que no pagaron (**hecho el 2 de
   octubre de 2026**: un correo corto a cada uno, firmado como "El equipo de Trazza",
   preguntando qué les faltó y ofreciendo un mes más de prueba si responden; quien acepte
