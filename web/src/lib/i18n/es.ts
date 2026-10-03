@@ -6,6 +6,12 @@ export const es = {
   "app.notice.syncingText": "Cargando datos reales de Supabase.",
   "app.notice.errorTitle": "No se pudieron cargar los datos reales",
   "app.notice.errorTextSuffix": "Mientras tanto se muestran datos demo para mantener la interfaz navegable.",
+  "app.crash.viewTitle": "Esta pantalla ha fallado",
+  "app.crash.viewText": "Lo que tenías guardado sigue ahí. Recarga la página o ve a otra pantalla desde el menú.",
+  "app.crash.appTitle": "Algo ha fallado",
+  "app.crash.appText": "Lo que tenías guardado sigue ahí. Recarga la página para volver a la app.",
+  "app.crash.reload": "Recargar la página",
+  "app.crash.details": "Detalles del error",
 
   "common.cancel": "Cancelar",
   "common.confirm": "Confirmar",

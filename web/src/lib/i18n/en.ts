@@ -8,6 +8,12 @@ export const en: Record<TranslationKey, string> = {
   "app.notice.syncingText": "Loading real data from Supabase.",
   "app.notice.errorTitle": "Could not load real data",
   "app.notice.errorTextSuffix": "Meanwhile demo data is shown to keep the interface navigable.",
+  "app.crash.viewTitle": "This screen ran into a problem",
+  "app.crash.viewText": "Everything you had saved is still there. Reload the page or go to another screen from the menu.",
+  "app.crash.appTitle": "Something went wrong",
+  "app.crash.appText": "Everything you had saved is still there. Reload the page to get back to the app.",
+  "app.crash.reload": "Reload page",
+  "app.crash.details": "Error details",
 
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",

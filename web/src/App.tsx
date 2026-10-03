@@ -5,6 +5,7 @@ import { AppShell } from "./components/AppShell";
 import { AuthScreen } from "./components/AuthScreen";
 import { DashboardView } from "./components/DashboardView";
 import { EconomicEventsView } from "./components/EconomicEventsView";
+import { ErrorBoundary, ViewErrorPanel } from "./components/ErrorBoundary";
 import { FirmsView } from "./components/FirmsView";
 import { JournalEntriesView } from "./components/JournalEntriesView";
 import { MovementsView } from "./components/MovementsView";
@@ -341,164 +342,173 @@ export default function App() {
           />
         )}
 
-      {activeView === "overview" && (
-        <DashboardView
-          accounts={accounts}
-          currency={currency}
-          firms={firms}
-          journalEntries={journalEntries}
-          movements={movements}
-        />
-      )}
-      {activeView === "firms" && (
-        <FirmsView
-          accounts={accounts}
-          dataMode={dataState.mode}
-          firms={firms}
-          newFirmToken={createRequest?.target === "firm" ? createRequest.id : 0}
-          searchQuery={searchQuery}
-          mutationError={dataState.mutationError}
-          mutating={dataState.mutating}
-          onDeleteFirm={guarded.deleteFirm}
-          onNewFirmRequestHandled={() => setCreateRequest(null)}
-          onSaveFirm={guarded.saveFirm}
-        />
-      )}
-      {activeView === "accounts" && (
-        <AccountsView
-          accounts={visibleAccounts}
-          allAccounts={accounts}
-          currency={currency}
-          dataMode={dataState.mode}
-          firms={firms}
-          journalEntries={journalEntries}
-          movements={movements}
-          editAccountRequest={editAccountRequest || undefined}
-          bulkAccountRequest={bulkAccountRequest || undefined}
-          newAccountToken={createRequest?.target === "account" ? createRequest.id : 0}
-          presetFirmId={pendingMovementLink?.input.firmId || undefined}
-          searchQuery={searchQuery}
-          mutationError={dataState.mutationError}
-          mutating={dataState.mutating}
-          onClose={handleAccountModalClosed}
-          onBulkAccountRequestHandled={() => setBulkAccountRequest(null)}
-          onBulkAccountsSaved={guarded.linkMovementsToAccounts}
-          onDeleteAccount={guarded.deleteAccount}
-          onEditAccountRequestHandled={() => setEditAccountRequest(null)}
-          onNewAccountRequestHandled={() => setCreateRequest(null)}
-          onSaveAccount={saveAccountAndLinkPendingMovement}
-          onSaveMovement={guarded.saveMovement}
-          onSetAccountVisible={guarded.setAccountVisible}
-          onViewDetails={viewAccountDetails}
-          onAccountReset={followAccountReset}
-        />
-      )}
-      {activeView === "movements" && (
-        <MovementsView
-          accounts={accounts}
-          allMovements={movements}
-          currency={currency}
-          dataMode={dataState.mode}
-          firms={firms}
-          movements={visibleMovements}
-          newMovementToken={createRequest?.target === "movement" ? createRequest.id : 0}
-          importStatementToken={createRequest?.target === "bankImport" ? createRequest.id : 0}
-          searchQuery={searchQuery}
-          mutationError={dataState.mutationError}
-          mutating={dataState.mutating}
-          onDeleteMovement={guarded.deleteMovement}
-          onImportMovements={guarded.importMovements}
-          onNewMovementRequestHandled={() => setCreateRequest(null)}
-          onImportStatementRequestHandled={() => setCreateRequest(null)}
-          onRequestAccountForMovement={requestAccountForMovement}
-          onRequestAccountsForMovements={requestAccountsForMovements}
-          onSaveMovement={guarded.saveMovement}
-        />
-      )}
-      {(activeView === "journalDashboard" || activeView === "journalEntries") && (
-        <JournalEntriesView
-          key={activeView}
-          accounts={accounts}
-          currency={currency}
-          dataMode={dataState.mode}
-          deletedDefaultErrorTypeIds={deletedDefaultErrorTypeIds}
-          entries={visibleJournalEntries}
-          firms={firms}
-          initialMode={activeView === "journalEntries" ? "entries" : "cockpit"}
-          journalErrorTypes={journalErrorTypes}
-          journalStrategies={journalStrategies}
-          movements={visibleMovements}
-          newEntryToken={createRequest?.target === "journalEntry" ? createRequest.id : 0}
-          searchQuery={searchQuery}
-          selectedAccountId={selectedAccountId}
-          mutationError={dataState.mutationError}
-          mutating={dataState.mutating}
-          onDeleteEntry={guarded.deleteJournalEntry}
-          onSelectedAccountIdChange={setSelectedAccountId}
-          onNewEntryRequestHandled={() => setCreateRequest(null)}
-          onSaveErrorType={guarded.saveJournalErrorType}
-          onSaveEntry={guarded.saveJournalEntry}
-          onDeleteErrorType={guarded.deleteJournalErrorType}
-          onSetErrorTypeActive={guarded.setJournalErrorTypeActive}
-          onSaveStrategy={guarded.saveJournalStrategy}
-          onDeleteStrategy={guarded.deleteJournalStrategy}
-          onSetStrategyActive={guarded.setJournalStrategyActive}
-          onEditAccount={requestAccountEdit}
-        />
-      )}
-      {activeView === "economicEvents" && <EconomicEventsView />}
-      {activeView === "settings" && (
-        <SettingsView
-          busy={auth.busy}
-          data={dataState.data}
-          dataMode={dataState.mode}
-          message={auth.message}
-          mutationError={dataState.mutationError}
-          mutating={dataState.mutating}
-          profile={auth.profile}
-          theme={themeState.theme}
-          onDeleteAccount={auth.deleteAccount}
-          onImportData={guarded.importData}
-          onResetTours={tourState.resetAll}
-          onThemeChange={themeState.setTheme}
-          onUpdateProfile={auth.updateProfile}
-          subscription={subscription}
-          onViewPlans={() => setPlansOpen(true)}
-        />
-      )}
+      {/* Si una pantalla falla al pintarse, su sitio lo ocupa un aviso y el resto sigue en
+          pie: el menú, la cabecera y los avisos de arriba. Cambiar de pantalla olvida el
+          error, así que desde el menú se puede seguir usando todo lo demás. */}
+      <ErrorBoundary fallback={(error) => <ViewErrorPanel error={error} />} resetKey={activeView}>
+        {activeView === "overview" && (
+          <DashboardView
+            accounts={accounts}
+            currency={currency}
+            firms={firms}
+            journalEntries={journalEntries}
+            movements={movements}
+          />
+        )}
+        {activeView === "firms" && (
+          <FirmsView
+            accounts={accounts}
+            dataMode={dataState.mode}
+            firms={firms}
+            newFirmToken={createRequest?.target === "firm" ? createRequest.id : 0}
+            searchQuery={searchQuery}
+            mutationError={dataState.mutationError}
+            mutating={dataState.mutating}
+            onDeleteFirm={guarded.deleteFirm}
+            onNewFirmRequestHandled={() => setCreateRequest(null)}
+            onSaveFirm={guarded.saveFirm}
+          />
+        )}
+        {activeView === "accounts" && (
+          <AccountsView
+            accounts={visibleAccounts}
+            allAccounts={accounts}
+            currency={currency}
+            dataMode={dataState.mode}
+            firms={firms}
+            journalEntries={journalEntries}
+            movements={movements}
+            editAccountRequest={editAccountRequest || undefined}
+            bulkAccountRequest={bulkAccountRequest || undefined}
+            newAccountToken={createRequest?.target === "account" ? createRequest.id : 0}
+            presetFirmId={pendingMovementLink?.input.firmId || undefined}
+            searchQuery={searchQuery}
+            mutationError={dataState.mutationError}
+            mutating={dataState.mutating}
+            onClose={handleAccountModalClosed}
+            onBulkAccountRequestHandled={() => setBulkAccountRequest(null)}
+            onBulkAccountsSaved={guarded.linkMovementsToAccounts}
+            onDeleteAccount={guarded.deleteAccount}
+            onEditAccountRequestHandled={() => setEditAccountRequest(null)}
+            onNewAccountRequestHandled={() => setCreateRequest(null)}
+            onSaveAccount={saveAccountAndLinkPendingMovement}
+            onSaveMovement={guarded.saveMovement}
+            onSetAccountVisible={guarded.setAccountVisible}
+            onViewDetails={viewAccountDetails}
+            onAccountReset={followAccountReset}
+          />
+        )}
+        {activeView === "movements" && (
+          <MovementsView
+            accounts={accounts}
+            allMovements={movements}
+            currency={currency}
+            dataMode={dataState.mode}
+            firms={firms}
+            movements={visibleMovements}
+            newMovementToken={createRequest?.target === "movement" ? createRequest.id : 0}
+            importStatementToken={createRequest?.target === "bankImport" ? createRequest.id : 0}
+            searchQuery={searchQuery}
+            mutationError={dataState.mutationError}
+            mutating={dataState.mutating}
+            onDeleteMovement={guarded.deleteMovement}
+            onImportMovements={guarded.importMovements}
+            onNewMovementRequestHandled={() => setCreateRequest(null)}
+            onImportStatementRequestHandled={() => setCreateRequest(null)}
+            onRequestAccountForMovement={requestAccountForMovement}
+            onRequestAccountsForMovements={requestAccountsForMovements}
+            onSaveMovement={guarded.saveMovement}
+          />
+        )}
+        {(activeView === "journalDashboard" || activeView === "journalEntries") && (
+          <JournalEntriesView
+            key={activeView}
+            accounts={accounts}
+            currency={currency}
+            dataMode={dataState.mode}
+            deletedDefaultErrorTypeIds={deletedDefaultErrorTypeIds}
+            entries={visibleJournalEntries}
+            firms={firms}
+            initialMode={activeView === "journalEntries" ? "entries" : "cockpit"}
+            journalErrorTypes={journalErrorTypes}
+            journalStrategies={journalStrategies}
+            movements={visibleMovements}
+            newEntryToken={createRequest?.target === "journalEntry" ? createRequest.id : 0}
+            searchQuery={searchQuery}
+            selectedAccountId={selectedAccountId}
+            mutationError={dataState.mutationError}
+            mutating={dataState.mutating}
+            onDeleteEntry={guarded.deleteJournalEntry}
+            onSelectedAccountIdChange={setSelectedAccountId}
+            onNewEntryRequestHandled={() => setCreateRequest(null)}
+            onSaveErrorType={guarded.saveJournalErrorType}
+            onSaveEntry={guarded.saveJournalEntry}
+            onDeleteErrorType={guarded.deleteJournalErrorType}
+            onSetErrorTypeActive={guarded.setJournalErrorTypeActive}
+            onSaveStrategy={guarded.saveJournalStrategy}
+            onDeleteStrategy={guarded.deleteJournalStrategy}
+            onSetStrategyActive={guarded.setJournalStrategyActive}
+            onEditAccount={requestAccountEdit}
+          />
+        )}
+        {activeView === "economicEvents" && <EconomicEventsView />}
+        {activeView === "settings" && (
+          <SettingsView
+            busy={auth.busy}
+            data={dataState.data}
+            dataMode={dataState.mode}
+            message={auth.message}
+            mutationError={dataState.mutationError}
+            mutating={dataState.mutating}
+            profile={auth.profile}
+            theme={themeState.theme}
+            onDeleteAccount={auth.deleteAccount}
+            onImportData={guarded.importData}
+            onResetTours={tourState.resetAll}
+            onThemeChange={themeState.setTheme}
+            onUpdateProfile={auth.updateProfile}
+            subscription={subscription}
+            onViewPlans={() => setPlansOpen(true)}
+          />
+        )}
+      </ErrorBoundary>
 
-      {showOnboarding && (
-        <OnboardingModal
-          accounts={accounts}
-          currency={currency}
-          firms={firms}
-          mutationError={dataState.mutationError}
-          onAccountCreated={markOnboardingDone}
-          onClose={closeOnboarding}
-          onFinish={finishOnboarding}
-          onSaveAccount={guarded.saveAccount}
-          onSaveFirm={guarded.saveFirm}
-        />
-      )}
+      {/* El primer arranque y los tutoriales son una ayuda: si fallan, desaparecen sin
+          llevarse por delante la pantalla que tienen debajo. */}
+      <ErrorBoundary fallback={null}>
+        {showOnboarding && (
+          <OnboardingModal
+            accounts={accounts}
+            currency={currency}
+            firms={firms}
+            mutationError={dataState.mutationError}
+            onAccountCreated={markOnboardingDone}
+            onClose={closeOnboarding}
+            onFinish={finishOnboarding}
+            onSaveAccount={guarded.saveAccount}
+            onSaveFirm={guarded.saveFirm}
+          />
+        )}
 
-      {/* Con sesión, cuando los datos ya han llegado (antes no hay nada que señalar) y se
-          sabe si toca el primer arranque, que va antes: es lo que crea lo que los tutoriales
-          señalan. En el servidor demo, siempre: ahí se prueba, y lo visto se guarda en el
-          navegador. */}
-      <ProductTour
-        contentKey={`${firms.length}.${accounts.length}.${movements.length}.${journalEntries.length}`}
-        onDisableAll={tourState.disableAll}
-        onRequestHandled={() => setTourRequest(null)}
-        onSeen={tourState.markSeen}
-        ready={
-          auth.status === "authenticated"
-            ? dataState.status === "ready" && subscription.subscription !== undefined && !showOnboarding
-            : auth.status === "unconfigured"
-        }
-        request={tourRequest}
-        state={tourState.state}
-        view={activeView}
-      />
+        {/* Con sesión, cuando los datos ya han llegado (antes no hay nada que señalar) y se
+            sabe si toca el primer arranque, que va antes: es lo que crea lo que los tutoriales
+            señalan. En el servidor demo, siempre: ahí se prueba, y lo visto se guarda en el
+            navegador. */}
+        <ProductTour
+          contentKey={`${firms.length}.${accounts.length}.${movements.length}.${journalEntries.length}`}
+          onDisableAll={tourState.disableAll}
+          onRequestHandled={() => setTourRequest(null)}
+          onSeen={tourState.markSeen}
+          ready={
+            auth.status === "authenticated"
+              ? dataState.status === "ready" && subscription.subscription !== undefined && !showOnboarding
+              : auth.status === "unconfigured"
+          }
+          request={tourRequest}
+          state={tourState.state}
+          view={activeView}
+        />
+      </ErrorBoundary>
 
       {plansOpen && (
         <PlansModal

@@ -918,6 +918,70 @@ button {
   background: #fff8f6;
 }
 
+/* Lo que se pinta cuando algo falla al pintarse (ErrorBoundary.tsx). Una pantalla rota
+   ocupa su sitio con un panel de los de siempre (.panel pone fondo, relleno y sombra) y
+   del mismo alto mínimo que .empty-panel; si se rompe el armazón entero, el mensaje va
+   centrado en .loading-screen, bajo el logo. */
+.view-crash {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+}
+
+.crash-message {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-base);
+  max-width: 420px;
+  text-align: center;
+}
+
+.crash-message > svg {
+  color: var(--negative);
+}
+
+.crash-message strong {
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.crash-message p {
+  margin: 0;
+  color: var(--strong-muted);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-normal);
+}
+
+/* El botón se separa un peldaño más del texto que el texto del título. */
+.crash-message .primary-action {
+  margin-top: var(--space-xs);
+}
+
+.crash-message details {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.crash-message summary {
+  cursor: pointer;
+}
+
+.crash-message code {
+  display: block;
+  margin-top: var(--space-xs);
+  border-radius: 6px;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--surface-muted);
+  color: var(--strong-muted);
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .auth-screen,
 .loading-screen {
   display: grid;
