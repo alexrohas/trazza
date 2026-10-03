@@ -317,6 +317,42 @@
   color: var(--negative);
 }
 
+/* Cuanto se puede retirar en una fondeada: la cifra que se viene a buscar, asi que va a
+   tamano de titular justo debajo del veredicto, en verde cuando ya se puede pedir. */
+.calc-withdraw {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-lg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.calc-withdraw > span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.calc-withdraw strong {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.calc-withdraw[data-tone="ready"] strong {
+  color: var(--positive);
+}
+
+.calc-withdraw[data-tone="empty"] strong {
+  color: var(--muted);
+}
+
+.calc-withdraw p {
+  color: var(--strong-muted);
+  font-size: var(--text-xs);
+}
+
 .calc-summary {
   display: flex;
   flex-wrap: wrap;

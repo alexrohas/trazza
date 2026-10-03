@@ -1,5 +1,5 @@
 import { getAccountRuleStatus, type AccountRuleStatus } from "./accountRules";
-import { applyCatalogPlan, formatPlanLabel, type CatalogPlan } from "./firmCatalog";
+import { applyCatalogPlan, formatPlanLabel, type CatalogPlan, type WithdrawalRules } from "./firmCatalog";
 import { getAccountLossLimitPnl, getAccountProgress, localIsoDate } from "./metrics";
 import type { JournalEntry, Movement, TradingAccount } from "../types";
 
@@ -24,6 +24,8 @@ export type CalculatorInput = {
   /** Resultado de cada dia cerrado, en orden: en evaluacion desde el principio, y en
    *  fondeada desde el ultimo payout (o desde el principio si no ha cobrado nunca). */
   days: number[];
+  /** Una fondeada que ya ha cobrado algun payout: el siguiente tiene otro tope en Pro. */
+  paidBefore?: boolean;
   /** Solo en una fondeada que ya ha cobrado: el balance de ahora. Es lo unico que hace
    *  falta saber de antes del ciclo, porque el beneficio para retirar mide lo que queda
    *  en la cuenta (balance menos tamaño), no lo del ciclo. */
@@ -31,6 +33,23 @@ export type CalculatorInput = {
 };
 
 export type CalculatorTarget = { required: number; current: number; missing: number; met: boolean };
+
+/** Cuanto se puede pedir ahora en una fondeada, con el beneficio que hay en la cuenta. */
+export type CalculatorWithdrawal = {
+  rules: WithdrawalRules;
+  /** Beneficio que queda en la cuenta: balance menos tamaño. */
+  accountProfit: number;
+  /** El tope que aplica a este payout (el primero o los siguientes). */
+  cap: number;
+  firstPayout: boolean;
+  /** Lo que se puede pedir, en bruto: 0 si no llega al minimo. */
+  amount: number;
+  /** Lo que llega al trader de ese importe. */
+  net: number;
+  belowMinimum: boolean;
+  /** El tope recorta lo que permitiria el beneficio. */
+  capped: boolean;
+};
 
 export type CalculatorResult = {
   account: TradingAccount;
@@ -52,6 +71,8 @@ export type CalculatorResult = {
   /** El cierre de ese dia y el MLL que regia, en balance: lo que hace falta para contar
    *  que paso sin volver a calcularlo. */
   breach?: { close: number; floor: number };
+  /** Solo en fondeada, con dias apuntados y sabiendo el balance si ya cobro. */
+  withdrawal?: CalculatorWithdrawal;
   ready: boolean;
 };
 
@@ -164,7 +185,39 @@ export function evaluatePayoutCycle(input: CalculatorInput, today = new Date()):
   const rulesReady = status ? status.ready : phase === "challenge";
   const ready = days.length > 0 && breachedDay === undefined && rulesReady && (target ? target.met : true);
 
-  return { account, rules: status, target, cycleProfit, balance, floor, breachedDay, breach, ready };
+  const withdrawalRules = phase === "funded" ? plan.funded.withdrawal : undefined;
+  /* Si ya cobro y no se sabe el balance, el beneficio de antes del ciclo es desconocido:
+     cualquier cifra seria inventada. */
+  const profitKnown = !input.paidBefore || input.balance !== undefined;
+  const withdrawal =
+    withdrawalRules && days.length && profitKnown
+      ? getWithdrawal(withdrawalRules, knownHistory ? cycleProfit : input.balance! - plan.size, !input.paidBefore)
+      : undefined;
+
+  return { account, rules: status, target, cycleProfit, balance, floor, breachedDay, breach, withdrawal, ready };
+}
+
+/* Abajo, al centimo: redondear al alto podria pasar del tope o del minimo por una
+   fraccion. El 1e-6 absorbe el error de coma flotante (0,29 * 100 = 28,999...). */
+const floorCents = (value: number) => Math.floor(value * 100 + 1e-6) / 100;
+
+export function getWithdrawal(rules: WithdrawalRules, accountProfit: number, firstPayout: boolean): CalculatorWithdrawal {
+  const allowed =
+    rules.profitShare !== undefined ? accountProfit * rules.profitShare : accountProfit - (rules.buffer ?? 0);
+  const cap = firstPayout ? rules.maxFirst : rules.maxLater;
+  const raw = Math.min(allowed, cap);
+  const belowMinimum = raw < rules.minimum;
+  const amount = belowMinimum ? 0 : floorCents(raw);
+  return {
+    rules,
+    accountProfit,
+    cap,
+    firstPayout,
+    amount,
+    net: floorCents(amount * rules.traderSplit),
+    belowMinimum,
+    capped: allowed > cap,
+  };
 }
 
 /* "1.234,5", "1,234.5", "-120", "+250 $": lo que la gente escribe de verdad. Con punto y

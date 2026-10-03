@@ -89,10 +89,10 @@
               },
               {
                 "@type": "Question",
-                "name": "¿Cuánto beneficio necesito para retirar en Lucid?",
+                "name": "¿Cuánto puedo retirar en Lucid?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Lucid pide retirar 500 $ como poco. En Flex el retiro tiene un tope del 50 % del beneficio, así que hacen falta 1.000 $ en la cuenta. En Pro no se puede tocar el colchón del MLL más 100 $: en una 50K hacen falta 2.600 $."
+                  "text": "Lucid pide retirar 500 $ como poco, y de cada payout te llega el 90 %. En Flex se retira la mitad del beneficio, así que hacen falta 1.000 $ en la cuenta, con un tope por payout de 1.000 $ (25K), 2.000 $ (50K), 2.500 $ (100K) o 3.000 $ (150K). En Pro se retira lo que pasa del colchón del MLL más 100 $ (en una 50K hacen falta 2.600 $ para el mínimo), con los mismos topes en el primer payout y 1.500, 2.500, 3.000 o 3.500 $ desde el segundo."
                 }
               },
               {
@@ -230,6 +230,12 @@
               <p data-verdict-text>Con el resultado de cada día te diremos qué te falta.</p>
             </div>
 
+            <div class="calc-withdraw" data-withdraw hidden>
+              <span data-withdraw-label>Retiro disponible</span>
+              <strong data-withdraw-amount></strong>
+              <p data-withdraw-text></p>
+            </div>
+
             <div class="calc-summary" data-summary hidden></div>
 
             <ul class="rules-list calc-rules" data-rules hidden></ul>
@@ -290,7 +296,8 @@
           <p class="calc-hint" data-i18n="rules.note">
             El MLL es trailing de fin de día y se bloquea en el balance inicial más 100 $. El límite
             diario de la Pro fondeada pasa a ser el 60 % del mejor cierre cuando se supera el balance
-            de trail; aquí sale el de la primera fase.
+            de trail; aquí sale el de la primera fase. En Pro, el máximo por payout sube a partir del
+            segundo.
           </p>
         </div>
       </section>
@@ -320,11 +327,13 @@
             </p>
           </details>
           <details>
-            <summary data-i18n="faq.q3">¿Cuánto beneficio necesito para retirar en Lucid?</summary>
+            <summary data-i18n="faq.q3">¿Cuánto puedo retirar en Lucid?</summary>
             <p data-i18n="faq.a3">
-              Lucid pide retirar 500 $ como poco. En Flex el retiro tiene un tope del 50 % del
-              beneficio, así que hacen falta 1.000 $ en la cuenta. En Pro no se puede tocar el colchón
-              del MLL más 100 $: en una 50K hacen falta 2.600 $.
+              Lucid pide retirar 500 $ como poco, y de cada payout te llega el 90 %. En Flex se retira
+              la mitad del beneficio, así que hacen falta 1.000 $ en la cuenta, con un tope por payout
+              de 1.000 $ (25K), 2.000 $ (50K), 2.500 $ (100K) o 3.000 $ (150K). En Pro se retira lo que
+              pasa del colchón del MLL más 100 $ (en una 50K hacen falta 2.600 $ para el mínimo), con
+              los mismos topes en el primer payout y 1.500, 2.500, 3.000 o 3.500 $ desde el segundo.
             </p>
           </details>
           <details>

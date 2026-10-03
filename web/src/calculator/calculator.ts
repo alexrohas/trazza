@@ -14,7 +14,13 @@
  */
 
 import { setUpSite, type Language } from "../landing/site";
-import { firmCatalog, formatCatalogDate, applyCatalogPlan, type CatalogPlan } from "../lib/firmCatalog";
+import {
+  firmCatalog,
+  formatCatalogDate,
+  applyCatalogPlan,
+  type CatalogPlan,
+  type WithdrawalRules,
+} from "../lib/firmCatalog";
 import { formatAmount, formatPercentCompact } from "../lib/metrics";
 import { evaluatePayoutCycle, parseAmount, type CalculatorPhase, type CalculatorResult } from "../lib/payoutCalculator";
 import type { AccountRuleCheck } from "../lib/accountRules";
@@ -65,7 +71,7 @@ const en: Record<string, string> = {
   "rules.challenge": "Evaluation",
   "rules.funded": "Funded",
   "rules.note":
-    "The MLL is an end-of-day trailing drawdown that locks at the starting balance plus $100. The funded Pro daily limit becomes 60% of the best close once the trail balance is passed; this shows the first-phase one.",
+    "The MLL is an end-of-day trailing drawdown that locks at the starting balance plus $100. The funded Pro daily limit becomes 60% of the best close once the trail balance is passed; this shows the first-phase one. On Pro, the max per payout goes up from the second one.",
 
   "faq.kicker": "Questions",
   "faq.title": "What people ask most about getting paid on Lucid.",
@@ -75,9 +81,9 @@ const en: Record<string, string> = {
   "faq.q2": "How many profitable days does Lucid Flex require to get paid?",
   "faq.a2":
     "A funded Flex account needs five profitable days per cycle, and a day only counts if it clears a minimum that depends on the size: $100 on 25K, $150 on 50K, $200 on 100K and $250 on 150K.",
-  "faq.q3": "How much profit do I need to withdraw on Lucid?",
+  "faq.q3": "How much can I withdraw on Lucid?",
   "faq.a3":
-    "Lucid asks for a $500 minimum withdrawal. On Flex withdrawals are capped at 50% of the profit, so you need $1,000 in the account. On Pro you can't touch the cushion of the MLL plus $100: on a 50K you need $2,600.",
+    "Lucid asks for a $500 minimum withdrawal, and you receive 90% of each payout. On Flex you withdraw half of the profit, so you need $1,000 in the account, capped per payout at $1,000 (25K), $2,000 (50K), $2,500 (100K) or $3,000 (150K). On Pro you withdraw whatever is above the cushion of the MLL plus $100 (on a 50K you need $2,600 for the minimum), with the same caps on the first payout and $1,500, $2,500, $3,000 or $3,500 from the second.",
   "faq.q4": "How does Lucid's MLL work?",
   "faq.a4": "It's an end-of-day trailing drawdown: it rises with your best close and locks once it reaches the starting balance plus $100.",
   "faq.q5": "What is Trazza?",
@@ -132,6 +138,18 @@ const copy = {
     daysUnit: "días",
     share: "Copiar enlace con tu cálculo",
     shared: "Enlace copiado",
+    withdraw: {
+      ready: "Retiro disponible",
+      pending: "Retiro al cumplir las reglas",
+      share: (pct: string, profit: string, cap: string) =>
+        `El ${pct} de tu beneficio (${profit}), con un tope de ${cap} por payout.`,
+      buffer: (profit: string, buffer: string, cap: string, first: boolean) =>
+        `Tu beneficio (${profit}) menos el colchón de ${buffer} (MLL + 100 $), con un tope de ${cap} ${
+          first ? "en el primer payout" : "por payout"
+        }.`,
+      net: (net: string, pct: string) => `Te llegan ${net} con el reparto del ${pct}.`,
+      belowMinimum: (min: string) => `Lucid pide retirar ${min} como poco, y aún no llegas.`,
+    },
     table: {
       plan: "Plan",
       target: "Objetivo",
@@ -141,6 +159,7 @@ const copy = {
       profitDays: "Días rentables",
       payoutMin: "Objetivo del ciclo",
       withdrawMin: "Beneficio para retirar",
+      withdrawMax: "Máx. por payout",
       none: "—",
       checked: "Revisadas el",
     },
@@ -181,6 +200,17 @@ const copy = {
     daysUnit: "days",
     share: "Copy link to your calculation",
     shared: "Link copied",
+    withdraw: {
+      ready: "Available to withdraw",
+      pending: "Withdrawable once you meet the rules",
+      share: (pct: string, profit: string, cap: string) => `${pct} of your profit (${profit}), capped at ${cap} per payout.`,
+      buffer: (profit: string, buffer: string, cap: string, first: boolean) =>
+        `Your profit (${profit}) minus the ${buffer} buffer (MLL + 100 $), capped at ${cap} ${
+          first ? "on the first payout" : "per payout"
+        }.`,
+      net: (net: string, pct: string) => `You receive ${net} after the ${pct} split.`,
+      belowMinimum: (min: string) => `Lucid's minimum withdrawal is ${min}, and you're not there yet.`,
+    },
     table: {
       plan: "Plan",
       target: "Target",
@@ -190,6 +220,7 @@ const copy = {
       profitDays: "Profitable days",
       payoutMin: "Cycle target",
       withdrawMin: "Profit to withdraw",
+      withdrawMax: "Max per payout",
       none: "—",
       checked: "Checked on",
     },
@@ -406,6 +437,10 @@ const verdict = document.querySelector<HTMLElement>("[data-verdict]")!;
 const verdictTitle = document.querySelector<HTMLElement>("[data-verdict-title]")!;
 const verdictText = document.querySelector<HTMLElement>("[data-verdict-text]")!;
 const summary = document.querySelector<HTMLElement>("[data-summary]")!;
+const withdrawBox = document.querySelector<HTMLElement>("[data-withdraw]")!;
+const withdrawLabel = document.querySelector<HTMLElement>("[data-withdraw-label]")!;
+const withdrawAmount = document.querySelector<HTMLElement>("[data-withdraw-amount]")!;
+const withdrawText = document.querySelector<HTMLElement>("[data-withdraw-text]")!;
 const rulesList = document.querySelector<HTMLUListElement>("[data-rules]")!;
 const shareButton = document.querySelector<HTMLButtonElement>("[data-share]")!;
 const shareLabel = document.querySelector<HTMLElement>("[data-share-label]")!;
@@ -454,7 +489,8 @@ function paintResult(): void {
   const plan = currentPlan();
   const days = state.days.map((value) => parseAmount(value)).filter((value): value is number => value !== null);
   const balance = state.phase === "funded" && state.paidBefore ? parseAmount(state.balance) ?? undefined : undefined;
-  const result = evaluatePayoutCycle({ plan, phase: state.phase, days, balance });
+  const paidBefore = state.phase === "funded" && state.paidBefore;
+  const result = evaluatePayoutCycle({ plan, phase: state.phase, days, paidBefore, balance });
 
   /* Veredicto. */
   let tone: "empty" | "ready" | "breached" | "pending" = "pending";
@@ -488,6 +524,32 @@ function paintResult(): void {
     verdictText.textContent = text.pending.text(pending);
   }
   verdict.dataset.tone = tone;
+
+  /* Cuanto se puede retirar: es la cifra que se viene a buscar con una fondeada, asi que
+     sale tambien con reglas pendientes, como lo que daria el balance de ahora; la etiqueta
+     dice que aun no. Con el MLL roto no hay nada que pedir. */
+  const withdrawal = tone === "breached" ? undefined : result.withdrawal;
+  withdrawBox.hidden = !withdrawal;
+  if (withdrawal) {
+    const { rules } = withdrawal;
+    const settled = result.ready || withdrawal.belowMinimum;
+    withdrawBox.dataset.tone = withdrawal.belowMinimum ? "empty" : result.ready ? "ready" : "pending";
+    withdrawLabel.textContent = settled ? text.withdraw.ready : text.withdraw.pending;
+    withdrawAmount.textContent = money(withdrawal.amount);
+    const basis =
+      rules.profitShare !== undefined
+        ? text.withdraw.share(formatPercentCompact(rules.profitShare), money(withdrawal.accountProfit), moneyRound(withdrawal.cap))
+        : text.withdraw.buffer(
+            money(withdrawal.accountProfit),
+            moneyRound(rules.buffer ?? 0),
+            moneyRound(withdrawal.cap),
+            withdrawal.firstPayout && rules.maxFirst !== rules.maxLater,
+          );
+    const outcome = withdrawal.belowMinimum
+      ? text.withdraw.belowMinimum(moneyRound(rules.minimum))
+      : text.withdraw.net(money(withdrawal.net), formatPercentCompact(rules.traderSplit));
+    withdrawText.textContent = `${basis} ${outcome}`;
+  }
 
   /* Resumen: el beneficio del ciclo siempre, y balance y MLL solo cuando se conoce toda
      la historia de la cuenta (en una fondeada que ya cobro, el MLL depende de lo de antes
@@ -544,12 +606,18 @@ function paintTables(): void {
   const none = text.none;
   const cell = (value: number | undefined, format: (value: number) => string) => (value ? format(value) : none);
   const percent = (value: number) => `${value} %`;
+  /* En Pro el primer payout tiene un tope menor que los siguientes: "2.000 $ → 2.500 $". */
+  const withdrawMaxCell = (withdrawal: WithdrawalRules | undefined) => {
+    if (!withdrawal) return none;
+    if (withdrawal.maxFirst === withdrawal.maxLater) return moneyRound(withdrawal.maxFirst);
+    return `${moneyRound(withdrawal.maxFirst)} → ${moneyRound(withdrawal.maxLater)}`;
+  };
 
   const build = (phase: CalculatorPhase) => {
     const columns =
       phase === "challenge"
         ? [text.plan, text.target, text.mll, text.daily, text.consistency]
-        : [text.plan, text.profitDays, text.payoutMin, text.consistency, text.withdrawMin, text.mll];
+        : [text.plan, text.profitDays, text.payoutMin, text.consistency, text.withdrawMin, text.withdrawMax, text.mll];
     const rows = lucid.plans.map((plan) => {
       const rules = applyCatalogPlan(plan, phase);
       const name = `${plan.program} ${plan.size / 1000}K`;
@@ -568,6 +636,7 @@ function paintTables(): void {
         cell(rules.payoutMin, moneyRound),
         cell(rules.consistencyPct, percent),
         cell(rules.withdrawMinProfit, moneyRound),
+        withdrawMaxCell(plan.funded.withdrawal),
         cell(rules.maxDrawdown, moneyRound),
       ];
     });
