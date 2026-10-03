@@ -281,6 +281,14 @@ export const en: Record<TranslationKey, string> = {
   "account.rules.dayUnit": "day",
   "account.rules.daysUnit": "days",
   "account.rules.noProfitYet": "No profit yet",
+  "account.rules.withdrawAvailable": "Available to withdraw",
+  "account.rules.withdrawPending": "Withdrawable once you meet the rules",
+  "account.rules.withdrawShare": "{pct} of your profit ({profit}), capped at {cap} per payout.",
+  "account.rules.withdrawBuffer": "Your profit ({profit}) minus the {buffer} buffer, capped at {cap} per payout.",
+  "account.rules.withdrawBufferFirst":
+    "Your profit ({profit}) minus the {buffer} buffer, capped at {cap} on the first payout.",
+  "account.rules.withdrawNet": "You receive {net} after the {pct} split.",
+  "account.rules.withdrawBelowMin": "The firm's minimum withdrawal is {min}, and you're not there yet.",
   "account.rules.consistencyMissingHint":
     "Profit you still need on other days so your best one stops going over the limit. Making it on the best day does not help: both figures would go up together.",
   "account.modal.create": "Create account",
