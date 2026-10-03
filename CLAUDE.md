@@ -13,7 +13,7 @@ build de Vite desde `web/`:
 |---|---|---|
 | `/` | `web/index.html` | Landing pública |
 | `/app` | `web/app/index.html` | App React (SPA) |
-| `/legal.html` | `web/public/legal.html` | Aviso legal, privacidad, cookies, términos |
+| `/legal.html` | `web/legal.html` | Aviso legal, privacidad, cookies, términos |
 | `/calculadora-lucid` | `web/calculadora-lucid/index.html` | Calculadora pública "¿Puedo cobrar ya en Lucid?" |
 
 `/app.html` **redirige a `/app`** (307, temporal a propósito) para que no se rompan los
@@ -1909,8 +1909,11 @@ inventes sombras nuevas) y viven en `web/src/components/`.
   son extractos bancarios con nombres y comercios, y no pueden llegar a un commit.
 - git: local manda sobre origin, push normal sin `--force` salvo que se pida explícito.
 - Antes de tocar el precio, la copia legal o cualquier texto contractual: es
-  `web/public/legal.html` (se movió ahí al pasar el despliegue a Vite; se sirve igual en
-  `/legal.html`), y ese texto es lo que ve un usuario de pago — cambios ahí no son solo
-  estéticos. El precio, además, está escrito **en tres sitios que tienen que decir lo
+  `web/legal.html` (desde el 3 de octubre de 2026 es una entrada más del build, como la
+  calculadora, con `src/legal/` y los tokens de la landing; antes era un fichero suelto en
+  `web/public/` con paleta propia y oscuro fijo; se sirve igual en `/legal.html`; no se
+  traduce a propósito y `legal.ts` fuerza `lang="es"`; el archivo de legado ya no lo
+  encuentra y sus enlaces al pie dan 404 en el 5178), y ese texto es lo que ve un usuario
+  de pago — cambios ahí no son solo estéticos. El precio, además, está escrito **en tres sitios que tienen que decir lo
   mismo**: Stripe, `PlansModal` de la app y el objeto `pricing` de
   `src/landing/landing.ts`.
