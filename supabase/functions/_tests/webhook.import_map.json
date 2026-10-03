@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "npm:stripe@17": "./mocks/webhook-stripe.ts",
+    "npm:@supabase/supabase-js@2": "./mocks/webhook-supabase.ts"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "npm:stripe@17": "./mocks/delete-stripe.ts",
+    "npm:@supabase/supabase-js@2": "./mocks/delete-supabase.ts"
+  }
+}
