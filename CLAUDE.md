@@ -1179,6 +1179,48 @@ comprobaciones de disposición con Playwright (anchos, temas, idiomas) tampoco e
 el servidor de desarrollo y las fuentes de Google bajadas a mano (ver la trampa de las
 fuentes), y de momento siguen siendo de cada sesión.
 
+**Un error en una pantalla ya no deja la app en blanco**, el **3 de octubre de 2026**
+(`components/ErrorBoundary.tsx`). Hasta ese día, cualquier error al pintar —un dato con
+una forma que nadie esperaba, un `undefined` donde iba un nombre— desmontaba React entero:
+página vacía, sin menú y sin nada que dijera qué había pasado. Hay tres barreras, y cada
+una responde a qué queda en pie cuando falla lo que tiene dentro:
+
+- **Alrededor de la pantalla activa** (`App.tsx`, con `resetKey={activeView}`): su sitio
+  lo ocupa un panel con "Esta pantalla ha fallado", y el menú, la cabecera y los avisos
+  siguen funcionando. **Cambiar de pantalla olvida el error**, así que se puede seguir
+  usando todo lo demás; volver a la rota la vuelve a intentar. Con el mismo `resetKey` el
+  error se queda aunque lo de dentro ya no fallara: reintentar en cada repintado, con un
+  fallo fijo, sería un bucle.
+- **En la raíz** (`main.tsx`): si falla el armazón, no queda nada desde lo que navegar, y
+  sale una pantalla entera bajo el logo. Va **dentro de `I18nProvider`** (para poder
+  traducirse; el proveedor solo lee una clave de `localStorage`) y fuera de todo lo demás.
+- **El primer arranque y los tutoriales** llevan la suya con `fallback={null}`: son una
+  ayuda, y si fallan desaparecen sin llevarse la pantalla de debajo.
+
+El aviso tiene un solo botón, **"Recargar la página"**: vuelve a pedir los datos y el
+código, que es lo que arregla un fallo que se repite (un dato raro, o un despliegue que ya
+lo corrige). El mensaje técnico va plegado en "Detalles del error": no le dice nada a quien
+usa la app, pero es lo que hay que pedirle si escribe para contarlo. **El error no se
+manda a ningún sitio**: solo queda en la consola del navegador de esa persona. Si algún
+día hace falta enterarse sin que nadie escriba, el sitio es `ErrorBoundary` (Web Analytics
+admite eventos propios, pero solo en los planes de pago de Vercel; la otra vía es una
+tabla de Supabase en la que solo se pueda insertar).
+
+Solo atrapa errores al pintar y en los efectos, que es lo que React sabe atrapar. Los de un
+`onClick` o una promesa no pasan por ahí, pero tampoco desmontan nada.
+
+Su test (`ErrorBoundary.test.tsx`) es el primero que **monta componentes de verdad**: lo
+que hay que probar es lo que React hace con un error, y eso no sale llamando a la clase a
+mano. Usa **happy-dom** solo en ese fichero (`// @vitest-environment happy-dom` en la
+primera línea); el resto sigue en Node. Para el próximo test de un componente, ese es el
+patrón: `createRoot` + `act` y `IS_REACT_ACT_ENVIRONMENT`, sin Testing Library.
+
+Verificado, además de con sus 8 casos (y rompiéndolo a propósito: sin el `resetKey`, o sin
+la barrera, caen), en el servidor demo con un fallo provocado en el Panel y en el armazón
+(deshecho y comprobado contra `HEAD`): a 1280, 375 y 320px, claro y oscuro, en los dos
+idiomas, sin nada fuera de la ventana; y que ir a Cuentas desde el menú la pinta normal y
+volver al Panel saca otra vez el aviso.
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -1239,8 +1281,9 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   falta es difundirlas, y eso no es código.
 - ~~**Tests en el repo**~~ (**hechos el 3 de octubre de 2026**, ver "Los tests en el
   repo"; quedan por reescribir los de las tandas anteriores, que se perdieron). Lo
-  siguiente de solidez, por este orden: un `ErrorBoundary` (hoy un error en una pantalla
-  deja la app en blanco), los avisos del asesor de Supabase y las rutas en la URL.
+  siguiente de solidez, por este orden: ~~un `ErrorBoundary`~~ (**hecho el 3 de octubre
+  de 2026**, ver "Un error en una pantalla ya no deja la app en blanco"), los avisos del
+  asesor de Supabase y las rutas en la URL.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
@@ -1253,7 +1296,8 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
 - **Añadir, por activación:** ~~un primer arranque de dos minutos~~ (**hecho el 1 de
   octubre de 2026**, ver "El primer arranque"; queda medir si lo terminan); una demo
   pública sin registro (el modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
-  la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
+  la URL (el botón atrás saca de la app); ~~un `ErrorBoundary`~~ (hecho el 3 de octubre de
+  2026); `allow_promotion_codes` en el
   checkout para códigos de creadores; y ~~"cuánto puedes pedir ya" en la app~~ (**hecho el
   3 de octubre de 2026**, ver "El retiro disponible en la app"; solo para cuentas que
   siguen un plan del catálogo).
