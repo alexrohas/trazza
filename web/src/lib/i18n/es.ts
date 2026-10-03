@@ -279,6 +279,14 @@ export const es = {
   "account.rules.dayUnit": "día",
   "account.rules.daysUnit": "días",
   "account.rules.noProfitYet": "Sin beneficio todavía",
+  "account.rules.withdrawAvailable": "Retiro disponible",
+  "account.rules.withdrawPending": "Retiro al cumplir las reglas",
+  "account.rules.withdrawShare": "El {pct} de tu beneficio ({profit}), con un tope de {cap} por payout.",
+  "account.rules.withdrawBuffer": "Tu beneficio ({profit}) menos el colchón de {buffer}, con un tope de {cap} por payout.",
+  "account.rules.withdrawBufferFirst":
+    "Tu beneficio ({profit}) menos el colchón de {buffer}, con un tope de {cap} en el primer payout.",
+  "account.rules.withdrawNet": "Te llegan {net} con el reparto del {pct}.",
+  "account.rules.withdrawBelowMin": "La firma pide retirar {min} como poco, y aún no llegas.",
   "account.rules.consistencyMissingHint":
     "Beneficio que te falta en otros días para que el mejor deje de pasar del límite. Ganarlo en el mejor día no sirve: subiría las dos cifras a la vez.",
   "account.modal.create": "Crear cuenta",

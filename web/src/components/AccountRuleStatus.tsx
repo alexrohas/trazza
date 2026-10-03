@@ -3,6 +3,7 @@ import { InfoHint } from "./InfoHint";
 import { useI18n, useT, type Language } from "../lib/i18n/context";
 import { getPendingRuleCheck, type AccountRuleCheck, type AccountRuleStatus } from "../lib/accountRules";
 import { formatAmount, formatMoney, formatPercentCompact } from "../lib/metrics";
+import type { Withdrawal } from "../lib/withdrawal";
 import type { Currency, TradingAccount } from "../types";
 
 /**
@@ -84,14 +85,63 @@ function StatusBadge({ account, status }: { account: TradingAccount; status: Acc
   );
 }
 
+/**
+ * Cuanto se puede pedir en el proximo payout (lib/withdrawal.ts), al pie del panel: es la
+ * respuesta a la que llevan todas las reglas de encima. Sale tambien con reglas
+ * pendientes, como lo que daria el beneficio de ahora, porque es la cifra que se viene a
+ * buscar; la etiqueta dice que aun no. Mismo texto que la calculadora publica.
+ */
+function WithdrawalSummary({
+  currency,
+  ready,
+  withdrawal,
+}: {
+  currency: Currency;
+  ready: boolean;
+  withdrawal: Withdrawal;
+}) {
+  const t = useT();
+  const { rules } = withdrawal;
+  const money = (value: number) => formatMoney(value, currency);
+  const settled = ready || withdrawal.belowMinimum;
+  const tone = withdrawal.belowMinimum ? "is-empty" : ready ? "is-ready" : "is-pending";
+
+  const basis =
+    rules.profitShare !== undefined
+      ? t("account.rules.withdrawShare").replace("{pct}", formatPercentCompact(rules.profitShare))
+      : t(
+          withdrawal.firstPayout && rules.maxFirst !== rules.maxLater
+            ? "account.rules.withdrawBufferFirst"
+            : "account.rules.withdrawBuffer",
+        ).replace("{buffer}", money(rules.buffer ?? 0));
+  const outcome = withdrawal.belowMinimum
+    ? t("account.rules.withdrawBelowMin").replace("{min}", money(rules.minimum))
+    : t("account.rules.withdrawNet")
+        .replace("{net}", money(withdrawal.net))
+        .replace("{pct}", formatPercentCompact(rules.traderSplit));
+
+  return (
+    <div className={`account-rules-withdraw ${tone}`}>
+      <span>{settled ? t("account.rules.withdrawAvailable") : t("account.rules.withdrawPending")}</span>
+      <strong>{money(withdrawal.amount)}</strong>
+      <p>
+        {basis.replace("{profit}", money(withdrawal.accountProfit)).replace("{cap}", money(withdrawal.cap))} {outcome}
+      </p>
+    </div>
+  );
+}
+
 export function AccountRuleStatusPanel({
   account,
   currency,
   status,
+  withdrawal,
 }: {
   account: TradingAccount;
   currency: Currency;
   status: AccountRuleStatus;
+  /** Solo fondeadas de un plan del catalogo y con la cuenta viva. */
+  withdrawal?: Withdrawal;
 }) {
   const { language, t } = useI18n();
 
@@ -141,6 +191,8 @@ export function AccountRuleStatusPanel({
           );
         })}
       </ul>
+
+      {withdrawal && <WithdrawalSummary currency={currency} ready={status.ready} withdrawal={withdrawal} />}
     </div>
   );
 }
@@ -151,10 +203,12 @@ export function AccountRuleStatusLine({
   account,
   currency,
   status,
+  withdrawal,
 }: {
   account: TradingAccount;
   currency: Currency;
   status: AccountRuleStatus;
+  withdrawal?: Withdrawal;
 }) {
   const t = useT();
   const pending = getPendingRuleCheck(status);
@@ -167,6 +221,14 @@ export function AccountRuleStatusLine({
         <span>
           {checkName(pending, t)}
           <strong>{missing || formatCheckValue(pending, currency, t)}</strong>
+        </span>
+      )}
+      {/* Lista para cobrar: lo siguiente que se quiere saber es cuanto. Solo entonces,
+          porque con algo pendiente esta linea ya esta ocupada diciendo que falta. */}
+      {status.ready && withdrawal && !withdrawal.belowMinimum && (
+        <span>
+          {t("account.rules.withdrawAvailable")}
+          <strong>{formatMoney(withdrawal.amount, currency)}</strong>
         </span>
       )}
     </p>

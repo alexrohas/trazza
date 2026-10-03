@@ -1086,8 +1086,8 @@ línea en el sitemap. Pesa 16 kB de JS más los 10 del catálogo. Lo que no es o
   100 $). Los dos con 500 $ de mínimo y un tope por payout, que en Pro es menor en el
   primero (1.000-3.000 $ y luego 1.500-3.500 $), y lo que llega tras el reparto del 90 %.
   Los topes viven en el catálogo (`withdrawal` en la fase fondeada), **pero no van a la
-  cuenta**: `applyCatalogPlan` no los copia y no hay columnas, así que la app aún no lo
-  enseña. Con reglas pendientes la cifra sale igual, como "Retiro al cumplir las reglas",
+  cuenta**: `applyCatalogPlan` no los copia y no hay columnas (la app los saca del plan,
+  ver "El retiro disponible en la app"). Con reglas pendientes la cifra sale igual, como "Retiro al cumplir las reglas",
   porque es lo que se viene a buscar; si ya cobró y no ha escrito el balance, no sale,
   porque el beneficio de antes del ciclo es desconocido. Al céntimo y hacia abajo.
   **Los topes se sacaron de los resultados de búsqueda de los artículos oficiales de
@@ -1110,6 +1110,33 @@ de comportamiento con Playwright (la URL restaura el cálculo, Intro añade un d
 numérico marcado, inglés…) y 64 combinaciones de disposición (la landing a 8 anchos y la
 calculadora a 8, en claro y oscuro y en los dos idiomas) sin nada fuera de la ventana, con
 DM Sans cargada de verdad (ver la trampa de las fuentes). **Falta verlo desplegado.**
+
+**El retiro disponible en la app**, el **3 de octubre de 2026**, justo después de la
+calculadora. Lo mismo, dentro: al pie del panel de reglas del Journal ("Retiro disponible
+715,00 €" con de dónde sale y lo que llega tras el reparto) y, en la tarjeta de Cuentas,
+junto a "Listo para cobrar". Sin esquema nuevo:
+
+- **El cálculo vive en `lib/withdrawal.ts`** y lo comparten la app y la calculadora
+  (`getWithdrawal`, sacado de `payoutCalculator.ts`). `getAccountWithdrawal` lo aplica a
+  una cuenta: beneficio = P&L del journal menos lo retirado **en bruto**, lo mismo que la
+  regla de beneficio para retirar, y "primer payout" = la cuenta no tiene ningún payout
+  apuntado.
+- **Los topes salen del plan que se deduce de la cuenta** (`matchCatalogPlan`), no de la
+  cuenta. Solo fondeadas de una firma del catálogo cuyas reglas coincidan con un plan: una
+  Pro con el 35 % de consistencia de antes de noviembre de 2025 no coincide y no enseña
+  cifra, que es lo correcto (un tope inventado parecería un dato). Para eso
+  `accountToInput` salió de `AccountsView` a `lib/accountInput.ts`.
+- **Con el MLL tocado no sale**, ni en el panel ni en la tarjeta. En la tarjeta solo sale
+  con la cuenta lista para cobrar: con algo pendiente esa línea ya está diciendo qué falta.
+- Los textos son los de la calculadora con "la firma" en vez de "Lucid", porque la app no
+  es solo de Lucid aunque hoy el catálogo sí.
+
+Verificado con 9 casos de `getAccountWithdrawal` con el código real en Deno (nombres de
+empresa escritos a mano, payouts de otra cuenta, el bruto descontado, la cuenta antigua
+que no coincide, evaluación y firma fuera del catálogo) y en la demo con la fondeada
+cambiada a una Flex 50K de Lucid a mano (deshecho y comprobado contra `HEAD`): por debajo
+del mínimo (0 € en gris) y lista para cobrar (715 € en verde), a 1280 y 375, en claro y
+oscuro y en los dos idiomas.
 
 ## Qué queda
 
@@ -1174,10 +1201,9 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   octubre de 2026**, ver "El primer arranque"; queda medir si lo terminan); una demo
   pública sin registro (el modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
   la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
-  checkout para códigos de creadores; y "cuánto puedes pedir ya" en la app: la calculadora
-  ya lo dice desde el 3 de octubre de 2026 y los topes están en el catálogo, pero la cuenta
-  no los guarda. Lo barato es deducirlo del plan (`matchCatalogPlan`) cuando la cuenta
-  sigue uno, sin columnas nuevas.
+  checkout para códigos de creadores; y ~~"cuánto puedes pedir ya" en la app~~ (**hecho el
+  3 de octubre de 2026**, ver "El retiro disponible en la app"; solo para cuentas que
+  siguen un plan del catálogo).
 - **Captar:** hablar uno a uno con los 6 enganchados que no pagaron (**hecho el 2 de
   octubre de 2026**: un correo corto a cada uno, firmado como "El equipo de Trazza",
   preguntando qué les faltó y ofreciendo un mes más de prueba si responden; quien acepte

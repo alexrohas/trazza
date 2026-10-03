@@ -43,6 +43,7 @@ import { Select } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus, type AccountRuleStatus } from "../lib/accountRules";
 import { findCatalogFirm } from "../lib/firmCatalog";
+import { getAccountWithdrawal, type Withdrawal } from "../lib/withdrawal";
 import { buildAreaPath, buildSmoothPath } from "../lib/chartPath";
 import { shareJournalCalendarImage } from "../lib/journalCalendarImage";
 import { stripHtmlToText } from "../lib/richText";
@@ -168,6 +169,7 @@ type JournalAccountOverview = {
   returnRatio: number | null;
   /** null si la cuenta no tiene ninguna regla de cobro configurada. */
   ruleStatus: AccountRuleStatus | null;
+  withdrawal?: Withdrawal;
   /** Si su empresa esta en el catalogo de planes: cambia lo que ofrece el aviso de "sin
    *  reglas" (elegir plan en vez de teclearlas). */
   inCatalog: boolean;
@@ -3595,7 +3597,13 @@ function JournalAccountOverviewPanel({
           la pregunta previa. Solo cuando la respuesta es "si" tiene sentido la de
           cuanto falta para cobrar. */}
       {overview.ruleStatus ? (
-        <AccountRuleStatusPanel account={overview.account} currency={currency} status={overview.ruleStatus} />
+        <AccountRuleStatusPanel
+          account={overview.account}
+          currency={currency}
+          status={overview.ruleStatus}
+          /* Con el MLL tocado la cuenta ya no tiene payout que pedir. */
+          withdrawal={overview.bar?.breachedFloor ? undefined : overview.withdrawal}
+        />
       ) : (
         /* Sin reglas, en vez de nada, una linea que dice que existen y como ponerlas.
            Capital propio queda fuera: ahi no hay firma que imponga reglas de cobro. */
@@ -3731,6 +3739,7 @@ function buildJournalAccountOverview({
        apuntado sigue teniendo consistencia y dias rentables), asi que se calculan
        aunque no haya barra que pintar. */
     ruleStatus: getAccountRuleStatus(account, entries, movements),
+    withdrawal: getAccountWithdrawal(account, firmName, entries, movements),
     inCatalog: Boolean(findCatalogFirm(firmName)),
   };
 }

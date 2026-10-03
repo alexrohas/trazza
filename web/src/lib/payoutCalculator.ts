@@ -1,6 +1,7 @@
 import { getAccountRuleStatus, type AccountRuleStatus } from "./accountRules";
-import { applyCatalogPlan, formatPlanLabel, type CatalogPlan, type WithdrawalRules } from "./firmCatalog";
+import { applyCatalogPlan, formatPlanLabel, type CatalogPlan } from "./firmCatalog";
 import { getAccountLossLimitPnl, getAccountProgress, localIsoDate } from "./metrics";
+import { getWithdrawal, type Withdrawal } from "./withdrawal";
 import type { JournalEntry, Movement, TradingAccount } from "../types";
 
 /**
@@ -34,23 +35,6 @@ export type CalculatorInput = {
 
 export type CalculatorTarget = { required: number; current: number; missing: number; met: boolean };
 
-/** Cuanto se puede pedir ahora en una fondeada, con el beneficio que hay en la cuenta. */
-export type CalculatorWithdrawal = {
-  rules: WithdrawalRules;
-  /** Beneficio que queda en la cuenta: balance menos tamaño. */
-  accountProfit: number;
-  /** El tope que aplica a este payout (el primero o los siguientes). */
-  cap: number;
-  firstPayout: boolean;
-  /** Lo que se puede pedir, en bruto: 0 si no llega al minimo. */
-  amount: number;
-  /** Lo que llega al trader de ese importe. */
-  net: number;
-  belowMinimum: boolean;
-  /** El tope recorta lo que permitiria el beneficio. */
-  capped: boolean;
-};
-
 export type CalculatorResult = {
   account: TradingAccount;
   /** Las reglas de cobro que comprueba el motor (null si el plan no tiene ninguna en esa
@@ -72,7 +56,7 @@ export type CalculatorResult = {
    *  que paso sin volver a calcularlo. */
   breach?: { close: number; floor: number };
   /** Solo en fondeada, con dias apuntados y sabiendo el balance si ya cobro. */
-  withdrawal?: CalculatorWithdrawal;
+  withdrawal?: Withdrawal;
   ready: boolean;
 };
 
@@ -195,29 +179,6 @@ export function evaluatePayoutCycle(input: CalculatorInput, today = new Date()):
       : undefined;
 
   return { account, rules: status, target, cycleProfit, balance, floor, breachedDay, breach, withdrawal, ready };
-}
-
-/* Abajo, al centimo: redondear al alto podria pasar del tope o del minimo por una
-   fraccion. El 1e-6 absorbe el error de coma flotante (0,29 * 100 = 28,999...). */
-const floorCents = (value: number) => Math.floor(value * 100 + 1e-6) / 100;
-
-export function getWithdrawal(rules: WithdrawalRules, accountProfit: number, firstPayout: boolean): CalculatorWithdrawal {
-  const allowed =
-    rules.profitShare !== undefined ? accountProfit * rules.profitShare : accountProfit - (rules.buffer ?? 0);
-  const cap = firstPayout ? rules.maxFirst : rules.maxLater;
-  const raw = Math.min(allowed, cap);
-  const belowMinimum = raw < rules.minimum;
-  const amount = belowMinimum ? 0 : floorCents(raw);
-  return {
-    rules,
-    accountProfit,
-    cap,
-    firstPayout,
-    amount,
-    net: floorCents(amount * rules.traderSplit),
-    belowMinimum,
-    capped: allowed > cap,
-  };
 }
 
 /* "1.234,5", "1,234.5", "-120", "+250 $": lo que la gente escribe de verdad. Con punto y

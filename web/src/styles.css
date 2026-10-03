@@ -4915,6 +4915,49 @@ label > span > .info-hint-wrap .info-hint svg {
   font-variant-numeric: tabular-nums;
 }
 
+/* El retiro disponible, al pie del panel: la cifra a la derecha como las de las reglas,
+   y debajo de que sale, en pequeno. La raya lo separa de la lista porque ya no es una
+   regla mas sino su resultado. Verde cuando ya se puede pedir, gris si no llega al
+   minimo. */
+.account-rules-withdraw {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-3xs) var(--space-sm);
+  margin-top: var(--space-3xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--line);
+}
+
+.account-rules-withdraw span {
+  color: var(--strong-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.account-rules-withdraw strong {
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-rules-withdraw.is-ready strong {
+  color: var(--positive);
+}
+
+.account-rules-withdraw.is-empty strong {
+  color: var(--muted);
+}
+
+.account-rules-withdraw p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
 /* Cuenta sin reglas: una linea y un boton en el mismo sitio y con el mismo corte que
    tendria el panel de reglas, para que se lea como "aqui iria esto" y no como un aviso
    de error. En gris y sin insignia a proposito: no le falta nada a la cuenta, le falta

@@ -9,6 +9,8 @@ import { RequiredLegend } from "./RequiredLegend";
 import { Select, type SelectOption } from "./Select";
 import { useConfirm } from "./confirm";
 import { getAccountRuleStatus } from "../lib/accountRules";
+import { accountToInput } from "../lib/accountInput";
+import { getAccountWithdrawal } from "../lib/withdrawal";
 import { formatSizeForName } from "../lib/accountSize";
 import { applyCatalogPlan, findCatalogFirm, formatCatalogDate, formatPlanLabel, matchCatalogPlan } from "../lib/firmCatalog";
 import {
@@ -379,29 +381,6 @@ export function AccountsView({
     if (nameTouched || !suggestedName) return;
     setDraft((current) => (current.name === suggestedName ? current : { ...current, name: suggestedName }));
   }, [nameTouched, suggestedName]);
-
-  const accountToInput = (account: TradingAccount): AccountInput => ({
-    firmId: account.firmId,
-    name: account.name,
-    status: account.status,
-    kind: account.kind,
-    drawdownType: account.drawdownType,
-    parentAccountId: account.parentAccountId,
-    size: account.sizeLabel || String(account.size || ""),
-    purchasedAt: account.purchasedAt,
-    phaseTarget: account.phaseTarget || undefined,
-    maxDrawdown: account.maxDrawdown || undefined,
-    dailyDrawdown: account.dailyDrawdown || undefined,
-    /* Sin `|| undefined` como los de arriba: estos ya llegan como undefined cuando no
-       hay regla, y ese o-logico convertiria un 0 legitimo en "sin regla" (un minimo de
-       dia rentable de 0 $ significa "cualquier dia en verde vale", que es un dato). */
-    consistencyPct: account.consistencyPct,
-    minProfitDays: account.minProfitDays,
-    profitDayMin: account.profitDayMin,
-    payoutMin: account.payoutMin,
-    withdrawMinProfit: account.withdrawMinProfit,
-    trailLockOffset: account.trailLockOffset,
-  });
 
   const resetForm = () => {
     setDraft(emptyAccountInput);
@@ -1059,6 +1038,9 @@ export function AccountsView({
           const kind = account.kind;
           const progress = getAccountProgress(account, journalEntries, movements);
           const ruleStatus = getAccountRuleStatus(account, journalEntries, movements);
+          const withdrawal = progress.breachedFloor
+            ? undefined
+            : getAccountWithdrawal(account, firmNameById.get(account.firmId), journalEntries, movements);
           const tradingDays = getAccountTradingDays(journalEntries, account.id);
           const totals = accountTotals.get(account.id) || { expenses: 0, income: 0 };
           /* La barra necesita al menos un extremo para tener escala. Una cuenta de
@@ -1179,7 +1161,9 @@ export function AccountsView({
                   detalle (el ciclo, las tres cifras) vive en el panel de cuenta del
                   Journal, que es donde se mira mientras se opera; aqui la tarjeta tiene
                   que seguir cabiendo en la rejilla. */}
-              {ruleStatus && <AccountRuleStatusLine account={account} currency={currency} status={ruleStatus} />}
+              {ruleStatus && (
+                <AccountRuleStatusLine account={account} currency={currency} status={ruleStatus} withdrawal={withdrawal} />
+              )}
 
               {/* El challenge ya cumple el objetivo. No se cambia nada solo: el boton
                   abre el alta de la fondeada ya precargada, y al guardarla esta cuenta
