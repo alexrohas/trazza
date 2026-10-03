@@ -50,8 +50,9 @@ despliegue anterior desde el panel de Vercel**, que reactiva el legado tal cual 
 - **React** (`web/`, Vite + TS): es el producto. `cd web && pnpm install && pnpm dev`
   (puerto 5174, ver `.claude/launch.json`). Ojo: el dev server sirve **la landing en `/`
   y la app en `/app/`**, igual que producción — esa equivalencia es deliberada, no la
-  "arregles" devolviendo la app a la raíz. `pnpm typecheck` antes de dar nada por bueno —
-  no hay tests, typecheck es la única red.
+  "arregles" devolviendo la app a la raíz. Antes de dar nada por bueno, `pnpm typecheck`
+  y `pnpm test` (Vitest); y si se tocan Edge Functions, `sh supabase/functions/_tests/run.sh`.
+  GitHub los pasa en cada PR (ver "Los tests en el repo").
 - **Legado** (`legacy/`: `app.html` + `app.js` + `styles.css` + `i18n.js`, más
   `index.html`, que fue la landing hasta septiembre de 2026). **Archivado, ya no se
   despliega ni se toca.** Está ahí para consultar cómo hacía algo la versión anterior.
@@ -1138,6 +1139,46 @@ cambiada a una Flex 50K de Lucid a mano (deshecho y comprobado contra `HEAD`): p
 del mínimo (0 € en gris) y lista para cobrar (715 € en verde), a 1280 y 375, en claro y
 oscuro y en los dos idiomas.
 
+**Los tests en el repo y la CI**, el **3 de octubre de 2026**. Hasta ese día cada tanda se
+verificaba con casos que ejecutaban el código real, pero desde el scratchpad de la sesión:
+se perdían con ella, y en el repo solo quedaba "verificado con N casos". Ahora están en el
+repo y GitHub los pasa en cada PR y en cada push a `main` (`.github/workflows/ci.yml`).
+
+- **Vitest** (`web/`, `corepack pnpm test`), junto al código como `*.test.ts`:
+  `payoutCalculator` (el motor de la calculadora y `parseAmount`), `withdrawal` (los topes
+  de los ocho planes, el primer payout y los siguientes, y que el mínimo del motor coincide
+  con el del retiro plan a plan), `db` (la carga por páginas con un `max_rows` de 1.000) y
+  `journalMedia` (el ciclo entero de las capturas en Storage). Se apoyan en
+  `src/test/fakeSupabase.ts`, un Supabase en memoria que imita lo que ya mordió: corta en
+  `max_rows` sin error y da error con columnas en camelCase. Está dentro de `src`, así que
+  el typecheck también los compila.
+- **Deno** (`sh supabase/functions/_tests/run.sh`) para las Edge Functions:
+  `stripe-webhook` (14 casos) y `delete-account` (5). Ejecutan el `index.ts` real
+  cambiando `npm:stripe` y `npm:@supabase/supabase-js` por los simulados de `mocks/` con un
+  import map por función, y atrapando el handler de `Deno.serve` (`harness.ts`). Van con
+  `--no-check` porque los simulados no tienen los tipos de Stripe; los tipos de las cuatro
+  funciones los comprueba `deno check` en la CI. La carpeta empieza por `_` para que el
+  CLI de Supabase no la despliegue como función.
+- **Comprobado que fallan cuando deben**, rompiendo el código a propósito: la paginación
+  (página de 2.000 con `max_rows` de 1.000), los topes del primer y segundo payout al revés,
+  no borrar ficheros de Storage y el webhook contestando 200 a una escritura fallida. Cada
+  rotura tumba al menos un test; después se deshizo y se comprobó contra `HEAD`.
+- `deno check` destapó un error de tipos que ya estaba en producción:
+  `create-portal-session` era la única función sin el `as Stripe.LatestApiVersion` que
+  llevan las otras tres. Solo afecta a los tipos (en ejecución es idéntico), así que no
+  hace falta redesplegarla.
+- `journalMedia.test.ts` trae un `FileReader` mínimo: la exportación lo usa para pasar las
+  imágenes a base64 y Node no lo tiene.
+
+**La regla desde ahora: lo que se verifica se queda en el repo como test**, no en el
+scratchpad. Faltan por reescribir los de antes de esta sesión, que se perdieron: los 30
+casos de reglas de cobro y payouts (`accountRules`, `metrics`, `firmCatalog`), los 10 de
+duplicados del extracto (`bankImport`), los del resumen por trimestre (`taxSummary`), la
+numeración de los resets (`nextResetName`) y las 208 comprobaciones de RLS en PGlite. Las
+comprobaciones de disposición con Playwright (anchos, temas, idiomas) tampoco están: piden
+el servidor de desarrollo y las fuentes de Google bajadas a mano (ver la trampa de las
+fuentes), y de momento siguen siendo de cada sesión.
+
 ## Qué queda
 
 **Del plan original no queda nada abierto**, y a 26 de agosto de 2026 tampoco quedan
@@ -1196,14 +1237,10 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   las pruebas del usuario del 1 de octubre; 2 de pago, 11 `lifetime` y 3 usuarios con
   trades en los últimos 7 días. Ya existen la landing nueva y la calculadora; lo que
   falta es difundirlas, y eso no es código.
-- **Tests en el repo (lo primero de solidez, acordado el 3 de octubre de 2026).** Cada
-  tanda se ha verificado con casos que ejecutan el código real (motor de reglas, retiro,
-  calculadora, extracto, webhook, capturas, RLS en PGlite), pero esos scripts viven en el
-  scratchpad de cada sesión y **se pierden con ella**: lo que queda en el repo es la
-  descripción de "verificado con N casos", no los casos. Pasarlos a tests que GitHub
-  ejecute en cada PR es lo que más reduce el riesgo de romper algo sin verlo. Detrás, por
-  este orden: un `ErrorBoundary` (hoy un error en una pantalla deja la app en blanco), los
-  avisos del asesor de Supabase y las rutas en la URL.
+- ~~**Tests en el repo**~~ (**hechos el 3 de octubre de 2026**, ver "Los tests en el
+  repo"; quedan por reescribir los de las tandas anteriores, que se perdieron). Lo
+  siguiente de solidez, por este orden: un `ErrorBoundary` (hoy un error en una pantalla
+  deja la app en blanco), los avisos del asesor de Supabase y las rutas en la URL.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
