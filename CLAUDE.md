@@ -14,6 +14,7 @@ build de Vite desde `web/`:
 | `/` | `web/index.html` | Landing pública |
 | `/app` | `web/app/index.html` | App React (SPA) |
 | `/legal.html` | `web/public/legal.html` | Aviso legal, privacidad, cookies, términos |
+| `/calculadora-lucid` | `web/calculadora-lucid/index.html` | Calculadora pública "¿Puedo cobrar ya en Lucid?" |
 
 `/app.html` **redirige a `/app`** (307, temporal a propósito) para que no se rompan los
 marcadores de los 40 usuarios ni las URLs de retorno de Stripe antiguas. No lo pases a
@@ -994,7 +995,8 @@ Decisiones que conviene no deshacer:
 - **Se guardan una a una, como el alta de varias de Cuentas**, y si una falla se para
   ahí: las guardadas salen de la lista (se descuentan de su grupo) y "Crear" reintenta solo
   las que faltan, sin duplicar. Las fondeadas no se enlazan a ninguna evaluación
-  (`parentAccountId`): eso sigue siendo cosa del botón de promocionar. `formatSizeForName` vive ya en `db.ts` y
+  (`parentAccountId`): eso sigue siendo cosa del botón de promocionar. `formatSizeForName`
+  vive en `lib/accountSize.ts` (salió de `db.ts` el 2 de octubre, ver la calculadora) y
   `formatCatalogDate` en `firmCatalog.ts`, compartidas con `AccountsView`.
 - **En un teléfono, la lista de firmas es de una columna**: a dos, al nombre le quedaban
   70px a 375 y "MyFundedFutures" se partía letra a letra. Los nombres llevan `<wbr>` en los
@@ -1008,9 +1010,106 @@ nombres y las reglas cargadas (Fondeada Flex 50K sin objetivo y con cinco días 
 Challenge Pro 100K con límite diario y sin consistencia), varias a la vez (3 iguales, y
 3 challenge + 2 fondeadas con sus reglas y los nombres de #2 a #5), un guardado que falla
 en la tercera de cinco y al reintentar crea solo las tres que faltaban, que "Tus trades" y
-"Extracto del banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar. **El guardado
-de verdad no se ha probado contra Supabase**: el primer alta real es lo primero que mirar
-(una empresa y sus cuentas con sus reglas, y nada duplicado).
+"Extracto del banco" abren su ventana, y que cerrar lo da por visto y no vuelve al recargar.
+
+**Y probado en producción el mismo 1 de octubre**, con un alta de prueba del usuario nada
+más desplegarlo: una sola "Lucid Trading" y siete cuentas guardadas en dos segundos (3 ×
+Flex 50K, Pro 50K y 3 × Flex 25K), con los nombres seguidos y las reglas de cada plan
+(objetivo, MLL, consistencia del 50 % en Flex, límite diario de 1.200 en la Pro 50K y el
+bloqueo de 100). Otra alta de esa noche, con un email que ya había tenido prueba, heredó la
+prueba caducada y **no vio el primer arranque**, que es lo correcto: para probarlo hace falta
+un email que no se haya usado nunca, y en Gmail un `+algo` o unos puntos no cuentan como
+nuevos (ver "Una prueba gratuita por persona"). Esas dos altas son de prueba: cuentan en
+cualquier métrica de usuarios hasta que el usuario las borre.
+
+**La landing nueva y la calculadora de Lucid**, el **2 de octubre de 2026**. Las dos salen
+de la auditoría: la landing seguía vendiendo "journal y finanzas" cuando lo que diferencia
+a Trazza se construyó después de ella, y no llegaba nadie (un visitante el primer día de
+Web Analytics, cero altas orgánicas desde agosto). La calculadora es la pieza para atraer:
+responde gratis y sin registro la pregunta que más busca quien tiene una fondeada de Lucid,
+y enseña al final lo que la app hace con cada cuenta.
+
+**La landing** pasa a decir "Sabe cuándo puedes cobrar y cuánto ganas de verdad". Bloques:
+hero → Cobrar (nuevo) → Finanzas → Journal → Producto → Precios → cierre, y el menú lleva
+Cobrar, Finanzas, Journal, Precios y Calculadora.
+
+- **El bloque Cobrar enseña una maqueta de `AccountRuleStatus`**, en HTML con los tokens
+  como el resto de maquetas: una Pro 50K fondeada con cifras que cuadran con el catálogo
+  (294 / 640 = 46 % de consistencia, +95 $). Las cuentas están en un comentario junto a
+  ella, y la calculadora con `?p=pro&s=50&f=f&d=294,100,120,126&b=52840` da exactamente
+  eso (es una de las comprobaciones). Si el catálogo de Pro cambia, la maqueta deja de
+  cuadrar: rehacer esas cuentas.
+- **Finanzas cuenta el extracto del banco**: cada movimiento lleva su origen (Revolut,
+  Wise, "A mano") y la cuarta cifra es el trimestre. Las filas comparten columnas con
+  `subgrid`, porque con cada fila a su aire "Wise" es más corto que "Revolut" y los
+  conceptos empezaban a alturas distintas; en un teléfono el origen pasa encima.
+- **`src/landing/site.ts` es lo común a las páginas estáticas**: idioma, tema, cabecera
+  fija, `inject()` de Analytics y, en desarrollo, el aviso de claves inglesas que faltan.
+  La landing y la calculadora lo llaman con su diccionario. Una página estática nueva es
+  un HTML, su entrada en `vite.config.ts` y una llamada a `setUpSite`.
+
+**La calculadora** (`/calculadora-lucid`) es una página estática como la landing, sin
+React: `web/calculadora-lucid/index.html` y `src/calculator/`, con su entrada en
+`vite.config.ts`, la misma reescritura en `vercel.json` y en el dev server que `/app`, y su
+línea en el sitemap. Pesa 16 kB de JS más los 10 del catálogo. Lo que no es obvio:
+
+- **No tiene reglas propias.** `lib/payoutCalculator.ts` monta con lo que escribe el
+  visitante una cuenta y un journal como los de la app y se los pasa al mismo motor
+  (`getAccountRuleStatus`, `getAccountProgress`). Los días se fechan hacia atrás desde
+  ayer, porque el MLL EOD no cuenta el día de hoy hasta su cierre. Así la app y la
+  calculadora no pueden dar dos respuestas a la misma pregunta, y revisar el catálogo
+  arregla las dos.
+- **Una fondeada que ya cobró solo pide el balance actual.** Todo lo anterior se resume
+  en un día más un payout a 0 ese mismo día: el ciclo empieza después, y lo que queda
+  para retirar sale balance − tamaño, que es lo que mide `withdraw_min_profit`. En ese
+  caso no se enseñan balance ni MLL, porque dependen de una historia que nadie ha escrito.
+- **El MLL se mira día a día**, con el que regía cada día, no solo al final: una cuenta que
+  lo rompió el día 3 y se recuperó el 10 estaba perdida desde el 3. Con cierres no se ve
+  el intradía, así que es una cota, y la letra pequeña lo dice. Con el MLL roto la lista
+  de reglas no sale: "+5.100 $ para el objetivo" se leería como algo pendiente en una
+  cuenta que ya no existe.
+- **El cálculo vive en la URL** (`p`, `s`, `f`, `d`, `b`, con `replaceState`): "Copiar
+  enlace" comparte el resultado exacto, que es la difusión que se busca en Discord y
+  Telegram.
+- **Las tablas de reglas salen del catálogo** (`applyCatalogPlan`), así que se
+  actualizan solas. **Las preguntas frecuentes no**: están escritas a mano, también en el
+  JSON-LD `FAQPage` del `<head>`, y citan cifras del catálogo (50 y 40 % de consistencia,
+  el 35 % de antes del 28 de noviembre de 2025, cinco días de 100 a 250 $, 500 $ de
+  mínimo, los 2.600 $ de la Pro 50K, el bloqueo en inicial + 100 $). Al revisar Lucid,
+  revisa también eso.
+- El dinero va en es-ES como la app, pero con "$" y no "US$" (`narrowSymbol`): no hay
+  otra divisa con la que confundirlo, y en un móvil esos dos caracteres partían en dos
+  líneas los nombres de las reglas. `parseAmount` acepta lo que la gente escribe de
+  verdad ("1.234,5", "1,234.5", "+250 $", el signo menos tipográfico).
+- **En una fondeada dice cuánto se puede retirar** (lo pidió el usuario el 3 de octubre
+  de 2026). Flex: el 50 % del beneficio de la cuenta; Pro: lo que pasa del colchón (MLL +
+  100 $). Los dos con 500 $ de mínimo y un tope por payout, que en Pro es menor en el
+  primero (1.000-3.000 $ y luego 1.500-3.500 $), y lo que llega tras el reparto del 90 %.
+  Los topes viven en el catálogo (`withdrawal` en la fase fondeada), **pero no van a la
+  cuenta**: `applyCatalogPlan` no los copia y no hay columnas, así que la app aún no lo
+  enseña. Con reglas pendientes la cifra sale igual, como "Retiro al cumplir las reglas",
+  porque es lo que se viene a buscar; si ya cobró y no ha escrito el balance, no sale,
+  porque el beneficio de antes del ciclo es desconocido. Al céntimo y hacia abajo.
+  **Los topes se sacaron de los resultados de búsqueda de los artículos oficiales de
+  payouts** (dos búsquedas que coinciden), no leyendo la página: desde el contenedor
+  `support.lucidtrading.com` está bloqueado. Si algún día se puede abrir, compruébalos.
+- Dice que Trazza no está afiliada a Lucid y enlaza a su soporte. Del nombre de la firma
+  no pasa: ni logo ni colores.
+
+De paso: `formatSizeForName`, `parseAccountSizeAmount` y `normalizeFlexibleNumber` salieron
+de `db.ts` a `lib/accountSize.ts`, porque `firmCatalog` arrastraba los 30 kB de `db.ts` a la
+calculadora. Y dos fallos que ya había en la landing a 320px: la cabecera se salía 54px (a
+359px o menos se va el botón de tema y el globo del idioma; queda "Crear cuenta" porque la
+cabecera se queda fija al bajar) y `.split` pedía 320px de mínimo en un contenedor de 288.
+
+Verificado con 13 casos del motor ejecutados con Deno (el de la maqueta, la rotura el día
+2, el bloqueo en 50.100 y un día de 149 $ que no cuenta como rentable), 26 más del retiro
+(los topes de los ocho planes, el primer payout y los siguientes, el mínimo, y que el
+mínimo que ya guardaba el motor coincide plan a plan con el nuevo cálculo), 21 comprobaciones
+de comportamiento con Playwright (la URL restaura el cálculo, Intro añade un día, texto no
+numérico marcado, inglés…) y 64 combinaciones de disposición (la landing a 8 anchos y la
+calculadora a 8, en claro y oscuro y en los dos idiomas) sin nada fuera de la ventana, con
+DM Sans cargada de verdad (ver la trampa de las fuentes). **Falta verlo desplegado.**
 
 ## Qué queda
 
@@ -1051,7 +1150,17 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
 - **Ver que la migración de capturas acaba.** A 1 de octubre de 2026 había 324 en base64;
   `select count(*) from journal_entries where operation_url like 'data:image%'` dice
   cuántas quedan. Las de usuarios con la prueba caducada no se migran solas (no pueden
-  subir), y eso es lo esperado.
+  subir), y eso es lo esperado. Esa noche quedaban 245 de 16 usuarios: 88 de 9 que no
+  pueden subir, y 157 de 7 que sí pueden pero no habían vuelto a abrir la app desde que se
+  encendió Storage. Se migran solas la próxima vez que entren.
+- **Las primeras renovaciones con el webhook v17**: las dos suscripciones de pago renuevan
+  el 8 y el 10 de octubre de 2026, y serán los primeros eventos reales que pasen por él.
+  Al día siguiente, su `current_period_end` tiene que haber saltado un mes; si no, mirar
+  los logs de `stripe-webhook`. El acceso no se pierde aunque falle (depende de `status`,
+  no de la fecha), así que el fallo sería silencioso.
+- **Tráfico**: desde que se encendió Web Analytics (1 de octubre) hasta esa noche, **un
+  visitante**, y con toda probabilidad era el propio usuario. Unida a las cero altas
+  orgánicas desde agosto, es la cifra que dice dónde está el problema: no llega nadie.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
@@ -1065,15 +1174,21 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   octubre de 2026**, ver "El primer arranque"; queda medir si lo terminan); una demo
   pública sin registro (el modo demo ya existe); emails de ciclo de vida con Brevo, que ya está contratado; rutas en
   la URL (el botón atrás saca de la app); un `ErrorBoundary`; `allow_promotion_codes` en el
-  checkout para códigos de creadores; y "cuánto puedes pedir ya" (Lucid limita cada payout
-  y el catálogo solo guarda mínimos).
-- **Captar:** hablar uno a uno con los 6 enganchados que no pagaron, los 2 de pago y los 11
-  `lifetime`; la tabla `waitlist_emails` tiene **20 emails con consentimiento** para avisos
-  de lanzamiento; creadores hispanos de fondeo de futuros, que ya viven de códigos de
-  descuento de Lucid (su programa de afiliados está cerrado); una calculadora gratuita de
-  "¿puedo cobrar ya?" sobre `accountRules` y `firmCatalog`; y rehacer el mensaje de la
-  landing, que sigue vendiendo "journal y finanzas" cuando todo lo que la diferencia
-  (reglas de cobro, Lucid, extracto del banco, resumen fiscal) se construyó después de ella.
+  checkout para códigos de creadores; y "cuánto puedes pedir ya" en la app: la calculadora
+  ya lo dice desde el 3 de octubre de 2026 y los topes están en el catálogo, pero la cuenta
+  no los guarda. Lo barato es deducirlo del plan (`matchCatalogPlan`) cuando la cuenta
+  sigue uno, sin columnas nuevas.
+- **Captar:** hablar uno a uno con los 6 enganchados que no pagaron (**hecho el 2 de
+  octubre de 2026**: un correo corto a cada uno, firmado como "El equipo de Trazza",
+  preguntando qué les faltó y ofreciendo un mes más de prueba si responden; quien acepte
+  se amplía cambiando su `trial_ends_at`, y solo cuando el usuario lo pida), los 2 de pago
+  y los 11 `lifetime`; los **20 emails con consentimiento** de `waitlist_emails` (**les
+  escribió el usuario el 2 de octubre de 2026**); creadores hispanos de fondeo de futuros,
+  que ya viven de códigos de descuento de Lucid (su programa de afiliados está cerrado);
+  ~~una calculadora gratuita de "¿puedo cobrar ya?"~~ y ~~rehacer el mensaje de la
+  landing~~ (**hechas el 2 de octubre de 2026**, ver "La landing nueva y la calculadora de
+  Lucid"). Lo que queda de eso es moverla: sin enlaces que lleguen a ella, una página nueva
+  no la encuentra nadie, y Web Analytics dirá si trae visitas y si alguna acaba en alta.
 
 ### Qué construir después (análisis de competencia, 17 de septiembre de 2026)
 
@@ -1269,6 +1384,18 @@ final del archivo, no junto a la regla base, y hay una razón concreta para eso.
 - **Activar Web Analytics en Vercel no basta: hace falta un despliegue nuevo.** La ruta
   `/_vercel/insights/script.js` solo existe en los despliegues hechos después de encenderlo;
   en los anteriores sigue dando 404.
+- **El Chromium del contenedor no llega a Google Fonts, y sin DM Sans las medidas
+  mienten.** `curl` sí sale (por el proxy), pero el navegador no, y la letra de reserva es
+  bastante más ancha: con ella, la cabecera de la landing se salía a 921px y con DM Sans
+  le sobraban 48. Antes de dar por roto algo que depende del ancho de un texto, baja la
+  hoja y los `.woff2` con `curl` (con un User-Agent de Chrome, o Google devuelve otro
+  formato) y sírvelos con `context.route` de Playwright. Comprueba que ha cargado con
+  `document.fonts.check('700 14px "DM Sans"')`.
+- **`pgrep -f` y `pkill -f` encuentran también la propia orden que los lanza.** La línea
+  de comandos del shell lleva el patrón dentro, así que `pkill -f serve-demo.mjs` (o un
+  `kill $(pgrep -f "vite --port 5181")`) mata el shell que lo ejecuta: sale con 144 y lo
+  que venía detrás no corre. Ancla el patrón a como empieza el proceso de verdad
+  (`pgrep -f "^node ../.claude/serve-demo.mjs"`) o busca con `ps -eo pid,args | grep`.
 
 Cada una de estas costó una ronda de depuración real. Están aquí para que la próxima
 sesión no vuelva a pisarlas.

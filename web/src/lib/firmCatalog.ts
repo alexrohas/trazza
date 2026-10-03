@@ -1,4 +1,4 @@
-import { parseAccountSizeAmount } from "./db";
+import { parseAccountSizeAmount } from "./accountSize";
 import type { Language } from "./i18n/context";
 import type { AccountInput, AccountKind, DrawdownType } from "../types";
 
@@ -24,6 +24,24 @@ import type { AccountInput, AccountKind, DrawdownType } from "../types";
  * compradas antes del cambio).
  */
 
+/**
+ * Cuanto se puede pedir en cada payout de una fondeada. No va a la cuenta (no hay
+ * columnas para esto y `applyCatalogPlan` no lo copia): de momento solo lo usa la
+ * calculadora publica.
+ */
+export type WithdrawalRules = {
+  /** Parte del beneficio de la cuenta que se puede retirar (Flex: la mitad). */
+  profitShare?: number;
+  /** Beneficio que no se puede retirar porque sujeta el MLL (Pro: MLL inicial + 100). */
+  buffer?: number;
+  minimum: number;
+  /** Tope de un payout: el primero y los siguientes (en Pro, el primero es menor). */
+  maxFirst: number;
+  maxLater: number;
+  /** Lo que llega al trader de cada payout; el resto es de la firma. */
+  traderSplit: number;
+};
+
 type PhaseRules = {
   /** Solo evaluacion: en una fondeada no hay objetivo de fase. */
   phaseTarget?: number;
@@ -36,6 +54,7 @@ type PhaseRules = {
   profitDayMin?: number;
   payoutMin?: number;
   withdrawMinProfit?: number;
+  withdrawal?: WithdrawalRules;
 };
 
 export type CatalogPlan = {
@@ -76,16 +95,28 @@ export type CatalogFirm = {
    inicial + 100 $, asi que con el retiro minimo de 500 $ hacen falta MLL + 600 $ de
    beneficio. Su limite diario fondeado pasa a ser el 60 % del mejor cierre una vez
    superado el balance de trail; eso no se puede expresar con un numero fijo y se carga el
-   de la primera fase. */
+   de la primera fase.
+
+   Topes por payout (anadidos el 3 de octubre de 2026, de los mismos articulos de payouts):
+   Flex retira el 50 % del beneficio hasta 1.000/2.000/2.500/3.000 $ por payout. Pro
+   retira lo que pasa del colchon, hasta 1.000/2.000/2.500/3.000 $ en el primer payout y
+   1.500/2.500/3.000/3.500 $ desde el segundo. Los dos reparten el 90 % al trader (las
+   Pro compradas antes del 28/11/2025 cobran el 100 % de los primeros 10.000 $; no se
+   carga, como el 35 % de consistencia). */
 const lucidSizes = [
-  { size: 25_000, target: 1_250, mll: 1_000, dailyLimit: undefined, flexDayMin: 100, proCycleGoal: 250 },
-  { size: 50_000, target: 3_000, mll: 2_000, dailyLimit: 1_200, flexDayMin: 150, proCycleGoal: 500 },
-  { size: 100_000, target: 6_000, mll: 3_000, dailyLimit: 1_800, flexDayMin: 200, proCycleGoal: 750 },
-  { size: 150_000, target: 9_000, mll: 4_500, dailyLimit: 2_700, flexDayMin: 250, proCycleGoal: 1_000 },
+  { size: 25_000, target: 1_250, mll: 1_000, dailyLimit: undefined, flexDayMin: 100, proCycleGoal: 250,
+    flexMax: 1_000, proMaxFirst: 1_000, proMaxLater: 1_500 },
+  { size: 50_000, target: 3_000, mll: 2_000, dailyLimit: 1_200, flexDayMin: 150, proCycleGoal: 500,
+    flexMax: 2_000, proMaxFirst: 2_000, proMaxLater: 2_500 },
+  { size: 100_000, target: 6_000, mll: 3_000, dailyLimit: 1_800, flexDayMin: 200, proCycleGoal: 750,
+    flexMax: 2_500, proMaxFirst: 2_500, proMaxLater: 3_000 },
+  { size: 150_000, target: 9_000, mll: 4_500, dailyLimit: 2_700, flexDayMin: 250, proCycleGoal: 1_000,
+    flexMax: 3_000, proMaxFirst: 3_000, proMaxLater: 3_500 },
 ];
 
 const LUCID_LOCK_OFFSET = 100;
 const LUCID_MIN_WITHDRAWAL = 500;
+const LUCID_TRADER_SPLIT = 0.9;
 
 const lucid: CatalogFirm = {
   id: "lucid",
@@ -122,6 +153,13 @@ const lucid: CatalogFirm = {
           profitDayMin: tier.flexDayMin,
           /* El retiro minimo, a un tope del 50 %, pide el doble de beneficio. */
           withdrawMinProfit: LUCID_MIN_WITHDRAWAL * 2,
+          withdrawal: {
+            profitShare: 0.5,
+            minimum: LUCID_MIN_WITHDRAWAL,
+            maxFirst: tier.flexMax,
+            maxLater: tier.flexMax,
+            traderSplit: LUCID_TRADER_SPLIT,
+          },
         },
       }),
     ),
@@ -147,6 +185,13 @@ const lucid: CatalogFirm = {
           /* El colchon (MLL + 100) no se puede retirar, y por encima hay que llegar al
              retiro minimo. */
           withdrawMinProfit: tier.mll + LUCID_LOCK_OFFSET + LUCID_MIN_WITHDRAWAL,
+          withdrawal: {
+            buffer: tier.mll + LUCID_LOCK_OFFSET,
+            minimum: LUCID_MIN_WITHDRAWAL,
+            maxFirst: tier.proMaxFirst,
+            maxLater: tier.proMaxLater,
+            traderSplit: LUCID_TRADER_SPLIT,
+          },
         },
       }),
     ),

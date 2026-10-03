@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Building2, Check, FileUp, Landmark, Minus, Plus, Wallet, X } from "lucide-react";
 import { Modal } from "./Modal";
-import { formatSizeForName } from "../lib/db";
+import { formatSizeForName } from "../lib/accountSize";
 import { applyCatalogPlan, findCatalogFirm, formatCatalogDate, formatPlanLabel } from "../lib/firmCatalog";
 import { getFirmLogo } from "../lib/firmLogos";
 import { useI18n, useT } from "../lib/i18n/context";

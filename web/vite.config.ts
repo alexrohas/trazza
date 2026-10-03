@@ -39,8 +39,12 @@ function appIndexRewrite(): Plugin {
            con un cast a la forma minima que se usa aqui. */
         const withUrl = req as { url?: string };
         const { url } = withUrl;
-        if (url === "/app" || (url !== undefined && url.startsWith("/app?"))) {
-          withUrl.url = `/app/${url.slice("/app".length)}`;
+        /* La calculadora de Lucid es otra pagina con su propio index.html y la misma
+           reescritura en vercel.json, asi que pasa por el mismo sitio. */
+        for (const page of ["/app", "/calculadora-lucid"]) {
+          if (url === page || (url !== undefined && url.startsWith(`${page}?`))) {
+            withUrl.url = `${page}/${url.slice(page.length)}`;
+          }
         }
         next();
       });
@@ -55,6 +59,7 @@ export default defineConfig({
       input: {
         landing: "index.html",
         app: "app/index.html",
+        calculator: "calculadora-lucid/index.html",
       },
     },
   },

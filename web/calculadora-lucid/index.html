@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>¿Puedo cobrar ya en Lucid? Calculadora de payout gratis · Trazza</title>
+    <meta
+      name="description"
+      content="Elige tu plan de Lucid Trading (Flex o Pro, de 25K a 150K), apunta el resultado de cada día y mira qué te falta para cobrar o para pasar la evaluación: consistencia, días rentables, beneficio para retirar y MLL. Gratis y sin registrarte."
+    />
+    <!-- Con www por lo mismo que la landing: es el dominio que sirve (ver el comentario del
+         canonical de index.html). -->
+    <link rel="canonical" href="https://www.trazzajournal.com/calculadora-lucid" />
+    <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
+    <link rel="icon" href="/favicon-96.png" sizes="96x96" type="image/png" />
+    <link rel="icon" href="/favicon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.trazzajournal.com/calculadora-lucid" />
+    <meta property="og:title" content="¿Puedo cobrar ya en Lucid? Calculadora de payout gratis" />
+    <meta
+      property="og:description"
+      content="Elige tu plan, apunta tus días y mira qué te falta para cobrar según las reglas oficiales de Lucid. Gratis y sin registrarte."
+    />
+    <meta property="og:site_name" content="Trazza" />
+    <meta property="og:image" content="https://www.trazzajournal.com/trazza-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://www.trazzajournal.com/trazza-og.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Baloo+2:wght@700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      /* El tema se decide antes del primer pintado, igual que en la landing y la app. */
+      (() => {
+        try {
+          const stored = localStorage.getItem("trazza:theme");
+          const theme = stored === "dark" || stored === "light" ? stored : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch {
+          /* Almacenamiento bloqueado: se queda en claro. */
+        }
+      })();
+    </script>
+
+    <!-- Las preguntas del final, en el formato que Google puede enseñar desplegadas en el
+         resultado de búsqueda. Tienen que decir lo mismo que el HTML de #preguntas: si
+         cambias una, cambia la otra. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "name": "Calculadora de payout de Lucid",
+            "url": "https://www.trazzajournal.com/calculadora-lucid",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "es",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "¿Cómo funciona la consistencia de Lucid?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Tu mejor día no puede pesar más que un porcentaje del beneficio: el 50 % en la evaluación Flex y el 40 % en las cuentas Pro fondeadas (35 % si la compraste antes del 28 de noviembre de 2025). Si tu mejor día pesa demasiado, hay que ganar más en otros días: ganarlo en ese mismo día sube las dos cifras a la vez."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Cuántos días rentables pide Lucid Flex para cobrar?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "En una Flex fondeada hacen falta cinco días rentables por ciclo, y un día solo cuenta si supera un mínimo que depende del tamaño: 100 $ en 25K, 150 $ en 50K, 200 $ en 100K y 250 $ en 150K."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Cuánto puedo retirar en Lucid?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Lucid pide retirar 500 $ como poco, y de cada payout te llega el 90 %. En Flex se retira la mitad del beneficio, así que hacen falta 1.000 $ en la cuenta, con un tope por payout de 1.000 $ (25K), 2.000 $ (50K), 2.500 $ (100K) o 3.000 $ (150K). En Pro se retira lo que pasa del colchón del MLL más 100 $ (en una 50K hacen falta 2.600 $ para el mínimo), con los mismos topes en el primer payout y 1.500, 2.500, 3.000 o 3.500 $ desde el segundo."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "¿Cómo funciona el MLL de Lucid?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Es un drawdown trailing de fin de día: sube con tu mejor cierre y se queda bloqueado cuando llega al balance inicial más 100 $."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body class="landing calculator">
+    <a class="skip-link" href="#calculadora" data-i18n="nav.skip">Saltar a la calculadora</a>
+
+    <header class="site-header">
+      <div class="shell site-header-inner">
+        <a class="brand" href="/" aria-label="Trazza">
+          <span class="wordmark">trazza</span>
+        </a>
+
+        <nav class="site-nav" data-i18n-aria="nav.sectionsAria" aria-label="Secciones">
+          <a href="#calculadora" data-i18n="nav.calculator">Calculadora</a>
+          <a href="#reglas" data-i18n="nav.rules">Reglas de Lucid</a>
+          <a href="#preguntas" data-i18n="nav.faq">Preguntas</a>
+          <a href="/" data-i18n="nav.trazza">Qué es Trazza</a>
+        </nav>
+
+        <div class="site-actions">
+          <button
+            class="icon-toggle is-wide"
+            type="button"
+            data-language-toggle
+            data-i18n-aria="nav.languageAria"
+            aria-label="Switch to English"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20a15.3 15.3 0 0 1 0-20Z" />
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+            <span data-language-label>ES</span>
+          </button>
+          <button
+            class="icon-toggle"
+            type="button"
+            data-theme-toggle
+            data-i18n-aria="nav.themeAria"
+            aria-label="Cambiar de tema"
+          ></button>
+          <a class="ghost-link" href="/app" data-i18n="nav.signin">Entrar</a>
+          <a class="primary-link" href="/app?mode=signup" data-i18n="nav.signup">Crear cuenta</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="calc-hero">
+        <div class="hero-ribbon" aria-hidden="true"></div>
+        <div class="shell calc-hero-inner">
+          <p class="kicker" data-i18n="hero.kicker">Calculadora gratuita · Lucid Trading</p>
+          <h1 data-i18n="hero.title">¿Puedo cobrar ya en Lucid?</h1>
+          <p class="lede" data-i18n="hero.lede">
+            Elige tu plan, apunta el resultado de cada día y te decimos qué te falta según las reglas
+            oficiales de Lucid. Sin registrarte.
+          </p>
+        </div>
+      </section>
+
+      <section class="calc-section" id="calculadora">
+        <div class="shell calc-layout">
+          <!-- El formulario funciona sin enviar nada: cada cambio recalcula en el navegador.
+               Lo que se escribe no sale de la página (ni siquiera a la analítica: solo queda
+               en la dirección, para poder compartir el cálculo). -->
+          <form class="calc-card calc-form" novalidate>
+            <fieldset class="calc-field">
+              <legend data-i18n="form.program">Programa</legend>
+              <div class="calc-segmented" data-group="program">
+                <button type="button" data-value="Flex" aria-pressed="true">Flex</button>
+                <button type="button" data-value="Pro" aria-pressed="false">Pro</button>
+              </div>
+            </fieldset>
+
+            <fieldset class="calc-field">
+              <legend data-i18n="form.size">Tamaño</legend>
+              <div class="calc-chips" data-group="size">
+                <button type="button" data-value="25000" aria-pressed="false">25K</button>
+                <button type="button" data-value="50000" aria-pressed="true">50K</button>
+                <button type="button" data-value="100000" aria-pressed="false">100K</button>
+                <button type="button" data-value="150000" aria-pressed="false">150K</button>
+              </div>
+            </fieldset>
+
+            <fieldset class="calc-field">
+              <legend data-i18n="form.phase">Fase</legend>
+              <div class="calc-segmented" data-group="phase">
+                <button type="button" data-value="challenge" aria-pressed="false" data-i18n="form.challenge">Evaluación</button>
+                <button type="button" data-value="funded" aria-pressed="true" data-i18n="form.funded">Fondeada</button>
+              </div>
+            </fieldset>
+
+            <div class="calc-field" data-funded-only>
+              <label class="calc-check">
+                <input type="checkbox" data-paid-before />
+                <span data-i18n="form.paidBefore">Ya he cobrado algún payout de esta cuenta</span>
+              </label>
+              <label class="calc-input-row" data-balance-row hidden>
+                <span data-i18n="form.balance">Balance actual de la cuenta ($)</span>
+                <input type="text" inputmode="decimal" autocomplete="off" data-balance placeholder="51.240" />
+              </label>
+            </div>
+
+            <div class="calc-field">
+              <p class="calc-label" id="calc-days-label" data-days-label>
+                Resultado de cada día desde el inicio ($)
+              </p>
+              <ol class="calc-days" data-days aria-labelledby="calc-days-label"></ol>
+              <button class="ghost-link calc-add" type="button" data-add-day>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                <span data-i18n="form.addDay">Añadir día</span>
+              </button>
+              <p class="calc-hint" data-i18n="form.hint">
+                El resultado neto de cada día cerrado, con comisiones. Los días sin operar no cuentan.
+              </p>
+            </div>
+          </form>
+
+          <section class="calc-card calc-result" aria-live="polite" data-result>
+            <div class="calc-verdict" data-verdict>
+              <strong data-verdict-title>Apunta tus días</strong>
+              <p data-verdict-text>Con el resultado de cada día te diremos qué te falta.</p>
+            </div>
+
+            <div class="calc-withdraw" data-withdraw hidden>
+              <span data-withdraw-label>Retiro disponible</span>
+              <strong data-withdraw-amount></strong>
+              <p data-withdraw-text></p>
+            </div>
+
+            <div class="calc-summary" data-summary hidden></div>
+
+            <ul class="rules-list calc-rules" data-rules hidden></ul>
+
+            <button class="ghost-link calc-share" type="button" data-share hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1" />
+                <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1" />
+              </svg>
+              <span data-share-label>Copiar enlace con tu cálculo</span>
+            </button>
+
+            <p class="calc-fine">
+              <span data-i18n="result.fine">
+                Reglas oficiales de Lucid revisadas el 21 de septiembre de 2026. Con cierres de día no
+                vemos lo que pasa dentro del día, y Lucid puede cambiar sus condiciones: confírmalas
+                siempre en su soporte. Trazza no está afiliada a Lucid Trading.
+              </span>
+              <a href="https://support.lucidtrading.com/" rel="noopener" target="_blank" data-i18n="result.source">
+                Soporte de Lucid
+              </a>
+            </p>
+
+            <div class="calc-cta">
+              <p data-i18n="result.ctaText">
+                Trazza hace esto solo con cada una de tus cuentas, a partir de tu journal. Y además
+                lleva tus gastos, tus payouts y el resumen por trimestre para tu gestoría.
+              </p>
+              <a class="primary-link is-block" href="/app?mode=signup" data-i18n="result.cta">
+                Prueba Trazza gratis 14 días
+              </a>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="block is-tinted" id="reglas">
+        <div class="shell">
+          <header class="block-head">
+            <p class="kicker" data-i18n="rules.kicker">Reglas de Lucid</p>
+            <h2 data-i18n="rules.title">Las reglas de cada plan, en una tabla.</h2>
+            <p class="block-lede" data-i18n="rules.lede">
+              Son las que usa la calculadora. Salen de las páginas de soporte de Lucid, no de blogs, y
+              llevan la fecha en que se revisaron.
+            </p>
+          </header>
+
+          <h3 class="calc-table-title" data-i18n="rules.challenge">Evaluación</h3>
+          <div class="calc-table-wrap">
+            <table class="calc-table" data-table="challenge"></table>
+          </div>
+
+          <h3 class="calc-table-title" data-i18n="rules.funded">Fondeada</h3>
+          <div class="calc-table-wrap">
+            <table class="calc-table" data-table="funded"></table>
+          </div>
+
+          <p class="calc-hint" data-i18n="rules.note">
+            El MLL es trailing de fin de día y se bloquea en el balance inicial más 100 $. El límite
+            diario de la Pro fondeada pasa a ser el 60 % del mejor cierre cuando se supera el balance
+            de trail; aquí sale el de la primera fase. En Pro, el máximo por payout sube a partir del
+            segundo.
+          </p>
+        </div>
+      </section>
+
+      <section class="block" id="preguntas">
+        <div class="shell calc-faq">
+          <header class="block-head">
+            <p class="kicker" data-i18n="faq.kicker">Preguntas</p>
+            <h2 data-i18n="faq.title">Lo que más se pregunta sobre cobrar en Lucid.</h2>
+          </header>
+
+          <details>
+            <summary data-i18n="faq.q1">¿Cómo funciona la consistencia de Lucid?</summary>
+            <p data-i18n="faq.a1">
+              Tu mejor día no puede pesar más que un porcentaje del beneficio: el 50 % en la evaluación
+              Flex y el 40 % en las cuentas Pro fondeadas (35 % si la compraste antes del 28 de
+              noviembre de 2025). Si tu mejor día pesa demasiado, hay que ganar más en otros días:
+              ganarlo en ese mismo día sube las dos cifras a la vez.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="faq.q2">¿Cuántos días rentables pide Lucid Flex para cobrar?</summary>
+            <p data-i18n="faq.a2">
+              En una Flex fondeada hacen falta cinco días rentables por ciclo, y un día solo cuenta si
+              supera un mínimo que depende del tamaño: 100 $ en 25K, 150 $ en 50K, 200 $ en 100K y
+              250 $ en 150K.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="faq.q3">¿Cuánto puedo retirar en Lucid?</summary>
+            <p data-i18n="faq.a3">
+              Lucid pide retirar 500 $ como poco, y de cada payout te llega el 90 %. En Flex se retira
+              la mitad del beneficio, así que hacen falta 1.000 $ en la cuenta, con un tope por payout
+              de 1.000 $ (25K), 2.000 $ (50K), 2.500 $ (100K) o 3.000 $ (150K). En Pro se retira lo que
+              pasa del colchón del MLL más 100 $ (en una 50K hacen falta 2.600 $ para el mínimo), con
+              los mismos topes en el primer payout y 1.500, 2.500, 3.000 o 3.500 $ desde el segundo.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="faq.q4">¿Cómo funciona el MLL de Lucid?</summary>
+            <p data-i18n="faq.a4">
+              Es un drawdown trailing de fin de día: sube con tu mejor cierre y se queda bloqueado
+              cuando llega al balance inicial más 100 $.
+            </p>
+          </details>
+          <details>
+            <summary data-i18n="faq.q5">¿Qué es Trazza?</summary>
+            <p data-i18n="faq.a5">
+              Un journal y control de finanzas para cuentas fondeadas de futuros. Hace este cálculo solo
+              con cada una de tus cuentas, a partir de lo que apuntas, y además lleva tus gastos, tus
+              payouts y el resumen por trimestre. 14 días gratis, sin tarjeta.
+            </p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell site-footer-inner">
+        <div class="footer-brand">
+          <span class="wordmark">trazza</span>
+          <p data-i18n="footer.tagline">Reglas de cobro, journal y finanzas para cuentas fondeadas.</p>
+        </div>
+        <nav class="footer-nav" data-i18n-aria="footer.navAria" aria-label="Enlaces">
+          <a href="/" data-i18n="footer.home">Inicio</a>
+          <a href="/legal.html#aviso-legal" data-i18n="footer.legal">Aviso legal</a>
+          <a href="/legal.html#privacidad" data-i18n="footer.privacy">Privacidad</a>
+          <a href="/legal.html#cookies" data-i18n="footer.cookies">Cookies</a>
+          <a href="/legal.html#terminos" data-i18n="footer.terms">Términos</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/calculator/calculator.ts"></script>
+  </body>
+</html>
