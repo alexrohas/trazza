@@ -948,7 +948,7 @@ editar sin tocar, cambiar, quitar, borrar, URL ajena, subida rechazada, migrar, 
 importar, 20 casos) y `delete-account` real con Stripe y Supabase simulados (9 casos: orden
 de borrado, 1.500 ficheros, fallos de Storage). Lo que falta es verlo con una cuenta real.
 
-**El primer arranque**, el **1 de octubre de 2026**. Quien entra con la cuenta vacía ya no
+**El primer arranque**, el **1 de octubre de 2026** ([alexrohas/trazza#4](https://github.com/alexrohas/trazza/pull/4)). Quien entra con la cuenta vacía ya no
 cae en un Panel lleno de ceros: un modal de tres pasos (`OnboardingModal.tsx`) le lleva de
 la empresa a una cuenta con sus reglas puestas y de ahí a meter sus operaciones. Existe por
 el dato de la auditoría: 26 de los 42 con la prueba caducada no crearon nada, y lo que
@@ -1022,7 +1022,7 @@ un email que no se haya usado nunca, y en Gmail un `+algo` o unos puntos no cuen
 nuevos (ver "Una prueba gratuita por persona"). Esas dos altas son de prueba: cuentan en
 cualquier métrica de usuarios hasta que el usuario las borre.
 
-**La landing nueva y la calculadora de Lucid**, el **2 de octubre de 2026**. Las dos salen
+**La landing nueva y la calculadora de Lucid**, el **2 de octubre de 2026** ([alexrohas/trazza#5](https://github.com/alexrohas/trazza/pull/5)). Las dos salen
 de la auditoría: la landing seguía vendiendo "journal y finanzas" cuando lo que diferencia
 a Trazza se construyó después de ella, y no llegaba nadie (un visitante el primer día de
 Web Analytics, cero altas orgánicas desde agosto). La calculadora es la pieza para atraer:
@@ -1111,7 +1111,7 @@ numérico marcado, inglés…) y 64 combinaciones de disposición (la landing a 
 calculadora a 8, en claro y oscuro y en los dos idiomas) sin nada fuera de la ventana, con
 DM Sans cargada de verdad (ver la trampa de las fuentes). **Falta verlo desplegado.**
 
-**El retiro disponible en la app**, el **3 de octubre de 2026**, justo después de la
+**El retiro disponible en la app**, el **3 de octubre de 2026** ([alexrohas/trazza#6](https://github.com/alexrohas/trazza/pull/6)), justo después de la
 calculadora. Lo mismo, dentro: al pie del panel de reglas del Journal ("Retiro disponible
 715,00 €" con de dónde sale y lo que llega tras el reparto) y, en la tarjeta de Cuentas,
 junto a "Listo para cobrar". Sin esquema nuevo:
@@ -1179,15 +1179,31 @@ pagan salían con cero accesos en 30 días aunque apuntaban trades.
   cuántas quedan. Las de usuarios con la prueba caducada no se migran solas (no pueden
   subir), y eso es lo esperado. Esa noche quedaban 245 de 16 usuarios: 88 de 9 que no
   pueden subir, y 157 de 7 que sí pueden pero no habían vuelto a abrir la app desde que se
-  encendió Storage. Se migran solas la próxima vez que entren.
+  encendió Storage. Se migran solas la próxima vez que entren. El 3 de octubre quedaban
+  169.
 - **Las primeras renovaciones con el webhook v17**: las dos suscripciones de pago renuevan
   el 8 y el 10 de octubre de 2026, y serán los primeros eventos reales que pasen por él.
   Al día siguiente, su `current_period_end` tiene que haber saltado un mes; si no, mirar
   los logs de `stripe-webhook`. El acceso no se pierde aunque falle (depende de `status`,
-  no de la fecha), así que el fallo sería silencioso.
+  no de la fecha), así que el fallo sería silencioso. **Hay un recordatorio programado**
+  (una Routine de claude.ai, `trig_019wvxaiwJWs2KcTqB14JHJV`) para el 10 de octubre de
+  2026 a las 12:00 UTC, que vuelve a la sesión del 2 de octubre a comprobarlo; se ve y se
+  borra desde la lista de Routines de claude.ai.
 - **Tráfico**: desde que se encendió Web Analytics (1 de octubre) hasta esa noche, **un
   visitante**, y con toda probabilidad era el propio usuario. Unida a las cero altas
   orgánicas desde agosto, es la cifra que dice dónde está el problema: no llega nadie.
+  **El 3 de octubre seguía igual**: 56 usuarios, y las dos altas desde la auditoría son
+  las pruebas del usuario del 1 de octubre; 2 de pago, 11 `lifetime` y 3 usuarios con
+  trades en los últimos 7 días. Ya existen la landing nueva y la calculadora; lo que
+  falta es difundirlas, y eso no es código.
+- **Tests en el repo (lo primero de solidez, acordado el 3 de octubre de 2026).** Cada
+  tanda se ha verificado con casos que ejecutan el código real (motor de reglas, retiro,
+  calculadora, extracto, webhook, capturas, RLS en PGlite), pero esos scripts viven en el
+  scratchpad de cada sesión y **se pierden con ella**: lo que queda en el repo es la
+  descripción de "verificado con N casos", no los casos. Pasarlos a tests que GitHub
+  ejecute en cada PR es lo que más reduce el riesgo de romper algo sin verlo. Detrás, por
+  este orden: un `ErrorBoundary` (hoy un error en una pantalla deja la app en blanco), los
+  avisos del asesor de Supabase y las rutas en la URL.
 - **Simplificar:** las 16 copias de la misma mutación en `useTrazzaData`; partir
   `JournalEntriesView.tsx` (4.455 líneas, 38 `useState` en un componente); cargar Tiptap
   bajo demanda (el bundle pasó de 692 kB a 1,23 MB, y el editor de notas con ProseMirror es buena parte);
